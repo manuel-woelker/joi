@@ -96,19 +96,19 @@ This keeps the abstraction grounded in working code instead of designing purely 
 
 # In what order should the work be implemented?
 
-- [ ] Remove the `Model` wrapper and use `DataType` directly as the schema root if that cleanup is still pending.
-- [ ] Add a `runtime` or similarly named module for the data access layer.
-- [ ] Define a `ValueKind` enum for the runtime value categories needed by templates.
-- [ ] Define a shared concrete `DataError` type for traversal and adapter failures.
-- [ ] Define a `DataSource` trait that exposes a borrowed root value.
-- [ ] Define a GAT-based `ValueView` trait for primitive access, field lookup, and list traversal.
-- [ ] Add a native in-memory value backend that implements the runtime traits and serves as the default test backend.
-- [ ] Add focused tests for primitive reads, field lookup, missing fields, type mismatches, and list traversal.
-- [ ] Expose the runtime API from the crate root.
-- [ ] Review the API for obvious adapter pain points relevant to future `serde`, `facet`, and user-provided implementations.
-- [ ] Run `cargo fmt --all`.
-- [ ] Run `cargo test --workspace --all-targets --all-features`.
-- [ ] Run `cargo clippy --workspace --all-targets --all-features -- -D warnings`.
+- [x] Remove the `Model` wrapper and use `DataType` directly as the schema root if that cleanup is still pending.
+- [x] Add a `runtime` or similarly named module for the data access layer.
+- [x] Define a `ValueKind` enum for the runtime value categories needed by templates.
+- [x] Define a shared concrete `DataError` type for traversal and adapter failures.
+- [x] Define a `DataSource` trait that exposes a borrowed root value.
+- [x] Define a GAT-based `ValueView` trait for primitive access, field lookup, and list traversal.
+- [x] Add a native in-memory value backend that implements the runtime traits and serves as the default test backend.
+- [x] Add focused tests for primitive reads, field lookup, missing fields, type mismatches, and list traversal.
+- [x] Expose the runtime API from the crate root.
+- [x] Review the API for obvious adapter pain points relevant to future `serde`, `facet`, and user-provided implementations.
+- [x] Run `cargo fmt --all`.
+- [x] Run `cargo test --workspace --all-targets --all-features`.
+- [x] Run `cargo clippy --workspace --all-targets --all-features -- -D warnings`.
 
 # How should this work be verified?
 
@@ -125,12 +125,23 @@ Tests should cover:
 
 The implementation should also pass the repository-wide formatting, test, and clippy checks.
 
+The implemented test coverage includes:
+
+- root access from a native data source
+- primitive access on matching and mismatching kinds
+- field lookup on structured data
+- missing field behavior through `Ok(None)`
+- list element traversal
+- stable type mismatch reporting through `DataError`
+
 # What assumptions, risks, or open questions should be called out?
 
 - Assume the first runtime API is read-only and does not attempt mutation or lazy writes.
 - Assume one shared concrete `DataError` is preferable for now, even if some backends could expose richer native errors.
 - Assume `DataType` and runtime value access should remain separate concepts.
-- Open question: whether list traversal should return a bespoke iterator wrapper, a callback-based visitor, or a boxed iterator for the first implementation.
-- Open question: whether missing fields should be represented purely as `Ok(None)` from field lookup or whether some contexts should produce explicit `DataError` values.
+- Resolved: list traversal uses a bespoke iterator type for the native backend instead of a boxed iterator or callback-based visitor.
+- Resolved: missing fields are represented as `Ok(None)` from `field(name)`, while type mismatches remain hard errors.
+- Resolved: runtime classification remains separate from the schema model through a small `ValueKind` enum using shared `PrimitiveType` vocabulary.
+- Scope note: the first `DataError` shape currently focuses on type mismatches plus a generic backend failure case, which is enough for the native backend but intentionally not exhaustive yet.
 - Risk: if the first trait shape overfits the native in-memory backend, later `serde` or `facet` adapters may feel awkward.
 - Risk: if template evaluation needs null-like semantics soon, `ValueKind` may need a `Null` variant earlier than currently planned.
