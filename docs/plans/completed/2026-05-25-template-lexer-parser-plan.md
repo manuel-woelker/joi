@@ -109,18 +109,18 @@ Parser APIs should return a typed result rather than panicking on malformed inpu
 
 # In what order should the work be implemented?
 
-- [ ] Add a small shared string module with a `SharedString` alias based on `Cow<str>`.
-- [ ] Add reusable source position and source span types for lexer and parser output.
-- [ ] Define AST nodes for templates, text segments, substitutions, and substitution paths, with spans on every AST type.
-- [ ] Update existing string-bearing syntax-facing structures to use `SharedString` where appropriate.
-- [ ] Implement a lexer module with an explicit `Text` and `Substitution` state machine that tokenizes template text and substitution syntax and produces token spans.
-- [ ] Add lexer error types and tests for valid input and malformed delimiter cases.
-- [ ] Implement a parser module that consumes lexer tokens and produces the AST.
-- [ ] Add parser error types and tests for valid templates, empty substitutions, malformed paths, and unmatched braces.
-- [ ] Expose a top-level parse entry point from the crate API.
-- [ ] Run `cargo fmt --all`.
-- [ ] Run `cargo test --workspace --all-targets --all-features`.
-- [ ] Run `cargo clippy --workspace --all-targets --all-features -- -D warnings`.
+- [x] Add a small shared string module with a `SharedString` alias based on `Cow<str>`.
+- [x] Add reusable source position and source span types for lexer and parser output.
+- [x] Define AST nodes for templates, text segments, substitutions, and substitution paths, with spans on every AST type.
+- [x] Update existing string-bearing syntax-facing structures to use `SharedString` where appropriate.
+- [x] Implement a lexer module with an explicit `Text` and `Substitution` state machine that tokenizes template text and substitution syntax and produces token spans.
+- [x] Add lexer error types and tests for valid input and malformed delimiter cases.
+- [x] Implement a parser module that consumes lexer tokens and produces the AST.
+- [x] Add parser error types and tests for valid templates, empty substitutions, malformed paths, and unmatched braces.
+- [x] Expose a top-level parse entry point from the crate API.
+- [x] Run `cargo fmt --all`.
+- [x] Run `cargo test --workspace --all-targets --all-features`.
+- [x] Run `cargo clippy --workspace --all-targets --all-features -- -D warnings`.
 
 # How should this work be verified?
 
@@ -138,12 +138,22 @@ Tests should cover:
 
 The implementation should also pass the normal repository-wide formatting, test, and clippy checks.
 
+The implemented test coverage includes:
+
+- plain text templates
+- templates with multiple substitutions
+- dotted substitution paths
+- exact spans on root nodes and child nodes
+- lexer failures for unexpected closing braces, invalid substitution characters, and unterminated substitutions
+- parser failures for empty substitutions, malformed paths, and surfaced lexer failures
+
 # What assumptions or open questions need to be called out?
 
 - Assume the first substitution grammar only supports identifiers and dotted field access, not arbitrary expressions.
 - Assume `{` and `}` are reserved syntax in templates for now, with no escaping mechanism in this first iteration.
 - Assume `SharedString` should be introduced as a lightweight alias first, not a custom wrapper type.
 - Assume explicit lexer state is the intended architecture, not just an implementation detail hidden inside helper methods.
-- Open question: whether the alias should be `Cow<'static, str>` or a lifetime-parameterized alias used internally by lexer and parser APIs.
-- Open question: whether plain text tokens should preserve borrowed source slices all the way into the AST or be normalized into owned strings during parsing.
+- Resolved: `SharedString` is implemented as a lifetime-parameterized `Cow<'a, str>` alias so lexer tokens and AST nodes can borrow directly from source input.
+- Resolved: plain text and identifier values are preserved as borrowed source slices through the lexer and parser pipeline.
+- Scope note: the lexer currently skips whitespace inside substitutions, so `{ user.name }` parses successfully even though whitespace rules were not explicitly called out in the original request.
 - Risk: if escaping rules are added later, lexer behavior around literal braces may need to change in ways that affect tests and AST assumptions.

@@ -37,6 +37,6 @@ mod tests {
     fn engine_render_returns_template_text() {
         let engine = TemplateEngine::new();
 
-        assert_eq!(engine.render("{{ name }}"), "{{ name }}");
+        assert_eq!(engine.render("{name}"), "{name}");
     }
 }
