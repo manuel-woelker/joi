@@ -1,25 +1,61 @@
 # joi-template
 
-**A dynamic typesafe template engine written in Rust**
+**A type-safe template engine written in Rust**
 
 ## Why yet another template engine?
 
-joi-template aims to fill a nice not sufficiently adressed:
+`joi-template` aims to cover a combination that is still oddly rare:
 
-1. **Templates are type checked**. If names or types used in the template don't match the data model, that errors surfaces when validating the template, not later when trying to get the output.
-2. **Templates are not fixed at compiled time**. Templates are not compiled into the program, but can be modified at any time without having to recompile.
+1. **Templates are type-checked**. If names or types used in a template do not match the data model, that should fail during validation, not later during rendering.
+2. **Templates stay dynamic**. Templates are not baked into a compiled binary and can be changed without recompiling the host application.
 
-All the template engines I could find satisfy either 1. or 2. but not both at the same time.
+Many template engines give you either dynamic templates or strong typing. The goal here is to support both.
 
-## How does it work?
+## What is the intended workflow?
 
-1. A data model is defined, which describes the data to be used for templating.
-2. The template files are parsed, and validated against this data model.
-3. Data is loaded from a file and validated against the data model.
-4. The loaded data is used to generate output files using the templates.
+1. Define a data model for the values a template may use.
+2. Parse template files and validate them against that model.
+3. Load input data and validate it against the same model.
+4. Render output files from validated templates and validated data.
+
+## What is the current status?
+
+The repository currently provides the basic project infrastructure:
+
+- a Rust workspace
+- a core library crate in `crates/joi-template`
+- a CLI crate in `crates/joi-template-cli`
+- local verification via `nao check`
+- CI and release workflow scaffolding
+
+The actual template engine is still in an early placeholder stage. The current codebase is the foundation, not the finished product.
+
+## How is the repository organized?
+
+```text
+crates/
+  joi-template/      Core library crate
+  joi-template-cli/  Command-line interface
+docs/                Project and contributor documentation
+```
+
+## How do I get started?
+
+```bash
+cargo build --workspace
+cargo test --workspace --all-targets --all-features
+```
+
+The current CLI accepts a single inline template string:
+
+```bash
+cargo run -p joi-template-cli -- 'Hello, {{ name }}'
+```
+
+Right now this returns the input unchanged. That is intentional until parsing, validation, and rendering behavior are implemented.
 
 ## What are the project priorities?
 
 1. **Excellent user experience**: This means great documentation and helpful error messages.
-2. **Understandable implementation**: To keep the implementation easy to maintain and debug, the implementation should be easy to understand.
+2. **Understandable implementation**: The code should stay easy to maintain, debug, and evolve.
 3. **Well tested**: To ensure well-behaved operation and prevent regressions, a thorough test suite should ensure correctness.

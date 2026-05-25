@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        build:
+          - name: default
+            rust_targets: ""
+            install_musl_tools: false
+            cargo_build_args: --workspace --all-targets --all-features --locked
+            run_checks: true
+          - name: musl
+            rust_targets: x86_64-unknown-linux-musl
+            install_musl_tools: true
+            cargo_build_args: --release --target x86_64-unknown-linux-musl -p joi-template-cli --locked
+            run_checks: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+          targets: ${{ matrix.build.rust_targets }}
+
+      - name: Install musl toolchain
+        if: ${{ matrix.build.install_musl_tools }}
+        run: sudo apt-get update && sudo apt-get install --yes musl-tools
+
+      - name: Cache cargo
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ matrix.build.name }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.build.name }}-cargo-
+            ${{ runner.os }}-cargo-
+
+      - name: Format check
+        if: ${{ matrix.build.run_checks }}
+        run: cargo fmt --all -- --check
+
+      - name: Build
+        run: cargo build ${{ matrix.build.cargo_build_args }}
+
+      - name: Clippy
+        if: ${{ matrix.build.run_checks }}
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+
+      - name: Tests
+        if: ${{ matrix.build.run_checks }}
+        run: cargo test --workspace --all-targets --all-features --locked
+
