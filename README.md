@@ -49,10 +49,36 @@ cargo test --workspace --all-targets --all-features
 The current CLI accepts a single inline template string:
 
 ```bash
-cargo run -p joi-template-cli -- 'Hello, {{ name }}'
+cargo run -p joi-template-cli -- 'Hello {name}'
 ```
 
 Right now this returns the input unchanged. That is intentional until parsing, validation, and rendering behavior are implemented.
+
+## What does the current API look like?
+
+The crate now has a runnable showcase example that demonstrates:
+
+- schema construction with `DataType`
+- template parsing for substitutions like `{user.name}`
+- runtime data traversal through the pluggable data access layer
+
+Run it with:
+
+```bash
+cargo run -p joi-template --example showcase
+```
+
+The example intentionally stops short of final rendering, because the current engine does not render parsed templates yet.
+
+## Where is the main example?
+
+The source of truth lives in:
+
+```text
+crates/joi-template/examples/showcase.rs
+```
+
+That example is backed by public helper functions in the library so it stays compile-checked and testable.
 
 ## What are the project priorities?
 

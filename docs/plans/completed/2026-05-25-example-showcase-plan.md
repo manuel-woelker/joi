@@ -83,15 +83,15 @@ This keeps the example grounded in real code and reduces documentation drift.
 
 # In what order should the work be implemented?
 
-- [ ] Choose a single example scenario that uses nested struct data, substitutions, and at least one list value.
-- [ ] Add a runnable example under `crates/joi-template/examples/` that demonstrates schema construction, template parsing, and runtime data traversal.
-- [ ] Make the example output explicit enough to show what succeeds today and what is still not implemented.
-- [ ] Update `README.md` with a concise example section or pointer to the runnable example.
-- [ ] Update or add supporting documentation under `docs/` if the example needs more narrative context than the README should carry.
-- [ ] Add a test or compile-check strategy that keeps the example from silently drifting out of date.
-- [ ] Run `cargo fmt --all`.
-- [ ] Run `cargo test --workspace --all-targets --all-features`.
-- [ ] Run `cargo clippy --workspace --all-targets --all-features -- -D warnings`.
+- [x] Choose a single example scenario that uses nested struct data, substitutions, and at least one list value.
+- [x] Add a runnable example under `crates/joi-template/examples/` that demonstrates schema construction, template parsing, and runtime data traversal.
+- [x] Make the example output explicit enough to show what succeeds today and what is still not implemented.
+- [x] Update `README.md` with a concise example section or pointer to the runnable example.
+- [x] Update or add supporting documentation under `docs/` if the example needs more narrative context than the README should carry.
+- [x] Add a test or compile-check strategy that keeps the example from silently drifting out of date.
+- [x] Run `cargo fmt --all`.
+- [x] Run `cargo test --workspace --all-targets --all-features`.
+- [x] Run `cargo clippy --workspace --all-targets --all-features -- -D warnings`.
 
 # How should this work be verified?
 
@@ -106,11 +106,19 @@ That should include:
 
 The usual repository formatting, test, and clippy checks should also stay green.
 
+The implemented verification now includes:
+
+- a runnable example at `crates/joi-template/examples/showcase.rs`
+- a library-level output test around the showcase helper
+- example compilation through the normal `cargo test --all-targets` flow
+- README and docs references that point to the actual runnable example
+
 # What assumptions, risks, or open questions should be called out?
 
 - Assume the first showcase example should prioritize honesty and clarity over breadth.
 - Assume the example should reflect current implemented capabilities, not the ideal final engine workflow.
-- Open question: whether the example should live only in `examples/` plus README, or whether it also deserves a dedicated `docs/` walkthrough.
-- Open question: whether a compile-only check is enough for the example, or whether it should also have an assertion-based test around its output.
+- Resolved: the example lives in `examples/`, with README and `docs/EXAMPLES.md` pointing to it.
+- Resolved: the example is backed by a library helper and assertion-based tests around its output, not only a compile check.
+- Scope note: the example uses public helper functions re-exported from the crate so it stays easy to call without documenting private internals.
 - Risk: if the example leans too hard on debug output, it may feel more like an internal test than user-facing guidance.
 - Risk: if the public API changes quickly, a README example can become stale unless the runnable example is treated as the source of truth.
