@@ -1,9 +1,11 @@
 use std::process::ExitCode;
 
+use joi_template::template_engine::render;
+
 fn main() -> ExitCode {
     match parse_args(std::env::args().skip(1)) {
         Ok(Command::Render(template)) => {
-            println!("{}", joi_template::render(&template));
+            println!("{}", render(&template));
             ExitCode::SUCCESS
         }
         Ok(Command::Help) => {
