@@ -1,6 +1,6 @@
 use std::slice::Iter;
 
-use crate::runtime::{DataError, NativeValue, NativeValueView};
+use crate::runtime::{DataError, NativeValue};
 
 /// An iterator over elements in a native list value.
 #[derive(Debug, Clone)]
@@ -17,11 +17,9 @@ impl<'a> NativeListIter<'a> {
 }
 
 impl<'a> Iterator for NativeListIter<'a> {
-    type Item = Result<NativeValueView<'a>, DataError>;
+    type Item = Result<&'a NativeValue, DataError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.iter
-            .next()
-            .map(|value| Ok(NativeValueView::new(value)))
+        self.iter.next().map(Ok)
     }
 }

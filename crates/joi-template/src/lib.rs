@@ -9,6 +9,5 @@ pub mod template_engine;
 
 pub use parser::{ParseError, parse_template};
 pub use runtime::{
-    DataError, DataSource, NativeDataSource, NativeListIter, NativeValue, NativeValueView,
-    ValueKind, ValueView,
+    DataError, DataSource, NativeDataSource, NativeListIter, NativeValue, ValueKind, ValueView,
 };

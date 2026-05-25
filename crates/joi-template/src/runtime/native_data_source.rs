@@ -1,4 +1,4 @@
-use crate::runtime::{DataError, DataSource, NativeValue, NativeValueView};
+use crate::runtime::{DataError, DataSource, NativeValue};
 
 /// A native in-memory data source for template evaluation.
 #[derive(Debug, Clone, PartialEq)]
@@ -16,12 +16,12 @@ impl NativeDataSource {
 
 impl DataSource for NativeDataSource {
     type Value<'a>
-        = NativeValueView<'a>
+        = &'a NativeValue
     where
         Self: 'a;
 
     fn root(&self) -> Result<Self::Value<'_>, DataError> {
-        Ok(NativeValueView::new(&self.root))
+        Ok(&self.root)
     }
 }
 
