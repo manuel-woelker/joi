@@ -59,8 +59,28 @@ Right now this returns the input unchanged. That is intentional until parsing, v
 The crate now has a runnable showcase example that demonstrates:
 
 - schema construction with `DataType`
+- schema import from a focused JSON Schema subset
 - template parsing for substitutions like `{user.name}`
 - runtime data traversal through the pluggable data access layer
+
+For example:
+
+```rust
+use joi_template::schema::DataType;
+
+let schema = DataType::from_json_schema_str(r#"
+{
+  "type": "object",
+  "properties": {
+    "name": { "type": "string" },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}
+"#)?;
+```
 
 Run it with:
 

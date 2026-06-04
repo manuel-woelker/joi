@@ -5,6 +5,8 @@ edition.workspace = true
 license.workspace = true
 description = "Core library for the joi-template project"
 
+[dependencies]
+serde_json = "1.0"
+
 [lib]
 path = "src/lib.rs"
-

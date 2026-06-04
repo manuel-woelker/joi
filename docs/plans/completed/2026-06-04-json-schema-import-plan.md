@@ -70,13 +70,26 @@ The failure assertions do not need to overfit exact prose, but they should verif
 
 # What needs to be verified?
 
-- [ ] Add data-driven primitive conversion tests.
-- [ ] Add nested object conversion tests.
-- [ ] Add list conversion tests for primitive and struct item schemas.
-- [ ] Add malformed JSON and non-object root tests.
-- [ ] Add unsupported feature tests for `$ref`, union `type`, tuple `items`, and validation-only constraints.
-- [ ] Add RustDoc coverage for the public JSON Schema import API.
-- [ ] Run `nao check`.
+- [x] Add data-driven primitive conversion tests.
+- [x] Add nested object conversion tests.
+- [x] Add list conversion tests for primitive and struct item schemas.
+- [x] Add malformed JSON and non-object root tests.
+- [x] Add unsupported feature tests for `$ref`, union `type`, tuple `items`, and validation-only constraints.
+- [x] Add RustDoc coverage for the public JSON Schema import API.
+- [x] Run `nao check`.
+
+# What was implemented?
+
+The completed implementation adds `serde_json`, `schema::JsonSchemaError`, and `DataType::from_json_schema_str` / `DataType::from_json_schema_value`.
+
+The importer supports primitive types, objects with `properties`, and arrays with a single item schema.
+Unsupported JSON Schema features fail explicitly with path-aware errors where practical.
+
+Verification completed with:
+
+- `cargo fmt --all`
+- `cargo test --workspace --all-targets --all-features`
+- `nao check`
 
 # What assumptions or risks need attention?
 
