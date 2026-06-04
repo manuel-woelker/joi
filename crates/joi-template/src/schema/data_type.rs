@@ -1,6 +1,6 @@
-use crate::model::{ListType, PrimitiveType, StructType};
+use crate::schema::{ListType, PrimitiveType, StructType};
 
-/// A type supported by the abstract model.
+/// A type supported by a template schema.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DataType {
     Primitive(PrimitiveType),

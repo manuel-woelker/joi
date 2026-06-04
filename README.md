@@ -6,16 +6,16 @@
 
 `joi-template` aims to cover a combination that is still oddly rare:
 
-1. **Templates are type-checked**. If names or types used in a template do not match the data model, that should fail during validation, not later during rendering.
+1. **Templates are type-checked**. If names or types used in a template do not match the schema, that should fail during validation, not later during rendering.
 2. **Templates stay dynamic**. Templates are not baked into a compiled binary and can be changed without recompiling the host application.
 
 Many template engines give you either dynamic templates or strong typing. The goal here is to support both.
 
 ## What is the intended workflow?
 
-1. Define a data model for the values a template may use.
-2. Parse template files and validate them against that model.
-3. Load input data and validate it against the same model.
+1. Define a schema for the values a template may use.
+2. Parse template files and validate them against that schema.
+3. Load input data and validate it against the same schema.
 4. Render output files from validated templates and validated data.
 
 ## What is the current status?

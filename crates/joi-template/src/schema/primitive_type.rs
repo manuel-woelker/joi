@@ -1,4 +1,4 @@
-/// Primitive scalar types supported by the abstract model.
+/// Primitive scalar types supported by a template schema.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PrimitiveType {
     String,

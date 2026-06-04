@@ -1,4 +1,4 @@
-use crate::model::DataType;
+use crate::schema::DataType;
 
 /// A homogeneous list type.
 #[derive(Debug, Clone, PartialEq, Eq)]

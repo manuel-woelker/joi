@@ -1,4 +1,4 @@
-use crate::model::DataType;
+use crate::schema::DataType;
 
 /// A named field in a structured type.
 #[derive(Debug, Clone, PartialEq, Eq)]

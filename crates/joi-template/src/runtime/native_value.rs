@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-use crate::model::PrimitiveType;
 use crate::runtime::{DataError, NativeListIter, ValueKind, ValueView};
+use crate::schema::PrimitiveType;
 
 /// A native in-memory runtime value for template data.
 #[derive(Debug, Clone, PartialEq)]

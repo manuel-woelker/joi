@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
-use joi_template::model::{DataType, Field, ListType, PrimitiveType, StructType};
 use joi_template::parse_template;
 use joi_template::runtime::{NativeDataSource, NativeValue};
+use joi_template::schema::{DataType, Field, ListType, PrimitiveType, StructType};
 use joi_template::template::Template;
 
 fn main() {

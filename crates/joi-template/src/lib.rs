@@ -1,7 +1,7 @@
 pub mod lexer;
-pub mod model;
 pub mod parser;
 pub mod runtime;
+pub mod schema;
 pub mod shared_string;
 pub mod showcase;
 pub mod source;

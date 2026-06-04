@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 use std::fmt::Write;
 
-use crate::model::{DataType, Field, ListType, PrimitiveType, StructType};
 use crate::parser::{ParseError, parse_template};
 use crate::runtime::{DataError, DataSource, NativeDataSource, NativeValue, ValueView};
+use crate::schema::{DataType, Field, ListType, PrimitiveType, StructType};
 use crate::template::Template;
 
 /// Builds the schema used by the crate showcase example.
@@ -149,7 +149,7 @@ impl From<DataError> for ShowcaseError {
 #[cfg(test)]
 mod tests {
     use super::{showcase_example_output, showcase_schema};
-    use crate::model::DataType;
+    use crate::schema::DataType;
 
     #[test]
     fn showcase_schema_uses_nested_structs_and_lists() {

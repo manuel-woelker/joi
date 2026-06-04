@@ -29,10 +29,10 @@ impl DataSource for NativeDataSource {
 mod tests {
     use std::collections::BTreeMap;
 
-    use crate::model::PrimitiveType;
     use crate::runtime::{
         DataError, DataSource, NativeDataSource, NativeValue, ValueKind, ValueView,
     };
+    use crate::schema::PrimitiveType;
 
     #[test]
     fn returns_the_root_value_view() {

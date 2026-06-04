@@ -1,6 +1,6 @@
 # What problem is this plan solving?
 
-`joi-template` now has a schema model and a template parser, but it still has no runtime data access layer.
+`joi-template` now has a schema and a template parser, but it still has no runtime data access layer.
 To evaluate substitutions like `{user.name}`, the engine needs a pluggable way to traverse structured data without hardwiring itself to a single backing implementation such as `serde_json::Value`, `facet`, or an internal map type.
 
 This plan defines the first data access layer using a GAT-based `ValueView` approach, while keeping error handling simple through one shared concrete error type.
@@ -68,7 +68,7 @@ The `ValueView` trait should support:
 
 If list iteration needs a helper wrapper to stay ergonomic with GATs and the shared error type, that wrapper should be introduced deliberately instead of fighting the type system with ad hoc boxing everywhere.
 
-# How should this fit with the existing schema model?
+# How should this fit with the existing schema?
 
 The runtime access layer should remain separate from `DataType`.
 
@@ -141,7 +141,7 @@ The implemented test coverage includes:
 - Assume `DataType` and runtime value access should remain separate concepts.
 - Resolved: list traversal uses a bespoke iterator type for the native backend instead of a boxed iterator or callback-based visitor.
 - Resolved: missing fields are represented as `Ok(None)` from `field(name)`, while type mismatches remain hard errors.
-- Resolved: runtime classification remains separate from the schema model through a small `ValueKind` enum using shared `PrimitiveType` vocabulary.
+- Resolved: runtime classification remains separate from the schema through a small `ValueKind` enum using shared `PrimitiveType` vocabulary.
 - Scope note: the first `DataError` shape currently focuses on type mismatches plus a generic backend failure case, which is enough for the native backend but intentionally not exhaustive yet.
 - Risk: if the first trait shape overfits the native in-memory backend, later `serde` or `facet` adapters may feel awkward.
 - Risk: if template evaluation needs null-like semantics soon, `ValueKind` may need a `Null` variant earlier than currently planned.

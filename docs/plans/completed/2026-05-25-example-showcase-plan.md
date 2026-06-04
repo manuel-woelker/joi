@@ -44,7 +44,7 @@ The example should use one coherent scenario such as generating a greeting or pr
 A good first example should include:
 
 - a root struct with nested fields
-- at least one list field in the schema or data model
+- at least one list field in the schema or runtime data
 - a template with multiple substitutions such as `{user.name}` and `{company.name}`
 - explicit parsing output or debug printing if full rendering is still not implemented
 - runtime field lookups that prove the traversal API is usable
