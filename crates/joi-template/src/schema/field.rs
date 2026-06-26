@@ -1,4 +1,5 @@
 use crate::schema::DataType;
+use crate::source::FileSpan;
 
 /// A named field in a structured type.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -7,6 +8,8 @@ pub struct Field {
     pub name: String,
     /// The type assigned to the field.
     pub field_type: DataType,
+    /// The source location of this field definition, when known.
+    pub span: Option<FileSpan>,
 }
 
 impl Field {
@@ -16,6 +19,14 @@ impl Field {
         Self {
             name: name.into(),
             field_type,
+            span: None,
         }
+    }
+
+    /// Returns this field definition with source location information attached.
+    #[must_use]
+    pub fn with_span(mut self, span: FileSpan) -> Self {
+        self.span = Some(span);
+        self
     }
 }

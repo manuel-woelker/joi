@@ -84,7 +84,7 @@ impl DataType {
     ///
     /// let schema = DataType::from_json_schema_str(r#"{ "type": "string" }"#)?;
     ///
-    /// assert_eq!(schema, DataType::Primitive(PrimitiveType::String));
+    /// assert_eq!(schema, DataType::primitive(PrimitiveType::String));
     /// # Ok::<(), joi_template::schema::JsonSchemaError>(())
     /// ```
     pub fn from_json_schema_str(source: &str) -> Result<Self, JsonSchemaError> {
@@ -108,7 +108,7 @@ impl DataType {
     ///
     /// let schema = DataType::from_json_schema_value(json!({ "type": "boolean" }))?;
     ///
-    /// assert_eq!(schema, DataType::Primitive(PrimitiveType::Boolean));
+    /// assert_eq!(schema, DataType::primitive(PrimitiveType::Boolean));
     /// # Ok::<(), joi_template::schema::JsonSchemaError>(())
     /// ```
     pub fn from_json_schema_value(value: Value) -> Result<Self, JsonSchemaError> {
@@ -151,10 +151,10 @@ fn convert_schema(value: &Value, path: &str) -> Result<DataType, JsonSchemaError
     };
 
     match type_name {
-        "string" => Ok(DataType::Primitive(PrimitiveType::String)),
-        "integer" => Ok(DataType::Primitive(PrimitiveType::Integer)),
-        "number" => Ok(DataType::Primitive(PrimitiveType::Float)),
-        "boolean" => Ok(DataType::Primitive(PrimitiveType::Boolean)),
+        "string" => Ok(DataType::primitive(PrimitiveType::String)),
+        "integer" => Ok(DataType::primitive(PrimitiveType::Integer)),
+        "number" => Ok(DataType::primitive(PrimitiveType::Float)),
+        "boolean" => Ok(DataType::primitive(PrimitiveType::Boolean)),
         "object" => convert_object_schema(object, path),
         "array" => convert_array_schema(object, path),
         unsupported => Err(JsonSchemaError::UnsupportedType {
@@ -170,7 +170,7 @@ fn convert_object_schema(
 ) -> Result<DataType, JsonSchemaError> {
     let properties_path = child_path(path, "properties");
     let Some(properties) = object.get("properties") else {
-        return Ok(DataType::Struct(StructType::new(Vec::new())));
+        return Ok(DataType::struct_(StructType::new(Vec::new())));
     };
 
     let properties = properties
@@ -188,7 +188,7 @@ fn convert_object_schema(
         })
         .collect::<Result<Vec<_>, _>>()?;
 
-    Ok(DataType::Struct(StructType::new(fields)))
+    Ok(DataType::struct_(StructType::new(fields)))
 }
 
 fn convert_array_schema(
@@ -212,7 +212,7 @@ fn convert_array_schema(
 
     let element_type = convert_schema(items, &items_path)?;
 
-    Ok(DataType::List(ListType::new(element_type)))
+    Ok(DataType::list(ListType::new(element_type)))
 }
 
 fn reject_unsupported_keywords(
@@ -248,19 +248,19 @@ mod tests {
         let cases = [
             (
                 json!({ "type": "string" }),
-                DataType::Primitive(PrimitiveType::String),
+                DataType::primitive(PrimitiveType::String),
             ),
             (
                 json!({ "type": "integer" }),
-                DataType::Primitive(PrimitiveType::Integer),
+                DataType::primitive(PrimitiveType::Integer),
             ),
             (
                 json!({ "type": "number" }),
-                DataType::Primitive(PrimitiveType::Float),
+                DataType::primitive(PrimitiveType::Float),
             ),
             (
                 json!({ "type": "boolean" }),
-                DataType::Primitive(PrimitiveType::Boolean),
+                DataType::primitive(PrimitiveType::Boolean),
             ),
         ];
 
@@ -286,11 +286,11 @@ mod tests {
 
         assert_eq!(
             DataType::from_json_schema_value(schema),
-            Ok(DataType::Struct(StructType::new(vec![Field::new(
+            Ok(DataType::struct_(StructType::new(vec![Field::new(
                 "user",
-                DataType::Struct(StructType::new(vec![
-                    Field::new("is_admin", DataType::Primitive(PrimitiveType::Boolean)),
-                    Field::new("name", DataType::Primitive(PrimitiveType::String)),
+                DataType::struct_(StructType::new(vec![
+                    Field::new("is_admin", DataType::primitive(PrimitiveType::Boolean)),
+                    Field::new("name", DataType::primitive(PrimitiveType::String)),
                 ])),
             )])))
         );
@@ -305,7 +305,7 @@ mod tests {
 
         assert_eq!(
             DataType::from_json_schema_value(schema),
-            Ok(DataType::List(ListType::new(DataType::Primitive(
+            Ok(DataType::list(ListType::new(DataType::primitive(
                 PrimitiveType::String
             ))))
         );
@@ -325,10 +325,10 @@ mod tests {
 
         assert_eq!(
             DataType::from_json_schema_value(schema),
-            Ok(DataType::List(ListType::new(DataType::Struct(
+            Ok(DataType::list(ListType::new(DataType::struct_(
                 StructType::new(vec![Field::new(
                     "label",
-                    DataType::Primitive(PrimitiveType::String),
+                    DataType::primitive(PrimitiveType::String),
                 )])
             ))))
         );

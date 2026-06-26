@@ -5,7 +5,7 @@ mod list_type;
 mod primitive_type;
 mod struct_type;
 
-pub use data_type::DataType;
+pub use data_type::{DataType, DataTypeKind};
 pub use field::Field;
 pub use json_schema::JsonSchemaError;
 pub use list_type::ListType;

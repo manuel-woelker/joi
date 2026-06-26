@@ -58,3 +58,24 @@ let schema = DataType::from_json_schema_str(r#"
 
 The importer currently supports primitive types, objects with `properties`, and arrays with a single item schema.
 Unsupported JSON Schema features such as `$ref`, union types, tuple arrays, and validation-only constraints fail explicitly instead of being ignored.
+
+# How can schema definitions point back to source files?
+
+Schema definitions can carry an optional `FileSpan`.
+Use `with_span` when constructing a schema from a file-backed source:
+
+```rust
+use joi_template::schema::{DataType, Field, PrimitiveType, StructType};
+use joi_template::source::FileSpan;
+
+let name = Field::new(
+    "name",
+    DataType::primitive(PrimitiveType::String).with_span(FileSpan::new("schema.json", 32..52)),
+)
+.with_span(FileSpan::new("schema.json", 20..52));
+
+let schema = DataType::struct_(StructType::new(vec![name]))
+    .with_span(FileSpan::new("schema.json", 0..64));
+```
+
+This keeps diagnostics able to point back to the schema definition that introduced a field or type.

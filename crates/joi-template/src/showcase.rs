@@ -9,24 +9,24 @@ use crate::template::Template;
 /// Builds the schema used by the crate showcase example.
 #[must_use]
 pub fn showcase_schema() -> DataType {
-    DataType::Struct(StructType::new(vec![
+    DataType::struct_(StructType::new(vec![
         Field::new(
             "user",
-            DataType::Struct(StructType::new(vec![
-                Field::new("name", DataType::Primitive(PrimitiveType::String)),
-                Field::new("is_admin", DataType::Primitive(PrimitiveType::Boolean)),
+            DataType::struct_(StructType::new(vec![
+                Field::new("name", DataType::primitive(PrimitiveType::String)),
+                Field::new("is_admin", DataType::primitive(PrimitiveType::Boolean)),
             ])),
         ),
         Field::new(
             "company",
-            DataType::Struct(StructType::new(vec![Field::new(
+            DataType::struct_(StructType::new(vec![Field::new(
                 "name",
-                DataType::Primitive(PrimitiveType::String),
+                DataType::primitive(PrimitiveType::String),
             )])),
         ),
         Field::new(
             "tags",
-            DataType::List(ListType::new(DataType::Primitive(PrimitiveType::String))),
+            DataType::list(ListType::new(DataType::primitive(PrimitiveType::String))),
         ),
     ]))
 }
@@ -149,12 +149,12 @@ impl From<DataError> for ShowcaseError {
 #[cfg(test)]
 mod tests {
     use super::{showcase_example_output, showcase_schema};
-    use crate::schema::DataType;
+    use crate::schema::DataTypeKind;
 
     #[test]
     fn showcase_schema_uses_nested_structs_and_lists() {
-        match showcase_schema() {
-            DataType::Struct(root) => assert_eq!(root.fields.len(), 3),
+        match showcase_schema().kind {
+            DataTypeKind::Struct(root) => assert_eq!(root.fields.len(), 3),
             other => panic!("expected struct root, got {other:?}"),
         }
     }

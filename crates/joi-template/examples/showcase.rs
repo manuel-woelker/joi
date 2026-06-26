@@ -17,24 +17,24 @@ fn main() {
 
 #[allow(dead_code)]
 fn schema() -> DataType {
-    DataType::Struct(StructType::new(vec![
+    DataType::struct_(StructType::new(vec![
         Field::new(
             "user",
-            DataType::Struct(StructType::new(vec![
-                Field::new("name", DataType::Primitive(PrimitiveType::String)),
-                Field::new("is_admin", DataType::Primitive(PrimitiveType::Boolean)),
+            DataType::struct_(StructType::new(vec![
+                Field::new("name", DataType::primitive(PrimitiveType::String)),
+                Field::new("is_admin", DataType::primitive(PrimitiveType::Boolean)),
             ])),
         ),
         Field::new(
             "company",
-            DataType::Struct(StructType::new(vec![Field::new(
+            DataType::struct_(StructType::new(vec![Field::new(
                 "name",
-                DataType::Primitive(PrimitiveType::String),
+                DataType::primitive(PrimitiveType::String),
             )])),
         ),
         Field::new(
             "tags",
-            DataType::List(ListType::new(DataType::Primitive(PrimitiveType::String))),
+            DataType::list(ListType::new(DataType::primitive(PrimitiveType::String))),
         ),
     ]))
 }
