@@ -1,0 +1,10 @@
+[package]
+name = "joi-template-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Command-line interface for the joi-template project"
+
+[dependencies]
+joi-template = { path = "../joi-template", version = "0.1.0" }
+
