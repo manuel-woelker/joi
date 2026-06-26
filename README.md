@@ -19,14 +19,16 @@ When one package uses another, that relationship should be explicit and document
 ## Repository Layout
 
 The layout is intentionally minimal while the monorepo is being bootstrapped.
+Libraries are grouped by ecosystem, with Rust libraries living under `libs-rust/`.
+
 As libraries are added, prefer a structure like:
 
 ```text
 .
-├── packages/      # Independent libraries
-├── docs/          # Repository-level documentation
-├── examples/      # Cross-package examples, if useful
-└── scripts/       # Shared maintenance scripts
+├── libs-rust/     # Independent Rust libraries
+├── docs/          # Repository-level documentation, if needed
+├── examples/      # Cross-library examples, if useful
+└── scripts/       # Shared maintenance scripts, if useful
 ```
 
 Package-specific documentation, examples, and tests should live with the package that owns them.
