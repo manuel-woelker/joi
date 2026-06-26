@@ -1,0 +1,40 @@
+# Build output
+/target
+/dist
+/build
+/out
+/coverage
+/.cache
+
+# Dependencies
+/node_modules
+
+# Local tooling and environments
+/.idea
+/.nao/*
+!/.nao/.gitignore
+!/.nao/nao.kdl
+/.codex
+/.cqs
+/.direnv
+.devenv*
+devenv.local.nix
+devenv.local.yaml
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
