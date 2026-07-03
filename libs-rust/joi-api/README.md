@@ -11,8 +11,9 @@ This project is at the infrastructure stage. The workspace and generator crate e
 ## How is the workspace organized?
 
 ```text
+api-docs-ui/          Standalone SolidJS API reference
 crates/
-  joi-api-generator/  Parser and source generation library
+  joi-api-generator/ Parser and source generation library
 ```
 
 ## How do I build and test it?
@@ -39,3 +40,36 @@ assert_eq!(output.document.unwrap().module.name.text, "ticket");
 
 Invalid source is reported through `output.diagnostics`. Ordinary syntax errors
 do not panic or return opaque Rust errors.
+
+## How do I develop the API documentation UI?
+
+The SolidJS documentation app lives in `api-docs-ui`. Install its dependencies,
+then run the API server and Vite in separate terminals:
+
+```bash
+cd api-docs-ui
+pnpm install
+pnpm dev:api
+```
+
+```bash
+cd api-docs-ui
+pnpm dev
+```
+
+Vite serves the UI at `http://localhost:5173` and proxies `/api.json` to the
+`joi-api-docs-server` binary at `127.0.0.1:8787`. The server reparses
+`examples/ticket.joi-api` for every request.
+
+## How do I build standalone documentation?
+
+```bash
+cd api-docs-ui
+pnpm build
+```
+
+The build produces only `api-docs-ui/dist/index.html`, with JavaScript and CSS
+inlined. Replace the single `__JOI_API_DATA__` marker in that file with the JSON
+documentation object before distribution. JSON embedded in an HTML script must
+escape `<` as `\u003c` so user-authored documentation cannot terminate the
+script element early.

@@ -1,0 +1,22 @@
+{
+  "name": "joi-api-docs-ui",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:api": "cargo run --manifest-path ../Cargo.toml --bin joi-api-docs-server -- ../examples/ticket.joi-api",
+    "build": "tsc --noEmit && vite build",
+    "check": "tsc --noEmit",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "solid-js": "^1.9.13"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vite": "^8.1.3",
+    "vite-plugin-singlefile": "^2.3.3",
+    "vite-plugin-solid": "^2.11.12"
+  }
+}
