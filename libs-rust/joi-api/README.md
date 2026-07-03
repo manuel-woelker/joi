@@ -21,3 +21,21 @@ crates/
 cargo build --workspace
 cargo test --workspace
 ```
+
+## How do I parse an API description?
+
+The generator crate exposes a parser that returns a fully spanned syntax tree
+and structured diagnostics:
+
+```rust
+use joi_api_generator::{parse, source_file::SourceFile};
+
+let source = SourceFile::new("ticket.joi-api", "module ticket;");
+let output = parse(&source);
+
+assert!(output.diagnostics.is_empty());
+assert_eq!(output.document.unwrap().module.name.text, "ticket");
+```
+
+Invalid source is reported through `output.diagnostics`. Ordinary syntax errors
+do not panic or return opaque Rust errors.

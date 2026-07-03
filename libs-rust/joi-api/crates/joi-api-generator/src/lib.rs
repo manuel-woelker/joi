@@ -1,4 +1,10 @@
-//! Source generation from abstract API descriptions.
-//!
-//! Parsing and code generation will be added as the API description format and
-//! target language contracts are defined.
+//! Parsing and source generation for JOI API descriptions.
+
+pub mod ast;
+pub mod diagnostic;
+pub mod lexer;
+pub mod parser;
+pub mod source_file;
+pub mod span;
+
+pub use parser::{ParseOutput, parse};

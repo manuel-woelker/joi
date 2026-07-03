@@ -9,6 +9,17 @@ pipeline. Tokens, names, literals, types, declarations, and diagnostics should
 all retain enough span information to produce useful errors without reparsing or
 searching the original text.
 
+# What was implemented?
+
+The plan was completed on 2026-07-03. `joi-api-generator` now contains focused
+source, span, diagnostic, AST, lexer, and parser modules. The parser returns a
+fully spanned syntax AST plus structured lexer and parser diagnostics, preserves
+comments as trivia, and performs bounded recovery at top-level, member, and
+parameter boundaries.
+
+The implementation stayed within the planned scope. Diagnostic rendering and
+semantic interpretation remain follow-up work.
+
 # What can be reused from Ocelot?
 
 The implementation should adapt the proven source-handling patterns in
@@ -277,15 +288,24 @@ cargo doc --workspace --no-deps
 
 # What concrete tasks track completion?
 
-- [ ] Add focused source, diagnostic, AST, lexer, and parser modules inside
+- [x] Add focused source, diagnostic, AST, lexer, and parser modules inside
       `joi-api-generator`.
-- [ ] Add tested span, source file, spanned value, and diagnostic primitives.
-- [ ] Define fully spanned tokens and trivia.
-- [ ] Implement and test the lexer for all current syntax and lexical failures.
-- [ ] Define the fully spanned document AST.
-- [ ] Implement and test recursive-descent parsing for all current declarations.
-- [ ] Add bounded recovery and structured parser diagnostics.
-- [ ] Add UTF-8, CRLF, EOF, malformed-input, and nested-type regression tests.
-- [ ] Parse `examples/ticket.joi-api` in an end-to-end fixture test.
-- [ ] Document public APIs and update workspace documentation.
-- [ ] Run formatting, tests, Clippy with warnings denied, and documentation builds.
+- [x] Add tested span, source file, spanned value, and diagnostic primitives.
+- [x] Define fully spanned tokens and trivia.
+- [x] Implement and test the lexer for all current syntax and lexical failures.
+- [x] Define the fully spanned document AST.
+- [x] Implement and test recursive-descent parsing for all current declarations.
+- [x] Add bounded recovery and structured parser diagnostics.
+- [x] Add UTF-8, CRLF, EOF, malformed-input, and nested-type regression tests.
+- [x] Parse `examples/ticket.joi-api` in an end-to-end fixture test.
+- [x] Document public APIs and update workspace documentation.
+- [x] Run formatting, tests, Clippy with warnings denied, and documentation builds.
+
+# What verification was completed?
+
+The completed implementation passed:
+
+- `cargo fmt --all --check`
+- `cargo test --workspace --all-targets` (16 tests)
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo doc --workspace --no-deps`
