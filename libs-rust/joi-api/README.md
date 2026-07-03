@@ -6,7 +6,7 @@ The intended model is similar to gRPC: an API is described independently of a pa
 
 ## What is the current status?
 
-This project is at the infrastructure stage. The workspace and generator crate exist, but the description format, parser, intermediate representation, and code generators have not been implemented yet.
+This project is at the infrastructure stage. The workspace and generator crate exist, and the initial [JOI API definition language draft](JOI-API-SPEC.md) documents the intended syntax. The parser, intermediate representation, and code generators have not been implemented yet.
 
 ## How is the workspace organized?
 
