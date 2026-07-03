@@ -1,0 +1,40 @@
+// A module provides the namespace used by generated code.
+module ticket;
+
+// Models describe data shared by API operations and generated clients.
+model Ticket {
+    // IDs are nominally typed so a Ticket ID cannot be mixed with another
+    // model's ID even when both use the same underlying representation.
+    id: id<Ticket>;
+    title: string;
+    description: string;
+}
+
+// Commands represent all-or-nothing operations that may change server state.
+// Operation errors are implicit in the API contract for now.
+// Callers provide each ticket ID in the batch passed to create.
+command create(
+    tickets: list<Ticket>,
+)
+
+// Queries represent read-only operations.
+// This operation returns tickets found for the requested IDs. Unknown IDs are
+// omitted from the result rather than causing the query to fail. Results retain
+// request order, and duplicate IDs produce at most one ticket at their first
+// occurrence.
+query get(
+    ticketIds: list<id<Ticket>>,
+) returns {
+    tickets: list<Ticket>;
+}
+
+// partialExcept makes every Ticket field optional except the named field.
+// Requiring id allows each patch to identify the ticket it updates.
+command update(
+    tickets: list<partialExcept<"id", Ticket>>,
+)
+
+// Deletion accepts a list of nominally typed ticket IDs.
+command delete(
+    ticketIds: list<id<Ticket>>,
+)
