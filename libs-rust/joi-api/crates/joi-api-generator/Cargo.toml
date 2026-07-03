@@ -1,0 +1,9 @@
+[package]
+name = "joi-api-generator"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Generate source code from abstract API descriptions"
+
+[lib]
+path = "src/lib.rs"

@@ -33,6 +33,10 @@ As libraries are added, prefer a structure like:
 
 Package-specific documentation, examples, and tests should live with the package that owns them.
 
+Current libraries:
+
+- [`libs-rust/joi-api`](libs-rust/joi-api/README.md) - Infrastructure for generating source code from abstract API descriptions.
+
 ## Working in This Repo
 
 - Keep changes scoped to the package or shared tooling they affect.
