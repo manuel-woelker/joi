@@ -41,6 +41,21 @@ assert_eq!(output.document.unwrap().module.name.text, "ticket");
 Invalid source is reported through `output.diagnostics`. Ordinary syntax errors
 do not panic or return opaque Rust errors.
 
+## How do I generate Rust code?
+
+The Rust generator emits models, nominal ID types, operation inputs and outputs,
+derived partial inputs, and a synchronous transport-neutral service trait:
+
+```bash
+cargo run --bin joi-api-generate-rust -- examples/ticket.joi-api
+cargo run --bin joi-api-generate-rust -- examples/ticket.joi-api --output ticket.rs
+```
+
+The generator validates built-in type arguments, model references, field names,
+and generated Rust name collisions before rendering. It uses the sibling
+`joi-template` library through an explicit path dependency because the workspaces
+are maintained independently.
+
 ## How do I develop the API documentation UI?
 
 The SolidJS documentation app lives in `api-docs-ui`. Install its dependencies,

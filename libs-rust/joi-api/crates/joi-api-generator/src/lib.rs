@@ -5,7 +5,9 @@ pub mod diagnostic;
 pub mod documentation;
 pub mod lexer;
 pub mod parser;
+pub mod rust_generation;
 pub mod source_file;
 pub mod span;
 
 pub use parser::{ParseOutput, parse};
+pub use rust_generation::{RustGenerationOutput, generate_rust};

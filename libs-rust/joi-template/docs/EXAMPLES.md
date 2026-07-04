@@ -22,14 +22,15 @@ The showcase is intentionally scoped to the features that exist today:
 - constructing runtime data with the built-in value representation
 - traversing runtime data through the pluggable data access layer
 
-It does not pretend that final template rendering is already implemented.
+It does not pretend that schema-validated rendering is already implemented.
 
-# Why does the example stop before rendering?
+# Why does the showcase stop before rendering?
 
 Because that is the current truth of the codebase.
 
-The parser and runtime access layer exist today.
-The final evaluation and rendering step does not yet exist in the same end-to-end form.
+The parser, runtime access layer, and basic string substitution renderer exist
+today. Schema validation and rendering are not yet connected in one end-to-end
+pipeline.
 
 The example is meant to help readers understand the current architecture without misleading them about the project status.
 

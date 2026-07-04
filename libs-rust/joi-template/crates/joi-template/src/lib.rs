@@ -16,3 +16,4 @@ pub use showcase::{
     ShowcaseError, showcase_data_source, showcase_example_output, showcase_schema,
     showcase_template,
 };
+pub use template_engine::{RenderError, TemplateEngine, render};

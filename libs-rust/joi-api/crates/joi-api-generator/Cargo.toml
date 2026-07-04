@@ -6,6 +6,7 @@ license.workspace = true
 description = "Generate source code from abstract API descriptions"
 
 [dependencies]
+joi-template = { path = "../../../joi-template/crates/joi-template" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tiny_http = "0.12"
@@ -16,3 +17,7 @@ path = "src/lib.rs"
 [[bin]]
 name = "joi-api-docs-server"
 path = "src/bin/joi_api_docs_server.rs"
+
+[[bin]]
+name = "joi-api-generate-rust"
+path = "src/bin/joi_api_generate_rust.rs"

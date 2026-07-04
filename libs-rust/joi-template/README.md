@@ -28,7 +28,9 @@ The repository currently provides the basic project infrastructure:
 - local verification via `nao check`
 - CI and release workflow scaffolding
 
-The actual template engine is still in an early placeholder stage. The current codebase is the foundation, not the finished product.
+The template engine supports parsing, escaped literal braces, and string
+substitution rendering through the runtime data-access layer. Schema validation,
+iteration, and conditional rendering are not implemented yet.
 
 ## How is the repository organized?
 
@@ -46,13 +48,27 @@ cargo build --workspace
 cargo test --workspace --all-targets --all-features
 ```
 
-The current CLI accepts a single inline template string:
+The current CLI accepts a single inline template string without external data:
 
 ```bash
-cargo run -p joi-template-cli -- 'Hello {name}'
+cargo run -p joi-template-cli -- 'Hello, world!'
 ```
 
-Right now this returns the input unchanged. That is intentional until parsing, validation, and rendering behavior are implemented.
+Library callers can render substitutions with `NativeDataSource`:
+
+```rust
+use std::collections::BTreeMap;
+use joi_template::{NativeDataSource, NativeValue, render};
+
+let data = NativeDataSource::new(NativeValue::struct_(BTreeMap::from([(
+    "name".to_owned(),
+    NativeValue::string("Ada"),
+)])));
+
+assert_eq!(render("Hello {name}!", &data)?, "Hello Ada!");
+```
+
+Use `{{` and `}}` for literal braces.
 
 ## What does the current API look like?
 
@@ -88,7 +104,9 @@ Run it with:
 cargo run -p joi-template --example showcase
 ```
 
-The example intentionally stops short of final rendering, because the current engine does not render parsed templates yet.
+The showcase still stops short of schema-validated rendering. Basic string
+substitution rendering is available, but schema validation is not connected to
+the rendering pipeline yet.
 
 ## Where is the main example?
 

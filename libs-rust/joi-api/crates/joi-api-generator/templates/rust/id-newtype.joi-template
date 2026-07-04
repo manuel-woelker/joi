@@ -1,0 +1,2 @@
+{docs}#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct {name}(pub String);

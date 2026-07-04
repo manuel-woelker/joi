@@ -1,12 +1,23 @@
 use std::process::ExitCode;
 
-use joi_template::template_engine::render;
+use std::collections::BTreeMap;
+
+use joi_template::{NativeDataSource, NativeValue, render};
 
 fn main() -> ExitCode {
     match parse_args(std::env::args().skip(1)) {
         Ok(Command::Render(template)) => {
-            println!("{}", render(&template));
-            ExitCode::SUCCESS
+            let data = NativeDataSource::new(NativeValue::struct_(BTreeMap::new()));
+            match render(&template, &data) {
+                Ok(output) => {
+                    println!("{output}");
+                    ExitCode::SUCCESS
+                }
+                Err(error) => {
+                    eprintln!("{error}");
+                    ExitCode::FAILURE
+                }
+            }
         }
         Ok(Command::Help) => {
             print_usage();

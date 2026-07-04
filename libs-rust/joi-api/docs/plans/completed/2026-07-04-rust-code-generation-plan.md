@@ -258,19 +258,44 @@ cargo doc --workspace --no-deps
 - Rust doc text may contain Markdown, but generated `///` lines must safely
   preserve blank lines and embedded newlines.
 - Extending `joi-template` is required. Pretending its current no-op renderer is
-  sufficient would move generation logic into ad hoc string concatenation and
-  defeat the stated architecture.
+sufficient would move generation logic into ad hoc string concatenation and
+defeat the stated architecture.
+
+# What was implemented?
+
+The plan was completed on 2026-07-04. `joi-template` now supports escaped
+literal braces and diagnostic-aware dotted string substitution rendering over
+its `DataSource` abstraction. JOI API now builds a validated Rust-specific IR,
+maps all currently specified types, and renders focused embedded templates into
+one deterministic Rust source file.
+
+The generator emits model and operation types, nominal string-backed IDs,
+operation-scoped `partialExcept` helpers, documentation, and a synchronous
+service trait. The `joi-api-generate-rust` binary supports stdout and
+`--output`, and the ticket fixture is golden-tested and compiled with `rustc`.
 
 # What concrete tasks track completion?
 
-- [ ] Implement escaped literal braces in `joi-template`.
-- [ ] Implement structured string/path substitution rendering in `joi-template`.
-- [ ] Add the explicit `joi-template` dependency and embedded Rust templates.
-- [ ] Implement Rust identifier conversion, keyword handling, and collision diagnostics.
-- [ ] Add the validated Rust-generation IR and built-in type validation.
-- [ ] Map models, IDs, collections, optionals, and `partialExcept` helpers to Rust.
-- [ ] Render all Rust source constructs through focused `joi-template` files.
-- [ ] Expose the diagnostic-aware Rust generation API.
-- [ ] Add the `joi-api-generate-rust` binary and document its usage.
-- [ ] Add golden, compile, CLI, diagnostic, span, and determinism tests.
-- [ ] Run all planned checks in both Rust workspaces.
+- [x] Implement escaped literal braces in `joi-template`.
+- [x] Implement structured string/path substitution rendering in `joi-template`.
+- [x] Add the explicit `joi-template` dependency and embedded Rust templates.
+- [x] Implement Rust identifier conversion, keyword handling, and collision diagnostics.
+- [x] Add the validated Rust-generation IR and built-in type validation.
+- [x] Map models, IDs, collections, optionals, and `partialExcept` helpers to Rust.
+- [x] Render all Rust source constructs through focused `joi-template` files.
+- [x] Expose the diagnostic-aware Rust generation API.
+- [x] Add the `joi-api-generate-rust` binary and document its usage.
+- [x] Add golden, compile, CLI, diagnostic, span, and determinism tests.
+- [x] Run all planned checks in both Rust workspaces.
+
+# What verification was completed?
+
+The completed implementation passed:
+
+- all 38 `joi-template` workspace tests
+- `joi-template` formatting, Clippy with warnings denied, and documentation
+- all 36 `joi-api` workspace tests
+- `joi-api` formatting, Clippy with warnings denied, and documentation
+- golden output comparison and deterministic repeated generation
+- compilation of generated ticket source with Rust 2024
+- CLI stdout and `--output` integration tests

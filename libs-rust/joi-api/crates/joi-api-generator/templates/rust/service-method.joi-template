@@ -1,0 +1,1 @@
+{docs}    fn {name}(&self, input: {input_type}) -> Result<{output_type}, Self::Error>;

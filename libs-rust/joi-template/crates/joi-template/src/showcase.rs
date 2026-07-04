@@ -120,7 +120,7 @@ pub fn showcase_example_output() -> Result<String, ShowcaseError> {
     .unwrap();
     writeln!(
         &mut output,
-        "- final rendering is still future work; the example stops short of producing rendered output"
+        "- schema-validated rendering is still future work; the example stops short of producing rendered output"
     )
     .unwrap();
 
@@ -168,6 +168,6 @@ mod tests {
         assert!(output.contains("- user.name = Ada"));
         assert!(output.contains("- company.name = Analytical Engines Ltd."));
         assert!(output.contains("- tags = math, logic, systems"));
-        assert!(output.contains("final rendering is still future work"));
+        assert!(output.contains("schema-validated rendering is still future work"));
     }
 }

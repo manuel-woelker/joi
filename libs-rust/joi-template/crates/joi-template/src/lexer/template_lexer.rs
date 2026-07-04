@@ -42,15 +42,34 @@ impl<'a> Lexer<'a> {
             Some('{') => {
                 let start = self.offset;
                 self.consume_char();
+                if self.current_char() == Some('{') {
+                    self.consume_char();
+                    return Ok(Token::new(
+                        SourceSpan::from_range(start, self.offset),
+                        TokenKind::Text(Cow::Owned("{".to_owned())),
+                    ));
+                }
                 self.state = LexerState::Substitution;
                 Ok(Token::new(
                     SourceSpan::from_range(start, self.offset),
                     TokenKind::LeftBrace,
                 ))
             }
-            Some('}') => Err(LexerError::UnexpectedClosingBrace {
-                span: SourceSpan::from_range(self.offset, self.offset + 1),
-            }),
+            Some('}') => {
+                let start = self.offset;
+                self.consume_char();
+                if self.current_char() == Some('}') {
+                    self.consume_char();
+                    Ok(Token::new(
+                        SourceSpan::from_range(start, self.offset),
+                        TokenKind::Text(Cow::Owned("}".to_owned())),
+                    ))
+                } else {
+                    Err(LexerError::UnexpectedClosingBrace {
+                        span: SourceSpan::from_range(start, self.offset),
+                    })
+                }
+            }
             Some(_) => {
                 let start = self.offset;
 
@@ -207,6 +226,23 @@ mod tests {
                 span: SourceSpan::from_range(3, 4),
             })
         );
+    }
+
+    #[test]
+    fn lexes_escaped_literal_braces_as_text() {
+        let mut lexer = Lexer::new("struct X {{ value: {value} }}");
+
+        assert_eq!(lexer.next_token(), Ok(token(0, 9, "struct X ".into())));
+        assert_eq!(lexer.next_token(), Ok(token(9, 11, "{".into())));
+        assert_eq!(lexer.next_token(), Ok(token(11, 19, " value: ".into())));
+        assert_eq!(lexer.next_token(), Ok(token(19, 20, TokenKind::LeftBrace)));
+        assert_eq!(
+            lexer.next_token(),
+            Ok(token(20, 25, TokenKind::Identifier("value".into())))
+        );
+        assert_eq!(lexer.next_token(), Ok(token(25, 26, TokenKind::RightBrace)));
+        assert_eq!(lexer.next_token(), Ok(token(26, 27, " ".into())));
+        assert_eq!(lexer.next_token(), Ok(token(27, 29, "}".into())));
     }
 
     #[test]
