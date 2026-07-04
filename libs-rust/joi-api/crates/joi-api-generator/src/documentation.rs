@@ -161,10 +161,10 @@ mod tests {
     fn converts_parsed_document_to_documentation_shape() {
         let source = SourceFile::new(
             "ticket.joi-api",
-            r#"/// Ticket management.
+            r#"/// Issue tracking.
 module ticket;
 // Internal implementation note.
-/// A support ticket.
+/// A work item representing a bug, task, or issue.
 model Ticket {
     /// Stable identifier.
     id: id<Ticket>;
@@ -185,11 +185,11 @@ query get(
         assert_eq!(documentation.module, "ticket");
         assert_eq!(
             documentation.description.as_deref(),
-            Some("Ticket management.")
+            Some("Issue tracking.")
         );
         assert_eq!(
             documentation.models[0].description.as_deref(),
-            Some("A support ticket.")
+            Some("A work item representing a bug, task, or issue.")
         );
         assert_eq!(documentation.operations[0].kind, ApiOperationKind::Query);
         assert_eq!(

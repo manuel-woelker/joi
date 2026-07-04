@@ -29,7 +29,7 @@ Update `JOI-API-SPEC.md` to distinguish ordinary and documentation comments:
 ```joi-api
 // Internal note; not published.
 
-/// A support ticket submitted by a user.
+/// A work item representing a bug, task, or issue.
 ///
 /// Tickets use caller-provided identifiers.
 model Ticket {

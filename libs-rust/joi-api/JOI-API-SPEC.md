@@ -38,7 +38,7 @@ block that attaches to the module, model, field, command, query, parameter, or
 return field immediately following it.
 
 ```joi-api
-/// A support ticket submitted by a user.
+/// A work item representing a bug, task, or issue.
 ///
 /// Tickets use caller-provided identifiers.
 model Ticket {

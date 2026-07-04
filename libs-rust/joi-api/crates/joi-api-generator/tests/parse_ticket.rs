@@ -66,10 +66,13 @@ fn documentation_is_attached_with_spans_and_preserved_as_trivia() {
     };
     let documentation = ticket.documentation.as_ref().unwrap();
 
-    assert_eq!(documentation.text, "A support ticket submitted by a user.");
+    assert_eq!(
+        documentation.text,
+        "A work item representing a bug, task, or issue."
+    );
     assert_eq!(
         source.span_text(documentation.span),
-        Some("/// A support ticket submitted by a user.")
+        Some("/// A work item representing a bug, task, or issue.")
     );
     assert!(
         document.declarations[0]
@@ -78,7 +81,7 @@ fn documentation_is_attached_with_spans_and_preserved_as_trivia() {
             .any(|piece| {
                 source
                     .span_text(piece.span)
-                    .is_some_and(|text| text.contains("A support ticket"))
+                    .is_some_and(|text| text.contains("A work item"))
             })
     );
 }
