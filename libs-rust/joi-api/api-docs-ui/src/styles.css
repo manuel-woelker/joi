@@ -51,7 +51,7 @@ a {
   overflow-y: auto;
   border-right: 1px solid var(--line);
   background: #fcfcfd;
-  padding: 22px 18px;
+  padding: 16px 14px;
 }
 
 .brand {
@@ -89,7 +89,7 @@ a {
 }
 
 .search {
-  margin: 24px 0 10px;
+  margin: 16px 0 6px;
 }
 
 .search input {
@@ -110,7 +110,7 @@ a {
 }
 
 .nav-group {
-  margin-top: 22px;
+  margin-top: 14px;
 }
 
 .nav-group h2 {
@@ -128,12 +128,12 @@ a {
 
 .nav-links a {
   display: flex;
-  min-height: 34px;
+  min-height: 30px;
   align-items: center;
   gap: 8px;
   overflow: hidden;
   border-radius: 5px;
-  padding: 7px 8px;
+  padding: 5px 8px;
   color: #4d5562;
   font-size: 13px;
   text-decoration: none;
@@ -168,7 +168,7 @@ a {
 
 .sidebar-meta {
   margin-top: auto;
-  padding: 24px 8px 0;
+  padding: 16px 8px 0;
   color: #8a92a0;
   font-size: 11px;
 }
@@ -176,12 +176,12 @@ a {
 .content {
   width: min(1080px, calc(100% - 264px));
   margin-left: 264px;
-  padding: 58px clamp(28px, 6vw, 84px) 96px;
+  padding: 32px clamp(24px, 4vw, 56px) 56px;
 }
 
 .overview {
-  min-height: 210px;
   border-bottom: 1px solid var(--line);
+  padding-bottom: 24px;
 }
 
 .eyebrow {
@@ -202,7 +202,7 @@ a {
 
 .overview-description {
   max-width: 680px;
-  margin: 18px 0 0;
+  margin: 10px 0 0;
   color: var(--muted);
   font-size: 15px;
   line-height: 1.6;
@@ -211,8 +211,8 @@ a {
 
 .overview-stats {
   display: flex;
-  gap: 24px;
-  margin-top: 34px;
+  gap: 18px;
+  margin-top: 16px;
   color: var(--muted);
   font-size: 13px;
 }
@@ -222,11 +222,11 @@ a {
 }
 
 .reference-section {
-  padding-top: 58px;
+  padding-top: 32px;
 }
 
 .section-heading {
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
 .section-heading h2 {
@@ -237,7 +237,7 @@ a {
 .model-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
-  gap: 16px;
+  gap: 12px;
 }
 
 .model-card {
@@ -248,9 +248,8 @@ a {
 }
 
 .model-card > header {
-  min-height: 118px;
   border-bottom: 1px solid #e8eaf0;
-  padding: 20px;
+  padding: 14px 16px;
 }
 
 .model-card h3,
@@ -259,13 +258,13 @@ a {
 }
 
 .model-card h3 {
-  margin: 9px 0 0;
+  margin: 5px 0 0;
   font-size: 19px;
 }
 
 .model-card header p,
 .operation-header p {
-  margin: 8px 0 0;
+  margin: 5px 0 0;
   color: var(--muted);
   font-size: 13px;
   line-height: 1.55;
@@ -298,10 +297,10 @@ a {
 .field-row {
   display: grid;
   grid-template-columns: minmax(110px, 1fr) minmax(120px, auto);
-  gap: 18px;
+  gap: 12px;
   align-items: start;
   border-bottom: 1px solid #eceef2;
-  padding: 13px 20px;
+  padding: 9px 16px;
 }
 
 .field-row:last-child {
@@ -354,14 +353,14 @@ a {
 .operation {
   scroll-margin-top: 24px;
   border-bottom: 1px solid var(--line);
-  padding: 26px 0 30px;
+  padding: 18px 0 20px;
 }
 
 .operation-header {
   display: grid;
-  grid-template-columns: 92px 1fr;
+  grid-template-columns: 76px 1fr;
   align-items: baseline;
-  gap: 8px 16px;
+  gap: 5px 12px;
 }
 
 .operation-header h3 {
@@ -376,8 +375,8 @@ a {
 .operation-signature {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 28px;
-  margin: 24px 0 0 108px;
+  gap: 16px;
+  margin: 14px 0 0;
 }
 
 .field-group {
@@ -385,7 +384,7 @@ a {
 }
 
 .field-group h4 {
-  margin: 0 0 8px;
+  margin: 0 0 5px;
   color: var(--muted);
   font-size: 11px;
   text-transform: uppercase;
@@ -399,7 +398,7 @@ a {
 
 .field-group .field-row {
   grid-template-columns: minmax(90px, 1fr) auto;
-  padding: 11px 12px;
+  padding: 8px 10px;
 }
 
 .empty-value,
@@ -412,11 +411,11 @@ a {
   margin: 0;
   border: 1px dashed var(--line);
   border-radius: 6px;
-  padding: 12px;
+  padding: 9px 10px;
 }
 
 .empty-state {
-  padding: 58px 0;
+  padding: 32px 0;
 }
 
 .load-error {
@@ -469,11 +468,7 @@ a {
   .content {
     width: 100%;
     margin-left: 0;
-    padding: 38px 18px 72px;
-  }
-
-  .overview {
-    min-height: 180px;
+    padding: 24px 18px 48px;
   }
 
   .operation-header {
