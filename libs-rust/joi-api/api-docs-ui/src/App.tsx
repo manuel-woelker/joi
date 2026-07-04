@@ -1,4 +1,4 @@
-import { For, Show, createMemo, createSignal } from "solid-js";
+import { For, Show, createMemo, createSignal, createUniqueId } from "solid-js";
 import type { ParentProps } from "solid-js";
 
 import type {
@@ -13,6 +13,14 @@ interface AppProps {
   documentation: ApiDocumentation;
 }
 
+const builtinTypeDescriptions: Readonly<Record<string, string>> = {
+  string: "A text value.",
+  id: "A nominal identifier associated with a specific model.",
+  list: "An ordered sequence of values.",
+  optional: "A value that may be absent.",
+  partialExcept: "A model shape where every field is optional except the named field.",
+};
+
 export function App(props: AppProps) {
   const [filter, setFilter] = createSignal("");
   const normalizedFilter = createMemo(() => filter().trim().toLowerCase());
@@ -24,6 +32,12 @@ export function App(props: AppProps) {
       matchesOperation(operation, normalizedFilter()),
     ),
   );
+  const navigateToModel = (name: string) => {
+    setFilter("");
+    queueMicrotask(() => {
+      window.location.hash = `model-${name}`;
+    });
+  };
 
   return (
     <div class="app-shell">
@@ -91,7 +105,15 @@ export function App(props: AppProps) {
                 <h2 id="models-heading">Models</h2>
               </div>
               <div class="model-grid">
-                <For each={models()}>{(model) => <ModelReference model={model} />}</For>
+                <For each={models()}>
+                  {(model) => (
+                    <ModelReference
+                      model={model}
+                      models={props.documentation.models}
+                      onNavigateToModel={navigateToModel}
+                    />
+                  )}
+                </For>
               </div>
             </section>
           </Show>
@@ -104,7 +126,13 @@ export function App(props: AppProps) {
               </div>
               <div class="operation-list">
                 <For each={operations()}>
-                  {(operation) => <OperationReference operation={operation} />}
+                  {(operation) => (
+                    <OperationReference
+                      operation={operation}
+                      models={props.documentation.models}
+                      onNavigateToModel={navigateToModel}
+                    />
+                  )}
                 </For>
               </div>
             </section>
@@ -124,7 +152,12 @@ function NavGroup(props: ParentProps<{ title: string }>) {
   );
 }
 
-function ModelReference(props: { model: ApiModel }) {
+interface TypeNavigationProps {
+  models: ApiModel[];
+  onNavigateToModel: (name: string) => void;
+}
+
+function ModelReference(props: { model: ApiModel } & TypeNavigationProps) {
   return (
     <article id={`model-${props.model.name}`} class="model-card">
       <header>
@@ -134,12 +167,17 @@ function ModelReference(props: { model: ApiModel }) {
           <p>{props.model.description}</p>
         </Show>
       </header>
-      <FieldTable fields={props.model.fields} emptyLabel="No fields" />
+      <FieldTable
+        fields={props.model.fields}
+        emptyLabel="No fields"
+        models={props.models}
+        onNavigateToModel={props.onNavigateToModel}
+      />
     </article>
   );
 }
 
-function OperationReference(props: { operation: ApiOperation }) {
+function OperationReference(props: { operation: ApiOperation } & TypeNavigationProps) {
   return (
     <article id={`operation-${props.operation.name}`} class="operation">
       <header class="operation-header">
@@ -150,23 +188,42 @@ function OperationReference(props: { operation: ApiOperation }) {
         </Show>
       </header>
       <div class="operation-signature">
-        <FieldGroup title="Parameters" fields={props.operation.parameters} emptyLabel="None" />
-        <FieldGroup title="Returns" fields={props.operation.returns} emptyLabel="No value" />
+        <FieldGroup
+          title="Parameters"
+          fields={props.operation.parameters}
+          emptyLabel="None"
+          models={props.models}
+          onNavigateToModel={props.onNavigateToModel}
+        />
+        <FieldGroup
+          title="Returns"
+          fields={props.operation.returns}
+          emptyLabel="No value"
+          models={props.models}
+          onNavigateToModel={props.onNavigateToModel}
+        />
       </div>
     </article>
   );
 }
 
-function FieldGroup(props: { title: string; fields: ApiField[]; emptyLabel: string }) {
+function FieldGroup(
+  props: { title: string; fields: ApiField[]; emptyLabel: string } & TypeNavigationProps,
+) {
   return (
     <section class="field-group">
       <h4>{props.title}</h4>
-      <FieldTable fields={props.fields} emptyLabel={props.emptyLabel} />
+      <FieldTable
+        fields={props.fields}
+        emptyLabel={props.emptyLabel}
+        models={props.models}
+        onNavigateToModel={props.onNavigateToModel}
+      />
     </section>
   );
 }
 
-function FieldTable(props: { fields: ApiField[]; emptyLabel: string }) {
+function FieldTable(props: { fields: ApiField[]; emptyLabel: string } & TypeNavigationProps) {
   return (
     <Show when={props.fields.length > 0} fallback={<p class="empty-value">{props.emptyLabel}</p>}>
       <dl class="field-table">
@@ -177,7 +234,13 @@ function FieldTable(props: { fields: ApiField[]; emptyLabel: string }) {
                 <code>{field.name}</code>
                 <Show when={field.description}><span>{field.description}</span></Show>
               </dt>
-              <dd><TypeReference type={field.type} /></dd>
+              <dd>
+                <TypeReference
+                  type={field.type}
+                  models={props.models}
+                  onNavigateToModel={props.onNavigateToModel}
+                />
+              </dd>
             </div>
           )}
         </For>
@@ -186,10 +249,29 @@ function FieldTable(props: { fields: ApiField[]; emptyLabel: string }) {
   );
 }
 
-function TypeReference(props: { type: ApiType }) {
+function TypeReference(props: { type: ApiType } & TypeNavigationProps) {
+  const model = createMemo(() => props.models.find((model) => model.name === props.type.name));
+  const builtinDescription = () => builtinTypeDescriptions[props.type.name];
+
   return (
-    <code class="type-reference">
-      {props.type.name}
+    <div class="type-reference">
+      <Show
+        when={model()}
+        fallback={
+          <Show when={builtinDescription()} fallback={props.type.name}>
+            {(description) => (
+              <BuiltinTypeName name={props.type.name} description={description()} />
+            )}
+          </Show>
+        }
+      >
+        {(resolvedModel) => (
+          <ModelTypeLink
+            model={resolvedModel()}
+            onNavigateToModel={props.onNavigateToModel}
+          />
+        )}
+      </Show>
       <Show when={props.type.arguments.length > 0}>
         &lt;
         <For each={props.type.arguments}>
@@ -197,7 +279,11 @@ function TypeReference(props: { type: ApiType }) {
             <>
               <Show when={index() > 0}>, </Show>
               {argument.kind === "type" ? (
-                <TypeReference type={argument.value} />
+                <TypeReference
+                  type={argument.value}
+                  models={props.models}
+                  onNavigateToModel={props.onNavigateToModel}
+                />
               ) : (
                 <span class="string-literal">"{argument.value}"</span>
               )}
@@ -206,7 +292,52 @@ function TypeReference(props: { type: ApiType }) {
         </For>
         &gt;
       </Show>
-    </code>
+    </div>
+  );
+}
+
+function BuiltinTypeName(props: { name: string; description: string }) {
+  const tooltipId = `type-tooltip-${createUniqueId()}`;
+
+  return (
+    <div class="type-token">
+      <span class="builtin-type" tabindex="0" aria-describedby={tooltipId}>
+        {props.name}
+      </span>
+      <div id={tooltipId} class="type-tooltip" role="tooltip">
+        <strong>{props.name}</strong>
+        <span>{props.description}</span>
+      </div>
+    </div>
+  );
+}
+
+function ModelTypeLink(props: { model: ApiModel; onNavigateToModel: (name: string) => void }) {
+  const tooltipId = `type-tooltip-${createUniqueId()}`;
+  const description = () => props.model.description?.trim();
+
+  return (
+    <div class="type-token">
+      <a
+        class="type-link"
+        href={`#model-${props.model.name}`}
+        aria-describedby={description() ? tooltipId : undefined}
+        onClick={(event) => {
+          event.preventDefault();
+          props.onNavigateToModel(props.model.name);
+        }}
+      >
+        {props.model.name}
+      </a>
+      <Show when={description()}>
+        {(text) => (
+          <div id={tooltipId} class="type-tooltip" role="tooltip">
+            <strong>{props.model.name}</strong>
+            <span>{text()}</span>
+          </div>
+        )}
+      </Show>
+    </div>
   );
 }
 

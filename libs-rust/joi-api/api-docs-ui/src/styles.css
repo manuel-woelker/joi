@@ -334,12 +334,92 @@ a {
 }
 
 .type-reference {
+  display: inline;
   color: #344054;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 11px;
 }
 
 .type-reference .type-reference {
   font-size: inherit;
+}
+
+.type-token {
+  position: relative;
+  display: inline-block;
+}
+
+.type-link {
+  border-radius: 2px;
+  color: #5d4ea0;
+  font-weight: 700;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+.builtin-type {
+  border-radius: 2px;
+  color: var(--query);
+  cursor: help;
+  font-weight: 650;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+.type-link:focus-visible,
+.builtin-type:focus-visible {
+  outline: 2px solid var(--query);
+  outline-offset: 2px;
+}
+
+.type-tooltip {
+  position: absolute;
+  z-index: 10;
+  right: 0;
+  bottom: calc(100% + 7px);
+  width: max-content;
+  max-width: min(280px, 72vw);
+  visibility: hidden;
+  border-radius: 5px;
+  background: #202124;
+  box-shadow: 0 8px 24px rgb(16 24 40 / 20%);
+  color: white;
+  opacity: 0;
+  padding: 8px 10px;
+  pointer-events: none;
+  text-align: left;
+  white-space: normal;
+  transform: translateY(3px);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease,
+    visibility 120ms ease;
+}
+
+.type-tooltip strong,
+.type-tooltip span {
+  display: block;
+}
+
+.type-tooltip strong {
+  margin-bottom: 3px;
+  font-size: 11px;
+}
+
+.type-tooltip span {
+  color: #e4e7ec;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.45;
+  white-space: pre-line;
+}
+
+.type-token:hover .type-tooltip,
+.type-token:focus-within .type-tooltip {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .string-literal {
