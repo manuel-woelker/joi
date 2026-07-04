@@ -120,6 +120,21 @@ impl<'a> Lexer<'a> {
                     TokenKind::Dot,
                 ))
             }
+            Some('@' | ':' | '=' | ',' | '(' | ')') => {
+                let start = self.offset;
+                let character = self.current_char().unwrap();
+                self.consume_char();
+                let kind = match character {
+                    '@' => TokenKind::At,
+                    ':' => TokenKind::Colon,
+                    '=' => TokenKind::Equals,
+                    ',' => TokenKind::Comma,
+                    '(' => TokenKind::LeftParenthesis,
+                    ')' => TokenKind::RightParenthesis,
+                    _ => unreachable!(),
+                };
+                Ok(Token::new(SourceSpan::from_range(start, self.offset), kind))
+            }
             Some(character) if is_identifier_start(character) => {
                 let start = self.offset;
                 self.consume_char();
@@ -260,6 +275,30 @@ mod tests {
                 span: SourceSpan::from_range(5, 5),
             })
         );
+    }
+
+    #[test]
+    fn lexes_fragment_directive_punctuation() {
+        let mut lexer = Lexer::new("{@render item(value = model.name)}");
+        let expected = [
+            TokenKind::LeftBrace,
+            TokenKind::At,
+            TokenKind::Identifier("render".into()),
+            TokenKind::Identifier("item".into()),
+            TokenKind::LeftParenthesis,
+            TokenKind::Identifier("value".into()),
+            TokenKind::Equals,
+            TokenKind::Identifier("model".into()),
+            TokenKind::Dot,
+            TokenKind::Identifier("name".into()),
+            TokenKind::RightParenthesis,
+            TokenKind::RightBrace,
+            TokenKind::EndOfFile,
+        ];
+
+        for kind in expected {
+            assert_eq!(lexer.next_token().unwrap().kind, kind);
+        }
     }
 
     #[test]

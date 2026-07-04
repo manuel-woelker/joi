@@ -234,6 +234,10 @@ cargo test --workspace --all-targets
 cargo clippy --workspace --all-targets -- -D warnings
 ```
 
+All commands above passed on 2026-07-04. The template workspace ran 45 tests,
+and the dependent JOI API workspace ran 36 tests including its generated-source
+compilation test.
+
 # What assumptions and risks remain?
 
 - Fragment render arguments accept path expressions only; literals and computed
@@ -249,15 +253,24 @@ cargo clippy --workspace --all-targets -- -D warnings
 - Adding punctuation in substitution mode must not regress dotted substitutions
   or literal brace escaping.
 
+# What changed during implementation?
+
+- Fragment validation is part of `parse_template`, preserving the existing
+  public parse API while ensuring renderers only receive statically valid calls.
+- Runtime scopes retain borrowed `ValueView` instances; no native-value
+  conversion or copying was introduced.
+- The existing showcase was left unchanged because it demonstrates schema and
+  data-source construction rather than repeated template output.
+
 # What concrete tasks track completion?
 
-- [ ] Add fully spanned fragment-related AST nodes and parameter types.
-- [ ] Lex fragment directives and punctuation without breaking existing paths.
-- [ ] Parse fragment definitions with named typed parameters.
-- [ ] Parse fragment renders with named path arguments.
-- [ ] Validate signatures, named arguments, unknown renders, and recursion.
-- [ ] Add borrowed fragment scopes and runtime parameter type checks.
-- [ ] Render reusable fragment bodies and nested renders.
-- [ ] Add comprehensive lexer, parser, validation, rendering, span, and regression tests.
-- [ ] Update README, examples, showcase, and public API documentation.
-- [ ] Run all `joi-template` and dependent `joi-api` checks.
+- [x] Add fully spanned fragment-related AST nodes and parameter types.
+- [x] Lex fragment directives and punctuation without breaking existing paths.
+- [x] Parse fragment definitions with named typed parameters.
+- [x] Parse fragment renders with named path arguments.
+- [x] Validate signatures, named arguments, unknown renders, and recursion.
+- [x] Add borrowed fragment scopes and runtime parameter type checks.
+- [x] Render reusable fragment bodies and nested renders.
+- [x] Add comprehensive lexer, parser, validation, rendering, span, and regression tests.
+- [x] Update README, examples, and public API documentation.
+- [x] Run all `joi-template` and dependent `joi-api` checks.

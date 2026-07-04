@@ -8,5 +8,11 @@ pub enum TokenKind<'a> {
     LeftBrace,
     RightBrace,
     Dot,
+    At,
+    Colon,
+    Equals,
+    Comma,
+    LeftParenthesis,
+    RightParenthesis,
     EndOfFile,
 }

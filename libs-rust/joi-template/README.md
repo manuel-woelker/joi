@@ -28,9 +28,9 @@ The repository currently provides the basic project infrastructure:
 - local verification via `nao check`
 - CI and release workflow scaffolding
 
-The template engine supports parsing, escaped literal braces, and string
-substitution rendering through the runtime data-access layer. Schema validation,
-iteration, and conditional rendering are not implemented yet.
+The template engine supports parsing, escaped literal braces, string
+substitution rendering, and reusable fragments with named, typed parameters.
+Schema validation, iteration, and conditional rendering are not implemented yet.
 
 ## How is the repository organized?
 
@@ -70,6 +70,23 @@ assert_eq!(render("Hello {name}!", &data)?, "Hello Ada!");
 
 Use `{{` and `}}` for literal braces.
 
+Fragments reuse template sections without coupling templates to external files:
+
+```joi-template
+{@fragment rust_field(name: string, type_name: string)}
+    pub {name}: {type_name},
+{@end}
+
+pub struct {model.name} {{
+{@render rust_field(name = model.id.name, type_name = model.id.type_name)}
+}}
+```
+
+Fragment arguments are named paths and may be reordered. Supported parameter
+types are `string`, `boolean`, `integer`, `float`, `struct`, and `list`.
+Fragments may render fragments declared later in the same template. Recursive
+renders and nested fragment declarations are rejected during parsing.
+
 ## What does the current API look like?
 
 The crate now has a runnable showcase example that demonstrates:
@@ -77,6 +94,7 @@ The crate now has a runnable showcase example that demonstrates:
 - schema construction with `DataType`
 - schema import from a focused JSON Schema subset
 - template parsing for substitutions like `{user.name}`
+- reusable fragments declared with `{@fragment}` and used with `{@render}`
 - runtime data traversal through the pluggable data access layer
 
 For example:

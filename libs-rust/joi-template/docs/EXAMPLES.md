@@ -34,6 +34,28 @@ pipeline.
 
 The example is meant to help readers understand the current architecture without misleading them about the project status.
 
+# How can template sections be reused?
+
+Declare a fragment with named, typed parameters, then render it with named path
+arguments:
+
+```joi-template
+{@fragment field(name: string, type_name: string)}
+pub {name}: {type_name},
+{@end}
+
+pub struct {model.name} {{
+{@render field(type_name = model.id.type_name, name = model.id.name)}
+}}
+```
+
+Arguments are resolved in the current fragment scope first and against root data
+otherwise. This permits nested fragments while keeping shared root configuration
+available. Parameter names shadow root fields with the same name.
+
+Declarations produce no output and can appear after their render directives.
+Fragments are local to one template; they do not import other files.
+
 # How can a schema be imported from JSON Schema?
 
 Use `DataType::from_json_schema_str` when an existing JSON Schema document describes the same structural shape the template should expect:
