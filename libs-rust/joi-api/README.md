@@ -44,7 +44,13 @@ do not panic or return opaque Rust errors.
 ## How do I develop the API documentation UI?
 
 The SolidJS documentation app lives in `api-docs-ui`. Install its dependencies,
-then run the API server and Vite in separate terminals:
+then start the API server and Vite together from the repository root:
+
+```bash
+nao docs-dev
+```
+
+The underlying processes can also be run in separate terminals:
 
 ```bash
 cd api-docs-ui

@@ -1,0 +1,41 @@
+recipe "default" {
+  task "docs-dev" description="Run the API documentation development servers" {
+    run shell="""
+      cleanup() {
+        kill "$api_pid" "$ui_pid" 2>/dev/null || true
+        wait "$api_pid" "$ui_pid" 2>/dev/null || true
+      }
+
+      trap cleanup EXIT HUP INT TERM
+
+      printf 'Task status: http://localhost:5173\n'
+
+      (
+        cd libs-rust/joi-api
+        exec cargo run \
+          --bin joi-api-docs-server \
+          -- \
+          examples/ticket.joi-api
+      ) &
+      api_pid=$!
+
+      (
+        cd libs-rust/joi-api/api-docs-ui
+        exec pnpm dev
+      ) &
+      ui_pid=$!
+
+      while kill -0 "$api_pid" 2>/dev/null && kill -0 "$ui_pid" 2>/dev/null; do
+        sleep 1
+      done
+
+      status=0
+      if ! kill -0 "$api_pid" 2>/dev/null; then
+        wait "$api_pid" || status=$?
+      else
+        wait "$ui_pid" || status=$?
+      fi
+      exit "$status"
+    """
+  }
+}
