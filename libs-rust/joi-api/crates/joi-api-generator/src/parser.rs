@@ -1,8 +1,10 @@
+use std::collections::HashSet;
+
 use crate::{
     ast::{
-        Declaration, Document, Field, Identifier, ModelDeclaration, ModuleDeclaration,
-        OperationDeclaration, OperationKind, Parameter, ReturnRecord, StringLiteral, TypeArgument,
-        TypeExpression, TypeExpressionKind,
+        Declaration, Document, Documentation, Field, Identifier, ModelDeclaration,
+        ModuleDeclaration, OperationDeclaration, OperationKind, Parameter, ReturnRecord,
+        StringLiteral, Trivia, TriviaKind, TypeArgument, TypeExpression, TypeExpressionKind,
     },
     diagnostic::Diagnostic,
     lexer::{Token, TokenKind, lex},
@@ -38,6 +40,7 @@ struct Parser<'a> {
     tokens: Vec<Token>,
     position: usize,
     diagnostics: Vec<Diagnostic>,
+    handled_documentation: HashSet<Span>,
 }
 
 impl<'a> Parser<'a> {
@@ -47,12 +50,14 @@ impl<'a> Parser<'a> {
             tokens,
             position: 0,
             diagnostics,
+            handled_documentation: HashSet::new(),
         }
     }
 
     fn parse(mut self) -> ParseOutput {
         self.skip_unexpected_tokens();
         let Some(module) = self.parse_required_module() else {
+            self.diagnose_unhandled_documentation();
             return ParseOutput {
                 document: None,
                 diagnostics: self.diagnostics,
@@ -97,6 +102,7 @@ impl<'a> Parser<'a> {
         }
 
         let trailing_trivia = self.current().leading_trivia.clone();
+        self.diagnose_unhandled_documentation();
         ParseOutput {
             document: Some(Document {
                 module,
@@ -124,6 +130,7 @@ impl<'a> Parser<'a> {
 
     fn parse_module(&mut self) -> Option<ModuleDeclaration> {
         let keyword = self.advance();
+        let documentation = self.documentation(&keyword.leading_trivia);
         let name = self.parse_identifier("expected module name")?;
         let semicolon = self.expect(
             TokenKind::Semicolon,
@@ -131,6 +138,7 @@ impl<'a> Parser<'a> {
         )?;
         Some(ModuleDeclaration {
             name,
+            documentation,
             leading_trivia: keyword.leading_trivia,
             span: Span::new(keyword.span.start, semicolon.span.end),
         })
@@ -138,6 +146,7 @@ impl<'a> Parser<'a> {
 
     fn parse_model(&mut self) -> Option<ModelDeclaration> {
         let keyword = self.advance();
+        let documentation = self.documentation(&keyword.leading_trivia);
         let name = self.parse_identifier("expected model name")?;
         self.expect(TokenKind::LeftBrace, "expected `{` after model name")?;
         let mut fields = Vec::new();
@@ -154,6 +163,7 @@ impl<'a> Parser<'a> {
         Some(ModelDeclaration {
             name,
             fields,
+            documentation,
             leading_trivia: keyword.leading_trivia,
             span: Span::new(keyword.span.start, right_brace.span.end),
         })
@@ -161,6 +171,7 @@ impl<'a> Parser<'a> {
 
     fn parse_field(&mut self) -> Option<Field> {
         let leading_trivia = self.current().leading_trivia.clone();
+        let documentation = self.documentation(&leading_trivia);
         let name = self.parse_identifier("expected field name")?;
         self.expect(TokenKind::Colon, "expected `:` after field name")?;
         let ty = self.parse_type_expression()?;
@@ -169,12 +180,14 @@ impl<'a> Parser<'a> {
             span: Span::new(name.span.start, semicolon.span.end),
             name,
             ty,
+            documentation,
             leading_trivia,
         })
     }
 
     fn parse_operation(&mut self) -> Option<OperationDeclaration> {
         let keyword = self.advance();
+        let documentation = self.documentation(&keyword.leading_trivia);
         let operation_kind = match keyword.kind {
             TokenKind::Command => OperationKind::Command,
             TokenKind::Query => OperationKind::Query,
@@ -202,6 +215,7 @@ impl<'a> Parser<'a> {
             name,
             parameters,
             returns,
+            documentation,
             leading_trivia: keyword.leading_trivia,
             span: Span::new(keyword.span.start, end),
         })
@@ -215,6 +229,7 @@ impl<'a> Parser<'a> {
 
         while !self.at_any(&[TokenKind::RightParen, TokenKind::EndOfFile]) {
             let leading_trivia = self.current().leading_trivia.clone();
+            let documentation = self.documentation(&leading_trivia);
             let parameter = self
                 .parse_identifier("expected parameter name")
                 .and_then(|name| {
@@ -224,6 +239,7 @@ impl<'a> Parser<'a> {
                     Some(Parameter {
                         name,
                         ty,
+                        documentation,
                         leading_trivia,
                         span,
                     })
@@ -468,6 +484,143 @@ impl<'a> Parser<'a> {
         }
         token
     }
+
+    fn documentation(&mut self, trivia: &Trivia) -> Option<Documentation> {
+        let mut cursor = trivia.len();
+        while cursor > 0 && matches!(trivia[cursor - 1].kind, TriviaKind::Whitespace) {
+            cursor -= 1;
+        }
+        if cursor == 0 || !matches!(trivia[cursor - 1].kind, TriviaKind::Newlines { count: 1 }) {
+            return None;
+        }
+        cursor -= 1;
+
+        let mut documentation_indices = Vec::new();
+        loop {
+            while cursor > 0 && matches!(trivia[cursor - 1].kind, TriviaKind::Whitespace) {
+                cursor -= 1;
+            }
+            if cursor == 0
+                || !matches!(
+                    trivia[cursor - 1].kind,
+                    TriviaKind::DocumentationComment { .. }
+                )
+            {
+                break;
+            }
+
+            cursor -= 1;
+            documentation_indices.push(cursor);
+
+            let mut before_line = cursor;
+            while before_line > 0 && matches!(trivia[before_line - 1].kind, TriviaKind::Whitespace)
+            {
+                before_line -= 1;
+            }
+            if before_line == 0
+                || !matches!(
+                    trivia[before_line - 1].kind,
+                    TriviaKind::Newlines { count: 1 }
+                )
+            {
+                break;
+            }
+            cursor = before_line - 1;
+        }
+
+        if documentation_indices.is_empty() {
+            return None;
+        }
+
+        documentation_indices.reverse();
+        let first = documentation_indices[0];
+        let last = *documentation_indices.last().unwrap();
+        let text = documentation_indices
+            .iter()
+            .filter_map(|index| match &trivia[*index].kind {
+                TriviaKind::DocumentationComment { text } => {
+                    Some(text.strip_prefix(' ').unwrap_or(text))
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        for index in documentation_indices {
+            self.handled_documentation.insert(trivia[index].span);
+        }
+
+        Some(Documentation::new(
+            text,
+            Span::new(trivia[first].span.start, trivia[last].span.end),
+        ))
+    }
+
+    fn diagnose_unhandled_documentation(&mut self) {
+        let trivia_groups: Vec<_> = self
+            .tokens
+            .iter()
+            .map(|token| token.leading_trivia.clone())
+            .collect();
+
+        for trivia in trivia_groups {
+            let mut index = 0;
+            while index < trivia.len() {
+                if !matches!(trivia[index].kind, TriviaKind::DocumentationComment { .. })
+                    || self.handled_documentation.contains(&trivia[index].span)
+                {
+                    index += 1;
+                    continue;
+                }
+
+                let start = trivia[index].span.start;
+                let mut end = trivia[index].span.end;
+                self.handled_documentation.insert(trivia[index].span);
+                let mut cursor = index + 1;
+
+                loop {
+                    let separator_start = cursor;
+                    while cursor < trivia.len()
+                        && matches!(trivia[cursor].kind, TriviaKind::Whitespace)
+                    {
+                        cursor += 1;
+                    }
+                    if cursor >= trivia.len()
+                        || !matches!(trivia[cursor].kind, TriviaKind::Newlines { count: 1 })
+                    {
+                        cursor = separator_start;
+                        break;
+                    }
+                    cursor += 1;
+                    while cursor < trivia.len()
+                        && matches!(trivia[cursor].kind, TriviaKind::Whitespace)
+                    {
+                        cursor += 1;
+                    }
+                    if cursor >= trivia.len()
+                        || !matches!(trivia[cursor].kind, TriviaKind::DocumentationComment { .. })
+                        || self.handled_documentation.contains(&trivia[cursor].span)
+                    {
+                        cursor = separator_start;
+                        break;
+                    }
+
+                    end = trivia[cursor].span.end;
+                    self.handled_documentation.insert(trivia[cursor].span);
+                    cursor += 1;
+                }
+
+                self.diagnostics.push(Diagnostic::error(
+                    "JAPI-P006",
+                    self.source_file.path(),
+                    "documentation comment is not attached",
+                    Span::new(start, end),
+                    "move this block directly before a documentable declaration",
+                ));
+                index = cursor.max(index + 1);
+            }
+        }
+    }
 }
 
 fn token_expectation(kind: TokenKind) -> &'static str {
@@ -624,5 +777,127 @@ mod tests {
             output.diagnostics[0].summary,
             "trailing comma in generic arguments"
         );
+    }
+
+    #[test]
+    fn attaches_documentation_to_every_supported_node() {
+        let source = SourceFile::new(
+            "test.joi-api",
+            "/// Module docs.\r\nmodule t;\n\
+             /// Model docs.\nmodel Ticket {\n\
+             /// Field docs.\nvalue: string;\n}\n\
+             /// Query docs.\nquery get(\n\
+             /// Parameter docs.\nid: id<Ticket>,\n\
+             ) returns {\n\
+             /// Return docs.\nticket: Ticket;\n\
+             }",
+        );
+        let output = parse(&source);
+
+        assert_eq!(output.diagnostics, []);
+        let document = output.document.unwrap();
+        assert_eq!(
+            document.module.documentation.as_ref().unwrap().text,
+            "Module docs."
+        );
+        let Declaration::Model(model) = &document.declarations[0] else {
+            panic!("expected model");
+        };
+        assert_eq!(model.documentation.as_ref().unwrap().text, "Model docs.");
+        assert_eq!(
+            model.fields[0].documentation.as_ref().unwrap().text,
+            "Field docs."
+        );
+        let Declaration::Operation(operation) = &document.declarations[1] else {
+            panic!("expected operation");
+        };
+        assert_eq!(
+            operation.documentation.as_ref().unwrap().text,
+            "Query docs."
+        );
+        assert_eq!(
+            operation.parameters[0].documentation.as_ref().unwrap().text,
+            "Parameter docs."
+        );
+        assert_eq!(
+            operation.returns.as_ref().unwrap().fields[0]
+                .documentation
+                .as_ref()
+                .unwrap()
+                .text,
+            "Return docs."
+        );
+    }
+
+    #[test]
+    fn preserves_documentation_paragraphs_and_exact_span() {
+        let source = SourceFile::new(
+            "test.joi-api",
+            "module t;\n/// First paragraph.\n///\n//// /second\nmodel Ticket {}",
+        );
+        let output = parse(&source);
+        let document = output.document.unwrap();
+        let Declaration::Model(model) = &document.declarations[0] else {
+            panic!("expected model");
+        };
+        let documentation = model.documentation.as_ref().unwrap();
+
+        assert_eq!(output.diagnostics, []);
+        assert_eq!(documentation.text, "First paragraph.\n\n/ /second");
+        assert_eq!(
+            source.span_text(documentation.span),
+            Some("/// First paragraph.\n///\n//// /second")
+        );
+    }
+
+    #[test]
+    fn diagnoses_documentation_separated_by_blank_line_or_ordinary_comment() {
+        let source = SourceFile::new(
+            "test.joi-api",
+            "module t;\n/// Blank separated.\n\nmodel A {}\n\
+             /// Comment separated.\n// internal\nmodel B {}",
+        );
+        let output = parse(&source);
+        let document = output.document.unwrap();
+
+        assert_eq!(document.declarations.len(), 2);
+        assert_eq!(output.diagnostics.len(), 2);
+        assert!(
+            output
+                .diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.code == "JAPI-P006")
+        );
+        for declaration in document.declarations {
+            let Declaration::Model(model) = declaration else {
+                panic!("expected model");
+            };
+            assert!(model.documentation.is_none());
+        }
+    }
+
+    #[test]
+    fn diagnoses_documentation_left_at_end_of_file() {
+        let source = SourceFile::new("test.joi-api", "module t;\n/// Orphaned.");
+        let output = parse(&source);
+
+        assert_eq!(output.diagnostics.len(), 1);
+        assert_eq!(output.diagnostics[0].code, "JAPI-P006");
+        assert_eq!(
+            source.span_text(output.diagnostics[0].primary.span),
+            Some("/// Orphaned.")
+        );
+    }
+
+    #[test]
+    fn ordinary_comments_never_create_documentation() {
+        let source = SourceFile::new("test.joi-api", "module t;\n// Internal.\nmodel A {}");
+        let output = parse(&source);
+        let Declaration::Model(model) = &output.document.unwrap().declarations[0] else {
+            panic!("expected model");
+        };
+
+        assert_eq!(output.diagnostics, []);
+        assert!(model.documentation.is_none());
     }
 }

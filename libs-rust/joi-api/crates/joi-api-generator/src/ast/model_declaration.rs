@@ -1,5 +1,5 @@
 use crate::{
-    ast::{Identifier, Trivia, TypeExpression},
+    ast::{Documentation, Identifier, Trivia, TypeExpression},
     span::Span,
 };
 
@@ -7,6 +7,7 @@ use crate::{
 pub struct ModelDeclaration {
     pub name: Identifier,
     pub fields: Vec<Field>,
+    pub documentation: Option<Documentation>,
     pub leading_trivia: Trivia,
     pub span: Span,
 }
@@ -15,6 +16,7 @@ pub struct ModelDeclaration {
 pub struct Field {
     pub name: Identifier,
     pub ty: TypeExpression,
+    pub documentation: Option<Documentation>,
     pub leading_trivia: Trivia,
     pub span: Span,
 }

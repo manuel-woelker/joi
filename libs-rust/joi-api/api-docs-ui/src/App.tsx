@@ -71,6 +71,9 @@ export function App(props: AppProps) {
         <header id="overview" class="overview">
           <p class="eyebrow">JOI API</p>
           <h1>{props.documentation.module}</h1>
+          <Show when={props.documentation.description}>
+            <p class="overview-description">{props.documentation.description}</p>
+          </Show>
           <div class="overview-stats" aria-label="API summary">
             <span><strong>{props.documentation.models.length}</strong> models</span>
             <span><strong>{props.documentation.operations.length}</strong> operations</span>

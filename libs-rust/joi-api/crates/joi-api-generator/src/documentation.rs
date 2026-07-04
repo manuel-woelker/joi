@@ -1,8 +1,7 @@
 use serde::Serialize;
 
 use crate::ast::{
-    Declaration, Document, Field, OperationKind, Trivia, TriviaKind, TypeArgument, TypeExpression,
-    TypeExpressionKind,
+    Declaration, Document, Field, OperationKind, TypeArgument, TypeExpression, TypeExpressionKind,
 };
 
 /// Stable JSON-ready representation consumed by standalone API documentation.
@@ -11,6 +10,7 @@ use crate::ast::{
 pub struct ApiDocumentation {
     pub schema_version: u32,
     pub module: String,
+    pub description: Option<String>,
     pub models: Vec<ApiModel>,
     pub operations: Vec<ApiOperation>,
 }
@@ -71,7 +71,7 @@ impl ApiDocumentation {
             match declaration {
                 Declaration::Model(model) => models.push(ApiModel {
                     name: model.name.text.clone(),
-                    description: description(&model.leading_trivia),
+                    description: documentation_text(model.documentation.as_ref()),
                     fields: model.fields.iter().map(ApiField::from).collect(),
                 }),
                 Declaration::Operation(operation) => operations.push(ApiOperation {
@@ -80,13 +80,13 @@ impl ApiDocumentation {
                         OperationKind::Query => ApiOperationKind::Query,
                     },
                     name: operation.name.text.clone(),
-                    description: description(&operation.leading_trivia),
+                    description: documentation_text(operation.documentation.as_ref()),
                     parameters: operation
                         .parameters
                         .iter()
                         .map(|parameter| ApiField {
                             name: parameter.name.text.clone(),
-                            description: description(&parameter.leading_trivia),
+                            description: documentation_text(parameter.documentation.as_ref()),
                             r#type: ApiType::from(&parameter.ty),
                         })
                         .collect(),
@@ -103,6 +103,7 @@ impl ApiDocumentation {
         Self {
             schema_version: 1,
             module: document.module.name.text.clone(),
+            description: documentation_text(document.module.documentation.as_ref()),
             models,
             operations,
         }
@@ -113,7 +114,7 @@ impl From<&Field> for ApiField {
     fn from(field: &Field) -> Self {
         Self {
             name: field.name.text.clone(),
-            description: description(&field.leading_trivia),
+            description: documentation_text(field.documentation.as_ref()),
             r#type: ApiType::from(&field.ty),
         }
     }
@@ -147,17 +148,8 @@ impl From<&TypeExpression> for ApiType {
     }
 }
 
-fn description(trivia: &Trivia) -> Option<String> {
-    let lines: Vec<_> = trivia
-        .iter()
-        .filter_map(|piece| match &piece.kind {
-            TriviaKind::LineComment { text } => Some(text.trim()),
-            _ => None,
-        })
-        .filter(|line| !line.is_empty())
-        .collect();
-
-    (!lines.is_empty()).then(|| lines.join("\n"))
+fn documentation_text(documentation: Option<&crate::ast::Documentation>) -> Option<String> {
+    documentation.map(|documentation| documentation.text.clone())
 }
 
 #[cfg(test)]
@@ -169,19 +161,32 @@ mod tests {
     fn converts_parsed_document_to_documentation_shape() {
         let source = SourceFile::new(
             "ticket.joi-api",
-            r#"module ticket;
-// A support ticket.
+            r#"/// Ticket management.
+module ticket;
+// Internal implementation note.
+/// A support ticket.
 model Ticket {
+    /// Stable identifier.
     id: id<Ticket>;
 }
-// Fetch tickets.
-query get(ids: list<id<Ticket>>,) returns { tickets: list<Ticket>; }
+/// Fetch tickets.
+query get(
+    /// IDs to retrieve.
+    ids: list<id<Ticket>>,
+) returns {
+    /// Tickets that were found.
+    tickets: list<Ticket>;
+}
 "#,
         );
         let parsed = parse(&source);
         let documentation = ApiDocumentation::from_document(parsed.document.as_ref().unwrap());
 
         assert_eq!(documentation.module, "ticket");
+        assert_eq!(
+            documentation.description.as_deref(),
+            Some("Ticket management.")
+        );
         assert_eq!(
             documentation.models[0].description.as_deref(),
             Some("A support ticket.")
@@ -190,6 +195,18 @@ query get(ids: list<id<Ticket>>,) returns { tickets: list<Ticket>; }
         assert_eq!(
             documentation.operations[0].description.as_deref(),
             Some("Fetch tickets.")
+        );
+        assert_eq!(
+            documentation.operations[0].parameters[0]
+                .description
+                .as_deref(),
+            Some("IDs to retrieve.")
+        );
+        assert_eq!(
+            documentation.operations[0].returns[0]
+                .description
+                .as_deref(),
+            Some("Tickets that were found.")
         );
         assert!(matches!(
             documentation.operations[0].parameters[0].r#type.arguments[0],

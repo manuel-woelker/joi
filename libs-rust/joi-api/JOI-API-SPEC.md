@@ -23,17 +23,41 @@ model Ticket {
 A module name provides the namespace used by generated code. A file must
 contain exactly one `module` declaration.
 
-## How are comments written?
+## How are comments and documentation written?
 
-`//` starts a line comment. The comment continues to the end of the line.
+`//` starts an ordinary line comment. The comment continues to the end of the
+line and is not included in generated API documentation.
 
 ```joi-api
-// IDs are supplied by the caller.
+// Implementation note: IDs are supplied by the caller.
 command create(ticket: Ticket)
 ```
 
-Comments have no effect on the generated API. Documentation generators may
-preserve them.
+`///` starts a documentation line. Consecutive documentation lines form one
+block that attaches to the module, model, field, command, query, parameter, or
+return field immediately following it.
+
+```joi-api
+/// A support ticket submitted by a user.
+///
+/// Tickets use caller-provided identifiers.
+model Ticket {
+    /// Stable ticket identifier.
+    id: id<Ticket>;
+}
+```
+
+An empty `///` line creates a paragraph break. One optional space immediately
+after `///` is removed; all remaining text is preserved for documentation
+renderers.
+
+A physical blank line or ordinary `//` comment between a documentation block
+and a declaration breaks attachment. Documentation comments after a declaration
+on the same line are not supported. A documentation block that cannot attach to
+a supported declaration is invalid.
+
+The first three slashes are the documentation marker. Any additional slash is
+part of the text, so `//// note` documents `/ note`.
 
 ## How are models declared?
 
@@ -144,8 +168,8 @@ The fields inside `returns` form the operation's success value. Their syntax is
 the same as model fields.
 
 Details such as ordering, missing records, and duplicate handling are part of
-an individual operation's contract. They should be documented with comments
-until the language defines machine-readable constraints for them.
+an individual operation's contract. They should be documented with `///`
+comments until the language defines machine-readable constraints for them.
 
 ## What is not specified yet?
 

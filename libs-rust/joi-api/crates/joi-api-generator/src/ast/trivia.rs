@@ -5,6 +5,7 @@ pub enum TriviaKind {
     Whitespace,
     Newlines { count: usize },
     LineComment { text: String },
+    DocumentationComment { text: String },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

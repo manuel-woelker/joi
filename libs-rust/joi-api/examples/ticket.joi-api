@@ -1,40 +1,41 @@
-// A module provides the namespace used by generated code.
+/// Ticket management API.
 module ticket;
 
-// Models describe data shared by API operations and generated clients.
+/// A support ticket submitted by a user.
 model Ticket {
-    // IDs are nominally typed so a Ticket ID cannot be mixed with another
-    // model's ID even when both use the same underlying representation.
+    /// Stable caller-provided identifier.
     id: id<Ticket>;
+    /// Short summary displayed in ticket lists.
     title: string;
+    /// Detailed description of the requested work.
     description: string;
 }
 
-// Commands represent all-or-nothing operations that may change server state.
-// Operation errors are implicit in the API contract for now.
-// Callers provide each ticket ID in the batch passed to create.
+/// Creates all supplied tickets atomically.
 command create(
+    /// Complete tickets, including caller-provided IDs.
     tickets: list<Ticket>,
 )
 
-// Queries represent read-only operations.
-// This operation returns tickets found for the requested IDs. Unknown IDs are
-// omitted from the result rather than causing the query to fail. Results retain
-// request order, and duplicate IDs produce at most one ticket at their first
-// occurrence.
+/// Returns tickets found for the requested IDs.
+///
+/// Unknown and duplicate IDs are omitted. Results retain request order.
 query get(
+    /// Ticket IDs to retrieve.
     ticketIds: list<id<Ticket>>,
 ) returns {
+    /// Tickets that were found.
     tickets: list<Ticket>;
 }
 
-// partialExcept makes every Ticket field optional except the named field.
-// Requiring id allows each patch to identify the ticket it updates.
+/// Updates all supplied tickets atomically.
 command update(
+    /// Ticket patches with required IDs.
     tickets: list<partialExcept<"id", Ticket>>,
 )
 
-// Deletion accepts a list of nominally typed ticket IDs.
+/// Deletes all identified tickets atomically.
 command delete(
+    /// Ticket IDs to delete.
     ticketIds: list<id<Ticket>>,
 )

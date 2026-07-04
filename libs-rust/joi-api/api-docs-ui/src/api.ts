@@ -1,6 +1,7 @@
 export interface ApiDocumentation {
   schemaVersion: number;
   module: string;
+  description?: string;
   models: ApiModel[];
   operations: ApiOperation[];
 }

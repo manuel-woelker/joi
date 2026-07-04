@@ -107,13 +107,22 @@ impl<'a> Lexer<'a> {
                     ));
                 }
                 Some(b'/') if self.source().as_bytes().get(self.index + 1) == Some(&b'/') => {
-                    self.index += 2;
+                    let is_documentation =
+                        self.source().as_bytes().get(self.index + 2) == Some(&b'/');
+                    self.index += if is_documentation { 3 } else { 2 };
+                    let text_start = self.index;
                     while !matches!(self.current_byte(), None | Some(b'\n' | b'\r')) {
                         self.advance_char();
                     }
                     trivia.push(TriviaPiece::new(
-                        TriviaKind::LineComment {
-                            text: self.source()[start + 2..self.index].to_owned(),
+                        if is_documentation {
+                            TriviaKind::DocumentationComment {
+                                text: self.source()[text_start..self.index].to_owned(),
+                            }
+                        } else {
+                            TriviaKind::LineComment {
+                                text: self.source()[text_start..self.index].to_owned(),
+                            }
                         },
                         Span::new(start, self.index),
                     ));
@@ -322,5 +331,49 @@ mod tests {
 
         assert!(output.diagnostics.is_empty());
         assert_eq!(source.span_text(string.span), Some("\"ïd\""));
+    }
+
+    #[test]
+    fn distinguishes_documentation_from_ordinary_comments() {
+        let source = SourceFile::new(
+            "test.joi-api",
+            "// internal\n/// public\n//// slash\n///\nmodule ticket;",
+        );
+        let output = lex(&source);
+        let trivia = &output.tokens[0].leading_trivia;
+
+        assert!(matches!(
+            &trivia[0].kind,
+            TriviaKind::LineComment { text } if text == " internal"
+        ));
+        assert!(matches!(
+            &trivia[2].kind,
+            TriviaKind::DocumentationComment { text } if text == " public"
+        ));
+        assert!(matches!(
+            &trivia[4].kind,
+            TriviaKind::DocumentationComment { text } if text == "/ slash"
+        ));
+        assert!(matches!(
+            &trivia[6].kind,
+            TriviaKind::DocumentationComment { text } if text.is_empty()
+        ));
+    }
+
+    #[test]
+    fn documentation_comment_span_is_utf8_safe_with_crlf() {
+        let source = SourceFile::new("test.joi-api", "/// café\r\nmodule ticket;");
+        let output = lex(&source);
+        let comment = &output.tokens[0].leading_trivia[0];
+
+        assert_eq!(source.span_text(comment.span), Some("/// café"));
+        assert!(matches!(
+            &comment.kind,
+            TriviaKind::DocumentationComment { text } if text == " café"
+        ));
+        assert!(matches!(
+            output.tokens[0].leading_trivia[1].kind,
+            TriviaKind::Newlines { count: 1 }
+        ));
     }
 }

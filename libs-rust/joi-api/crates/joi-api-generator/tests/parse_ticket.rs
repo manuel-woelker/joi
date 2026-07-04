@@ -58,14 +58,27 @@ fn parses_ticket_example_with_exact_source_spans() {
 }
 
 #[test]
-fn comments_are_preserved_as_spanned_leading_trivia() {
+fn documentation_is_attached_with_spans_and_preserved_as_trivia() {
     let source = SourceFile::new("examples/ticket.joi-api", TICKET_API);
     let document = parse(&source).document.unwrap();
-    let first_declaration = &document.declarations[0];
+    let Declaration::Model(ticket) = &document.declarations[0] else {
+        panic!("first declaration should be Ticket");
+    };
+    let documentation = ticket.documentation.as_ref().unwrap();
 
-    assert!(first_declaration.leading_trivia().iter().any(|piece| {
-        source
-            .span_text(piece.span)
-            .is_some_and(|text| text.contains("Models describe"))
-    }));
+    assert_eq!(documentation.text, "A support ticket submitted by a user.");
+    assert_eq!(
+        source.span_text(documentation.span),
+        Some("/// A support ticket submitted by a user.")
+    );
+    assert!(
+        document.declarations[0]
+            .leading_trivia()
+            .iter()
+            .any(|piece| {
+                source
+                    .span_text(piece.span)
+                    .is_some_and(|text| text.contains("A support ticket"))
+            })
+    );
 }

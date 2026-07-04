@@ -10,6 +10,18 @@ distinguish them from ordinary comments, the parser should attach them to
 documentable AST nodes with exact spans, and documentation generation should
 consume only that explicit AST data.
 
+# What was implemented?
+
+The plan was completed on 2026-07-04. The specification now defines explicit
+`///` documentation and attachment rules. The lexer distinguishes documentation
+from ordinary comments, and the parser attaches fully spanned `Documentation`
+values to modules, models, fields, operations, parameters, and return fields.
+Detached blocks produce `JAPI-P006` diagnostics without preventing recovery.
+
+Documentation JSON now reads only explicit AST documentation and includes an
+optional module description. The SolidJS overview renders that description, and
+the ticket fixture uses `///` only for text intended for publication.
+
 # What syntax should the specification define?
 
 Update `JOI-API-SPEC.md` to distinguish ordinary and documentation comments:
@@ -172,13 +184,25 @@ pnpm build
 
 # What concrete tasks track completion?
 
-- [ ] Document `///` and attachment rules in `JOI-API-SPEC.md`.
-- [ ] Add a fully spanned `Documentation` AST type to every supported node.
-- [ ] Lex `///` separately from ordinary `//` comments.
-- [ ] Parse and attach contiguous documentation blocks.
-- [ ] Diagnose orphaned and separated documentation blocks without stopping recovery.
-- [ ] Add lexer, parser, UTF-8, CRLF, span, and recovery tests.
-- [ ] Generate JSON descriptions only from explicit AST documentation.
-- [ ] Add module descriptions to the Rust DTO and SolidJS UI.
-- [ ] Migrate `examples/ticket.joi-api` to intentional `///` comments.
-- [ ] Run all Rust and frontend verification commands.
+- [x] Document `///` and attachment rules in `JOI-API-SPEC.md`.
+- [x] Add a fully spanned `Documentation` AST type to every supported node.
+- [x] Lex `///` separately from ordinary `//` comments.
+- [x] Parse and attach contiguous documentation blocks.
+- [x] Diagnose orphaned and separated documentation blocks without stopping recovery.
+- [x] Add lexer, parser, UTF-8, CRLF, span, and recovery tests.
+- [x] Generate JSON descriptions only from explicit AST documentation.
+- [x] Add module descriptions to the Rust DTO and SolidJS UI.
+- [x] Migrate `examples/ticket.joi-api` to intentional `///` comments.
+- [x] Run all Rust and frontend verification commands.
+
+# What verification was completed?
+
+The completed implementation passed:
+
+- `cargo fmt --all --check`
+- `cargo test --workspace --all-targets` (26 tests)
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo doc --workspace --no-deps`
+- `pnpm check`
+- `pnpm build`
+- single output-file and single-placeholder assertions for `dist/index.html`

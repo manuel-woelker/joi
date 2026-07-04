@@ -1,5 +1,5 @@
 use crate::{
-    ast::{Field, Identifier, Trivia, TypeExpression},
+    ast::{Documentation, Field, Identifier, Trivia, TypeExpression},
     span::{Span, Spanned},
 };
 
@@ -15,6 +15,7 @@ pub struct OperationDeclaration {
     pub name: Identifier,
     pub parameters: Vec<Parameter>,
     pub returns: Option<ReturnRecord>,
+    pub documentation: Option<Documentation>,
     pub leading_trivia: Trivia,
     pub span: Span,
 }
@@ -23,6 +24,7 @@ pub struct OperationDeclaration {
 pub struct Parameter {
     pub name: Identifier,
     pub ty: TypeExpression,
+    pub documentation: Option<Documentation>,
     pub leading_trivia: Trivia,
     pub span: Span,
 }

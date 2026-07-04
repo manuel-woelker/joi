@@ -1,5 +1,5 @@
 use crate::{
-    ast::{Declaration, Identifier, Trivia},
+    ast::{Declaration, Documentation, Identifier, Trivia},
     span::Span,
 };
 
@@ -14,6 +14,7 @@ pub struct Document {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModuleDeclaration {
     pub name: Identifier,
+    pub documentation: Option<Documentation>,
     pub leading_trivia: Trivia,
     pub span: Span,
 }
