@@ -36,6 +36,11 @@ Package-specific documentation, examples, and tests should live with the package
 Current libraries:
 
 - [`libs-rust/joi-api`](libs-rust/joi-api/README.md) - Infrastructure for generating source code from abstract API descriptions.
+- [`libs-rust/joi-template`](libs-rust/joi-template/README.md) - A type-safe dynamic template engine.
+
+Cross-library examples:
+
+- [`examples/joix-tickets`](examples/joix-tickets/README.md) - Infrastructure for a future cross-library issue-tracker testbed.
 
 ## Working in This Repo
 

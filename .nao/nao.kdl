@@ -1,4 +1,8 @@
 recipe "default" {
+  task "joix-tickets" description="Run the joix-tickets testbed" direct-output=#true {
+    run shell="cargo run --manifest-path examples/joix-tickets/Cargo.toml"
+  }
+
   task "docs-dev" description="Run the API documentation development servers" {
     run shell="""
       cleanup() {
