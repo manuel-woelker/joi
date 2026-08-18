@@ -1,6 +1,7 @@
 use crate::module_registry::ModuleRegistry;
 use crate::tickets_module::TicketsModule;
 
+pub mod data_store;
 pub mod module;
 pub mod module_registry;
 pub mod tickets_module;
