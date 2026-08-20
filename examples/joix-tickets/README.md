@@ -10,7 +10,8 @@ The crate currently provides basic project infrastructure only:
 - a standalone Rust package
 - a small in-process module abstraction and registry
 - a default `TicketsModule` implementation
-- a minimal executable that registers and displays its modules
+- an Axum service that exposes registered actions as typed JSON endpoints
+- a runnable `VersionAction` endpoint
 - formatting, test, and lint commands
 
 No JOI libraries are integrated yet. Dependencies and realistic workflows
@@ -33,6 +34,43 @@ An already constructed module can instead be passed to `register_module`. The
 current registry only owns and reports modules; lookup, lifecycle management,
 and dependency handling are intentionally not implemented yet.
 
+## How are actions exposed over HTTP?
+
+`ActionService::register` registers an action at both `POST` and `GET`
+`/api/<action-name>`. POST requests are deserialized from JSON with serde. A GET
+request has no body, so the service deserializes its request from the JSON object
+`{}`. If the request type requires fields, the endpoint returns a JSON `422`
+response. Successful responses are serialized as JSON. Names may contain ASCII
+letters, digits, `-`, and `_`; invalid or duplicate names are rejected during
+registration.
+
+The executable currently registers `VersionAction` and listens on
+`127.0.0.1:3000`. Its empty request is represented by JSON `{}`:
+
+```bash
+curl \
+  --request POST \
+  --header 'content-type: application/json' \
+  --data '{}' \
+  http://127.0.0.1:3000/api/version
+```
+
+The response has this shape:
+
+```json
+{"version":"0.1.0"}
+```
+
+The version action also accepts a bodyless GET request:
+
+```bash
+curl http://127.0.0.1:3000/api/version
+```
+
+Action execution is synchronous for now. Long-running or blocking actions must
+not be added until the action contract gains an asynchronous execution model or
+explicit blocking-task dispatch.
+
 ## How do I run it?
 
 From this directory:
@@ -41,7 +79,8 @@ From this directory:
 cargo run
 ```
 
-The executable registers `TicketsModule` and prints the registry's debug view.
+The executable registers `TicketsModule` and `VersionAction`, then runs the HTTP
+service. It remains active until interrupted.
 
 ## How do I check it?
 

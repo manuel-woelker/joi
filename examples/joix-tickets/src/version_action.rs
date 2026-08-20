@@ -1,12 +1,16 @@
 use crate::action::{Action, ActionDescriptor, ActionRequest};
+use serde::{Deserialize, Serialize};
 
 pub struct VersionAction;
 
+#[derive(Debug, Serialize)]
 pub struct VersionActionResponse {
     pub version: String,
 }
 
-pub struct VersionActionRequest;
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct VersionActionRequest {}
 
 impl ActionRequest for VersionActionRequest {
     type Response = VersionActionResponse;
@@ -45,7 +49,7 @@ mod tests {
 
     #[test]
     fn returns_the_package_version() {
-        let response = VersionAction::execute(VersionActionRequest);
+        let response = VersionAction::execute(VersionActionRequest {});
 
         assert_eq!(response.version, env!("CARGO_PKG_VERSION"));
     }

@@ -1,14 +1,16 @@
+use serde::{Serialize, de::DeserializeOwned};
+
 pub struct ActionDescriptor {
     pub name: String,
     pub description: String,
 }
 
 pub trait ActionRequest {
-    type Response;
+    type Response: Serialize;
 }
 
 pub trait Action {
-    type Request: ActionRequest;
+    type Request: ActionRequest + DeserializeOwned + Send + 'static;
 
     fn descriptor() -> ActionDescriptor;
 
