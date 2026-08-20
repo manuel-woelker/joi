@@ -1,11 +1,12 @@
 use crate::module_registry::ModuleRegistry;
 use crate::tickets_module::TicketsModule;
 
+pub mod action;
 pub mod data_store;
 pub mod module;
 pub mod module_registry;
 pub mod tickets_module;
-
+pub mod version_action;
 fn main() {
     println!("joix-tickets testbed");
     let mut module_registry = ModuleRegistry::new();
