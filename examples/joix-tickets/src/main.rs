@@ -1,15 +1,15 @@
 use crate::action_service::ActionService;
+use crate::info_action::InfoAction;
 use crate::module_registry::ModuleRegistry;
 use crate::tickets_module::TicketsModule;
-use crate::version_action::VersionAction;
 
 pub mod action;
 pub mod action_service;
 pub mod data_store;
+pub mod info_action;
 pub mod module;
 pub mod module_registry;
 pub mod tickets_module;
-pub mod version_action;
 #[tokio::main]
 async fn main() {
     println!("joix-tickets testbed");
@@ -18,7 +18,7 @@ async fn main() {
     dbg!(module_registry);
 
     let mut action_service = ActionService::new();
-    action_service.register::<VersionAction>().unwrap();
+    action_service.register::<InfoAction>().unwrap();
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
         .await
         .unwrap();

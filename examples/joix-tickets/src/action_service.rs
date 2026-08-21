@@ -118,7 +118,7 @@ mod tests {
     use tower::ServiceExt;
 
     use crate::action::{Action, ActionDescriptor, ActionRequest};
-    use crate::version_action::VersionAction;
+    use crate::info_action::InfoAction;
 
     use super::{ActionRegistrationError, ActionService};
 
@@ -200,14 +200,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn invokes_the_version_action_with_an_empty_object_request() {
+    async fn invokes_the_info_action_with_an_empty_object_request() {
         let mut service = ActionService::new();
-        service.register::<VersionAction>().unwrap();
+        service.register::<InfoAction>().unwrap();
 
         let response = service
             .into_router()
             .oneshot(
-                Request::post("/api/version")
+                Request::post("/api/info")
                     .header(CONTENT_TYPE, "application/json")
                     .body(Body::from("{}"))
                     .unwrap(),
@@ -219,18 +219,21 @@ mod tests {
         let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
         assert_eq!(
             serde_json::from_slice::<serde_json::Value>(&body).unwrap(),
-            serde_json::json!({ "version": env!("CARGO_PKG_VERSION") })
+            serde_json::json!({
+                "application_name": env!("CARGO_PKG_NAME"),
+                "version": env!("CARGO_PKG_VERSION"),
+            })
         );
     }
 
     #[tokio::test]
     async fn invokes_get_actions_without_a_request_body() {
         let mut service = ActionService::new();
-        service.register::<VersionAction>().unwrap();
+        service.register::<InfoAction>().unwrap();
 
         let response = service
             .into_router()
-            .oneshot(Request::get("/api/version").body(Body::empty()).unwrap())
+            .oneshot(Request::get("/api/info").body(Body::empty()).unwrap())
             .await
             .unwrap();
 
@@ -239,7 +242,10 @@ mod tests {
         let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
         assert_eq!(
             serde_json::from_slice::<serde_json::Value>(&body).unwrap(),
-            serde_json::json!({ "version": env!("CARGO_PKG_VERSION") })
+            serde_json::json!({
+                "application_name": env!("CARGO_PKG_NAME"),
+                "version": env!("CARGO_PKG_VERSION"),
+            })
         );
     }
 

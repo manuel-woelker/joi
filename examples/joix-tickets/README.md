@@ -11,7 +11,7 @@ The crate currently provides basic project infrastructure only:
 - a small in-process module abstraction and registry
 - a default `TicketsModule` implementation
 - an Axum service that exposes registered actions as typed JSON endpoints
-- a runnable `VersionAction` endpoint
+- a runnable `InfoAction` endpoint
 - formatting, test, and lint commands
 
 No JOI libraries are integrated yet. Dependencies and realistic workflows
@@ -44,7 +44,7 @@ response. Successful responses are serialized as JSON. Names may contain ASCII
 letters, digits, `-`, and `_`; invalid or duplicate names are rejected during
 registration.
 
-The executable currently registers `VersionAction` and listens on
+The executable currently registers `InfoAction` and listens on
 `127.0.0.1:3000`. Its empty request is represented by JSON `{}`:
 
 ```bash
@@ -52,19 +52,19 @@ curl \
   --request POST \
   --header 'content-type: application/json' \
   --data '{}' \
-  http://127.0.0.1:3000/api/version
+  http://127.0.0.1:3000/api/info
 ```
 
 The response has this shape:
 
 ```json
-{"version":"0.1.0"}
+{"application_name":"joix-tickets","version":"0.1.0"}
 ```
 
-The version action also accepts a bodyless GET request:
+The info action also accepts a bodyless GET request:
 
 ```bash
-curl http://127.0.0.1:3000/api/version
+curl http://127.0.0.1:3000/api/info
 ```
 
 Action execution is synchronous for now. Long-running or blocking actions must
@@ -79,7 +79,7 @@ From this directory:
 cargo run
 ```
 
-The executable registers `TicketsModule` and `VersionAction`, then runs the HTTP
+The executable registers `TicketsModule` and `InfoAction`, then runs the HTTP
 service. It remains active until interrupted.
 
 ## How do I check it?
