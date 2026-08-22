@@ -1,8 +1,14 @@
+use joi_base::JoiString;
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct TableName(pub JoiString);
+
 pub enum QueryCriterion {
     MatchAny,
 }
 
 pub struct DataStoreQuery {
+    pub table_name: TableName,
     pub criterion: QueryCriterion,
     pub max_results: usize,
     pub attributes: Vec<JoiString>,
@@ -25,4 +31,3 @@ pub struct DataStoreQueryResult {
 pub trait DataStore {
     fn query(query: DataStoreQuery) -> DataStoreQueryResult;
 }
-use joi_base::JoiString;
