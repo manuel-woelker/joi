@@ -49,6 +49,32 @@ pub struct DataStoreQueryResult {
     pub result_columns: Vec<AttributeColumn>,
 }
 
+/// Describes a table and its required column definition.
+pub struct TableDescription {
+    /// The table name.
+    pub name: TableName,
+    /// The columns defined for the table, the first one is used as primary key
+    pub columns: Vec<ColumnDescription>,
+}
+
+/// Describes a named column in a table.
+pub struct ColumnDescription {
+    /// The column name.
+    pub name: AttributeName,
+    /// A human-readable explanation of the stored value.
+    pub description: JoiString,
+    /// The type of values stored in the column.
+    pub data_type: ColumnDataType,
+}
+
+/// The value type supported by a table column.
+pub enum ColumnDataType {
+    /// String values.
+    String,
+    /// Integer values.
+    Int,
+}
+
 /// Describes a sequence of changes to apply to a data store.
 pub struct DataStoreMutation {
     /// The changes to apply.
@@ -74,6 +100,9 @@ pub struct DataStoreMutationResult {}
 
 /// Executes queries and mutations against a data store.
 pub trait DataStore {
+    /// Ensures that the requested tables and columns exist.
+    fn ensure_tables(tables: Vec<TableDescription>) -> JoiResult<()>;
+
     /// Executes a query and returns its matching records.
     fn query(query: DataStoreQuery) -> JoiResult<DataStoreQueryResult>;
 
