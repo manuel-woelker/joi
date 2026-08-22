@@ -47,9 +47,11 @@ and dependency handling are intentionally not implemented yet.
 ## How are actions exposed over HTTP?
 
 `ActionRegistryBuilder::register` stores an action independently of any HTTP
-framework. Names may contain ASCII letters, digits, `-`, and `_`; invalid or
-duplicate names are rejected during registration with a string error. Building
-produces an immutable, cheaply cloneable `ActionRegistry`.
+framework. Names consist of `/`-separated path segments containing ASCII
+letters, digits, `-`, and `_`; invalid or duplicate names are rejected during
+registration with a string error. Building produces an immutable, cheaply
+cloneable `ActionRegistry` and adds the built-in `actions/list` action from a
+snapshot of the final descriptors.
 
 Registration returns `JoiResult<()>`. Once registration is complete, an
 `ActionService` is constructed from the registry and exposes every action at
@@ -83,6 +85,13 @@ The info action also accepts a bodyless GET request:
 
 ```bash
 curl http://127.0.0.1:3000/api/info
+```
+
+The `actions/list` action returns the names and descriptions of all registered
+actions in name order:
+
+```bash
+curl http://127.0.0.1:3000/api/actions/list
 ```
 
 Action execution is synchronous for now. Long-running or blocking actions must

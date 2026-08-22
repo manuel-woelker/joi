@@ -19,7 +19,7 @@ impl ActionService {
         Self {
             router: Router::new()
                 .route(
-                    "/api/{action_name}",
+                    "/api/{*action_name}",
                     post(execute).get(execute_empty_object),
                 )
                 .with_state(registry),
@@ -146,7 +146,7 @@ mod tests {
 
         fn descriptor() -> ActionDescriptor {
             ActionDescriptor {
-                name: "invalid/name".into(),
+                name: "invalid//name".into(),
                 description: "Has an invalid route name".into(),
             }
         }
@@ -268,6 +268,33 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn invokes_actions_with_nested_names() {
+        let service = ActionService::new(ActionRegistryBuilder::new().build());
+
+        let response = service
+            .into_router()
+            .oneshot(
+                Request::get("/api/actions/list")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        assert_eq!(
+            serde_json::from_slice::<serde_json::Value>(&body).unwrap(),
+            serde_json::json!({
+                "actions": [{
+                    "name": "actions/list",
+                    "description": "Lists all registered actions"
+                }]
+            })
+        );
+    }
+
+    #[tokio::test]
     async fn returns_json_when_an_empty_object_cannot_deserialize() {
         let service = service_with::<GreetingAction>();
 
@@ -327,6 +354,6 @@ mod tests {
         let mut registry = ActionRegistryBuilder::new();
 
         let error = registry.register::<InvalidNameAction>().unwrap_err();
-        assert_eq!(error.to_string(), "invalid action name `invalid/name`");
+        assert_eq!(error.to_string(), "invalid action name `invalid//name`");
     }
 }
