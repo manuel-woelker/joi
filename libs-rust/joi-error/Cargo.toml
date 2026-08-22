@@ -8,3 +8,4 @@ publish = false
 
 [dependencies]
 error-stack = "0.8"
+joi-base = { path = "../joi-base" }

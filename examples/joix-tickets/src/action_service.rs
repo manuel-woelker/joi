@@ -1,12 +1,17 @@
-use axum::{Json, Router, http::StatusCode};
+use std::sync::Arc;
+
+use axum::{
+    Json, Router,
+    extract::{Path, State},
+    http::StatusCode,
+    routing::post,
+};
 use joi_base::JoiString;
 use serde::Serialize;
 
-use crate::action::{Action, ActionRequest};
 use crate::action_registry::ActionRegistry;
 
 /// Serves registered actions as JSON HTTP endpoints.
-#[derive(Debug)]
 pub struct ActionService {
     router: Router,
 }
@@ -14,7 +19,12 @@ pub struct ActionService {
 impl ActionService {
     pub fn new(registry: ActionRegistry) -> Self {
         Self {
-            router: registry.into_router(),
+            router: Router::new()
+                .route(
+                    "/api/{action_name}",
+                    post(execute).get(execute_empty_object),
+                )
+                .with_state(Arc::new(registry)),
         }
     }
 
@@ -23,43 +33,61 @@ impl ActionService {
     }
 }
 
-pub(crate) async fn execute<A>(
-    Json(request): Json<A::Request>,
-) -> Result<Json<<A::Request as ActionRequest>::Response>, (StatusCode, Json<ActionResponseError>)>
-where
-    A: Action,
-{
-    A::execute(request).map(Json).map_err(action_error)
+async fn execute(
+    State(registry): State<Arc<ActionRegistry>>,
+    Path(action_name): Path<JoiString>,
+    Json(request): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<ActionResponseError>)> {
+    execute_registered(&registry, &action_name, request)
 }
 
-pub(crate) async fn execute_empty_object<A>()
--> Result<Json<<A::Request as ActionRequest>::Response>, (StatusCode, Json<ActionResponseError>)>
-where
-    A: Action,
-{
-    let request = serde_json::from_str("{}").map_err(|error| {
-        (
-            StatusCode::UNPROCESSABLE_ENTITY,
-            Json(ActionResponseError {
-                error: error.to_string().into(),
-            }),
-        )
-    })?;
-    A::execute(request).map(Json).map_err(action_error)
+async fn execute_empty_object(
+    State(registry): State<Arc<ActionRegistry>>,
+    Path(action_name): Path<JoiString>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<ActionResponseError>)> {
+    execute_registered(&registry, &action_name, serde_json::json!({}))
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) struct ActionResponseError {
+struct ActionResponseError {
     error: JoiString,
 }
 
 fn action_error(error: joi_error::JoiError) -> (StatusCode, Json<ActionResponseError>) {
+    let status = if error
+        .current_context()
+        .downcast_ref::<serde_json::Error>()
+        .is_some()
+    {
+        StatusCode::UNPROCESSABLE_ENTITY
+    } else {
+        StatusCode::INTERNAL_SERVER_ERROR
+    };
     (
-        StatusCode::INTERNAL_SERVER_ERROR,
+        status,
         Json(ActionResponseError {
             error: error.to_string().into(),
         }),
     )
+}
+
+fn execute_registered(
+    registry: &ActionRegistry,
+    action_name: &str,
+    request: serde_json::Value,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<ActionResponseError>)> {
+    registry
+        .execute(action_name, request)
+        .ok_or_else(|| {
+            (
+                StatusCode::NOT_FOUND,
+                Json(ActionResponseError {
+                    error: format!("action `{action_name}` is not registered").into(),
+                }),
+            )
+        })?
+        .map(Json)
+        .map_err(action_error)
 }
 
 #[cfg(test)]
@@ -75,7 +103,7 @@ mod tests {
     use tower::ServiceExt;
 
     use crate::action::{Action, ActionDescriptor, ActionRequest};
-    use crate::action_registry::{ActionRegistrationError, ActionRegistry};
+    use crate::action_registry::ActionRegistry;
     use crate::info_action::InfoAction;
 
     use super::ActionService;
@@ -293,12 +321,7 @@ mod tests {
         registry.register::<GreetingAction>().unwrap();
 
         let error = registry.register::<GreetingAction>().unwrap_err();
-        assert_eq!(
-            error
-                .current_context()
-                .downcast_ref::<ActionRegistrationError>(),
-            Some(&ActionRegistrationError::DuplicateName("greet".into()))
-        );
+        assert_eq!(error.to_string(), "action `greet` is already registered");
     }
 
     #[test]
@@ -306,11 +329,6 @@ mod tests {
         let mut registry = ActionRegistry::new();
 
         let error = registry.register::<InvalidNameAction>().unwrap_err();
-        assert_eq!(
-            error
-                .current_context()
-                .downcast_ref::<ActionRegistrationError>(),
-            Some(&ActionRegistrationError::InvalidName("invalid/name".into()))
-        );
+        assert_eq!(error.to_string(), "invalid action name `invalid/name`");
     }
 }

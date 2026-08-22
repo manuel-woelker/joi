@@ -7,12 +7,17 @@ context, and `JoiResult<T>` is a standard result using that error type.
 ## What does the API look like?
 
 ```rust
-use joi_error::{JoiResult, report};
+use joi_error::{JoiResult, joi_bail};
 
 fn load() -> JoiResult<()> {
-    Err(report(std::io::Error::other("could not load data")))
+    joi_bail!("could not load resource `{}`", "tickets.json");
 }
 ```
+
+`joi_error!` creates a `JoiError`, `joi_result!` creates an inferred
+`JoiResult` error, and `joi_bail!` returns one immediately. `message` is the
+non-formatting equivalent for an existing string. All four use `MessageError`
+as their concrete, downcastable context.
 
 `JoiError` and `JoiResult` are aliases rather than wrapper types. `BoxedError`
 is a thin, sized context around `Box<dyn Error + Send + Sync>`, needed because

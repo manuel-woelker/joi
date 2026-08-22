@@ -1,19 +1,22 @@
-use std::{collections::HashSet, error::Error, fmt};
+use std::collections::HashMap;
 
-use axum::{Router, routing::post};
 use joi_base::JoiString;
-use joi_error::{JoiResult, report};
+use joi_error::{JoiResult, joi_bail, report};
+use serde_json::Value;
 
-use crate::{
-    action::Action,
-    action_service::{execute, execute_empty_object},
-};
+use crate::action::{Action, ActionDescriptor, ActionRequest};
 
-/// Collects typed actions and validates their HTTP route names.
-#[derive(Debug, Default)]
+type ExecuteAction = fn(Value) -> JoiResult<Value>;
+
+struct RegisteredAction {
+    descriptor: ActionDescriptor,
+    execute: ExecuteAction,
+}
+
+/// Stores typed actions without coupling registration to a transport.
+#[derive(Default)]
 pub struct ActionRegistry {
-    action_names: HashSet<JoiString>,
-    router: Router,
+    actions: HashMap<JoiString, RegisteredAction>,
 }
 
 impl ActionRegistry {
@@ -21,28 +24,50 @@ impl ActionRegistry {
         Self::default()
     }
 
-    /// Registers an action for JSON POST requests and empty-body GET requests.
     pub fn register<A>(&mut self) -> JoiResult<()>
     where
-        A: Action + Send + Sync + 'static,
+        A: Action,
     {
-        let action_name = A::descriptor().name;
-        if !is_valid_action_name(&action_name) {
-            return Err(report(ActionRegistrationError::InvalidName(action_name)));
+        let descriptor = A::descriptor();
+        if !is_valid_action_name(&descriptor.name) {
+            joi_bail!("invalid action name `{}`", descriptor.name);
         }
-        if !self.action_names.insert(action_name.clone()) {
-            return Err(report(ActionRegistrationError::DuplicateName(action_name)));
+        if self.actions.contains_key(&descriptor.name) {
+            joi_bail!("action `{}` is already registered", descriptor.name);
         }
 
-        let path = format!("/api/{action_name}");
-        let route = post(execute::<A>).get(execute_empty_object::<A>);
-        self.router = std::mem::take(&mut self.router).route(&path, route);
+        self.actions.insert(
+            descriptor.name.clone(),
+            RegisteredAction {
+                descriptor,
+                execute: execute_action::<A>,
+            },
+        );
         Ok(())
     }
 
-    pub(crate) fn into_router(self) -> Router {
-        self.router
+    pub fn descriptor(&self, name: &str) -> Option<&ActionDescriptor> {
+        self.actions.get(name).map(|action| &action.descriptor)
     }
+
+    pub fn descriptors(&self) -> impl Iterator<Item = &ActionDescriptor> {
+        self.actions.values().map(|action| &action.descriptor)
+    }
+
+    pub fn execute(&self, name: &str, request: Value) -> Option<JoiResult<Value>> {
+        self.actions
+            .get(name)
+            .map(|action| (action.execute)(request))
+    }
+}
+
+fn execute_action<A>(request: Value) -> JoiResult<Value>
+where
+    A: Action,
+{
+    let request = serde_json::from_value::<A::Request>(request).map_err(report)?;
+    let response = A::execute(request)?;
+    serde_json::to_value::<<A::Request as ActionRequest>::Response>(response).map_err(report)
 }
 
 fn is_valid_action_name(name: &str) -> bool {
@@ -51,20 +76,3 @@ fn is_valid_action_name(name: &str) -> bool {
             .bytes()
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
 }
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ActionRegistrationError {
-    InvalidName(JoiString),
-    DuplicateName(JoiString),
-}
-
-impl fmt::Display for ActionRegistrationError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::InvalidName(name) => write!(formatter, "invalid action name `{name}`"),
-            Self::DuplicateName(name) => write!(formatter, "action `{name}` is already registered"),
-        }
-    }
-}
-
-impl Error for ActionRegistrationError {}
