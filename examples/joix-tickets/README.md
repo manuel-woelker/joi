@@ -11,11 +11,21 @@ The crate currently provides basic project infrastructure only:
 - a small in-process module abstraction and registry
 - a default `TicketsModule` implementation
 - an Axum service that exposes registered actions as typed JSON endpoints
+- an SQLite-backed data store with schema setup, columnar queries, and atomic mutations
 - a runnable `InfoAction` endpoint
 - formatting, test, and lint commands
 
-No JOI libraries are integrated yet. Dependencies and realistic workflows
-should be added incrementally as their integration requirements become clear.
+The example currently integrates the shared JOI base and error types.
+Additional libraries and realistic workflows should be added incrementally as
+their integration requirements become clear.
+
+## How does the SQLite data store work?
+
+`SqliteDataStore` can open a database file or create an isolated in-memory
+database. It implements `DataStore`, creates missing tables and columns, maps
+string and integer columns, and applies every step in a mutation within one
+SQLite transaction. The first column in each table description is its primary
+key. Identifiers are quoted before being included in SQL statements.
 
 ## How does the module registry work?
 

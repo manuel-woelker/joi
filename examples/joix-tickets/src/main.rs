@@ -11,6 +11,7 @@ pub mod data_store;
 pub mod info_action;
 pub mod module;
 pub mod module_registry;
+pub mod sqlite_data_store;
 pub mod tickets_module;
 #[tokio::main]
 async fn main() {

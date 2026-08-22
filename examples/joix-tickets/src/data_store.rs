@@ -39,6 +39,8 @@ pub struct AttributeColumn {
 pub enum Values {
     /// String values.
     String(Vec<JoiString>),
+    /// Integer values.
+    Int(Vec<i64>),
 }
 
 /// Contains records returned by a data-store query in columnar form.
@@ -68,6 +70,7 @@ pub struct ColumnDescription {
 }
 
 /// The value type supported by a table column.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ColumnDataType {
     /// String values.
     String,
@@ -101,11 +104,11 @@ pub struct DataStoreMutationResult {}
 /// Executes queries and mutations against a data store.
 pub trait DataStore {
     /// Ensures that the requested tables and columns exist.
-    fn ensure_tables(tables: Vec<TableDescription>) -> JoiResult<()>;
+    fn ensure_tables(&mut self, tables: Vec<TableDescription>) -> JoiResult<()>;
 
     /// Executes a query and returns its matching records.
-    fn query(query: DataStoreQuery) -> JoiResult<DataStoreQueryResult>;
+    fn query(&self, query: DataStoreQuery) -> JoiResult<DataStoreQueryResult>;
 
     /// Applies a mutation and returns its outcome.
-    fn mutate(mutation: DataStoreMutation) -> JoiResult<DataStoreMutationResult>;
+    fn mutate(&mut self, mutation: DataStoreMutation) -> JoiResult<DataStoreMutationResult>;
 }
