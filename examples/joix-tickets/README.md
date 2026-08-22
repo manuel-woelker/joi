@@ -36,13 +36,16 @@ and dependency handling are intentionally not implemented yet.
 
 ## How are actions exposed over HTTP?
 
-`ActionService::register` registers an action at both `POST` and `GET`
+`ActionRegistry::register` registers an action at both `POST` and `GET`
 `/api/<action-name>`. POST requests are deserialized from JSON with serde. A GET
 request has no body, so the service deserializes its request from the JSON object
 `{}`. If the request type requires fields, the endpoint returns a JSON `422`
 response. Successful responses are serialized as JSON. Names may contain ASCII
 letters, digits, `-`, and `_`; invalid or duplicate names are rejected during
 registration.
+
+Registration returns `JoiResult<()>`. Once registration is complete, an
+`ActionService` is constructed from the registry and exposes its Axum router.
 
 `Action::execute` returns `JoiResult<Response>`. Failed actions are exposed as a
 JSON `500 Internal Server Error` response whose `error` field contains the

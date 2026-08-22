@@ -1,61 +1,29 @@
-use std::{collections::HashSet, error::Error, fmt};
-
-use axum::{
-    Json, Router,
-    http::StatusCode,
-    routing::{MethodRouter, post},
-};
+use axum::{Json, Router, http::StatusCode};
 use joi_base::JoiString;
 use serde::Serialize;
 
 use crate::action::{Action, ActionRequest};
+use crate::action_registry::ActionRegistry;
 
-/// Registers typed actions as JSON HTTP endpoints.
-#[derive(Debug, Default)]
+/// Serves registered actions as JSON HTTP endpoints.
+#[derive(Debug)]
 pub struct ActionService {
-    action_names: HashSet<JoiString>,
     router: Router,
 }
 
 impl ActionService {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Registers an action for JSON POST requests and empty-body GET requests.
-    pub fn register<A>(&mut self) -> Result<(), ActionRegistrationError>
-    where
-        A: Action + Send + Sync + 'static,
-    {
-        self.register_route(
-            A::descriptor().name,
-            post(execute::<A>).get(execute_empty_object::<A>),
-        )
+    pub fn new(registry: ActionRegistry) -> Self {
+        Self {
+            router: registry.into_router(),
+        }
     }
 
     pub fn into_router(self) -> Router {
         self.router
     }
-
-    fn register_route(
-        &mut self,
-        action_name: JoiString,
-        route: MethodRouter,
-    ) -> Result<(), ActionRegistrationError> {
-        if !is_valid_action_name(&action_name) {
-            return Err(ActionRegistrationError::InvalidName(action_name));
-        }
-        if !self.action_names.insert(action_name.clone()) {
-            return Err(ActionRegistrationError::DuplicateName(action_name));
-        }
-
-        let path = format!("/api/{action_name}");
-        self.router = std::mem::take(&mut self.router).route(&path, route);
-        Ok(())
-    }
 }
 
-async fn execute<A>(
+pub(crate) async fn execute<A>(
     Json(request): Json<A::Request>,
 ) -> Result<Json<<A::Request as ActionRequest>::Response>, (StatusCode, Json<ActionResponseError>)>
 where
@@ -64,7 +32,7 @@ where
     A::execute(request).map(Json).map_err(action_error)
 }
 
-async fn execute_empty_object<A>()
+pub(crate) async fn execute_empty_object<A>()
 -> Result<Json<<A::Request as ActionRequest>::Response>, (StatusCode, Json<ActionResponseError>)>
 where
     A: Action,
@@ -81,7 +49,7 @@ where
 }
 
 #[derive(Debug, Serialize)]
-struct ActionResponseError {
+pub(crate) struct ActionResponseError {
     error: JoiString,
 }
 
@@ -93,30 +61,6 @@ fn action_error(error: joi_error::JoiError) -> (StatusCode, Json<ActionResponseE
         }),
     )
 }
-
-fn is_valid_action_name(name: &str) -> bool {
-    !name.is_empty()
-        && name
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ActionRegistrationError {
-    InvalidName(JoiString),
-    DuplicateName(JoiString),
-}
-
-impl fmt::Display for ActionRegistrationError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::InvalidName(name) => write!(formatter, "invalid action name `{name}`"),
-            Self::DuplicateName(name) => write!(formatter, "action `{name}` is already registered"),
-        }
-    }
-}
-
-impl Error for ActionRegistrationError {}
 
 #[cfg(test)]
 mod tests {
@@ -131,9 +75,10 @@ mod tests {
     use tower::ServiceExt;
 
     use crate::action::{Action, ActionDescriptor, ActionRequest};
+    use crate::action_registry::{ActionRegistrationError, ActionRegistry};
     use crate::info_action::InfoAction;
 
-    use super::{ActionRegistrationError, ActionService};
+    use super::ActionService;
 
     #[derive(Deserialize)]
     struct GreetingRequest {
@@ -213,10 +158,18 @@ mod tests {
         }
     }
 
+    fn service_with<A>() -> ActionService
+    where
+        A: Action + Send + Sync + 'static,
+    {
+        let mut registry = ActionRegistry::new();
+        registry.register::<A>().unwrap();
+        ActionService::new(registry)
+    }
+
     #[tokio::test]
     async fn invokes_registered_actions_with_json() {
-        let mut service = ActionService::new();
-        service.register::<GreetingAction>().unwrap();
+        let service = service_with::<GreetingAction>();
 
         let response = service
             .into_router()
@@ -242,8 +195,7 @@ mod tests {
 
     #[tokio::test]
     async fn invokes_the_info_action_with_an_empty_object_request() {
-        let mut service = ActionService::new();
-        service.register::<InfoAction>().unwrap();
+        let service = service_with::<InfoAction>();
 
         let response = service
             .into_router()
@@ -269,8 +221,7 @@ mod tests {
 
     #[tokio::test]
     async fn invokes_get_actions_without_a_request_body() {
-        let mut service = ActionService::new();
-        service.register::<InfoAction>().unwrap();
+        let service = service_with::<InfoAction>();
 
         let response = service
             .into_router()
@@ -292,8 +243,7 @@ mod tests {
 
     #[tokio::test]
     async fn returns_json_when_an_empty_object_cannot_deserialize() {
-        let mut service = ActionService::new();
-        service.register::<GreetingAction>().unwrap();
+        let service = service_with::<GreetingAction>();
 
         let response = service
             .into_router()
@@ -315,8 +265,7 @@ mod tests {
 
     #[tokio::test]
     async fn returns_action_errors_as_json() {
-        let mut service = ActionService::new();
-        service.register::<FailingAction>().unwrap();
+        let service = service_with::<FailingAction>();
 
         let response = service
             .into_router()
@@ -340,22 +289,28 @@ mod tests {
 
     #[test]
     fn rejects_duplicate_action_names() {
-        let mut service = ActionService::new();
-        service.register::<GreetingAction>().unwrap();
+        let mut registry = ActionRegistry::new();
+        registry.register::<GreetingAction>().unwrap();
 
+        let error = registry.register::<GreetingAction>().unwrap_err();
         assert_eq!(
-            service.register::<GreetingAction>(),
-            Err(ActionRegistrationError::DuplicateName("greet".into()))
+            error
+                .current_context()
+                .downcast_ref::<ActionRegistrationError>(),
+            Some(&ActionRegistrationError::DuplicateName("greet".into()))
         );
     }
 
     #[test]
     fn rejects_action_names_that_cannot_form_one_path_segment() {
-        let mut service = ActionService::new();
+        let mut registry = ActionRegistry::new();
 
+        let error = registry.register::<InvalidNameAction>().unwrap_err();
         assert_eq!(
-            service.register::<InvalidNameAction>(),
-            Err(ActionRegistrationError::InvalidName("invalid/name".into()))
+            error
+                .current_context()
+                .downcast_ref::<ActionRegistrationError>(),
+            Some(&ActionRegistrationError::InvalidName("invalid/name".into()))
         );
     }
 }
