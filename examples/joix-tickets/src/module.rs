@@ -1,7 +1,9 @@
+use joi_base::JoiString;
+
 pub struct ModuleInfo {
-    pub name: String,
-    pub description: String,
-    pub version: String,
+    pub name: JoiString,
+    pub description: JoiString,
+    pub version: JoiString,
 }
 
 pub trait Module {

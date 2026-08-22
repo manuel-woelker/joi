@@ -1,11 +1,12 @@
 use crate::span::Span;
+use joi_base::JoiString;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TriviaKind {
     Whitespace,
     Newlines { count: usize },
-    LineComment { text: String },
-    DocumentationComment { text: String },
+    LineComment { text: JoiString },
+    DocumentationComment { text: JoiString },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

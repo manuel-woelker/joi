@@ -1,3 +1,4 @@
+use joi_base::JoiString;
 use std::path::{Path, PathBuf};
 
 use crate::span::Span;
@@ -11,11 +12,11 @@ pub enum DiagnosticSeverity {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DiagnosticLabel {
     pub span: Span,
-    pub message: String,
+    pub message: JoiString,
 }
 
 impl DiagnosticLabel {
-    pub fn new(span: Span, message: impl Into<String>) -> Self {
+    pub fn new(span: Span, message: impl Into<JoiString>) -> Self {
         Self {
             span,
             message: message.into(),
@@ -29,19 +30,19 @@ pub struct Diagnostic {
     pub severity: DiagnosticSeverity,
     pub code: &'static str,
     pub source_path: PathBuf,
-    pub summary: String,
+    pub summary: JoiString,
     pub primary: DiagnosticLabel,
     pub secondary: Vec<DiagnosticLabel>,
-    pub notes: Vec<String>,
+    pub notes: Vec<JoiString>,
 }
 
 impl Diagnostic {
     pub fn error(
         code: &'static str,
         source_path: impl AsRef<Path>,
-        summary: impl Into<String>,
+        summary: impl Into<JoiString>,
         span: Span,
-        label: impl Into<String>,
+        label: impl Into<JoiString>,
     ) -> Self {
         Self {
             severity: DiagnosticSeverity::Error,
@@ -54,12 +55,12 @@ impl Diagnostic {
         }
     }
 
-    pub fn with_secondary(mut self, span: Span, message: impl Into<String>) -> Self {
+    pub fn with_secondary(mut self, span: Span, message: impl Into<JoiString>) -> Self {
         self.secondary.push(DiagnosticLabel::new(span, message));
         self
     }
 
-    pub fn with_note(mut self, note: impl Into<String>) -> Self {
+    pub fn with_note(mut self, note: impl Into<JoiString>) -> Self {
         self.notes.push(note.into());
         self
     }

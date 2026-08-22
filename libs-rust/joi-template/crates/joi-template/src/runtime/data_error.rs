@@ -1,4 +1,5 @@
 use crate::runtime::ValueKind;
+use joi_base::JoiString;
 
 /// A shared error type for runtime data access failures.
 #[derive(Debug, Clone, PartialEq)]
@@ -8,6 +9,6 @@ pub enum DataError {
         actual: ValueKind,
     },
     Backend {
-        message: String,
+        message: JoiString,
     },
 }

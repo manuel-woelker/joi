@@ -1,3 +1,4 @@
+use joi_base::JoiString;
 use std::path::{Path, PathBuf};
 
 use crate::span::Span;
@@ -6,11 +7,11 @@ use crate::span::Span;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceFile {
     path: PathBuf,
-    source: String,
+    source: JoiString,
 }
 
 impl SourceFile {
-    pub fn new(path: impl Into<PathBuf>, source: impl Into<String>) -> Self {
+    pub fn new(path: impl Into<PathBuf>, source: impl Into<JoiString>) -> Self {
         Self {
             path: path.into(),
             source: source.into(),

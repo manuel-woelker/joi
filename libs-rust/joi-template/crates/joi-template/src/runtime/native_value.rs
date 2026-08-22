@@ -1,3 +1,4 @@
+use joi_base::JoiString;
 use std::collections::BTreeMap;
 
 use crate::runtime::{DataError, NativeListIter, ValueKind, ValueView};
@@ -6,7 +7,7 @@ use crate::schema::PrimitiveType;
 /// A native in-memory runtime value for template data.
 #[derive(Debug, Clone, PartialEq)]
 pub enum NativeValue {
-    String(String),
+    String(JoiString),
     Boolean(bool),
     Integer(i64),
     Float(f64),
@@ -17,7 +18,7 @@ pub enum NativeValue {
 impl NativeValue {
     /// Creates a string value.
     #[must_use]
-    pub fn string(value: impl Into<String>) -> Self {
+    pub fn string(value: impl Into<JoiString>) -> Self {
         Self::String(value.into())
     }
 

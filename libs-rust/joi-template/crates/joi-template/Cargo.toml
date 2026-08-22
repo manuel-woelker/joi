@@ -6,6 +6,7 @@ license.workspace = true
 description = "Core library for the joi-template project"
 
 [dependencies]
+joi-base = { path = "../../../joi-base" }
 serde_json = "1.0"
 
 [lib]

@@ -6,6 +6,7 @@ license.workspace = true
 description = "Generate source code from abstract API descriptions"
 
 [dependencies]
+joi-base = { path = "../../../joi-base" }
 joi-template = { path = "../../../joi-template/crates/joi-template" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

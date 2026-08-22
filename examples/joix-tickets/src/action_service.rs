@@ -5,6 +5,7 @@ use axum::{
     http::StatusCode,
     routing::{MethodRouter, post},
 };
+use joi_base::JoiString;
 use serde::Serialize;
 
 use crate::action::{Action, ActionRequest};
@@ -12,7 +13,7 @@ use crate::action::{Action, ActionRequest};
 /// Registers typed actions as JSON HTTP endpoints.
 #[derive(Debug, Default)]
 pub struct ActionService {
-    action_names: HashSet<String>,
+    action_names: HashSet<JoiString>,
     router: Router,
 }
 
@@ -38,7 +39,7 @@ impl ActionService {
 
     fn register_route(
         &mut self,
-        action_name: String,
+        action_name: JoiString,
         route: MethodRouter,
     ) -> Result<(), ActionRegistrationError> {
         if !is_valid_action_name(&action_name) {
@@ -72,7 +73,7 @@ where
         (
             StatusCode::UNPROCESSABLE_ENTITY,
             Json(ActionResponseError {
-                error: error.to_string(),
+                error: error.to_string().into(),
             }),
         )
     })?;
@@ -81,14 +82,14 @@ where
 
 #[derive(Debug, Serialize)]
 struct ActionResponseError {
-    error: String,
+    error: JoiString,
 }
 
 fn action_error(error: joi_error::JoiError) -> (StatusCode, Json<ActionResponseError>) {
     (
         StatusCode::INTERNAL_SERVER_ERROR,
         Json(ActionResponseError {
-            error: error.to_string(),
+            error: error.to_string().into(),
         }),
     )
 }
@@ -102,8 +103,8 @@ fn is_valid_action_name(name: &str) -> bool {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ActionRegistrationError {
-    InvalidName(String),
-    DuplicateName(String),
+    InvalidName(JoiString),
+    DuplicateName(JoiString),
 }
 
 impl fmt::Display for ActionRegistrationError {
@@ -125,6 +126,7 @@ mod tests {
         body::{Body, to_bytes},
         http::{Request, StatusCode, header::CONTENT_TYPE},
     };
+    use joi_base::JoiString;
     use serde::{Deserialize, Serialize};
     use tower::ServiceExt;
 
@@ -135,12 +137,12 @@ mod tests {
 
     #[derive(Deserialize)]
     struct GreetingRequest {
-        name: String,
+        name: JoiString,
     }
 
     #[derive(Debug, Deserialize, PartialEq, Serialize)]
     struct GreetingResponse {
-        message: String,
+        message: JoiString,
     }
 
     impl ActionRequest for GreetingRequest {
@@ -161,7 +163,7 @@ mod tests {
 
         fn execute(request: Self::Request) -> joi_error::JoiResult<GreetingResponse> {
             Ok(GreetingResponse {
-                message: format!("Hello, {}!", request.name),
+                message: format!("Hello, {}!", request.name).into(),
             })
         }
     }

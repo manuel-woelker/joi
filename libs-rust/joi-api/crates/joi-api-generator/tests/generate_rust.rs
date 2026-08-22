@@ -21,23 +21,32 @@ fn generates_ticket_fixture_deterministically() {
 #[test]
 fn generated_ticket_fixture_compiles() {
     let directory = temporary_directory("compile");
-    fs::create_dir(&directory).unwrap();
-    let source_path = directory.join("ticket.rs");
-    let output_path = directory.join("libticket.rlib");
+    fs::create_dir_all(directory.join("src")).unwrap();
+    let source_path = directory.join("src/lib.rs");
     fs::write(&source_path, EXPECTED_RUST).unwrap();
+    let joi_base = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../joi-base")
+        .canonicalize()
+        .unwrap();
+    fs::write(
+        directory.join("Cargo.toml"),
+        format!(
+            "[package]\nname = \"generated-ticket\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[dependencies]\njoi-base = {{ path = {:?} }}\n",
+            joi_base
+        ),
+    )
+    .unwrap();
 
-    let output = Command::new("rustc")
-        .args(["--edition=2024", "--crate-type=lib"])
-        .arg(&source_path)
-        .arg("-o")
-        .arg(&output_path)
+    let output = Command::new("cargo")
+        .args(["check", "--quiet"])
+        .current_dir(&directory)
         .output()
         .unwrap();
     fs::remove_dir_all(directory).unwrap();
 
     assert!(
         output.status.success(),
-        "rustc failed: {}",
+        "cargo check failed: {}",
         String::from_utf8_lossy(&output.stderr)
     );
 }

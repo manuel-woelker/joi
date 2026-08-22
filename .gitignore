@@ -1,5 +1,5 @@
 # Build output
-/target
+target/
 /dist
 /build
 /out

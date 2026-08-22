@@ -1,8 +1,10 @@
 //! Issue tracking API for bugs, tasks, and other work items.
 
+use joi_base::JoiString;
+
 /// Nominal identifier for [`Ticket`].
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TicketId(pub String);
+pub struct TicketId(pub JoiString);
 
 /// A work item representing a bug, task, or issue.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -10,9 +12,9 @@ pub struct Ticket {
     /// Stable caller-provided identifier.
     pub id: TicketId,
     /// Short summary displayed in ticket lists.
-    pub title: String,
+    pub title: JoiString,
     /// Detailed description of the requested work.
-    pub description: String,
+    pub description: JoiString,
 }
 
 /// Input for [`TicketApi::create`].
@@ -56,9 +58,9 @@ pub struct UpdateTicketsItem {
     /// Stable caller-provided identifier.
     pub id: TicketId,
     /// Short summary displayed in ticket lists.
-    pub title: Option<String>,
+    pub title: Option<JoiString>,
     /// Detailed description of the requested work.
-    pub description: Option<String>,
+    pub description: Option<JoiString>,
 }
 
 /// Issue tracking API for bugs, tasks, and other work items.

@@ -539,7 +539,7 @@ impl<'a> Parser<'a> {
             .iter()
             .filter_map(|index| match &trivia[*index].kind {
                 TriviaKind::DocumentationComment { text } => {
-                    Some(text.strip_prefix(' ').unwrap_or(text))
+                    Some(text.as_str().strip_prefix(' ').unwrap_or(text.as_str()))
                 }
                 _ => None,
             })

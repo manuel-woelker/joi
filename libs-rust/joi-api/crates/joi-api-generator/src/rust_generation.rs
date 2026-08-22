@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
+use joi_base::JoiString;
 use joi_template::{NativeDataSource, NativeValue, render};
 
 use crate::{
@@ -21,7 +22,7 @@ const METHOD_TEMPLATE: &str = include_str!("../templates/rust/service-method.joi
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RustGenerationOutput {
-    pub source: Option<String>,
+    pub source: Option<JoiString>,
     pub diagnostics: Vec<Diagnostic>,
 }
 
@@ -36,14 +37,14 @@ pub fn generate_rust(document: &Document, source_file: &SourceFile) -> RustGener
     }
 
     RustGenerationOutput {
-        source: Some(render_file(&ir.expect("IR exists without diagnostics"))),
+        source: Some(render_file(&ir.expect("IR exists without diagnostics")).into()),
         diagnostics: Vec::new(),
     }
 }
 
 #[derive(Debug)]
 struct RustFile {
-    module_docs: String,
+    module_docs: JoiString,
     ids: Vec<RustId>,
     structs: Vec<RustStruct>,
     service: RustTrait,
@@ -51,37 +52,37 @@ struct RustFile {
 
 #[derive(Debug)]
 struct RustId {
-    docs: String,
-    name: String,
+    docs: JoiString,
+    name: JoiString,
 }
 
 #[derive(Debug, Clone)]
 struct RustStruct {
-    docs: String,
-    name: String,
+    docs: JoiString,
+    name: JoiString,
     fields: Vec<RustField>,
 }
 
 #[derive(Debug, Clone)]
 struct RustField {
-    docs: String,
-    name: String,
-    type_name: String,
+    docs: JoiString,
+    name: JoiString,
+    type_name: JoiString,
 }
 
 #[derive(Debug)]
 struct RustTrait {
-    docs: String,
-    name: String,
+    docs: JoiString,
+    name: JoiString,
     methods: Vec<RustMethod>,
 }
 
 #[derive(Debug)]
 struct RustMethod {
-    docs: String,
-    name: String,
-    input_type: String,
-    output_type: String,
+    docs: JoiString,
+    name: JoiString,
+    input_type: JoiString,
+    output_type: JoiString,
 }
 
 struct IrBuilder<'a> {
@@ -89,9 +90,9 @@ struct IrBuilder<'a> {
     source_file: &'a SourceFile,
     models: HashMap<&'a str, &'a ModelDeclaration>,
     diagnostics: Vec<Diagnostic>,
-    used_ids: BTreeSet<String>,
+    used_ids: BTreeSet<JoiString>,
     helper_structs: Vec<RustStruct>,
-    generated_names: HashMap<String, Span>,
+    generated_names: HashMap<JoiString, Span>,
 }
 
 impl<'a> IrBuilder<'a> {
@@ -142,17 +143,17 @@ impl<'a> IrBuilder<'a> {
             .used_ids
             .iter()
             .map(|model_name| RustId {
-                docs: format!("/// Nominal identifier for [`{model_name}`].\n"),
-                name: format!("{model_name}Id"),
+                docs: format!("/// Nominal identifier for [`{model_name}`].\n").into(),
+                name: format!("{model_name}Id").into(),
             })
             .collect();
         Some(RustFile {
-            module_docs: inner_docs(self.document.module.documentation.as_ref()),
+            module_docs: inner_docs(self.document.module.documentation.as_ref()).into(),
             ids,
             structs,
             service: RustTrait {
-                docs: docs(self.document.module.documentation.as_ref(), 0),
-                name: service_name,
+                docs: docs(self.document.module.documentation.as_ref(), 0).into(),
+                name: service_name.into(),
                 methods,
             },
         })
@@ -205,14 +206,14 @@ impl<'a> IrBuilder<'a> {
         for field in &model.fields {
             let type_name = self.map_type(&field.ty, None)?;
             fields.push(RustField {
-                docs: docs(field.documentation.as_ref(), 1),
-                name: rust_value_name(&field.name.text),
-                type_name,
+                docs: docs(field.documentation.as_ref(), 1).into(),
+                name: rust_value_name(&field.name.text).into(),
+                type_name: type_name.into(),
             });
         }
         Some(RustStruct {
-            docs: docs(model.documentation.as_ref(), 0),
-            name: pascal_case(&model.name.text),
+            docs: docs(model.documentation.as_ref(), 0).into(),
+            name: pascal_case(&model.name.text).into(),
             fields,
         })
     }
@@ -229,9 +230,9 @@ impl<'a> IrBuilder<'a> {
             let context = format!("{operation_name}{}Item", pascal_case(&parameter.name.text));
             let type_name = self.map_type(&parameter.ty, Some(&context))?;
             input_fields.push(RustField {
-                docs: docs(parameter.documentation.as_ref(), 1),
-                name: rust_value_name(&parameter.name.text),
-                type_name,
+                docs: docs(parameter.documentation.as_ref(), 1).into(),
+                name: rust_value_name(&parameter.name.text).into(),
+                type_name: type_name.into(),
             });
         }
 
@@ -240,8 +241,9 @@ impl<'a> IrBuilder<'a> {
                 "/// Input for [`{}Api::{}`].\n",
                 pascal_case(&self.document.module.name.text),
                 rust_value_name(&operation.name.text)
-            ),
-            name: input_name.clone(),
+            )
+            .into(),
+            name: input_name.clone().into(),
             fields: input_fields,
         }];
         let output_type = if let Some(returns) = &operation.returns {
@@ -252,9 +254,9 @@ impl<'a> IrBuilder<'a> {
                 let context = format!("{operation_name}{}Item", pascal_case(&field.name.text));
                 let type_name = self.map_type(&field.ty, Some(&context))?;
                 output_fields.push(RustField {
-                    docs: docs(field.documentation.as_ref(), 1),
-                    name: rust_value_name(&field.name.text),
-                    type_name,
+                    docs: docs(field.documentation.as_ref(), 1).into(),
+                    name: rust_value_name(&field.name.text).into(),
+                    type_name: type_name.into(),
                 });
             }
             structs.push(RustStruct {
@@ -262,8 +264,9 @@ impl<'a> IrBuilder<'a> {
                     "/// Output from [`{}Api::{}`].\n",
                     pascal_case(&self.document.module.name.text),
                     rust_value_name(&operation.name.text)
-                ),
-                name: output_name.clone(),
+                )
+                .into(),
+                name: output_name.clone().into(),
                 fields: output_fields,
             });
             output_name
@@ -274,10 +277,10 @@ impl<'a> IrBuilder<'a> {
         Some((
             structs,
             RustMethod {
-                docs: docs(operation.documentation.as_ref(), 1),
-                name: rust_value_name(&operation.name.text),
-                input_type: input_name,
-                output_type,
+                docs: docs(operation.documentation.as_ref(), 1).into(),
+                name: rust_value_name(&operation.name.text).into(),
+                input_type: input_name.into(),
+                output_type: output_type.into(),
             },
         ))
     }
@@ -285,7 +288,7 @@ impl<'a> IrBuilder<'a> {
     fn map_type(&mut self, ty: &TypeExpression, helper_context: Option<&str>) -> Option<String> {
         match &ty.kind {
             TypeExpressionKind::Named(identifier) => match identifier.text.as_str() {
-                "string" => Some("String".to_owned()),
+                "string" => Some("JoiString".to_owned()),
                 name if self.models.contains_key(name) => Some(pascal_case(name)),
                 name => {
                     self.error(
@@ -304,7 +307,7 @@ impl<'a> IrBuilder<'a> {
                 "id" => {
                     let model = self.single_model_argument("id", arguments, ty.span)?;
                     let model_name = pascal_case(&model.name.text);
-                    if self.used_ids.insert(model_name.clone()) {
+                    if self.used_ids.insert(model_name.clone().into()) {
                         self.register_generated_name(&format!("{model_name}Id"), ty.span);
                     }
                     Some(format!("{model_name}Id"))
@@ -383,19 +386,19 @@ impl<'a> IrBuilder<'a> {
         for field in &model_fields {
             let mapped = self.map_type(&field.ty, None)?;
             fields.push(RustField {
-                docs: docs(field.documentation.as_ref(), 1),
-                name: rust_value_name(&field.name.text),
+                docs: docs(field.documentation.as_ref(), 1).into(),
+                name: rust_value_name(&field.name.text).into(),
                 type_name: if field.name.text == required.value {
-                    mapped
+                    mapped.into()
                 } else {
-                    format!("Option<{mapped}>")
+                    format!("Option<{mapped}>").into()
                 },
             });
         }
         self.register_generated_name(helper_name, span);
         self.helper_structs.push(RustStruct {
-            docs: docs(model_docs.as_ref(), 0),
-            name: helper_name.to_owned(),
+            docs: docs(model_docs.as_ref(), 0).into(),
+            name: helper_name.into(),
             fields,
         });
         Some(helper_name.to_owned())
@@ -467,7 +470,7 @@ impl<'a> IrBuilder<'a> {
     fn unique_named_spans<'b>(
         &mut self,
         kind: &str,
-        values: impl Iterator<Item = (&'b String, Span)>,
+        values: impl Iterator<Item = (&'b JoiString, Span)>,
     ) {
         let mut names = HashMap::new();
         for (name, span) in values {
@@ -488,7 +491,7 @@ impl<'a> IrBuilder<'a> {
             );
             return;
         }
-        if let Some(previous) = self.generated_names.insert(name.to_owned(), span) {
+        if let Some(previous) = self.generated_names.insert(name.into(), span) {
             self.duplicate("generated Rust type", name, span, previous);
         }
     }
@@ -786,7 +789,7 @@ mod tests {
         let output = generate_rust(&document, &source);
 
         assert_eq!(output.diagnostics, []);
-        assert!(output.source.unwrap().contains("pub r#type: String"));
+        assert!(output.source.unwrap().contains("pub r#type: JoiString"));
     }
 
     #[test]

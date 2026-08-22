@@ -5,16 +5,16 @@ pub enum QueryCriterion {
 pub struct DataStoreQuery {
     pub criterion: QueryCriterion,
     pub max_results: usize,
-    pub attributes: Vec<String>,
+    pub attributes: Vec<JoiString>,
 }
 
 pub struct ResultColumn {
-    pub attribute: String,
+    pub attribute: JoiString,
     pub values: Values,
 }
 
 pub enum Values {
-    String(Vec<String>),
+    String(Vec<JoiString>),
 }
 
 pub struct DataStoreQueryResult {
@@ -25,3 +25,4 @@ pub struct DataStoreQueryResult {
 pub trait DataStore {
     fn query(query: DataStoreQuery) -> DataStoreQueryResult;
 }
+use joi_base::JoiString;

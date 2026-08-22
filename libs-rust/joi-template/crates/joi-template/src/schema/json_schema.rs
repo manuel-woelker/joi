@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::fmt::{self, Display};
 
+use joi_base::JoiString;
 use serde_json::Value;
 
 use crate::schema::{DataType, Field, ListType, PrimitiveType, StructType};
@@ -36,13 +37,16 @@ const UNSUPPORTED_KEYWORDS: &[&str] = &[
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum JsonSchemaError {
     /// The input string is not valid JSON.
-    InvalidJson { message: String },
+    InvalidJson { message: JoiString },
     /// The JSON document is not a supported schema shape.
-    InvalidSchema { path: String, message: String },
+    InvalidSchema { path: JoiString, message: JoiString },
     /// The schema uses a JSON Schema keyword that `joi-template` cannot represent yet.
-    UnsupportedFeature { path: String, feature: String },
+    UnsupportedFeature { path: JoiString, feature: JoiString },
     /// The schema declares a JSON Schema type that cannot map to `DataType`.
-    UnsupportedType { path: String, type_name: String },
+    UnsupportedType {
+        path: JoiString,
+        type_name: JoiString,
+    },
 }
 
 impl Display for JsonSchemaError {
@@ -89,7 +93,7 @@ impl DataType {
     /// ```
     pub fn from_json_schema_str(source: &str) -> Result<Self, JsonSchemaError> {
         let value = serde_json::from_str(source).map_err(|error| JsonSchemaError::InvalidJson {
-            message: error.to_string(),
+            message: error.to_string().into(),
         })?;
 
         Self::from_json_schema_value(value)
@@ -120,8 +124,8 @@ fn convert_schema(value: &Value, path: &str) -> Result<DataType, JsonSchemaError
     let object = value
         .as_object()
         .ok_or_else(|| JsonSchemaError::InvalidSchema {
-            path: path.to_owned(),
-            message: "schema must be a JSON object".to_owned(),
+            path: path.to_owned().into(),
+            message: "schema must be a JSON object".into(),
         })?;
 
     reject_unsupported_keywords(object, path)?;
@@ -130,22 +134,22 @@ fn convert_schema(value: &Value, path: &str) -> Result<DataType, JsonSchemaError
     let type_value = object
         .get("type")
         .ok_or_else(|| JsonSchemaError::InvalidSchema {
-            path: type_path.clone(),
-            message: "schema must declare a string type".to_owned(),
+            path: type_path.clone().into(),
+            message: "schema must declare a string type".into(),
         })?;
 
     let type_name = match type_value {
         Value::String(type_name) => type_name.as_str(),
         Value::Array(_) => {
             return Err(JsonSchemaError::UnsupportedFeature {
-                path: type_path,
-                feature: "type array".to_owned(),
+                path: type_path.into(),
+                feature: "type array".into(),
             });
         }
         _ => {
             return Err(JsonSchemaError::InvalidSchema {
-                path: type_path,
-                message: "schema type must be a string".to_owned(),
+                path: type_path.into(),
+                message: "schema type must be a string".into(),
             });
         }
     };
@@ -158,8 +162,8 @@ fn convert_schema(value: &Value, path: &str) -> Result<DataType, JsonSchemaError
         "object" => convert_object_schema(object, path),
         "array" => convert_array_schema(object, path),
         unsupported => Err(JsonSchemaError::UnsupportedType {
-            path: type_path,
-            type_name: unsupported.to_owned(),
+            path: type_path.into(),
+            type_name: unsupported.into(),
         }),
     }
 }
@@ -176,15 +180,16 @@ fn convert_object_schema(
     let properties = properties
         .as_object()
         .ok_or_else(|| JsonSchemaError::InvalidSchema {
-            path: properties_path.clone(),
-            message: "object properties must be a JSON object".to_owned(),
+            path: properties_path.clone().into(),
+            message: "object properties must be a JSON object".into(),
         })?;
 
     let fields = properties
         .iter()
         .map(|(name, schema)| {
             let field_path = child_path(&properties_path, name);
-            convert_schema(schema, &field_path).map(|field_type| Field::new(name, field_type))
+            convert_schema(schema, &field_path)
+                .map(|field_type| Field::new(name.as_str(), field_type))
         })
         .collect::<Result<Vec<_>, _>>()?;
 
@@ -199,14 +204,14 @@ fn convert_array_schema(
     let items = object
         .get("items")
         .ok_or_else(|| JsonSchemaError::InvalidSchema {
-            path: items_path.clone(),
-            message: "array schemas must declare a single item schema".to_owned(),
+            path: items_path.clone().into(),
+            message: "array schemas must declare a single item schema".into(),
         })?;
 
     if items.is_array() {
         return Err(JsonSchemaError::UnsupportedFeature {
-            path: items_path,
-            feature: "tuple items".to_owned(),
+            path: items_path.into(),
+            feature: "tuple items".into(),
         });
     }
 
@@ -224,8 +229,8 @@ fn reject_unsupported_keywords(
         .find(|keyword| object.contains_key(**keyword))
     {
         return Err(JsonSchemaError::UnsupportedFeature {
-            path: child_path(path, feature),
-            feature: (*feature).to_owned(),
+            path: child_path(path, feature).into(),
+            feature: (*feature).into(),
         });
     }
 
@@ -347,8 +352,8 @@ mod tests {
         assert_eq!(
             DataType::from_json_schema_value(json!("string")),
             Err(JsonSchemaError::InvalidSchema {
-                path: "$".to_owned(),
-                message: "schema must be a JSON object".to_owned(),
+                path: "$".into(),
+                message: "schema must be a JSON object".into(),
             })
         );
     }
@@ -358,8 +363,8 @@ mod tests {
         assert_eq!(
             DataType::from_json_schema_value(json!({})),
             Err(JsonSchemaError::InvalidSchema {
-                path: "$.type".to_owned(),
-                message: "schema must declare a string type".to_owned(),
+                path: "$.type".into(),
+                message: "schema must declare a string type".into(),
             })
         );
     }
@@ -369,8 +374,8 @@ mod tests {
         assert_eq!(
             DataType::from_json_schema_value(json!({ "type": ["string", "null"] })),
             Err(JsonSchemaError::UnsupportedFeature {
-                path: "$.type".to_owned(),
-                feature: "type array".to_owned(),
+                path: "$.type".into(),
+                feature: "type array".into(),
             })
         );
     }
@@ -382,8 +387,8 @@ mod tests {
                 "$ref": "#/$defs/User"
             })),
             Err(JsonSchemaError::UnsupportedFeature {
-                path: "$.$ref".to_owned(),
-                feature: "$ref".to_owned(),
+                path: "$.$ref".into(),
+                feature: "$ref".into(),
             })
         );
     }
@@ -399,8 +404,8 @@ mod tests {
                 ]
             })),
             Err(JsonSchemaError::UnsupportedFeature {
-                path: "$.items".to_owned(),
-                feature: "tuple items".to_owned(),
+                path: "$.items".into(),
+                feature: "tuple items".into(),
             })
         );
     }
@@ -413,8 +418,8 @@ mod tests {
                 "minLength": 1
             })),
             Err(JsonSchemaError::UnsupportedFeature {
-                path: "$.minLength".to_owned(),
-                feature: "minLength".to_owned(),
+                path: "$.minLength".into(),
+                feature: "minLength".into(),
             })
         );
     }

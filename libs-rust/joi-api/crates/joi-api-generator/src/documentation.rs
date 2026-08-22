@@ -1,3 +1,4 @@
+use joi_base::JoiString;
 use serde::Serialize;
 
 use crate::ast::{
@@ -9,8 +10,8 @@ use crate::ast::{
 #[serde(rename_all = "camelCase")]
 pub struct ApiDocumentation {
     pub schema_version: u32,
-    pub module: String,
-    pub description: Option<String>,
+    pub module: JoiString,
+    pub description: Option<JoiString>,
     pub models: Vec<ApiModel>,
     pub operations: Vec<ApiOperation>,
 }
@@ -18,16 +19,16 @@ pub struct ApiDocumentation {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApiModel {
-    pub name: String,
-    pub description: Option<String>,
+    pub name: JoiString,
+    pub description: Option<JoiString>,
     pub fields: Vec<ApiField>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApiField {
-    pub name: String,
-    pub description: Option<String>,
+    pub name: JoiString,
+    pub description: Option<JoiString>,
     pub r#type: ApiType,
 }
 
@@ -35,8 +36,8 @@ pub struct ApiField {
 #[serde(rename_all = "camelCase")]
 pub struct ApiOperation {
     pub kind: ApiOperationKind,
-    pub name: String,
-    pub description: Option<String>,
+    pub name: JoiString,
+    pub description: Option<JoiString>,
     pub parameters: Vec<ApiField>,
     pub returns: Vec<ApiField>,
 }
@@ -51,7 +52,7 @@ pub enum ApiOperationKind {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApiType {
-    pub name: String,
+    pub name: JoiString,
     pub arguments: Vec<ApiTypeArgument>,
 }
 
@@ -59,7 +60,7 @@ pub struct ApiType {
 #[serde(tag = "kind", content = "value", rename_all = "camelCase")]
 pub enum ApiTypeArgument {
     Type(ApiType),
-    String(String),
+    String(JoiString),
 }
 
 impl ApiDocumentation {
@@ -148,7 +149,7 @@ impl From<&TypeExpression> for ApiType {
     }
 }
 
-fn documentation_text(documentation: Option<&crate::ast::Documentation>) -> Option<String> {
+fn documentation_text(documentation: Option<&crate::ast::Documentation>) -> Option<JoiString> {
     documentation.map(|documentation| documentation.text.clone())
 }
 

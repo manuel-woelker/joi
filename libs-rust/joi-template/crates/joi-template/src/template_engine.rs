@@ -1,3 +1,4 @@
+use joi_base::JoiString;
 use std::{collections::HashMap, error::Error, fmt};
 
 use crate::{
@@ -66,7 +67,7 @@ fn render_segments<'template, 'data, D: DataSource>(
                     let actual = value.kind();
                     if actual != expected {
                         return Err(RenderError::ArgumentTypeMismatch {
-                            parameter: parameter.name.name.to_string(),
+                            parameter: parameter.name.name.to_string().into(),
                             expected,
                             actual,
                             span: argument.span,
@@ -112,7 +113,7 @@ fn resolve_path<'a, D: DataSource>(
                 source,
             })?
             .ok_or_else(|| RenderError::MissingValue {
-                path: names.join("."),
+                path: names.join(".").into(),
                 span: path.span,
             })?;
     }
@@ -124,7 +125,7 @@ fn resolve_path<'a, D: DataSource>(
 pub enum RenderError {
     Parse(ParseError),
     MissingValue {
-        path: String,
+        path: JoiString,
         span: SourceSpan,
     },
     Data {
@@ -132,7 +133,7 @@ pub enum RenderError {
         source: DataError,
     },
     ArgumentTypeMismatch {
-        parameter: String,
+        parameter: JoiString,
         expected: ValueKind,
         actual: ValueKind,
         span: SourceSpan,
@@ -194,7 +195,7 @@ mod tests {
         assert_eq!(
             render("Hi {user.name}", &data),
             Err(RenderError::MissingValue {
-                path: "user.name".to_owned(),
+                path: "user.name".into(),
                 span: SourceSpan::from_range(4, 13),
             })
         );

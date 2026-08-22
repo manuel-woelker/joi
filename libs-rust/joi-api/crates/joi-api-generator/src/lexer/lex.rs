@@ -117,11 +117,11 @@ impl<'a> Lexer<'a> {
                     trivia.push(TriviaPiece::new(
                         if is_documentation {
                             TriviaKind::DocumentationComment {
-                                text: self.source()[text_start..self.index].to_owned(),
+                                text: self.source()[text_start..self.index].into(),
                             }
                         } else {
                             TriviaKind::LineComment {
-                                text: self.source()[text_start..self.index].to_owned(),
+                                text: self.source()[text_start..self.index].into(),
                             }
                         },
                         Span::new(start, self.index),

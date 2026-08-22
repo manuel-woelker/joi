@@ -1,4 +1,5 @@
 use crate::action::{Action, ActionDescriptor, ActionRequest};
+use joi_base::JoiString;
 use joi_error::JoiResult;
 use serde::{Deserialize, Serialize};
 
@@ -6,8 +7,8 @@ pub struct InfoAction;
 
 #[derive(Debug, Serialize)]
 pub struct InfoActionResponse {
-    pub application_name: String,
-    pub version: String,
+    pub application_name: JoiString,
+    pub version: JoiString,
 }
 
 #[derive(Debug, Deserialize)]
