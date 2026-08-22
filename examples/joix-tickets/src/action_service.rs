@@ -56,32 +56,41 @@ impl ActionService {
 
 async fn execute<A>(
     Json(request): Json<A::Request>,
-) -> Json<<A::Request as ActionRequest>::Response>
+) -> Result<Json<<A::Request as ActionRequest>::Response>, (StatusCode, Json<ActionResponseError>)>
 where
     A: Action,
 {
-    Json(A::execute(request))
+    A::execute(request).map(Json).map_err(action_error)
 }
 
 async fn execute_empty_object<A>()
--> Result<Json<<A::Request as ActionRequest>::Response>, (StatusCode, Json<ActionRequestError>)>
+-> Result<Json<<A::Request as ActionRequest>::Response>, (StatusCode, Json<ActionResponseError>)>
 where
     A: Action,
 {
     let request = serde_json::from_str("{}").map_err(|error| {
         (
             StatusCode::UNPROCESSABLE_ENTITY,
-            Json(ActionRequestError {
+            Json(ActionResponseError {
                 error: error.to_string(),
             }),
         )
     })?;
-    Ok(Json(A::execute(request)))
+    A::execute(request).map(Json).map_err(action_error)
 }
 
 #[derive(Debug, Serialize)]
-struct ActionRequestError {
+struct ActionResponseError {
     error: String,
+}
+
+fn action_error(error: joi_error::JoiError) -> (StatusCode, Json<ActionResponseError>) {
+    (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        Json(ActionResponseError {
+            error: error.to_string(),
+        }),
+    )
 }
 
 fn is_valid_action_name(name: &str) -> bool {
@@ -110,6 +119,8 @@ impl Error for ActionRegistrationError {}
 
 #[cfg(test)]
 mod tests {
+    use std::{error::Error, fmt};
+
     use axum::{
         body::{Body, to_bytes},
         http::{Request, StatusCode, header::CONTENT_TYPE},
@@ -148,10 +159,10 @@ mod tests {
             }
         }
 
-        fn execute(request: Self::Request) -> GreetingResponse {
-            GreetingResponse {
+        fn execute(request: Self::Request) -> joi_error::JoiResult<GreetingResponse> {
+            Ok(GreetingResponse {
                 message: format!("Hello, {}!", request.name),
-            }
+            })
         }
     }
 
@@ -167,8 +178,36 @@ mod tests {
             }
         }
 
-        fn execute(request: Self::Request) -> GreetingResponse {
+        fn execute(request: Self::Request) -> joi_error::JoiResult<GreetingResponse> {
             GreetingAction::execute(request)
+        }
+    }
+
+    #[derive(Debug)]
+    struct ExampleActionError;
+
+    impl fmt::Display for ExampleActionError {
+        fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+            formatter.write_str("action execution failed")
+        }
+    }
+
+    impl Error for ExampleActionError {}
+
+    struct FailingAction;
+
+    impl Action for FailingAction {
+        type Request = GreetingRequest;
+
+        fn descriptor() -> ActionDescriptor {
+            ActionDescriptor {
+                name: "fail".into(),
+                description: "Always fails".into(),
+            }
+        }
+
+        fn execute(_request: Self::Request) -> joi_error::JoiResult<GreetingResponse> {
+            Err(joi_error::report(ExampleActionError))
         }
     }
 
@@ -269,6 +308,31 @@ mod tests {
                 .as_str()
                 .unwrap()
                 .contains("missing field `name`")
+        );
+    }
+
+    #[tokio::test]
+    async fn returns_action_errors_as_json() {
+        let mut service = ActionService::new();
+        service.register::<FailingAction>().unwrap();
+
+        let response = service
+            .into_router()
+            .oneshot(
+                Request::post("/api/fail")
+                    .header(CONTENT_TYPE, "application/json")
+                    .body(Body::from(r#"{"name":"Ada"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(response.headers()[CONTENT_TYPE], "application/json");
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        assert_eq!(
+            serde_json::from_slice::<serde_json::Value>(&body).unwrap(),
+            serde_json::json!({ "error": "action execution failed" })
         );
     }
 

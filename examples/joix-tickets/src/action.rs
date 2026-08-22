@@ -1,3 +1,4 @@
+use joi_error::JoiResult;
 use serde::{Serialize, de::DeserializeOwned};
 
 pub struct ActionDescriptor {
@@ -14,5 +15,5 @@ pub trait Action {
 
     fn descriptor() -> ActionDescriptor;
 
-    fn execute(request: Self::Request) -> <Self::Request as ActionRequest>::Response;
+    fn execute(request: Self::Request) -> JoiResult<<Self::Request as ActionRequest>::Response>;
 }

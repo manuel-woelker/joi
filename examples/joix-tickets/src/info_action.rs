@@ -1,4 +1,5 @@
 use crate::action::{Action, ActionDescriptor, ActionRequest};
+use joi_error::JoiResult;
 use serde::{Deserialize, Serialize};
 
 pub struct InfoAction;
@@ -27,11 +28,11 @@ impl Action for InfoAction {
         }
     }
 
-    fn execute(_request: Self::Request) -> <Self::Request as ActionRequest>::Response {
-        InfoActionResponse {
+    fn execute(_request: Self::Request) -> JoiResult<InfoActionResponse> {
+        Ok(InfoActionResponse {
             application_name: env!("CARGO_PKG_NAME").into(),
             version: env!("CARGO_PKG_VERSION").into(),
-        }
+        })
     }
 }
 
@@ -51,7 +52,7 @@ mod tests {
 
     #[test]
     fn returns_application_information() {
-        let response = InfoAction::execute(InfoActionRequest {});
+        let response = InfoAction::execute(InfoActionRequest {}).unwrap();
 
         assert_eq!(response.application_name, env!("CARGO_PKG_NAME"));
         assert_eq!(response.version, env!("CARGO_PKG_VERSION"));

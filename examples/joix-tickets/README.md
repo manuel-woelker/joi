@@ -44,6 +44,10 @@ response. Successful responses are serialized as JSON. Names may contain ASCII
 letters, digits, `-`, and `_`; invalid or duplicate names are rejected during
 registration.
 
+`Action::execute` returns `JoiResult<Response>`. Failed actions are exposed as a
+JSON `500 Internal Server Error` response whose `error` field contains the
+current error context.
+
 The executable currently registers `InfoAction` and listens on
 `127.0.0.1:3000`. Its empty request is represented by JSON `{}`:
 
