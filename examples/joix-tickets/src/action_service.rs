@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use axum::{
     Json, Router,
     extract::{Path, State},
@@ -24,7 +22,7 @@ impl ActionService {
                     "/api/{action_name}",
                     post(execute).get(execute_empty_object),
                 )
-                .with_state(Arc::new(registry)),
+                .with_state(registry),
         }
     }
 
@@ -34,7 +32,7 @@ impl ActionService {
 }
 
 async fn execute(
-    State(registry): State<Arc<ActionRegistry>>,
+    State(registry): State<ActionRegistry>,
     Path(action_name): Path<JoiString>,
     Json(request): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<ActionResponseError>)> {
@@ -42,7 +40,7 @@ async fn execute(
 }
 
 async fn execute_empty_object(
-    State(registry): State<Arc<ActionRegistry>>,
+    State(registry): State<ActionRegistry>,
     Path(action_name): Path<JoiString>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<ActionResponseError>)> {
     execute_registered(&registry, &action_name, serde_json::json!({}))
@@ -103,7 +101,7 @@ mod tests {
     use tower::ServiceExt;
 
     use crate::action::{Action, ActionDescriptor, ActionRequest};
-    use crate::action_registry::ActionRegistry;
+    use crate::action_registry::ActionRegistryBuilder;
     use crate::info_action::InfoAction;
 
     use super::ActionService;
@@ -190,9 +188,9 @@ mod tests {
     where
         A: Action + Send + Sync + 'static,
     {
-        let mut registry = ActionRegistry::new();
+        let mut registry = ActionRegistryBuilder::new();
         registry.register::<A>().unwrap();
-        ActionService::new(registry)
+        ActionService::new(registry.build())
     }
 
     #[tokio::test]
@@ -317,7 +315,7 @@ mod tests {
 
     #[test]
     fn rejects_duplicate_action_names() {
-        let mut registry = ActionRegistry::new();
+        let mut registry = ActionRegistryBuilder::new();
         registry.register::<GreetingAction>().unwrap();
 
         let error = registry.register::<GreetingAction>().unwrap_err();
@@ -326,7 +324,7 @@ mod tests {
 
     #[test]
     fn rejects_action_names_that_cannot_form_one_path_segment() {
-        let mut registry = ActionRegistry::new();
+        let mut registry = ActionRegistryBuilder::new();
 
         let error = registry.register::<InvalidNameAction>().unwrap_err();
         assert_eq!(error.to_string(), "invalid action name `invalid/name`");

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use joi_base::JoiString;
 use joi_error::{JoiResult, joi_bail, report};
@@ -14,12 +14,22 @@ struct RegisteredAction {
 }
 
 /// Stores typed actions without coupling registration to a transport.
-#[derive(Default)]
+#[derive(Clone)]
 pub struct ActionRegistry {
+    inner: Arc<ActionRegistryInner>,
+}
+
+struct ActionRegistryInner {
     actions: HashMap<JoiString, RegisteredAction>,
 }
 
-impl ActionRegistry {
+/// Collects actions before producing an immutable [`ActionRegistry`].
+#[derive(Default)]
+pub struct ActionRegistryBuilder {
+    actions: HashMap<JoiString, RegisteredAction>,
+}
+
+impl ActionRegistryBuilder {
     pub fn new() -> Self {
         Self::default()
     }
@@ -46,18 +56,30 @@ impl ActionRegistry {
         Ok(())
     }
 
+    pub fn build(self) -> ActionRegistry {
+        ActionRegistry {
+            inner: Arc::new(ActionRegistryInner {
+                actions: self.actions,
+            }),
+        }
+    }
+}
+
+impl ActionRegistry {
     pub fn descriptor(&self, name: &str) -> Option<&ActionDescriptor> {
-        self.actions.get(name).map(|action| &action.descriptor)
+        self.inner
+            .actions
+            .get(name)
+            .map(|action| &action.descriptor)
     }
 
     pub fn descriptors(&self) -> impl Iterator<Item = &ActionDescriptor> {
-        self.actions.values().map(|action| &action.descriptor)
+        self.inner.actions.values().map(|action| &action.descriptor)
     }
 
     pub fn execute(&self, name: &str, request: Value) -> Option<JoiResult<Value>> {
-        self.actions
-            .get(name)
-            .map(|action| (action.execute)(request))
+        let execute = self.inner.actions.get(name).map(|action| action.execute);
+        execute.map(|execute| execute(request))
     }
 }
 
@@ -75,4 +97,23 @@ fn is_valid_action_name(name: &str) -> bool {
         && name
             .bytes()
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::info_action::InfoAction;
+
+    use super::ActionRegistryBuilder;
+
+    #[test]
+    fn builds_a_cloneable_immutable_registry() {
+        let mut builder = ActionRegistryBuilder::new();
+        builder.register::<InfoAction>().unwrap();
+
+        let original = builder.build();
+        let cloned = original.clone();
+
+        assert!(original.descriptor("info").is_some());
+        assert!(cloned.descriptor("info").is_some());
+    }
 }

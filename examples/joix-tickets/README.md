@@ -46,9 +46,10 @@ and dependency handling are intentionally not implemented yet.
 
 ## How are actions exposed over HTTP?
 
-`ActionRegistry::register` stores an action independently of any HTTP framework.
-Names may contain ASCII letters, digits, `-`, and `_`; invalid or duplicate
-names are rejected during registration with a string error.
+`ActionRegistryBuilder::register` stores an action independently of any HTTP
+framework. Names may contain ASCII letters, digits, `-`, and `_`; invalid or
+duplicate names are rejected during registration with a string error. Building
+produces an immutable, cheaply cloneable `ActionRegistry`.
 
 Registration returns `JoiResult<()>`. Once registration is complete, an
 `ActionService` is constructed from the registry and exposes every action at

@@ -2,6 +2,7 @@ use joi_base::JoiString;
 use joi_error::JoiResult;
 use serde::{Serialize, de::DeserializeOwned};
 
+#[derive(Clone)]
 pub struct ActionDescriptor {
     pub name: JoiString,
     pub description: JoiString,

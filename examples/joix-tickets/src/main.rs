@@ -1,4 +1,4 @@
-use crate::action_registry::ActionRegistry;
+use crate::action_registry::ActionRegistryBuilder;
 use crate::action_service::ActionService;
 use crate::info_action::InfoAction;
 use crate::module_registry::ModuleRegistry;
@@ -20,9 +20,9 @@ async fn main() {
     module_registry.register::<TicketsModule>();
     dbg!(module_registry);
 
-    let mut action_registry = ActionRegistry::new();
+    let mut action_registry = ActionRegistryBuilder::new();
     action_registry.register::<InfoAction>().unwrap();
-    let action_service = ActionService::new(action_registry);
+    let action_service = ActionService::new(action_registry.build());
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
         .await
         .unwrap();
