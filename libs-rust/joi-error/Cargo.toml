@@ -1,0 +1,10 @@
+[package]
+name = "joi-error"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Shared error-stack type vocabulary for JOI libraries"
+publish = false
+
+[dependencies]
+error-stack = "0.8"
