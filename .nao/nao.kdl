@@ -3,6 +3,14 @@ recipe "default" {
     run shell="cargo run --manifest-path examples/joix-tickets/Cargo.toml"
   }
 
+  task "ui" description="Run the Joi UI development server" {
+    run shell="""
+      printf 'Task status: http://localhost:5173\n'
+      cd ui
+      exec pnpm dev
+    """
+  }
+
   task "docs-dev" description="Run the API documentation development servers" {
     run shell="""
       cleanup() {
