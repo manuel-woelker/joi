@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, process::ExitCode};
+use std::process::ExitCode;
 
 use joi_base::JoiString;
 use joi_error::{JoiResult, joi_error, report};
@@ -7,7 +7,7 @@ use serde_json::Value as JsonValue;
 
 use crate::action_registry::{ActionRegistry, ActionRegistryBuilder};
 use crate::action_service::ActionService;
-use crate::info_action::InfoAction;
+use crate::info_action::{InfoAction, InfoCollector, InfoProvider};
 use crate::module_registry::ModuleRegistry;
 use crate::tickets_module::TicketsModule;
 
@@ -20,21 +20,6 @@ pub mod module;
 pub mod module_registry;
 pub mod sqlite_data_store;
 pub mod tickets_module;
-
-trait InfoProvider: Send + Sync {
-    fn collect_info(&self, collector: &mut InfoCollector);
-}
-
-#[derive(Default)]
-struct InfoCollector {
-    info: BTreeMap<JoiString, JsonValue>,
-}
-
-impl InfoCollector {
-    fn add_info(&mut self, key: impl Into<JoiString>, value: JsonValue) {
-        self.info.insert(key.into(), value);
-    }
-}
 
 struct PackageInfoProvider;
 
@@ -80,9 +65,7 @@ async fn main() -> ExitCode {
 
 async fn run(arguments: impl IntoIterator<Item = String>) -> JoiResult<()> {
     let plugin_registry = create_plugin_registry()?;
-    let _info = collect_info(&plugin_registry)?;
-
-    let registry = build_action_registry()?;
+    let registry = build_action_registry(plugin_registry)?;
     if let Some(action_name) = parse_action_name(arguments)? {
         print!("{}", execute_cli_action(&registry, &action_name)?);
         return Ok(());
@@ -101,17 +84,9 @@ fn create_plugin_registry() -> JoiResult<PluginRegistry> {
     Ok(registry)
 }
 
-fn collect_info(registry: &PluginRegistry) -> JoiResult<InfoCollector> {
-    let mut collector = InfoCollector::default();
-    for provider in registry.extensions::<dyn InfoProvider>()? {
-        provider.collect_info(&mut collector);
-    }
-    Ok(collector)
-}
-
-fn build_action_registry() -> JoiResult<ActionRegistry> {
+fn build_action_registry(plugin_registry: PluginRegistry) -> JoiResult<ActionRegistry> {
     let mut builder = ActionRegistryBuilder::new();
-    builder.register::<InfoAction>()?;
+    builder.register(InfoAction::new(plugin_registry))?;
     Ok(builder.build())
 }
 
@@ -155,20 +130,19 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        build_action_registry, collect_info, create_plugin_registry, execute_cli_action,
-        parse_action_name,
+        build_action_registry, create_plugin_registry, execute_cli_action, parse_action_name,
     };
 
     #[test]
-    fn collects_application_and_os_info() {
-        let registry = create_plugin_registry().unwrap();
-        let collector = collect_info(&registry).unwrap();
+    fn info_action_collects_application_and_os_info() {
+        let registry = build_action_registry(create_plugin_registry().unwrap()).unwrap();
+        let response = registry.execute("info", json!({})).unwrap().unwrap();
 
-        assert_eq!(collector.info["application_name"], env!("CARGO_PKG_NAME"));
-        assert_eq!(collector.info["version"], env!("CARGO_PKG_VERSION"));
-        assert_eq!(collector.info["os"], std::env::consts::OS);
-        assert_eq!(collector.info["architecture"], std::env::consts::ARCH);
-        assert_eq!(collector.info["os_family"], std::env::consts::FAMILY);
+        assert_eq!(response["application_name"], env!("CARGO_PKG_NAME"));
+        assert_eq!(response["version"], env!("CARGO_PKG_VERSION"));
+        assert_eq!(response["os"], std::env::consts::OS);
+        assert_eq!(response["architecture"], std::env::consts::ARCH);
+        assert_eq!(response["os_family"], std::env::consts::FAMILY);
     }
 
     #[test]
@@ -194,20 +168,25 @@ mod tests {
 
     #[test]
     fn executes_actions_as_yaml() {
-        let output = execute_cli_action(&build_action_registry().unwrap(), "info").unwrap();
+        let registry = build_action_registry(create_plugin_registry().unwrap()).unwrap();
+        let output = execute_cli_action(&registry, "info").unwrap();
 
         assert_eq!(
             yaml_serde::from_str::<serde_json::Value>(&output).unwrap(),
             json!({
                 "application_name": env!("CARGO_PKG_NAME"),
                 "version": env!("CARGO_PKG_VERSION"),
+                "os": std::env::consts::OS,
+                "architecture": std::env::consts::ARCH,
+                "os_family": std::env::consts::FAMILY,
             })
         );
     }
 
     #[test]
     fn rejects_unknown_cli_actions() {
-        let error = execute_cli_action(&build_action_registry().unwrap(), "missing").unwrap_err();
+        let registry = build_action_registry(create_plugin_registry().unwrap()).unwrap();
+        let error = execute_cli_action(&registry, "missing").unwrap_err();
 
         assert_eq!(error.to_string(), "action `missing` is not registered");
     }

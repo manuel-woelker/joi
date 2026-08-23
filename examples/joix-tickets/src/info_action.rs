@@ -1,14 +1,46 @@
+use std::collections::BTreeMap;
+
 use crate::action::{Action, ActionDescriptor, ActionRequest};
 use joi_base::JoiString;
 use joi_error::JoiResult;
+use joi_plugin::PluginRegistry;
 use serde::{Deserialize, Serialize};
+use serde_json::Value as JsonValue;
 
-pub struct InfoAction;
+pub trait InfoProvider: Send + Sync {
+    fn collect_info(&self, collector: &mut InfoCollector);
+}
+
+#[derive(Default)]
+pub struct InfoCollector {
+    info: BTreeMap<JoiString, JsonValue>,
+}
+
+impl InfoCollector {
+    pub fn add_info(&mut self, key: impl Into<JoiString>, value: JsonValue) {
+        self.info.insert(key.into(), value);
+    }
+}
+
+pub struct InfoAction {
+    plugin_registry: PluginRegistry,
+}
+
+impl InfoAction {
+    pub fn new(plugin_registry: PluginRegistry) -> Self {
+        Self { plugin_registry }
+    }
+
+    #[cfg(test)]
+    pub fn new_empty() -> Self {
+        Self::new(PluginRegistry::new())
+    }
+}
 
 #[derive(Debug, Serialize)]
 pub struct InfoActionResponse {
-    pub application_name: JoiString,
-    pub version: JoiString,
+    #[serde(flatten)]
+    pub info: BTreeMap<JoiString, JsonValue>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -29,10 +61,13 @@ impl Action for InfoAction {
         }
     }
 
-    fn execute(_request: Self::Request) -> JoiResult<InfoActionResponse> {
+    fn execute(&self, _request: Self::Request) -> JoiResult<InfoActionResponse> {
+        let mut collector = InfoCollector::default();
+        for provider in self.plugin_registry.extensions::<dyn InfoProvider>()? {
+            provider.collect_info(&mut collector);
+        }
         Ok(InfoActionResponse {
-            application_name: env!("CARGO_PKG_NAME").into(),
-            version: env!("CARGO_PKG_VERSION").into(),
+            info: collector.info,
         })
     }
 }
@@ -52,10 +87,9 @@ mod tests {
     }
 
     #[test]
-    fn returns_application_information() {
-        let response = InfoAction::execute(InfoActionRequest {}).unwrap();
+    fn requires_the_info_provider_extension_point() {
+        let response = InfoAction::new_empty().execute(InfoActionRequest {});
 
-        assert_eq!(response.application_name, env!("CARGO_PKG_NAME"));
-        assert_eq!(response.version, env!("CARGO_PKG_VERSION"));
+        assert!(response.is_err());
     }
 }

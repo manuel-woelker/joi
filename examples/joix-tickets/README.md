@@ -29,6 +29,11 @@ key-value pairs to a shared info collector. Extension points are identified
 directly by trait-object types, and the registry owns their implementations
 while exposing borrowed, typed lookup.
 
+`InfoAction` owns the completed plugin registry and asks every registered
+`InfoProvider` to populate its response when the action runs. It does not know
+which keys individual providers contribute, so adding another provider extends
+the HTTP and CLI response without changing the action.
+
 ## How does the SQLite data store work?
 
 `SqliteDataStore` can open a database file or create an isolated in-memory
@@ -88,8 +93,16 @@ curl \
 The response has this shape:
 
 ```json
-{"application_name":"joix-tickets","version":"0.1.0"}
+{
+  "application_name": "joix-tickets",
+  "architecture": "x86_64",
+  "os": "linux",
+  "os_family": "unix",
+  "version": "0.1.0"
+}
 ```
+
+The OS values depend on the platform running the executable.
 
 The info action also accepts a bodyless GET request:
 

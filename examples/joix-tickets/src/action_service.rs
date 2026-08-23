@@ -97,12 +97,14 @@ mod tests {
         http::{Request, StatusCode, header::CONTENT_TYPE},
     };
     use joi_base::JoiString;
+    use joi_plugin::{PluginRegistry, plugin};
     use serde::{Deserialize, Serialize};
+    use serde_json::Value as JsonValue;
     use tower::ServiceExt;
 
     use crate::action::{Action, ActionDescriptor, ActionRequest};
     use crate::action_registry::ActionRegistryBuilder;
-    use crate::info_action::InfoAction;
+    use crate::info_action::{InfoAction, InfoCollector, InfoProvider};
 
     use super::ActionService;
 
@@ -132,7 +134,7 @@ mod tests {
             }
         }
 
-        fn execute(request: Self::Request) -> joi_error::JoiResult<GreetingResponse> {
+        fn execute(&self, request: Self::Request) -> joi_error::JoiResult<GreetingResponse> {
             Ok(GreetingResponse {
                 message: format!("Hello, {}!", request.name).into(),
             })
@@ -151,8 +153,8 @@ mod tests {
             }
         }
 
-        fn execute(request: Self::Request) -> joi_error::JoiResult<GreetingResponse> {
-            GreetingAction::execute(request)
+        fn execute(&self, request: Self::Request) -> joi_error::JoiResult<GreetingResponse> {
+            GreetingAction.execute(request)
         }
     }
 
@@ -179,23 +181,49 @@ mod tests {
             }
         }
 
-        fn execute(_request: Self::Request) -> joi_error::JoiResult<GreetingResponse> {
+        fn execute(&self, _request: Self::Request) -> joi_error::JoiResult<GreetingResponse> {
             Err(joi_error::report(ExampleActionError))
         }
     }
 
-    fn service_with<A>() -> ActionService
+    fn service_with<A>(action: A) -> ActionService
     where
         A: Action + Send + Sync + 'static,
     {
         let mut registry = ActionRegistryBuilder::new();
-        registry.register::<A>().unwrap();
+        registry.register(action).unwrap();
         ActionService::new(registry.build())
+    }
+
+    struct TestInfoProvider;
+
+    impl InfoProvider for TestInfoProvider {
+        fn collect_info(&self, collector: &mut InfoCollector) {
+            collector.add_info(
+                "application_name",
+                JsonValue::String(env!("CARGO_PKG_NAME").into()),
+            );
+            collector.add_info(
+                "version",
+                JsonValue::String(env!("CARGO_PKG_VERSION").into()),
+            );
+        }
+    }
+
+    fn info_action() -> InfoAction {
+        let mut registry = PluginRegistry::new();
+        registry
+            .register(plugin("test-info", |context| {
+                context.register_extension_point::<dyn InfoProvider>()?;
+                context.register_extension::<dyn InfoProvider>(Box::new(TestInfoProvider))
+            }))
+            .unwrap();
+        InfoAction::new(registry)
     }
 
     #[tokio::test]
     async fn invokes_registered_actions_with_json() {
-        let service = service_with::<GreetingAction>();
+        let service = service_with(GreetingAction);
 
         let response = service
             .into_router()
@@ -221,7 +249,7 @@ mod tests {
 
     #[tokio::test]
     async fn invokes_the_info_action_with_an_empty_object_request() {
-        let service = service_with::<InfoAction>();
+        let service = service_with(info_action());
 
         let response = service
             .into_router()
@@ -247,7 +275,7 @@ mod tests {
 
     #[tokio::test]
     async fn invokes_get_actions_without_a_request_body() {
-        let service = service_with::<InfoAction>();
+        let service = service_with(info_action());
 
         let response = service
             .into_router()
@@ -296,7 +324,7 @@ mod tests {
 
     #[tokio::test]
     async fn returns_json_when_an_empty_object_cannot_deserialize() {
-        let service = service_with::<GreetingAction>();
+        let service = service_with(GreetingAction);
 
         let response = service
             .into_router()
@@ -318,7 +346,7 @@ mod tests {
 
     #[tokio::test]
     async fn returns_action_errors_as_json() {
-        let service = service_with::<FailingAction>();
+        let service = service_with(FailingAction);
 
         let response = service
             .into_router()
@@ -343,9 +371,9 @@ mod tests {
     #[test]
     fn rejects_duplicate_action_names() {
         let mut registry = ActionRegistryBuilder::new();
-        registry.register::<GreetingAction>().unwrap();
+        registry.register(GreetingAction).unwrap();
 
-        let error = registry.register::<GreetingAction>().unwrap_err();
+        let error = registry.register(GreetingAction).unwrap_err();
         assert_eq!(error.to_string(), "action `greet` is already registered");
     }
 
@@ -353,7 +381,7 @@ mod tests {
     fn rejects_action_names_that_cannot_form_one_path_segment() {
         let mut registry = ActionRegistryBuilder::new();
 
-        let error = registry.register::<InvalidNameAction>().unwrap_err();
+        let error = registry.register(InvalidNameAction).unwrap_err();
         assert_eq!(error.to_string(), "invalid action name `invalid//name`");
     }
 }

@@ -17,5 +17,8 @@ pub trait Action {
 
     fn descriptor() -> ActionDescriptor;
 
-    fn execute(request: Self::Request) -> JoiResult<<Self::Request as ActionRequest>::Response>;
+    fn execute(
+        &self,
+        request: Self::Request,
+    ) -> JoiResult<<Self::Request as ActionRequest>::Response>;
 }

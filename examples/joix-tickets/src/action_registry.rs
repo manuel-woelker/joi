@@ -37,9 +37,9 @@ impl ActionRegistryBuilder {
         Self::default()
     }
 
-    pub fn register<A>(&mut self) -> JoiResult<()>
+    pub fn register<A>(&mut self, action: A) -> JoiResult<()>
     where
-        A: Action + 'static,
+        A: Action + Send + Sync + 'static,
     {
         let descriptor = A::descriptor();
         if !is_valid_action_name(&descriptor.name) {
@@ -53,7 +53,9 @@ impl ActionRegistryBuilder {
             descriptor.name.clone(),
             RegisteredAction {
                 descriptor,
-                execute: Arc::new(|request| execute_typed::<A::Request>(request, A::execute)),
+                execute: Arc::new(move |request| {
+                    execute_typed::<A::Request>(request, |request| action.execute(request))
+                }),
             },
         );
         Ok(())
@@ -174,7 +176,7 @@ mod tests {
     #[test]
     fn builds_a_cloneable_immutable_registry() {
         let mut builder = ActionRegistryBuilder::new();
-        builder.register::<InfoAction>().unwrap();
+        builder.register(InfoAction::new_empty()).unwrap();
 
         let original = builder.build();
         let cloned = original.clone();
@@ -187,7 +189,7 @@ mod tests {
     #[test]
     fn built_in_action_lists_the_registry_snapshot_in_name_order() {
         let mut builder = ActionRegistryBuilder::new();
-        builder.register::<InfoAction>().unwrap();
+        builder.register(InfoAction::new_empty()).unwrap();
         let registry = builder.build();
 
         let response = registry
