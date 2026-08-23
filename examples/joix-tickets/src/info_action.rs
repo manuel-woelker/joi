@@ -33,7 +33,7 @@ impl InfoAction {
 
     #[cfg(test)]
     pub fn new_empty() -> Self {
-        Self::new(PluginRegistry::new())
+        Self::new(joi_plugin::PluginRegistryBuilder::new().build())
     }
 }
 
@@ -63,8 +63,7 @@ impl Action for InfoAction {
 
     fn execute(&self, _request: Self::Request) -> JoiResult<InfoActionResponse> {
         let mut collector = InfoCollector::default();
-        let providers = self.plugin_registry.extensions::<dyn InfoProvider>()?;
-        for provider in providers.iter() {
+        for provider in self.plugin_registry.extensions::<dyn InfoProvider>()? {
             provider.collect_info(&mut collector);
         }
         Ok(InfoActionResponse {

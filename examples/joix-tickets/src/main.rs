@@ -2,7 +2,7 @@ use std::process::ExitCode;
 
 use joi_base::JoiString;
 use joi_error::{JoiResult, joi_error, report};
-use joi_plugin::{PluginRegistry, plugin};
+use joi_plugin::{PluginRegistry, PluginRegistryBuilder, plugin};
 use serde_json::Value as JsonValue;
 
 use crate::action_registry::{ActionRegistry, ActionRegistryBuilder};
@@ -75,13 +75,13 @@ async fn run(arguments: impl IntoIterator<Item = String>) -> JoiResult<()> {
 }
 
 fn create_plugin_registry() -> JoiResult<PluginRegistry> {
-    let registry = PluginRegistry::new();
-    registry.register(plugin("infra", |context| {
+    let mut builder = PluginRegistryBuilder::new();
+    builder.register(plugin("infra", |context| {
         context.register_extension_point::<dyn InfoProvider>()?;
         context.register_extension::<dyn InfoProvider>(Box::new(PackageInfoProvider))?;
         context.register_extension::<dyn InfoProvider>(Box::new(OsInfoProvider))
     }))?;
-    Ok(registry)
+    Ok(builder.build())
 }
 
 fn build_action_registry(plugin_registry: PluginRegistry) -> JoiResult<ActionRegistry> {

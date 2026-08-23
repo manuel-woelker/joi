@@ -17,22 +17,22 @@ support unloading.
 Use the extension trait itself to identify each extension point:
 
 ```rust
-use joi_plugin::{PluginRegistry, plugin};
+use joi_plugin::{PluginRegistryBuilder, plugin};
 
 trait InfoProvider: Send + Sync {
     fn info(&self) -> String;
 }
 
-let mut registry = PluginRegistry::new();
+let mut builder = PluginRegistryBuilder::new();
 
-registry.register(plugin("infra", |context| {
+builder.register(plugin("infra", |context| {
     context.register_extension_point::<dyn InfoProvider>()?;
     context.register_extension::<dyn InfoProvider>(Box::new(VersionInfoProvider))?;
     Ok(())
 }))?;
+let registry = builder.build();
 
-let providers = registry.extensions::<dyn InfoProvider>()?;
-for provider in providers.iter() {
+for provider in registry.extensions::<dyn InfoProvider>()? {
     println!("{}", provider.info());
 }
 # Ok::<(), joi_error::JoiError>(())
@@ -85,11 +85,12 @@ classification.
 - [x] Implement `PluginContext` with typed `register_extension_point` and
       `register_extension` methods whose generic parameter is the extension
       trait and whose extension value is `Box<T>`.
-- [x] Implement `PluginRegistry::register` with unique plugin names,
+- [x] Implement `PluginRegistryBuilder::register` with unique plugin names,
       caller-defined ordering, staged atomic commits, and contextual string
       errors.
-- [x] Implement `extensions::<T>()` lookup returning a read-locked view whose
-      iterator borrows `&T` values while preserving registration order.
+- [x] Implement `PluginRegistryBuilder::build` to produce an immutable,
+      cheaply cloneable registry, and `extensions::<T>()` lookup returning
+      borrowed `&T` values while preserving registration order.
 - [x] Split implementation into focused modules for extension collections,
       plugins, registration context, registry storage, and erased entries;
       re-export only the intended public API from `lib.rs`.
@@ -112,9 +113,9 @@ classification.
 ## What assumptions does the plan make?
 
 - Extension traits and implementations are `Send + Sync + 'static`. Extensions
-  are owned by a shared `Arc<JoiRwLock<PluginRegistryInner>>` registry in `Box`
-  values and borrowed through a read-locked view; they cannot outlive that view
-  or be cloned out independently.
+  are owned in `Box` values by an immutable registry backed by
+  `Arc<PluginRegistryInner>` and cannot outlive the registry borrow or be cloned
+  out independently.
 - Plugin registration is synchronous and completes before normal application
   operation begins.
 - Plugin names are unique registry-wide. Extension points are identified by
@@ -130,11 +131,9 @@ classification.
   The proposed design allows it because trait objects do not provide a reliable
   implementation identity; callers can add explicit IDs later if deduplication
   becomes necessary.
-- Should the final registry become immutable after startup, following the
-  action-registry builder pattern? The requested usage registers plugins
-  directly on a registry, so the first version keeps explicit mutable
-  registration. A builder/frozen split should be added only when a runtime
-  consumer needs cheap cloneable snapshots.
+- The final registry is immutable after startup, following the action-registry
+  builder pattern. Runtime registration can be introduced later with an
+  explicit snapshot mechanism if a concrete use case requires it.
 
 ## Verification
 

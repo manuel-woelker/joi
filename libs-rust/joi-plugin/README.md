@@ -11,7 +11,7 @@ An extension point is identified by its trait type. A plugin can define a point
 and register implementations, while later plugins can add more implementations.
 
 ```rust
-use joi_plugin::{PluginRegistry, plugin};
+use joi_plugin::{PluginRegistryBuilder, plugin};
 
 trait InfoProvider: Send + Sync {
     fn info(&self) -> &'static str;
@@ -25,25 +25,25 @@ impl InfoProvider for VersionInfo {
     }
 }
 
-let registry = PluginRegistry::new();
-registry.register(plugin("infra", |context| {
+let mut builder = PluginRegistryBuilder::new();
+builder.register(plugin("infra", |context| {
     context.register_extension_point::<dyn InfoProvider>()?;
     context.register_extension::<dyn InfoProvider>(Box::new(VersionInfo))?;
     Ok(())
 }))?;
+let registry = builder.build();
 
 let values: Vec<_> = registry
     .extensions::<dyn InfoProvider>()?
-    .iter()
     .map(InfoProvider::info)
     .collect();
 assert_eq!(values, ["1.0.0"]);
 # Ok::<(), joi_error::JoiError>(())
 ```
 
-Cloned registries share one reader-writer-locked inner state. The registry owns
-extension values, and an extension view retains a read lock while its `.iter()`
-borrows them.
+The builder owns the mutable registration phase. Building produces an immutable
+registry whose clones share the same state. Extension lookup is lock-free and
+borrows values directly from the registry.
 
 ## What does it depend on?
 

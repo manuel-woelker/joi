@@ -97,7 +97,7 @@ mod tests {
         http::{Request, StatusCode, header::CONTENT_TYPE},
     };
     use joi_base::JoiString;
-    use joi_plugin::{PluginRegistry, plugin};
+    use joi_plugin::{PluginRegistryBuilder, plugin};
     use serde::{Deserialize, Serialize};
     use serde_json::Value as JsonValue;
     use tower::ServiceExt;
@@ -211,14 +211,14 @@ mod tests {
     }
 
     fn info_action() -> InfoAction {
-        let registry = PluginRegistry::new();
-        registry
+        let mut builder = PluginRegistryBuilder::new();
+        builder
             .register(plugin("test-info", |context| {
                 context.register_extension_point::<dyn InfoProvider>()?;
                 context.register_extension::<dyn InfoProvider>(Box::new(TestInfoProvider))
             }))
             .unwrap();
-        InfoAction::new(registry)
+        InfoAction::new(builder.build())
     }
 
     #[tokio::test]
