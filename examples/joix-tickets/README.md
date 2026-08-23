@@ -109,6 +109,19 @@ cargo run
 The executable registers `TicketsModule` and `InfoAction`, then runs the HTTP
 service. It remains active until interrupted.
 
+Passing an action name invokes that action with an empty JSON object instead of
+starting the HTTP service. The response is written as YAML and the process then
+terminates:
+
+```bash
+cargo run -- info
+cargo run -- actions/list
+```
+
+Only actions whose request can be deserialized from `{}` can currently be
+invoked from the CLI. Unknown actions and extra command-line arguments produce
+an error and a non-zero exit status.
+
 ## How do I check it?
 
 ```bash
