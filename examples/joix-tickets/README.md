@@ -24,9 +24,10 @@ their integration requirements become clear.
 
 At startup, the executable creates a `PluginRegistry` and registers an `infra`
 plugin. That plugin defines the `InfoProvider` extension point and contributes a
-version provider. Extension points are identified directly by trait-object
-types, and the registry owns their implementations while exposing borrowed,
-typed lookup.
+package provider and an operating-system provider. Each provider contributes
+key-value pairs to a shared info collector. Extension points are identified
+directly by trait-object types, and the registry owns their implementations
+while exposing borrowed, typed lookup.
 
 ## How does the SQLite data store work?
 

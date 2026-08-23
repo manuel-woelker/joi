@@ -1,8 +1,9 @@
-use std::process::ExitCode;
+use std::{collections::BTreeMap, process::ExitCode};
 
 use joi_base::JoiString;
 use joi_error::{JoiResult, joi_error, report};
 use joi_plugin::{PluginRegistry, plugin};
+use serde_json::Value as JsonValue;
 
 use crate::action_registry::{ActionRegistry, ActionRegistryBuilder};
 use crate::action_service::ActionService;
@@ -21,19 +22,48 @@ pub mod sqlite_data_store;
 pub mod tickets_module;
 
 trait InfoProvider: Send + Sync {
-    fn application_name(&self) -> &'static str;
-    fn version(&self) -> &'static str;
+    fn collect_info(&self, collector: &mut InfoCollector);
 }
 
-struct VersionInfoProvider;
+#[derive(Default)]
+struct InfoCollector {
+    info: BTreeMap<JoiString, JsonValue>,
+}
 
-impl InfoProvider for VersionInfoProvider {
-    fn application_name(&self) -> &'static str {
-        env!("CARGO_PKG_NAME")
+impl InfoCollector {
+    fn add_info(&mut self, key: impl Into<JoiString>, value: JsonValue) {
+        self.info.insert(key.into(), value);
     }
+}
 
-    fn version(&self) -> &'static str {
-        env!("CARGO_PKG_VERSION")
+struct PackageInfoProvider;
+
+impl InfoProvider for PackageInfoProvider {
+    fn collect_info(&self, collector: &mut InfoCollector) {
+        collector.add_info(
+            "application_name",
+            JsonValue::String(env!("CARGO_PKG_NAME").into()),
+        );
+        collector.add_info(
+            "version",
+            JsonValue::String(env!("CARGO_PKG_VERSION").into()),
+        );
+    }
+}
+
+struct OsInfoProvider;
+
+impl InfoProvider for OsInfoProvider {
+    fn collect_info(&self, collector: &mut InfoCollector) {
+        collector.add_info("os", JsonValue::String(std::env::consts::OS.into()));
+        collector.add_info(
+            "architecture",
+            JsonValue::String(std::env::consts::ARCH.into()),
+        );
+        collector.add_info(
+            "os_family",
+            JsonValue::String(std::env::consts::FAMILY.into()),
+        );
     }
 }
 
@@ -50,12 +80,7 @@ async fn main() -> ExitCode {
 
 async fn run(arguments: impl IntoIterator<Item = String>) -> JoiResult<()> {
     let plugin_registry = create_plugin_registry()?;
-    let info_provider = plugin_registry
-        .extensions::<dyn InfoProvider>()?
-        .next()
-        .ok_or_else(|| joi_error!("no info provider is registered"))?;
-    debug_assert_eq!(info_provider.application_name(), env!("CARGO_PKG_NAME"));
-    debug_assert_eq!(info_provider.version(), env!("CARGO_PKG_VERSION"));
+    let _info = collect_info(&plugin_registry)?;
 
     let registry = build_action_registry()?;
     if let Some(action_name) = parse_action_name(arguments)? {
@@ -70,9 +95,18 @@ fn create_plugin_registry() -> JoiResult<PluginRegistry> {
     let mut registry = PluginRegistry::new();
     registry.register(plugin("infra", |context| {
         context.register_extension_point::<dyn InfoProvider>()?;
-        context.register_extension::<dyn InfoProvider>(Box::new(VersionInfoProvider))
+        context.register_extension::<dyn InfoProvider>(Box::new(PackageInfoProvider))?;
+        context.register_extension::<dyn InfoProvider>(Box::new(OsInfoProvider))
     }))?;
     Ok(registry)
+}
+
+fn collect_info(registry: &PluginRegistry) -> JoiResult<InfoCollector> {
+    let mut collector = InfoCollector::default();
+    for provider in registry.extensions::<dyn InfoProvider>()? {
+        provider.collect_info(&mut collector);
+    }
+    Ok(collector)
 }
 
 fn build_action_registry() -> JoiResult<ActionRegistry> {
@@ -121,21 +155,20 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        InfoProvider, build_action_registry, create_plugin_registry, execute_cli_action,
+        build_action_registry, collect_info, create_plugin_registry, execute_cli_action,
         parse_action_name,
     };
 
     #[test]
-    fn registers_application_info_provider() {
+    fn collects_application_and_os_info() {
         let registry = create_plugin_registry().unwrap();
-        let provider = registry
-            .extensions::<dyn InfoProvider>()
-            .unwrap()
-            .next()
-            .unwrap();
+        let collector = collect_info(&registry).unwrap();
 
-        assert_eq!(provider.application_name(), env!("CARGO_PKG_NAME"));
-        assert_eq!(provider.version(), env!("CARGO_PKG_VERSION"));
+        assert_eq!(collector.info["application_name"], env!("CARGO_PKG_NAME"));
+        assert_eq!(collector.info["version"], env!("CARGO_PKG_VERSION"));
+        assert_eq!(collector.info["os"], std::env::consts::OS);
+        assert_eq!(collector.info["architecture"], std::env::consts::ARCH);
+        assert_eq!(collector.info["os_family"], std::env::consts::FAMILY);
     }
 
     #[test]
