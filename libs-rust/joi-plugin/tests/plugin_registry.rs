@@ -15,7 +15,7 @@ impl Label for FixedLabel {
 
 #[test]
 fn registers_and_invokes_typed_extensions_in_order() {
-    let mut registry = PluginRegistry::new();
+    let registry = PluginRegistry::new();
     registry
         .register(plugin("labels", |context| {
             context.register_extension_point::<dyn Label>()?;
@@ -28,6 +28,7 @@ fn registers_and_invokes_typed_extensions_in_order() {
     let labels: Vec<_> = registry
         .extensions::<dyn Label>()
         .unwrap()
+        .iter()
         .map(Label::label)
         .collect();
 
@@ -36,7 +37,7 @@ fn registers_and_invokes_typed_extensions_in_order() {
 
 #[test]
 fn later_plugins_can_extend_existing_points() {
-    let mut registry = PluginRegistry::new();
+    let registry = PluginRegistry::new();
     registry
         .register(plugin("point", |context| {
             context.register_extension_point::<dyn Label>()
@@ -51,14 +52,31 @@ fn later_plugins_can_extend_existing_points() {
     let labels: Vec<_> = registry
         .extensions::<dyn Label>()
         .unwrap()
+        .iter()
         .map(Label::label)
         .collect();
     assert_eq!(labels, ["later"]);
 }
 
 #[test]
+fn cloned_registries_share_registered_extensions() {
+    let registry = PluginRegistry::new();
+    let cloned = registry.clone();
+
+    cloned
+        .register(plugin("shared", |context| {
+            context.register_extension_point::<dyn Label>()?;
+            context.register_extension::<dyn Label>(Box::new(FixedLabel("visible")))
+        }))
+        .unwrap();
+
+    let extensions = registry.extensions::<dyn Label>().unwrap();
+    assert_eq!(extensions.iter().next().unwrap().label(), "visible");
+}
+
+#[test]
 fn rejects_duplicate_plugin_names() {
-    let mut registry = PluginRegistry::new();
+    let registry = PluginRegistry::new();
     registry.register(plugin("same", |_| Ok(()))).unwrap();
 
     let error = registry.register(plugin("same", |_| Ok(()))).unwrap_err();
@@ -68,7 +86,7 @@ fn rejects_duplicate_plugin_names() {
 
 #[test]
 fn rejects_duplicate_extension_points() {
-    let mut registry = PluginRegistry::new();
+    let registry = PluginRegistry::new();
     registry
         .register(plugin("first", |context| {
             context.register_extension_point::<dyn Label>()
@@ -86,7 +104,7 @@ fn rejects_duplicate_extension_points() {
 
 #[test]
 fn rejects_extensions_for_unknown_points() {
-    let mut registry = PluginRegistry::new();
+    let registry = PluginRegistry::new();
 
     let error = registry
         .register(plugin("orphan", |context| {
@@ -99,7 +117,7 @@ fn rejects_extensions_for_unknown_points() {
 
 #[test]
 fn failed_plugins_are_rolled_back_and_can_be_retried() {
-    let mut registry = PluginRegistry::new();
+    let registry = PluginRegistry::new();
     let error = registry
         .register(plugin("retryable", |context| {
             context.register_extension_point::<dyn Label>()?;
@@ -120,6 +138,7 @@ fn failed_plugins_are_rolled_back_and_can_be_retried() {
         registry
             .extensions::<dyn Label>()
             .unwrap()
+            .iter()
             .next()
             .unwrap()
             .label(),
@@ -139,7 +158,7 @@ fn registering_the_same_concrete_type_for_distinct_traits_stays_typed() {
         }
     }
 
-    let mut registry = PluginRegistry::new();
+    let registry = PluginRegistry::new();
     registry
         .register(plugin("both", |context| {
             context.register_extension_point::<dyn Label>()?;
@@ -153,6 +172,7 @@ fn registering_the_same_concrete_type_for_distinct_traits_stays_typed() {
         registry
             .extensions::<dyn AlternateLabel>()
             .unwrap()
+            .iter()
             .next()
             .unwrap()
             .alternate(),

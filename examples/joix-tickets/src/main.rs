@@ -75,7 +75,7 @@ async fn run(arguments: impl IntoIterator<Item = String>) -> JoiResult<()> {
 }
 
 fn create_plugin_registry() -> JoiResult<PluginRegistry> {
-    let mut registry = PluginRegistry::new();
+    let registry = PluginRegistry::new();
     registry.register(plugin("infra", |context| {
         context.register_extension_point::<dyn InfoProvider>()?;
         context.register_extension::<dyn InfoProvider>(Box::new(PackageInfoProvider))?;

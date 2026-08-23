@@ -11,4 +11,4 @@ mod plugin_registry;
 
 pub use plugin::{Plugin, plugin};
 pub use plugin_context::PluginContext;
-pub use plugin_registry::PluginRegistry;
+pub use plugin_registry::{Extensions, PluginRegistry};

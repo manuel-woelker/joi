@@ -25,7 +25,7 @@ impl InfoProvider for VersionInfo {
     }
 }
 
-let mut registry = PluginRegistry::new();
+let registry = PluginRegistry::new();
 registry.register(plugin("infra", |context| {
     context.register_extension_point::<dyn InfoProvider>()?;
     context.register_extension::<dyn InfoProvider>(Box::new(VersionInfo))?;
@@ -34,14 +34,16 @@ registry.register(plugin("infra", |context| {
 
 let values: Vec<_> = registry
     .extensions::<dyn InfoProvider>()?
+    .iter()
     .map(InfoProvider::info)
     .collect();
 assert_eq!(values, ["1.0.0"]);
 # Ok::<(), joi_error::JoiError>(())
 ```
 
-The registry owns extension values. Lookups borrow them, so no shared-ownership
-wrapper is required.
+Cloned registries share one reader-writer-locked inner state. The registry owns
+extension values, and an extension view retains a read lock while its `.iter()`
+borrows them.
 
 ## What does it depend on?
 
@@ -56,4 +58,3 @@ cargo test
 cargo clippy --all-targets -- -D warnings
 cargo doc --no-deps
 ```
-

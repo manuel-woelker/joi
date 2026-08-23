@@ -211,7 +211,7 @@ mod tests {
     }
 
     fn info_action() -> InfoAction {
-        let mut registry = PluginRegistry::new();
+        let registry = PluginRegistry::new();
         registry
             .register(plugin("test-info", |context| {
                 context.register_extension_point::<dyn InfoProvider>()?;

@@ -31,7 +31,8 @@ registry.register(plugin("infra", |context| {
     Ok(())
 }))?;
 
-for provider in registry.extensions::<dyn InfoProvider>()? {
+let providers = registry.extensions::<dyn InfoProvider>()?;
+for provider in providers.iter() {
     println!("{}", provider.info());
 }
 # Ok::<(), joi_error::JoiError>(())
@@ -87,8 +88,8 @@ classification.
 - [x] Implement `PluginRegistry::register` with unique plugin names,
       caller-defined ordering, staged atomic commits, and contextual string
       errors.
-- [x] Implement `extensions::<T>()` lookup returning an iterator over borrowed
-      `&T` values while preserving registration order.
+- [x] Implement `extensions::<T>()` lookup returning a read-locked view whose
+      iterator borrows `&T` values while preserving registration order.
 - [x] Split implementation into focused modules for extension collections,
       plugins, registration context, registry storage, and erased entries;
       re-export only the intended public API from `lib.rs`.
@@ -111,8 +112,9 @@ classification.
 ## What assumptions does the plan make?
 
 - Extension traits and implementations are `Send + Sync + 'static`. Extensions
-  are owned by the registry in `Box` values and borrowed by consumers; they
-  cannot outlive the registry borrow or be cloned out independently.
+  are owned by a shared `Arc<JoiRwLock<PluginRegistryInner>>` registry in `Box`
+  values and borrowed through a read-locked view; they cannot outlive that view
+  or be cloned out independently.
 - Plugin registration is synchronous and completes before normal application
   operation begins.
 - Plugin names are unique registry-wide. Extension points are identified by

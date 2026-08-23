@@ -63,7 +63,8 @@ impl Action for InfoAction {
 
     fn execute(&self, _request: Self::Request) -> JoiResult<InfoActionResponse> {
         let mut collector = InfoCollector::default();
-        for provider in self.plugin_registry.extensions::<dyn InfoProvider>()? {
+        let providers = self.plugin_registry.extensions::<dyn InfoProvider>()?;
+        for provider in providers.iter() {
             provider.collect_info(&mut collector);
         }
         Ok(InfoActionResponse {
