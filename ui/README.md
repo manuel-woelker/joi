@@ -1,6 +1,22 @@
 # Joi UI
 
-Basic SolidJS application shell for Joi interfaces.
+SolidJS workspace for creating and organizing customizable application views.
+
+## How does the workspace work?
+
+A saved view combines a reusable query with a reusable presentation. Queries
+select and sort records; presentations define table or list layout, fields, and
+density. The same definition can be shared by multiple views, or copied when a
+view needs private customization.
+
+The left navigation supports folders, favorites, reordering, moving,
+duplication, deletion with undo, and keyboard navigation. View URLs use the
+`#/views/<id>` hash format.
+
+Workspace definitions are currently stored in browser `localStorage`. The
+included reset command restores the example ticket workspace. Data loading,
+permissions, sharing, and backend synchronization are intentionally not yet
+implemented.
 
 ## How do I run it?
 
@@ -13,5 +29,9 @@ pnpm dev
 
 ```sh
 pnpm check
+pnpm test
 pnpm build
 ```
+
+From the repository root, `nao ui` starts the same development server at
+`http://localhost:5173`.

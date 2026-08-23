@@ -126,38 +126,38 @@ needed.
 
 ## Implementation Checklist
 
-- [ ] Add Vitest, Solid Testing Library, `@testing-library/user-event`, and a
+- [x] Add Vitest, Solid Testing Library, `@testing-library/user-event`, and a
       DOM test environment; define `test` and `test:watch` package scripts.
-- [ ] Introduce focused model modules for branded IDs, records, filters,
+- [x] Introduce focused model modules for branded IDs, records, filters,
       queries, presentations, saved views, navigation items, runtime state, and
       the versioned persisted workspace document.
-- [ ] Implement pure query evaluation and stable sorting over a local ticket
+- [x] Implement pure query evaluation and stable sorting over a local ticket
       fixture, with table/list presentation compatibility validation.
-- [ ] Implement a workspace repository interface and a browser-local
+- [x] Implement a workspace repository interface and a browser-local
       implementation with schema validation, versioned migration hooks, seed
       data, and safe recovery from invalid storage.
-- [ ] Implement a Solid workspace controller with immutable updates for query,
+- [x] Implement a Solid workspace controller with immutable updates for query,
       presentation, view, folder, favorite, and navigation operations.
-- [ ] Replace the scaffold with a responsive application shell containing the
+- [x] Replace the scaffold with a responsive application shell containing the
       compact top bar, resizable navigation sidebar, main workspace, and
       conditional configuration panel.
-- [ ] Build an accessible navigation tree with expansion, selection, keyboard
+- [x] Build an accessible navigation tree with expansion, selection, keyboard
       interaction, create/rename/move/reorder/duplicate/delete commands, and
       favorites.
-- [ ] Add hash-based view routing and restoration without adding a router
+- [x] Add hash-based view routing and restoration without adding a router
       dependency; handle missing view IDs with a useful empty state.
-- [ ] Build table and list renderers plus a compact toolbar for temporary
+- [x] Build table and list renderers plus a compact toolbar for temporary
       filtering, sorting, density, and view editing.
-- [ ] Build the view editor for binding existing definitions, creating new
+- [x] Build the view editor for binding existing definitions, creating new
       definitions, editing private copies, showing reuse counts, validating
       compatibility, and explicitly saving or cancelling changes.
-- [ ] Add confirmation or undo behavior for destructive navigation changes and
+- [x] Add confirmation or undo behavior for destructive navigation changes and
       an accessible live region for operation outcomes.
-- [ ] Add responsive sidebar/editor overlays, focus management, visible focus
+- [x] Add responsive sidebar/editor overlays, focus management, visible focus
       styles, empty/loading/error states, and reduced-motion behavior.
-- [ ] Update `ui/README.md` with the workspace concepts, development commands,
+- [x] Update `ui/README.md` with the workspace concepts, development commands,
       persistence behavior, and current limitations.
-- [ ] Run type checking, unit/component tests, production build, and manual
+- [x] Run type checking, unit/component tests, production build, and manual
       desktop/mobile interaction checks through the existing `nao ui` task.
 
 ## What tests should cover the first version?
@@ -227,3 +227,11 @@ folder, create and move a view, reuse a query and presentation, open the view
 through its hash URL, edit it using both update and copy flows, reload persisted
 state, navigate the tree by keyboard, and recover safely after resetting local
 data.
+
+All automated commands completed successfully on 2026-08-23. The suite has 12
+tests across query execution, presentation validation, normalized workspace
+operations, persistence recovery, and rendered user workflows. The application
+was also served through `nao ui`; browser screenshot automation is not
+available in the current tool environment, so responsive behavior was checked
+through the implemented media-query constraints and component tests rather
+than captured screenshots.
