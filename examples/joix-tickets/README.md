@@ -13,11 +13,20 @@ The crate currently provides basic project infrastructure only:
 - an Axum service that exposes registered actions as typed JSON endpoints
 - an SQLite-backed data store with schema setup, columnar queries, and atomic mutations
 - a runnable `InfoAction` endpoint
+- typed plugin extension registration through `joi-plugin`
 - formatting, test, and lint commands
 
-The example currently integrates the shared JOI base and error types.
+The example currently integrates the shared JOI base, error, and plugin types.
 Additional libraries and realistic workflows should be added incrementally as
 their integration requirements become clear.
+
+## How are plugins composed?
+
+At startup, the executable creates a `PluginRegistry` and registers an `infra`
+plugin. That plugin defines the `InfoProvider` extension point and contributes a
+version provider. Extension points are identified directly by trait-object
+types, and the registry owns their implementations while exposing borrowed,
+typed lookup.
 
 ## How does the SQLite data store work?
 

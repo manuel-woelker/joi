@@ -2,6 +2,7 @@ use std::process::ExitCode;
 
 use joi_base::JoiString;
 use joi_error::{JoiResult, joi_error, report};
+use joi_plugin::{PluginRegistry, plugin};
 
 use crate::action_registry::{ActionRegistry, ActionRegistryBuilder};
 use crate::action_service::ActionService;
@@ -19,6 +20,23 @@ pub mod module_registry;
 pub mod sqlite_data_store;
 pub mod tickets_module;
 
+trait InfoProvider: Send + Sync {
+    fn application_name(&self) -> &'static str;
+    fn version(&self) -> &'static str;
+}
+
+struct VersionInfoProvider;
+
+impl InfoProvider for VersionInfoProvider {
+    fn application_name(&self) -> &'static str {
+        env!("CARGO_PKG_NAME")
+    }
+
+    fn version(&self) -> &'static str {
+        env!("CARGO_PKG_VERSION")
+    }
+}
+
 #[tokio::main]
 async fn main() -> ExitCode {
     match run(std::env::args().skip(1)).await {
@@ -31,6 +49,14 @@ async fn main() -> ExitCode {
 }
 
 async fn run(arguments: impl IntoIterator<Item = String>) -> JoiResult<()> {
+    let plugin_registry = create_plugin_registry()?;
+    let info_provider = plugin_registry
+        .extensions::<dyn InfoProvider>()?
+        .next()
+        .ok_or_else(|| joi_error!("no info provider is registered"))?;
+    debug_assert_eq!(info_provider.application_name(), env!("CARGO_PKG_NAME"));
+    debug_assert_eq!(info_provider.version(), env!("CARGO_PKG_VERSION"));
+
     let registry = build_action_registry()?;
     if let Some(action_name) = parse_action_name(arguments)? {
         print!("{}", execute_cli_action(&registry, &action_name)?);
@@ -38,6 +64,15 @@ async fn run(arguments: impl IntoIterator<Item = String>) -> JoiResult<()> {
     }
 
     run_service(registry).await
+}
+
+fn create_plugin_registry() -> JoiResult<PluginRegistry> {
+    let mut registry = PluginRegistry::new();
+    registry.register(plugin("infra", |context| {
+        context.register_extension_point::<dyn InfoProvider>()?;
+        context.register_extension::<dyn InfoProvider>(Box::new(VersionInfoProvider))
+    }))?;
+    Ok(registry)
 }
 
 fn build_action_registry() -> JoiResult<ActionRegistry> {
@@ -85,7 +120,23 @@ async fn run_service(registry: ActionRegistry) -> JoiResult<()> {
 mod tests {
     use serde_json::json;
 
-    use super::{build_action_registry, execute_cli_action, parse_action_name};
+    use super::{
+        InfoProvider, build_action_registry, create_plugin_registry, execute_cli_action,
+        parse_action_name,
+    };
+
+    #[test]
+    fn registers_application_info_provider() {
+        let registry = create_plugin_registry().unwrap();
+        let provider = registry
+            .extensions::<dyn InfoProvider>()
+            .unwrap()
+            .next()
+            .unwrap();
+
+        assert_eq!(provider.application_name(), env!("CARGO_PKG_NAME"));
+        assert_eq!(provider.version(), env!("CARGO_PKG_VERSION"));
+    }
 
     #[test]
     fn parses_server_and_action_modes() {

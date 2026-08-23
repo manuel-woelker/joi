@@ -77,35 +77,35 @@ classification.
 
 ## Implementation Checklist
 
-- [ ] Create `libs-rust/joi-plugin` with `Cargo.toml`, `src/lib.rs`, a short
+- [x] Create `libs-rust/joi-plugin` with `Cargo.toml`, `src/lib.rs`, a short
       README, and dependencies on `joi-base` and `joi-error`.
-- [ ] Define a named `Plugin` abstraction and a `plugin(name, callback)`
+- [x] Define a named `Plugin` abstraction and a `plugin(name, callback)`
       constructor for one-shot registration callbacks returning `JoiResult<()>`.
-- [ ] Implement `PluginContext` with typed `register_extension_point` and
+- [x] Implement `PluginContext` with typed `register_extension_point` and
       `register_extension` methods whose generic parameter is the extension
       trait and whose extension value is `Box<T>`.
-- [ ] Implement `PluginRegistry::register` with unique plugin names,
+- [x] Implement `PluginRegistry::register` with unique plugin names,
       caller-defined ordering, staged atomic commits, and contextual string
       errors.
-- [ ] Implement `extensions::<T>()` lookup returning an iterator over borrowed
+- [x] Implement `extensions::<T>()` lookup returning an iterator over borrowed
       `&T` values while preserving registration order.
-- [ ] Split implementation into focused modules for extension points, plugins,
-      registration context, registry storage, and erased entries; re-export only
-      the intended public API from `lib.rs`.
-- [ ] Add black-box tests for successful registration and invocation through a
+- [x] Split implementation into focused modules for extension collections,
+      plugins, registration context, registry storage, and erased entries;
+      re-export only the intended public API from `lib.rs`.
+- [x] Add black-box tests for successful registration and invocation through a
       trait object, multiple extensions in stable order, cross-plugin extension
-      registration, duplicate names, unknown points, type-name collisions, and
+      registration, duplicate names, unknown points, distinct trait keys, and
       rollback after a failing plugin callback.
-- [ ] Add compile-fail documentation or `trybuild` coverage only if normal type
-      checking and API examples do not adequately demonstrate trait mismatch
-      rejection; avoid adding it by default.
-- [ ] Adapt the `joix-tickets` usage sketch to real `InfoProvider` and
+- [x] Evaluate compile-fail documentation or `trybuild` coverage. Normal Rust
+      type checking and the API examples adequately demonstrate trait mismatch
+      rejection, so no additional test dependency was added.
+- [x] Adapt the `joix-tickets` usage sketch to real `InfoProvider` and
       `VersionInfoProvider` definitions, add the `joi-plugin` path dependency,
       and demonstrate retrieving and invoking the registered provider.
-- [ ] Add `joi-plugin` to the root README's current-library list and document
+- [x] Add `joi-plugin` to the root README's current-library list and document
       purpose, status, API example, dependencies, and standard commands in the
       crate README.
-- [ ] Run formatting, tests, strict Clippy, and rustdoc for `joi-plugin`, then
+- [x] Run formatting, tests, strict Clippy, and rustdoc for `joi-plugin`, then
       run the `joix-tickets` test and lint suites to verify integration.
 
 ## What assumptions does the plan make?
@@ -147,3 +147,6 @@ cargo doc --manifest-path libs-rust/joi-plugin/Cargo.toml --no-deps
 cargo test --manifest-path examples/joix-tickets/Cargo.toml
 cargo clippy --manifest-path examples/joix-tickets/Cargo.toml --all-targets -- -D warnings
 ```
+
+All commands completed successfully on 2026-08-23. The `joi-plugin` suite has
+seven black-box tests, and the integrated `joix-tickets` suite has twenty tests.

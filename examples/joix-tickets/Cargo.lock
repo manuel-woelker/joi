@@ -346,12 +346,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "joi-plugin"
+version = "0.1.0"
+dependencies = [
+ "joi-base",
+ "joi-error",
+]
+
+[[package]]
 name = "joix-tickets"
 version = "0.1.0"
 dependencies = [
  "axum",
  "joi-base",
  "joi-error",
+ "joi-plugin",
  "rusqlite",
  "serde",
  "serde_json",

@@ -38,6 +38,7 @@ Current libraries:
 - [`libs-rust/joi-api`](libs-rust/joi-api/README.md) - Infrastructure for generating source code from abstract API descriptions.
 - [`libs-rust/joi-base`](libs-rust/joi-base/README.md) - Foundational shared types such as `JoiString`.
 - [`libs-rust/joi-error`](libs-rust/joi-error/README.md) - Shared `error-stack` error and result types.
+- [`libs-rust/joi-plugin`](libs-rust/joi-plugin/README.md) - Typed in-process plugin and extension registration.
 - [`libs-rust/joi-template`](libs-rust/joi-template/README.md) - A type-safe dynamic template engine.
 
 Cross-library examples:
