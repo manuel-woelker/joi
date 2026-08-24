@@ -16,6 +16,7 @@ function WorkspaceApp() {
       </header>
       <Show when={controller.navigationOpen()}><button class="navigation-backdrop" aria-label="Close navigation" onClick={() => controller.setNavigationOpen(false)} /></Show>
       <div class="workspace-layout"><NavigationTree /><ViewContent /></div>
+      <footer class="footer"><span>Joi</span><span>Built with SolidJS</span></footer>
       <ViewEditor />
       <Show when={controller.warning()}><div class="warning-banner" role="alert">{controller.warning()}</div></Show>
       <div class="sr-only" aria-live="polite">{controller.announcement()}</div>
