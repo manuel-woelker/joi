@@ -1,5 +1,4 @@
 import { For, Show, createSignal } from "solid-js";
-import { ChevronDown, ChevronRight, Copy, Edit3, Folder, FolderPlus, MoreHorizontal, Plus, Star, Trash2, ArrowUp, ArrowDown } from "lucide-solid";
 
 import type { NavigationId } from "../workspace/model";
 import { useWorkspace } from "../workspace/controller";
@@ -31,24 +30,24 @@ function TreeItem(props: { id: NavigationId; level: number }) {
       <div class={`tree-row ${view()?.id === controller.selectedViewId() ? "selected" : ""}`} style={{ "padding-left": `${8 + props.level * 16}px` }}>
         <button class="tree-label" onClick={() => { const current = viewItem(); folder() ? controller.toggleFolder(props.id) : current && controller.selectView(current.viewId); }} onKeyDown={onKeyDown}>
           <Show when={folder()} fallback={<span class="tree-spacer" />}>
-            <Show when={expanded()} fallback={<ChevronRight size={14} aria-hidden="true" />}><ChevronDown size={14} aria-hidden="true" /></Show>
+            <span class="icon-glyph" aria-hidden="true">{expanded() ? "⌄" : "›"}</span>
           </Show>
-          <Show when={folder()}><Folder size={15} aria-hidden="true" /></Show>
+          <Show when={folder()}><span class="icon-glyph" aria-hidden="true">□</span></Show>
           <span>{label()}</span>
         </button>
-        <IconButton label={`Commands for ${label()}`} icon={MoreHorizontal} onClick={() => setMenuOpen(!menuOpen())} />
+        <IconButton label={`Commands for ${label()}`} icon="…" onClick={() => setMenuOpen(!menuOpen())} />
         <Show when={menuOpen()}>
           <div class="item-menu">
-            <Show when={folder()}><button onClick={() => { controller.createView(props.id); setMenuOpen(false); }}><Plus size={14} /> New view</button></Show>
-            <button onClick={() => { controller.renameItem(props.id); setMenuOpen(false); }}><Edit3 size={14} /> Rename</button>
+            <Show when={folder()}><button onClick={() => { controller.createView(props.id); setMenuOpen(false); }}><span aria-hidden="true">+</span> New view</button></Show>
+            <button onClick={() => { controller.renameItem(props.id); setMenuOpen(false); }}><span aria-hidden="true">✎</span> Rename</button>
             <Show when={viewItem()}>
-              {(current) => <><button onClick={() => controller.toggleFavorite(current().viewId)}><Star size={14} /> Favorite</button>
-              <button onClick={() => controller.duplicate(current().viewId)}><Copy size={14} /> Duplicate</button></>}
+              {(current) => <><button onClick={() => controller.toggleFavorite(current().viewId)}><span aria-hidden="true">★</span> Favorite</button>
+              <button onClick={() => controller.duplicate(current().viewId)}><span aria-hidden="true">□</span> Duplicate</button></>}
             </Show>
-            <button onClick={() => controller.move(props.id, -1)}><ArrowUp size={14} /> Move up</button>
-            <button onClick={() => controller.move(props.id, 1)}><ArrowDown size={14} /> Move down</button>
+            <button onClick={() => controller.move(props.id, -1)}><span aria-hidden="true">↑</span> Move up</button>
+            <button onClick={() => controller.move(props.id, 1)}><span aria-hidden="true">↓</span> Move down</button>
             <label class="move-label">Move to<select aria-label={`Move ${label()} to folder`} onChange={(event) => { controller.moveToFolder(props.id, event.currentTarget.value || undefined); setMenuOpen(false); }}><option value="">Root</option><For each={Object.values(controller.workspace.navigation).filter((candidate) => candidate.type === "folder" && candidate.id !== props.id)}>{(candidate) => <option value={candidate.id}>{candidate.type === "folder" ? candidate.name : ""}</option>}</For></select></label>
-            <button class="danger" onClick={() => { controller.remove(props.id); setMenuOpen(false); }}><Trash2 size={14} /> Delete</button>
+            <button class="danger" onClick={() => { controller.remove(props.id); setMenuOpen(false); }}><span aria-hidden="true">×</span> Delete</button>
           </div>
         </Show>
       </div>
@@ -76,14 +75,14 @@ export function NavigationTree() {
       <div class="panel-heading">
         <h2>Views</h2>
         <div class="heading-actions">
-          <IconButton label="Create folder" icon={FolderPlus} onClick={() => controller.createFolder()} />
-          <IconButton label="Create view" icon={Plus} onClick={() => controller.createView()} />
+          <IconButton label="Create folder" icon="□+" onClick={() => controller.createFolder()} />
+          <IconButton label="Create view" icon="+" onClick={() => controller.createView()} />
         </div>
       </div>
       <Show when={controller.workspace.favorites.length}>
         <section class="favorites" aria-labelledby="favorites-heading">
           <h3 id="favorites-heading">Favorites</h3>
-          <For each={controller.workspace.favorites}>{(id) => <button class="favorite-link" onClick={() => controller.selectView(id)}><Star size={14} fill="currentColor" />{controller.workspace.views[id]?.name}</button>}</For>
+          <For each={controller.workspace.favorites}>{(id) => <button class="favorite-link" onClick={() => controller.selectView(id)}><span aria-hidden="true">★</span>{controller.workspace.views[id]?.name}</button>}</For>
         </section>
       </Show>
       <ul class="tree" role="tree" aria-label="Saved views">

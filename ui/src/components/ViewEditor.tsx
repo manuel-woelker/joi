@@ -1,5 +1,4 @@
 import { For, Show, createEffect, createMemo, createSignal } from "solid-js";
-import { X } from "lucide-solid";
 
 import { useWorkspace } from "../workspace/controller";
 import type { PresentationDefinition, QueryDefinition, TicketStatus } from "../workspace/model";
@@ -49,7 +48,7 @@ export function ViewEditor() {
     <Show when={controller.editorOpen()}>
       <div class="panel-backdrop" onClick={() => controller.setEditorOpen(false)} />
       <aside class="editor-panel" aria-label="Configure view">
-        <div class="panel-heading"><div><p class="eyebrow">Configuration</p><h2>Edit view</h2></div><IconButton label="Close editor" icon={X} onClick={() => controller.setEditorOpen(false)} /></div>
+        <div class="panel-heading"><div><p class="eyebrow">Configuration</p><h2>Edit view</h2></div><IconButton label="Close editor" icon="×" onClick={() => controller.setEditorOpen(false)} /></div>
         <div class="editor-content">
           <section><h3>View</h3><label>Name<input value={name()} onInput={(event) => setName(event.currentTarget.value)} /></label><label>Description<textarea rows="2" value={description()} onInput={(event) => setDescription(event.currentTarget.value)} /></label></section>
           <section><div class="section-heading"><h3>Query</h3><span>{queryReferences()} view{queryReferences() === 1 ? "" : "s"}</span></div>

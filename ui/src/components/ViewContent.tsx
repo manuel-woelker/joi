@@ -1,5 +1,4 @@
 import { For, Show, createMemo } from "solid-js";
-import { Search, Settings2 } from "lucide-solid";
 
 import { useWorkspace } from "../workspace/controller";
 import { executeQuery, validatePresentation } from "../workspace/query";
@@ -22,10 +21,10 @@ export function ViewContent() {
         {(view) => <>
           <div class="view-heading">
             <div><p class="eyebrow">Saved view</p><h1>{view().name}</h1><Show when={view().description}><p>{view().description}</p></Show></div>
-            <IconButton label="Configure view" icon={Settings2} onClick={() => controller.setEditorOpen(true)} />
+            <IconButton label="Configure view" icon="⚙" onClick={() => controller.setEditorOpen(true)} />
           </div>
           <div class="view-toolbar">
-            <label class="search-field"><Search size={16} aria-hidden="true" /><span class="sr-only">Search issues</span><input value={controller.search()} onInput={(event) => controller.setSearch(event.currentTarget.value)} placeholder="Search this view" /></label>
+            <label class="search-field"><span class="icon-glyph" aria-hidden="true">⌕</span><span class="sr-only">Search issues</span><input value={controller.search()} onInput={(event) => controller.setSearch(event.currentTarget.value)} placeholder="Search this view" /></label>
             <span class="result-count">{records().length} issues</span>
           </div>
           <Show when={!validation()} fallback={<div class="error-state">{validation()}</div>}>

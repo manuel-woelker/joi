@@ -14,6 +14,7 @@ button { cursor:pointer; }
 .top-actions { gap:6px; }
 .icon-button { position:relative; display:grid; width:32px; height:32px; padding:0; place-items:center; border:0; border-radius:5px; color:#59645f; background:transparent; }
 .icon-button:hover,.icon-button:focus-visible { color:#12634b; background:#edf3f0; }
+.icon-glyph { display:inline-grid; min-width:16px; place-items:center; font-size:17px; line-height:1; }
 .icon-button::after { position:absolute; z-index:100; top:calc(100% + 6px); right:0; display:none; width:max-content; max-width:180px; padding:5px 7px; border-radius:4px; color:#fff; background:#202725; content:attr(data-tooltip); font-size:12px; pointer-events:none; }
 .icon-button:hover::after,.icon-button:focus-visible::after { display:block; }
 .text-button { display:flex; gap:6px; align-items:center; padding:6px 9px; border:0; border-radius:4px; color:#12634b; background:transparent; font-weight:650; }
