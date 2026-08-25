@@ -7,9 +7,10 @@ use serde_json::Value as JsonValue;
 
 use crate::action_registry::{ActionRegistry, ActionRegistryBuilder};
 use crate::action_service::ActionService;
+use crate::data_store::TableDescriptionProvider;
 use crate::info_action::{InfoAction, InfoCollector, InfoProvider};
 use crate::module_registry::ModuleRegistry;
-use crate::tickets_module::TicketsModule;
+use crate::tickets_module::{TicketTableDescriptionProvider, TicketsModule};
 
 pub mod action;
 pub mod action_registry;
@@ -78,8 +79,14 @@ fn create_plugin_registry() -> JoiResult<PluginRegistry> {
     let mut builder = PluginRegistryBuilder::new();
     builder.register(plugin("infra", |context| {
         context.register_extension_point::<dyn InfoProvider>()?;
+        context.register_extension_point::<dyn TableDescriptionProvider>()?;
         context.register_extension::<dyn InfoProvider>(Box::new(PackageInfoProvider))?;
         context.register_extension::<dyn InfoProvider>(Box::new(OsInfoProvider))
+    }))?;
+    builder.register(plugin("tickets", |context| {
+        context.register_extension::<dyn TableDescriptionProvider>(Box::new(
+            TicketTableDescriptionProvider,
+        ))
     }))?;
     Ok(builder.build())
 }
@@ -129,6 +136,8 @@ async fn run_service(registry: ActionRegistry) -> JoiResult<()> {
 mod tests {
     use serde_json::json;
 
+    use crate::data_store::TableDescriptionProvider;
+
     use super::{
         build_action_registry, create_plugin_registry, execute_cli_action, parse_action_name,
     };
@@ -143,6 +152,19 @@ mod tests {
         assert_eq!(response["os"], std::env::consts::OS);
         assert_eq!(response["architecture"], std::env::consts::ARCH);
         assert_eq!(response["os_family"], std::env::consts::FAMILY);
+    }
+
+    #[test]
+    fn ticket_plugin_contributes_its_table_description() {
+        let registry = create_plugin_registry().unwrap();
+        let tables = registry
+            .extensions::<dyn TableDescriptionProvider>()
+            .unwrap()
+            .map(TableDescriptionProvider::table_description)
+            .collect::<Vec<_>>();
+
+        assert_eq!(tables.len(), 1);
+        assert_eq!(tables[0].name.0, "tickets");
     }
 
     #[test]

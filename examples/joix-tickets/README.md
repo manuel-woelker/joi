@@ -22,18 +22,22 @@ their integration requirements become clear.
 
 ## How are plugins composed?
 
-At startup, the executable uses a `PluginRegistryBuilder` to register an `infra`
-plugin, then builds an immutable `PluginRegistry`. The plugin defines the
-`InfoProvider` extension point and contributes a package provider and an
-operating-system provider. Each provider contributes key-value pairs to a shared
-info collector. Extension points are identified directly by trait-object types,
-and the registry owns their implementations while exposing lock-free borrowed
-lookup.
+At startup, the executable uses a `PluginRegistryBuilder` to register `infra`
+and `tickets` plugins, then builds an immutable `PluginRegistry`. The
+infrastructure plugin defines the `InfoProvider` and `TableDescriptionProvider`
+extension points and contributes package and operating-system information. The
+tickets plugin contributes a provider describing its `tickets` table.
+Extension points are identified directly by trait-object types, and the
+registry owns their implementations while exposing lock-free borrowed lookup.
 
 `InfoAction` owns the completed immutable plugin registry and asks every registered
 `InfoProvider` to populate its response when the action runs. It does not know
 which keys individual providers contribute, so adding another provider extends
 the HTTP and CLI response without changing the action.
+
+Each `TableDescriptionProvider` returns one owned table definition. The ticket
+provider defines string columns for `id`, `title`, `description`, and `status`;
+the first column is the primary key when passed to a `DataStore`.
 
 ## How does the SQLite data store work?
 

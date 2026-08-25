@@ -59,6 +59,14 @@ pub struct TableDescription {
     pub columns: Vec<ColumnDescription>,
 }
 
+/// Provides a table definition contributed through the plugin registry.
+pub trait TableDescriptionProvider: Send + Sync {
+    /// Returns the table definition contributed by this provider.
+    fn table_description(&self) -> TableDescription;
+}
+
+fn _assert_table_description_provider_dyn_compatible(_: &dyn TableDescriptionProvider) {}
+
 /// Describes a named column in a table.
 pub struct ColumnDescription {
     /// The column name.
