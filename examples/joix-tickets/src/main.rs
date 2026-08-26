@@ -7,10 +7,15 @@ use serde_json::Value as JsonValue;
 
 use crate::action_registry::{ActionRegistry, ActionRegistryBuilder};
 use crate::action_service::ActionService;
-use crate::data_store::TableDescriptionProvider;
+use crate::data_store::{DataStore, TableDescriptionProvider, TestDataProvider};
 use crate::info_action::{InfoAction, InfoCollector, InfoProvider};
 use crate::module_registry::ModuleRegistry;
-use crate::tickets_module::{TicketTableDescriptionProvider, TicketsModule};
+use crate::sqlite_data_store::SqliteDataStore;
+use crate::tickets_module::{
+    TicketTableDescriptionProvider, TicketTestDataProvider, TicketsModule,
+};
+
+const DATA_STORE_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/joix-tickets.sqlite3");
 
 pub mod action;
 pub mod action_registry;
@@ -66,13 +71,15 @@ async fn main() -> ExitCode {
 
 async fn run(arguments: impl IntoIterator<Item = String>) -> JoiResult<()> {
     let plugin_registry = create_plugin_registry()?;
-    let registry = build_action_registry(plugin_registry)?;
+    let registry = build_action_registry(plugin_registry.clone())?;
     if let Some(action_name) = parse_action_name(arguments)? {
         print!("{}", execute_cli_action(&registry, &action_name)?);
         return Ok(());
     }
 
-    run_service(registry).await
+    let mut data_store = SqliteDataStore::open(DATA_STORE_PATH)?;
+    initialize_data_store(&plugin_registry, &mut data_store)?;
+    run_service(registry, data_store).await
 }
 
 fn create_plugin_registry() -> JoiResult<PluginRegistry> {
@@ -80,13 +87,15 @@ fn create_plugin_registry() -> JoiResult<PluginRegistry> {
     builder.register(plugin("infra", |context| {
         context.register_extension_point::<dyn InfoProvider>()?;
         context.register_extension_point::<dyn TableDescriptionProvider>()?;
+        context.register_extension_point::<dyn TestDataProvider>()?;
         context.register_extension::<dyn InfoProvider>(Box::new(PackageInfoProvider))?;
         context.register_extension::<dyn InfoProvider>(Box::new(OsInfoProvider))
     }))?;
     builder.register(plugin("tickets", |context| {
         context.register_extension::<dyn TableDescriptionProvider>(Box::new(
             TicketTableDescriptionProvider,
-        ))
+        ))?;
+        context.register_extension::<dyn TestDataProvider>(Box::new(TicketTestDataProvider))
     }))?;
     Ok(builder.build())
 }
@@ -95,6 +104,21 @@ fn build_action_registry(plugin_registry: PluginRegistry) -> JoiResult<ActionReg
     let mut builder = ActionRegistryBuilder::new();
     builder.register(InfoAction::new(plugin_registry))?;
     Ok(builder.build())
+}
+
+fn initialize_data_store(
+    plugin_registry: &PluginRegistry,
+    data_store: &mut dyn DataStore,
+) -> JoiResult<()> {
+    let tables = plugin_registry
+        .extensions::<dyn TableDescriptionProvider>()?
+        .map(TableDescriptionProvider::table_description)
+        .collect();
+    data_store.ensure_tables(tables)?;
+    for provider in plugin_registry.extensions::<dyn TestDataProvider>()? {
+        provider.insert_test_data(data_store)?;
+    }
+    Ok(())
 }
 
 fn parse_action_name(arguments: impl IntoIterator<Item = String>) -> JoiResult<Option<JoiString>> {
@@ -117,7 +141,7 @@ fn execute_cli_action(registry: &ActionRegistry, action_name: &str) -> JoiResult
     yaml_serde::to_string(&response).map_err(report)
 }
 
-async fn run_service(registry: ActionRegistry) -> JoiResult<()> {
+async fn run_service(registry: ActionRegistry, _data_store: SqliteDataStore) -> JoiResult<()> {
     println!("joix-tickets testbed");
     let mut module_registry = ModuleRegistry::new();
     module_registry.register::<TicketsModule>();
@@ -136,10 +160,14 @@ async fn run_service(registry: ActionRegistry) -> JoiResult<()> {
 mod tests {
     use serde_json::json;
 
-    use crate::data_store::TableDescriptionProvider;
+    use crate::data_store::{
+        AttributeName, DataStore, DataStoreQuery, QueryCriterion, TableDescriptionProvider, Values,
+    };
+    use crate::sqlite_data_store::SqliteDataStore;
 
     use super::{
-        build_action_registry, create_plugin_registry, execute_cli_action, parse_action_name,
+        build_action_registry, create_plugin_registry, execute_cli_action, initialize_data_store,
+        parse_action_name,
     };
 
     #[test]
@@ -165,6 +193,28 @@ mod tests {
 
         assert_eq!(tables.len(), 1);
         assert_eq!(tables[0].name.0, "tickets");
+    }
+
+    #[test]
+    fn plugin_extensions_initialize_ticket_test_data() {
+        let registry = create_plugin_registry().unwrap();
+        let mut store = SqliteDataStore::in_memory().unwrap();
+
+        initialize_data_store(&registry, &mut store).unwrap();
+
+        let result = store
+            .query(DataStoreQuery {
+                table_name: crate::data_store::TableName("tickets".into()),
+                criterion: QueryCriterion::MatchAny,
+                max_results: 10,
+                attributes: vec![AttributeName("title".into())],
+            })
+            .unwrap();
+        assert_eq!(result.number_of_hits, 3);
+        assert!(matches!(
+            &result.result_columns[0].values,
+            Values::String(values) if values[0] == "Fix navigation bug"
+        ));
     }
 
     #[test]

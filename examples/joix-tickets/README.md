@@ -24,9 +24,10 @@ their integration requirements become clear.
 
 At startup, the executable uses a `PluginRegistryBuilder` to register `infra`
 and `tickets` plugins, then builds an immutable `PluginRegistry`. The
-infrastructure plugin defines the `InfoProvider` and `TableDescriptionProvider`
-extension points and contributes package and operating-system information. The
-tickets plugin contributes a provider describing its `tickets` table.
+infrastructure plugin defines the `InfoProvider`, `TableDescriptionProvider`,
+and `TestDataProvider` extension points and contributes package and
+operating-system information. The tickets plugin contributes providers
+describing and populating its `tickets` table.
 Extension points are identified directly by trait-object types, and the
 registry owns their implementations while exposing lock-free borrowed lookup.
 
@@ -39,13 +40,21 @@ Each `TableDescriptionProvider` returns one owned table definition. The ticket
 provider defines string columns for `id`, `title`, `description`, and `status`;
 the first column is the primary key when passed to a `DataStore`.
 
+Each `TestDataProvider` receives the configured `DataStore` and inserts its own
+development records. In server mode, startup ensures every contributed table
+before invoking the test-data providers. The tickets provider adds three sample
+tickets representing open, in-progress, and closed work when the table is
+empty. CLI action execution does not initialize the data store.
+
 ## How does the SQLite data store work?
 
 `SqliteDataStore` can open a database file or create an isolated in-memory
 database. It implements `DataStore`, creates missing tables and columns, maps
 string and integer columns, and applies every step in a mutation within one
 SQLite transaction. The first column in each table description is its primary
-key. Identifiers are quoted before being included in SQL statements.
+key. The server stores data at `examples/joix-tickets/joix-tickets.sqlite3`;
+the database and its SQLite sidecar files are ignored by Git. Identifiers are
+quoted before being included in SQL statements.
 
 ## How does the module registry work?
 

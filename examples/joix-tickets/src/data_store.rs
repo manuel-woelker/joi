@@ -120,3 +120,11 @@ pub trait DataStore {
     /// Applies a mutation and returns its outcome.
     fn mutate(&mut self, mutation: DataStoreMutation) -> JoiResult<DataStoreMutationResult>;
 }
+
+/// Inserts development data into a configured data store.
+pub trait TestDataProvider: Send + Sync {
+    /// Inserts this provider's test records into the data store.
+    fn insert_test_data(&self, data_store: &mut dyn DataStore) -> JoiResult<()>;
+}
+
+fn _assert_test_data_provider_dyn_compatible(_: &dyn TestDataProvider) {}
