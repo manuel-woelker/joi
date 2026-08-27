@@ -26,11 +26,28 @@ impl ActionRequest for PluginsActionRequest {
 #[derive(Debug, PartialEq, Serialize)]
 pub struct PluginsActionResponse {
     pub plugins: Vec<PluginSummary>,
+    pub extension_points: Vec<ExtensionPointSummary>,
+    pub extensions: Vec<ExtensionSummary>,
 }
 
 #[derive(Debug, PartialEq, Serialize)]
 pub struct PluginSummary {
     pub name: JoiString,
+    pub description: JoiString,
+    pub extension_points: Vec<JoiString>,
+    pub extensions: Vec<JoiString>,
+}
+
+#[derive(Debug, PartialEq, Serialize)]
+pub struct ExtensionPointSummary {
+    pub id: JoiString,
+    pub description: JoiString,
+    pub extensions: Vec<JoiString>,
+}
+
+#[derive(Debug, PartialEq, Serialize)]
+pub struct ExtensionSummary {
+    pub id: JoiString,
     pub description: JoiString,
 }
 
@@ -52,6 +69,25 @@ impl Action for PluginsAction {
                 .map(|plugin| PluginSummary {
                     name: plugin.name.clone(),
                     description: plugin.description.clone(),
+                    extension_points: plugin.extension_points.clone(),
+                    extensions: plugin.extensions.clone(),
+                })
+                .collect(),
+            extension_points: self
+                .plugin_registry
+                .extension_points()
+                .map(|point| ExtensionPointSummary {
+                    id: point.id.clone(),
+                    description: point.description.clone(),
+                    extensions: point.extensions.clone(),
+                })
+                .collect(),
+            extensions: self
+                .plugin_registry
+                .extensions_info()
+                .map(|extension| ExtensionSummary {
+                    id: extension.id.clone(),
+                    description: extension.description.clone(),
                 })
                 .collect(),
         })
@@ -64,13 +100,27 @@ mod tests {
 
     use crate::action::Action;
 
-    use super::{PluginSummary, PluginsAction, PluginsActionRequest, PluginsActionResponse};
+    use super::{
+        ExtensionPointSummary, ExtensionSummary, PluginSummary, PluginsAction,
+        PluginsActionRequest, PluginsActionResponse,
+    };
 
     #[test]
     fn lists_plugins_in_registration_order() {
         let mut builder = PluginRegistryBuilder::new();
+        trait Example: Send + Sync {}
+        struct ExampleExtension;
+        impl Example for ExampleExtension {}
+
         builder
-            .register(plugin("infra", "Infrastructure services", |_| Ok(())))
+            .register(plugin("infra", "Infrastructure services", |context| {
+                context.register_extension_point::<dyn Example>("examples", "Example points")?;
+                context.register_extension::<dyn Example>(
+                    "example",
+                    "Example extension",
+                    Box::new(ExampleExtension),
+                )
+            }))
             .unwrap();
         builder
             .register(plugin("tickets", "Ticket management", |_| Ok(())))
@@ -87,12 +137,25 @@ mod tests {
                     PluginSummary {
                         name: "infra".into(),
                         description: "Infrastructure services".into(),
+                        extension_points: vec!["examples".into()],
+                        extensions: vec!["example".into()],
                     },
                     PluginSummary {
                         name: "tickets".into(),
                         description: "Ticket management".into(),
+                        extension_points: Vec::new(),
+                        extensions: Vec::new(),
                     },
                 ],
+                extension_points: vec![ExtensionPointSummary {
+                    id: "examples".into(),
+                    description: "Example points".into(),
+                    extensions: vec!["example".into()],
+                }],
+                extensions: vec![ExtensionSummary {
+                    id: "example".into(),
+                    description: "Example extension".into(),
+                }],
             }
         );
     }

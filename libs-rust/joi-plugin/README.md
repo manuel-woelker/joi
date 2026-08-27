@@ -27,8 +27,15 @@ impl InfoProvider for VersionInfo {
 
 let mut builder = PluginRegistryBuilder::new();
 builder.register(plugin("infra", "Infrastructure services", |context| {
-    context.register_extension_point::<dyn InfoProvider>()?;
-    context.register_extension::<dyn InfoProvider>(Box::new(VersionInfo))?;
+    context.register_extension_point::<dyn InfoProvider>(
+        "info-providers",
+        "Contributes application information",
+    )?;
+    context.register_extension::<dyn InfoProvider>(
+        "version-info",
+        "Provides the application version",
+        Box::new(VersionInfo),
+    )?;
     Ok(())
 }))?;
 let registry = builder.build();
@@ -45,14 +52,21 @@ The builder owns the mutable registration phase. Building produces an immutable
 registry whose clones share the same state. Extension lookup is lock-free and
 borrows values directly from the registry.
 
-Registered plugin names are retained in registration order and can be inspected
-without exposing extension internals:
+Plugins, extension points, and extensions declare stable IDs during
+registration. Point IDs and extension IDs are each unique registry-wide and
+are committed atomically with the plugin callback. Their metadata is retained
+in registration order and can be inspected without exposing extension values:
 
 ```rust
 let plugins = registry.plugins().collect::<Vec<_>>();
+let extension_points = registry.extension_points().collect::<Vec<_>>();
+let extensions = registry.extensions_info().collect::<Vec<_>>();
 ```
 
-Only plugins whose callbacks committed successfully are included.
+Plugin metadata lists the points and extensions contributed by that plugin.
+Extension-point metadata lists its registered extensions, including extensions
+contributed by later plugins. Only successfully committed registrations are
+included.
 
 ## What does it depend on?
 

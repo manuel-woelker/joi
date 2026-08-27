@@ -93,17 +93,40 @@ async fn run(arguments: impl IntoIterator<Item = String>) -> JoiResult<()> {
 fn create_plugin_registry() -> JoiResult<PluginRegistry> {
     let mut builder = PluginRegistryBuilder::new();
     builder.register(plugin("infra", "Infrastructure services", |context| {
-        context.register_extension_point::<dyn InfoProvider>()?;
-        context.register_extension_point::<dyn TableDescriptionProvider>()?;
-        context.register_extension_point::<dyn TestDataProvider>()?;
-        context.register_extension::<dyn InfoProvider>(Box::new(PackageInfoProvider))?;
-        context.register_extension::<dyn InfoProvider>(Box::new(OsInfoProvider))
+        context.register_extension_point::<dyn InfoProvider>(
+            "info-providers",
+            "Contributes application information",
+        )?;
+        context.register_extension_point::<dyn TableDescriptionProvider>(
+            "table-descriptions",
+            "Defines data-store tables",
+        )?;
+        context.register_extension_point::<dyn TestDataProvider>(
+            "test-data-providers",
+            "Populates tables with development data",
+        )?;
+        context.register_extension::<dyn InfoProvider>(
+            "package-info",
+            "Provides package name and version",
+            Box::new(PackageInfoProvider),
+        )?;
+        context.register_extension::<dyn InfoProvider>(
+            "os-info",
+            "Provides operating-system information",
+            Box::new(OsInfoProvider),
+        )
     }))?;
     builder.register(plugin("tickets", "Ticket management", |context| {
-        context.register_extension::<dyn TableDescriptionProvider>(Box::new(
-            TicketTableDescriptionProvider,
-        ))?;
-        context.register_extension::<dyn TestDataProvider>(Box::new(TicketTestDataProvider))
+        context.register_extension::<dyn TableDescriptionProvider>(
+            "tickets-table",
+            "Defines the tickets table",
+            Box::new(TicketTableDescriptionProvider),
+        )?;
+        context.register_extension::<dyn TestDataProvider>(
+            "ticket-test-data",
+            "Adds representative tickets for development",
+            Box::new(TicketTestDataProvider),
+        )
     }))?;
     Ok(builder.build())
 }
@@ -224,12 +247,43 @@ mod tests {
                 "plugins": [
                     {
                         "name": "infra",
-                        "description": "Infrastructure services"
+                        "description": "Infrastructure services",
+                        "extension_points": [
+                            "info-providers",
+                            "table-descriptions",
+                            "test-data-providers"
+                        ],
+                        "extensions": ["package-info", "os-info"]
                     },
                     {
                         "name": "tickets",
-                        "description": "Ticket management"
+                        "description": "Ticket management",
+                        "extension_points": [],
+                        "extensions": ["tickets-table", "ticket-test-data"]
                     }
+                ],
+                "extension_points": [
+                    {
+                        "id": "info-providers",
+                        "description": "Contributes application information",
+                        "extensions": ["package-info", "os-info"]
+                    },
+                    {
+                        "id": "table-descriptions",
+                        "description": "Defines data-store tables",
+                        "extensions": ["tickets-table"]
+                    },
+                    {
+                        "id": "test-data-providers",
+                        "description": "Populates tables with development data",
+                        "extensions": ["ticket-test-data"]
+                    }
+                ],
+                "extensions": [
+                    { "id": "package-info", "description": "Provides package name and version" },
+                    { "id": "os-info", "description": "Provides operating-system information" },
+                    { "id": "tickets-table", "description": "Defines the tickets table" },
+                    { "id": "ticket-test-data", "description": "Adds representative tickets for development" }
                 ]
             })
         );

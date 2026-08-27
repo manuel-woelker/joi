@@ -134,11 +134,54 @@ registration order:
   "plugins": [
     {
       "name": "infra",
-      "description": "Infrastructure services"
+      "description": "Infrastructure services",
+      "extension_points": [
+        "info-providers",
+        "table-descriptions",
+        "test-data-providers"
+      ],
+      "extensions": ["package-info", "os-info"]
     },
     {
       "name": "tickets",
-      "description": "Ticket management"
+      "description": "Ticket management",
+      "extension_points": [],
+      "extensions": ["tickets-table", "ticket-test-data"]
+    }
+  ],
+  "extension_points": [
+    {
+      "id": "info-providers",
+      "description": "Contributes application information",
+      "extensions": ["package-info", "os-info"]
+    },
+    {
+      "id": "table-descriptions",
+      "description": "Defines data-store tables",
+      "extensions": ["tickets-table"]
+    },
+    {
+      "id": "test-data-providers",
+      "description": "Populates tables with development data",
+      "extensions": ["ticket-test-data"]
+    }
+  ],
+  "extensions": [
+    {
+      "id": "package-info",
+      "description": "Provides package name and version"
+    },
+    {
+      "id": "os-info",
+      "description": "Provides operating-system information"
+    },
+    {
+      "id": "tickets-table",
+      "description": "Defines the tickets table"
+    },
+    {
+      "id": "ticket-test-data",
+      "description": "Adds representative tickets for development"
     }
   ]
 }

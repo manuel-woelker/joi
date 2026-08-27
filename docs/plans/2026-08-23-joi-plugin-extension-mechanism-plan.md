@@ -26,8 +26,15 @@ trait InfoProvider: Send + Sync {
 let mut builder = PluginRegistryBuilder::new();
 
 builder.register(plugin("infra", "Infrastructure services", |context| {
-    context.register_extension_point::<dyn InfoProvider>()?;
-    context.register_extension::<dyn InfoProvider>(Box::new(VersionInfoProvider))?;
+    context.register_extension_point::<dyn InfoProvider>(
+        "info-providers",
+        "Contributes application information",
+    )?;
+    context.register_extension::<dyn InfoProvider>(
+        "version-info",
+        "Provides the application version",
+        Box::new(VersionInfoProvider),
+    )?;
     Ok(())
 }))?;
 let registry = builder.build();
@@ -84,7 +91,8 @@ classification.
       constructor for one-shot registration callbacks returning `JoiResult<()>`.
 - [x] Implement `PluginContext` with typed `register_extension_point` and
       `register_extension` methods whose generic parameter is the extension
-      trait and whose extension value is `Box<T>`.
+      trait, whose registrations have stable IDs, and whose extension value is
+      `Box<T>`.
 - [x] Implement `PluginRegistryBuilder::register` with unique plugin names,
       caller-defined ordering, staged atomic commits, and contextual string
       errors.

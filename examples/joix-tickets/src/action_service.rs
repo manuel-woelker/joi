@@ -214,8 +214,15 @@ mod tests {
         let mut builder = PluginRegistryBuilder::new();
         builder
             .register(plugin("test-info", "Test information", |context| {
-                context.register_extension_point::<dyn InfoProvider>()?;
-                context.register_extension::<dyn InfoProvider>(Box::new(TestInfoProvider))
+                context.register_extension_point::<dyn InfoProvider>(
+                    "test-info-providers",
+                    "Provides test information",
+                )?;
+                context.register_extension::<dyn InfoProvider>(
+                    "test-info",
+                    "Provides a test value",
+                    Box::new(TestInfoProvider),
+                )
             }))
             .unwrap();
         InfoAction::new(builder.build())

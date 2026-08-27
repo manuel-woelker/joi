@@ -17,6 +17,23 @@ pub struct Plugin {
 pub struct PluginInfo {
     pub name: JoiString,
     pub description: JoiString,
+    pub extension_points: Vec<JoiString>,
+    pub extensions: Vec<JoiString>,
+}
+
+/// Metadata for a registered extension point.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExtensionPointInfo {
+    pub id: JoiString,
+    pub description: JoiString,
+    pub extensions: Vec<JoiString>,
+}
+
+/// Metadata for a registered extension.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExtensionInfo {
+    pub id: JoiString,
+    pub description: JoiString,
 }
 
 /// Creates a plugin that registers its extension points and extensions through
@@ -30,6 +47,8 @@ pub fn plugin(
         info: PluginInfo {
             name: name.into(),
             description: description.into(),
+            extension_points: Vec::new(),
+            extensions: Vec::new(),
         },
         callback: Box::new(callback),
     }
