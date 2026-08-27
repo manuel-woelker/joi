@@ -1,4 +1,5 @@
 import { PluginRegistryBuilder, type UiPlugin } from "./plugins/registry";
+import { fetchService, fetchServiceKey } from "./services/fetch-service";
 
 interface PluginModule {
   default: UiPlugin;
@@ -11,7 +12,7 @@ export function createApplicationPluginRegistry() {
     .map(([path, module]) => validatePlugin(path, module.default))
     .sort((left, right) => left.name.localeCompare(right.name));
 
-  const builder = new PluginRegistryBuilder();
+  const builder = new PluginRegistryBuilder([{ key: fetchServiceKey, value: fetchService }]);
   plugins.forEach((candidate) => builder.register(candidate));
   return builder.build();
 }

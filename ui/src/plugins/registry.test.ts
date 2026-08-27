@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { PluginRegistryBuilder, extensionPoint, plugin } from "./registry";
+import { serviceKey } from "./services";
 
 describe("PluginRegistryBuilder", () => {
   it("registers all extension points before any extensions", () => {
@@ -84,5 +85,70 @@ describe("PluginRegistryBuilder", () => {
       }));
 
     expect(() => builder.build()).toThrow("already registered");
+  });
+
+  it("initializes service providers before consumers", () => {
+    const base = serviceKey<string>("base");
+    const derived = serviceKey<number>("derived");
+    const initialized: string[] = [];
+    const builder = new PluginRegistryBuilder()
+      .register(plugin({
+        name: "consumer",
+        description: "Consumes base",
+        requires: { base },
+        provides: { derived },
+        initialize({ base }) {
+          initialized.push("consumer");
+          return { derived: base.length };
+        },
+      }))
+      .register(plugin({
+        name: "provider",
+        description: "Provides base",
+        provides: { base },
+        initialize() {
+          initialized.push("provider");
+          return { base: "ready" };
+        },
+      }));
+
+    builder.build();
+    expect(initialized).toEqual(["provider", "consumer"]);
+  });
+
+  it("detects service dependency cycles", () => {
+    const first = serviceKey<string>("first");
+    const second = serviceKey<string>("second");
+    const builder = new PluginRegistryBuilder()
+      .register(plugin({
+        name: "first-plugin",
+        description: "First",
+        requires: { second },
+        provides: { first },
+        initialize: () => ({ first: "first" }),
+      }))
+      .register(plugin({
+        name: "second-plugin",
+        description: "Second",
+        requires: { first },
+        provides: { second },
+        initialize: () => ({ second: "second" }),
+      }));
+
+    expect(() => builder.build()).toThrow("dependency cycle");
+  });
+
+  it("validates promised services at runtime", () => {
+    const promised = serviceKey<string>("promised");
+    const invalidPlugin = plugin({
+      name: "invalid",
+      description: "Invalid provider",
+      provides: { promised },
+      initialize: () => ({ promised: "value" }),
+    });
+    invalidPlugin.initialize = () => ({});
+
+    expect(() => new PluginRegistryBuilder().register(invalidPlugin).build())
+      .toThrow("did not create exactly its declared services");
   });
 });

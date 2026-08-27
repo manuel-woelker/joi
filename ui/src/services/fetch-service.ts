@@ -25,3 +25,5 @@ export class FetchService {
 }
 
 export const fetchService = new FetchService();
+export const fetchServiceKey = serviceKey<FetchService>("fetch-service");
+import { serviceKey } from "../plugins/services";

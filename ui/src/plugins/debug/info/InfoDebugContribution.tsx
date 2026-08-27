@@ -1,9 +1,9 @@
 import { createResource, For, Match, Switch } from "solid-js";
 
-import { loadInfo } from "./info-api";
+import type { BackendInfoService } from "./info-api";
 
-export function InfoDebugContribution() {
-  const [info] = createResource(() => loadInfo());
+export function InfoDebugContribution(props: { backendInfoService: BackendInfoService }) {
+  const [info] = createResource(() => props.backendInfoService.load());
 
   return (
     <Switch>

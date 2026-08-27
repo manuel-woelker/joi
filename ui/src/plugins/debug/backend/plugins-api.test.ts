@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { loadPlugins } from "./plugins-api";
+import { BackendPluginsService } from "./plugins-api";
 import { FetchService } from "../../../services/fetch-service";
 
 const pluginMetadata = {
@@ -18,11 +18,12 @@ const pluginMetadata = {
   extensions: [{ id: "package-info", description: "Provides package information" }],
 };
 
-describe("loadPlugins", () => {
+describe("BackendPluginsService", () => {
   it("loads plugin, extension point, and extension metadata", async () => {
     const fetcher = vi.fn().mockResolvedValue({ ok: true, json: async () => pluginMetadata });
 
-    await expect(loadPlugins(new FetchService(fetcher))).resolves.toEqual(pluginMetadata);
+    const service = new BackendPluginsService({ fetchService: new FetchService(fetcher) });
+    await expect(service.load()).resolves.toEqual(pluginMetadata);
     expect(fetcher).toHaveBeenCalledWith("/api/plugins", { method: "GET" });
   });
 
@@ -32,6 +33,7 @@ describe("loadPlugins", () => {
       json: async () => ({ ...pluginMetadata, plugins: [{ name: "infra" }] }),
     });
 
-    await expect(loadPlugins(new FetchService(fetcher))).rejects.toThrow("invalid response");
+    const service = new BackendPluginsService({ fetchService: new FetchService(fetcher) });
+    await expect(service.load()).rejects.toThrow("invalid response");
   });
 });

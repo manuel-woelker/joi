@@ -32,6 +32,12 @@ bootstrap discovers plugin modules with Vite's eager
 list is maintained. Registry construction first invokes every plugin's
 `registerExtensionPoints` callback, then invokes every `registerExtensions`
 callback, so extensions do not depend on plugin discovery order.
+
+Plugins declare required and provided services as typed records. Registry
+construction validates providers, topologically sorts service dependencies,
+detects missing services and cycles, initializes each plugin, and verifies that
+every promised service was returned. Plugin callbacks receive only their
+declared required and provided services.
 The core plugin defines a `debug-contributions` extension point; its first
 contribution displays the backend's `GET /api/info` response from the debug
 control at the right edge of the status bar. Additional contributions display

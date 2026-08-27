@@ -1,4 +1,5 @@
-import { fetchService, type FetchService } from "../../../services/fetch-service";
+import { serviceKey } from "../../services";
+import type { FetchService } from "../../../services/fetch-service";
 
 export interface PluginMetadata {
   name: string;
@@ -24,13 +25,16 @@ export interface PluginsResponse {
   extensions: ExtensionMetadata[];
 }
 
-export async function loadPlugins(service: FetchService = fetchService): Promise<PluginsResponse> {
-  const payload = await service.get("/api/plugins");
-  if (!isPluginsResponse(payload)) {
-    throw new Error("Plugins action returned an invalid response");
+export class BackendPluginsService {
+  constructor(private readonly dependencies: { fetchService: FetchService }) {}
+  async load(): Promise<PluginsResponse> {
+    const payload = await this.dependencies.fetchService.get("/api/plugins");
+    if (!isPluginsResponse(payload)) throw new Error("Plugins action returned an invalid response");
+    return payload;
   }
-  return payload;
 }
+
+export const backendPluginsServiceKey = serviceKey<BackendPluginsService>("backend-plugins-service");
 
 function isPluginsResponse(value: unknown): value is PluginsResponse {
   if (!isRecord(value)) return false;

@@ -1,14 +1,14 @@
 import { createResource, For, Match, Switch, type JSX, type Resource } from "solid-js";
 
-import { loadPlugins, type PluginsResponse } from "./plugins-api";
+import type { BackendPluginsService, PluginsResponse } from "./plugins-api";
 
-export function ExtensionPointsDebugContribution() {
-  const [metadata] = createResource(() => loadPlugins());
+export function ExtensionPointsDebugContribution(props: { backendPluginsService: BackendPluginsService }) {
+  const [metadata] = createResource(() => props.backendPluginsService.load());
   return <PluginMetadataResource metadata={metadata} content={(value) => <ExtensionPointsMetadata metadata={value} />} />;
 }
 
-export function PluginsDebugContribution() {
-  const [metadata] = createResource(() => loadPlugins());
+export function PluginsDebugContribution(props: { backendPluginsService: BackendPluginsService }) {
+  const [metadata] = createResource(() => props.backendPluginsService.load());
   return <PluginMetadataResource metadata={metadata} content={(value) => <PluginsMetadata metadata={value} />} />;
 }
 
