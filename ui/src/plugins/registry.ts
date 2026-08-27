@@ -29,100 +29,120 @@ export interface PluginRegistryMetadata {
 export interface UiPlugin {
   readonly name: string;
   readonly description: string;
-  readonly order: number;
-  register(context: PluginContext): void;
+  registerExtensionPoints?(context: ExtensionPointContext): void;
+  registerExtensions?(context: ExtensionContext): void;
 }
+
+export interface UiPluginDefinition extends UiPlugin {}
 
 export function extensionPoint<T>(id: string, description: string): ExtensionPoint<T> {
   return { id, description, key: Symbol(id) };
 }
 
-export function plugin(
-  name: string,
-  description: string,
-  register: (context: PluginContext) => void,
-  order = 0,
-): UiPlugin {
-  return { name, description, order, register };
+export function plugin(definition: UiPluginDefinition): UiPlugin {
+  return definition;
 }
 
 interface RegisteredExtension<T = unknown> extends ExtensionInfo {
   readonly value: T;
 }
 
-export class PluginContext {
+type ExtensionPoints = Map<symbol, ExtensionPoint<unknown>>;
+type RegisteredExtensions = Map<symbol, RegisteredExtension[]>;
+
+export class ExtensionPointContext {
   constructor(
-    private readonly points: Map<symbol, ExtensionPoint<unknown>>,
+    private readonly points: ExtensionPoints,
     private readonly pointIds: Set<string>,
-    private readonly extensionIds: Set<string>,
-    private readonly extensions: Map<symbol, RegisteredExtension[]>,
   ) {}
 
-  registerExtensionPoint<T>(point: ExtensionPoint<T>): void {
+  registerExtensionPoint<T>(registration: { point: ExtensionPoint<T> }): void {
+    const { point } = registration;
     if (this.points.has(point.key) || this.pointIds.has(point.id)) {
       throw new Error(`Extension point '${point.id}' is already registered`);
     }
     this.points.set(point.key, point as ExtensionPoint<unknown>);
     this.pointIds.add(point.id);
-    this.extensions.set(point.key, []);
   }
+}
 
-  registerExtension<T>(
-    point: ExtensionPoint<T>,
-    id: string,
-    description: string,
-    value: T,
-  ): void {
-    const target = this.extensions.get(point.key);
-    if (!target) throw new Error(`Extension point '${point.id}' is not registered`);
+export class ExtensionContext {
+  constructor(
+    private readonly points: ExtensionPoints,
+    private readonly extensionIds: Set<string>,
+    private readonly extensions: RegisteredExtensions,
+  ) {}
+
+  registerExtension<T>(registration: {
+    point: ExtensionPoint<T>;
+    id: string;
+    description: string;
+    value: T;
+  }): void {
+    const { point, id, description, value } = registration;
+    if (!this.points.has(point.key)) {
+      throw new Error(`Extension point '${point.id}' is not registered`);
+    }
     if (this.extensionIds.has(id)) throw new Error(`Extension '${id}' is already registered`);
-    target.push({ id, description, value });
+
+    this.extensions.get(point.key)!.push({ id, description, value });
     this.extensionIds.add(id);
   }
 }
 
 export class PluginRegistryBuilder {
   private readonly pluginNames = new Set<string>();
-  private readonly pointIds = new Set<string>();
-  private readonly extensionIds = new Set<string>();
-  private readonly points = new Map<symbol, ExtensionPoint<unknown>>();
-  private readonly extensions = new Map<symbol, RegisteredExtension[]>();
-  private readonly plugins: PluginInfo[] = [];
+  private readonly plugins: UiPlugin[] = [];
 
   register(candidate: UiPlugin): this {
     if (this.pluginNames.has(candidate.name)) {
       throw new Error(`Plugin '${candidate.name}' is already registered`);
     }
-
-    const points = new Map(this.points);
-    const pointIds = new Set(this.pointIds);
-    const extensionIds = new Set(this.extensionIds);
-    const extensions = new Map(
-      [...this.extensions].map(([key, values]) => [key, [...values]]),
-    );
-    candidate.register(new PluginContext(points, pointIds, extensionIds, extensions));
-
-    const addedPoints = [...points.values()].filter((point) => !this.pointIds.has(point.id));
-    const addedExtensions = [...extensions.values()]
-      .flat()
-      .filter((extension) => !this.extensionIds.has(extension.id));
-
     this.pluginNames.add(candidate.name);
-    replaceMap(this.points, points);
-    replaceSet(this.pointIds, pointIds);
-    replaceSet(this.extensionIds, extensionIds);
-    replaceMap(this.extensions, extensions);
-    this.plugins.push({
-      name: candidate.name,
-      description: candidate.description,
-      extensionPoints: addedPoints.map((point) => point.id),
-      extensions: addedExtensions.map((extension) => extension.id),
-    });
+    this.plugins.push(candidate);
     return this;
   }
 
   build(): PluginRegistry {
-    return new PluginRegistry(this.plugins, this.points, this.extensions);
+    const points: ExtensionPoints = new Map();
+    const pointIds = new Set<string>();
+    const pluginInfo: PluginInfo[] = [];
+
+    for (const candidate of this.plugins) {
+      const stagedPoints = new Map(points);
+      const stagedPointIds = new Set(pointIds);
+      candidate.registerExtensionPoints?.(new ExtensionPointContext(stagedPoints, stagedPointIds));
+      const addedPoints = [...stagedPoints.values()].filter((point) => !pointIds.has(point.id));
+      replaceMap(points, stagedPoints);
+      replaceSet(pointIds, stagedPointIds);
+      pluginInfo.push({
+        name: candidate.name,
+        description: candidate.description,
+        extensionPoints: addedPoints.map((point) => point.id),
+        extensions: [],
+      });
+    }
+
+    const extensions: RegisteredExtensions = new Map([...points.keys()].map((key) => [key, []]));
+    const extensionIds = new Set<string>();
+    for (const [index, candidate] of this.plugins.entries()) {
+      const stagedExtensions = cloneExtensions(extensions);
+      const stagedExtensionIds = new Set(extensionIds);
+      candidate.registerExtensions?.(
+        new ExtensionContext(points, stagedExtensionIds, stagedExtensions),
+      );
+      const addedExtensions = [...stagedExtensions.values()]
+        .flat()
+        .filter((extension) => !extensionIds.has(extension.id));
+      replaceMap(extensions, stagedExtensions);
+      replaceSet(extensionIds, stagedExtensionIds);
+      pluginInfo[index] = {
+        ...pluginInfo[index],
+        extensions: addedExtensions.map((extension) => extension.id),
+      };
+    }
+
+    return new PluginRegistry(pluginInfo, points, extensions);
   }
 }
 
@@ -132,17 +152,17 @@ export class PluginRegistry {
 
   constructor(
     plugins: readonly PluginInfo[],
-    points: Map<symbol, ExtensionPoint<unknown>>,
-    extensions: Map<symbol, RegisteredExtension[]>,
+    points: ExtensionPoints,
+    extensions: RegisteredExtensions,
   ) {
     this.extensionsByPoint = new Map(
       [...extensions].map(([key, values]) => [key, Object.freeze([...values])]),
     );
     this.registryMetadata = Object.freeze({
-      plugins: Object.freeze(plugins.map((plugin) => Object.freeze({
-        ...plugin,
-        extensionPoints: Object.freeze([...plugin.extensionPoints]),
-        extensions: Object.freeze([...plugin.extensions]),
+      plugins: Object.freeze(plugins.map((candidate) => Object.freeze({
+        ...candidate,
+        extensionPoints: Object.freeze([...candidate.extensionPoints]),
+        extensions: Object.freeze([...candidate.extensions]),
       }))),
       extensionPoints: Object.freeze([...points].map(([key, point]) => Object.freeze({
         id: point.id,
@@ -165,6 +185,10 @@ export class PluginRegistry {
   metadata(): PluginRegistryMetadata {
     return this.registryMetadata;
   }
+}
+
+function cloneExtensions(source: RegisteredExtensions): RegisteredExtensions {
+  return new Map([...source].map(([key, values]) => [key, [...values]]));
 }
 
 function replaceMap<K, V>(target: Map<K, V>, source: Map<K, V>): void {

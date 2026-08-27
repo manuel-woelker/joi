@@ -10,50 +10,54 @@ import {
 } from "./UiPluginMetadataDebugContributions";
 import { debugContributions } from "./contribution";
 
-export default plugin("application-info", "Application information tools", (context) => {
-  context.registerExtension(
-    debugContributions,
-    "info",
-    "Displays application and runtime information",
-    { id: "info", name: "Info", group: "info", content: InfoDebugContribution },
-  );
-  context.registerExtension(
-    debugContributions,
-    "plugins",
-    "Displays plugins and their extension points",
-    { id: "plugins", name: "Plugins", group: "backend", content: PluginsDebugContribution },
-  );
-  context.registerExtension(
-    debugContributions,
-    "ui-plugins",
-    "Displays UI plugins and their contributions",
-    {
+export default plugin({
+  name: "application-info",
+  description: "Application information tools",
+  registerExtensions(context) {
+    context.registerExtension({
+      point: debugContributions,
+      id: "info",
+      description: "Displays application and runtime information",
+      value: { id: "info", name: "Info", group: "info", content: InfoDebugContribution },
+    });
+    context.registerExtension({
+      point: debugContributions,
+      id: "plugins",
+      description: "Displays plugins and their extension points",
+      value: { id: "plugins", name: "Plugins", group: "backend", content: PluginsDebugContribution },
+    });
+    context.registerExtension({
+      point: debugContributions,
       id: "ui-plugins",
-      name: "UI Plugins",
-      group: "frontend",
-      content: UiPluginsDebugContribution,
-    },
-  );
-  context.registerExtension(
-    debugContributions,
-    "ui-extension-points",
-    "Displays UI extension points and their extensions",
-    {
+      description: "Displays UI plugins and their contributions",
+      value: {
+        id: "ui-plugins",
+        name: "UI Plugins",
+        group: "frontend",
+        content: UiPluginsDebugContribution,
+      },
+    });
+    context.registerExtension({
+      point: debugContributions,
       id: "ui-extension-points",
-      name: "UI Extension Points",
-      group: "frontend",
-      content: UiExtensionPointsDebugContribution,
-    },
-  );
-  context.registerExtension(
-    debugContributions,
-    "extension-points",
-    "Displays extension points and their extensions",
-    {
+      description: "Displays UI extension points and their extensions",
+      value: {
+        id: "ui-extension-points",
+        name: "UI Extension Points",
+        group: "frontend",
+        content: UiExtensionPointsDebugContribution,
+      },
+    });
+    context.registerExtension({
+      point: debugContributions,
       id: "extension-points",
-      name: "Extension Points",
-      group: "backend",
-      content: ExtensionPointsDebugContribution,
-    },
-  );
+      description: "Displays extension points and their extensions",
+      value: {
+        id: "extension-points",
+        name: "Extension Points",
+        group: "backend",
+        content: ExtensionPointsDebugContribution,
+      },
+    });
+  },
 });

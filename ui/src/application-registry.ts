@@ -9,7 +9,7 @@ const pluginModules = import.meta.glob<PluginModule>("./**/*.plugin.ts{,x}", { e
 export function createApplicationPluginRegistry() {
   const plugins = Object.entries(pluginModules)
     .map(([path, module]) => validatePlugin(path, module.default))
-    .sort((left, right) => left.order - right.order || left.name.localeCompare(right.name));
+    .sort((left, right) => left.name.localeCompare(right.name));
 
   const builder = new PluginRegistryBuilder();
   plugins.forEach((candidate) => builder.register(candidate));
@@ -17,7 +17,7 @@ export function createApplicationPluginRegistry() {
 }
 
 function validatePlugin(path: string, candidate: UiPlugin | undefined): UiPlugin {
-  if (!candidate || typeof candidate.register !== "function") {
+  if (!candidate || typeof candidate.name !== "string" || typeof candidate.description !== "string") {
     throw new Error(`UI plugin module '${path}' must have a default plugin export`);
   }
   return candidate;
