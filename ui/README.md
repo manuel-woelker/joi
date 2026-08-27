@@ -24,7 +24,9 @@ The core plugin defines a `debug-contributions` extension point; its first
 contribution displays the backend's `GET /api/info` response from the debug
 control at the right edge of the status bar. Additional contributions display
 plugins with their extension points and extension points with their nested
-extensions from `GET /api/plugins`.
+extensions from `GET /api/plugins`. Matching `UI Plugins` and
+`UI Extension Points` contributions inspect the immutable client-side plugin
+registry directly.
 
 ## How do I run it?
 

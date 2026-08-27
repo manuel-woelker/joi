@@ -90,5 +90,13 @@ describe("workspace app", () => {
     expect(screen.getAllByText("infra")).toHaveLength(2);
     expect(await screen.findByText("package-info")).toBeTruthy();
     expect(screen.getByText("Provides package information")).toBeTruthy();
+
+    await userEvent.click(screen.getByRole("button", { name: "UI Plugins" }));
+    expect(await screen.findByText("application-info")).toBeTruthy();
+    expect(screen.getByText("ui-extension-points", { exact: false })).toBeTruthy();
+
+    await userEvent.click(screen.getByRole("button", { name: "UI Extension Points" }));
+    expect(await screen.findByText("debug-contributions")).toBeTruthy();
+    expect(screen.getByText("Displays UI plugins and their contributions")).toBeTruthy();
   });
 });

@@ -5,48 +5,18 @@ import { loadPlugins, type PluginsResponse } from "./plugins-api";
 
 export function ExtensionPointsDebugContribution() {
   const [metadata] = createResource(() => loadPlugins());
-  return <PluginMetadataResource metadata={metadata} content={(value) => (
-    <>
-      <ul class="debug-metadata-list">
-        <For each={value.extension_points}>{(point) => {
-          const owner = value.plugins.find((plugin) => plugin.extension_points.includes(point.id));
-          return (
-            <li>
-              <div>
-                <div class="debug-metadata-title">
-                  <strong>{point.id}</strong>
-                  <small>{owner?.name ?? "unknown plugin"}</small>
-                </div>
-                <span>{point.description}</span>
-              </div>
-              <ul class="debug-nested-extensions">
-                <For each={point.extensions}>{(extensionId) => {
-                  const extension = value.extensions.find((candidate) => candidate.id === extensionId);
-                  const extensionOwner = value.plugins.find((plugin) => plugin.extensions.includes(extensionId));
-                  return (
-                    <li>
-                      <div class="debug-metadata-title">
-                        <strong>{extensionId}</strong>
-                        <small>{extensionOwner?.name ?? "unknown plugin"}</small>
-                      </div>
-                      <span>{extension?.description ?? "No description"}</span>
-                    </li>
-                  );
-                }}</For>
-              </ul>
-            </li>
-          );
-        }}</For>
-      </ul>
-    </>
-  )} />;
+  return <PluginMetadataResource metadata={metadata} content={(value) => <ExtensionPointsMetadata metadata={value} />} />;
 }
 
 export function PluginsDebugContribution() {
   const [metadata] = createResource(() => loadPlugins());
-  return <PluginMetadataResource metadata={metadata} content={(value) => (
+  return <PluginMetadataResource metadata={metadata} content={(value) => <PluginsMetadata metadata={value} />} />;
+}
+
+export function PluginsMetadata(props: { metadata: PluginsResponse }) {
+  return (
     <ul class="debug-metadata-list">
-      <For each={value.plugins}>{(plugin) => (
+      <For each={props.metadata.plugins}>{(plugin) => (
         <li>
           <div><strong>{plugin.name}</strong><span>{plugin.description}</span></div>
           <dl>
@@ -56,7 +26,43 @@ export function PluginsDebugContribution() {
         </li>
       )}</For>
     </ul>
-  )} />;
+  );
+}
+
+export function ExtensionPointsMetadata(props: { metadata: PluginsResponse }) {
+  return (
+    <ul class="debug-metadata-list">
+      <For each={props.metadata.extension_points}>{(point) => {
+        const owner = props.metadata.plugins.find((plugin) => plugin.extension_points.includes(point.id));
+        return (
+          <li>
+            <div>
+              <div class="debug-metadata-title">
+                <strong>{point.id}</strong>
+                <small>{owner?.name ?? "unknown plugin"}</small>
+              </div>
+              <span>{point.description}</span>
+            </div>
+            <ul class="debug-nested-extensions">
+              <For each={point.extensions}>{(extensionId) => {
+                const extension = props.metadata.extensions.find((candidate) => candidate.id === extensionId);
+                const extensionOwner = props.metadata.plugins.find((plugin) => plugin.extensions.includes(extensionId));
+                return (
+                  <li>
+                    <div class="debug-metadata-title">
+                      <strong>{extensionId}</strong>
+                      <small>{extensionOwner?.name ?? "unknown plugin"}</small>
+                    </div>
+                    <span>{extension?.description ?? "No description"}</span>
+                  </li>
+                );
+              }}</For>
+            </ul>
+          </li>
+        );
+      }}</For>
+    </ul>
+  );
 }
 
 interface PluginMetadataResourceProps {

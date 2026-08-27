@@ -39,7 +39,7 @@ export function DebugTools(props: DebugToolsProps) {
               {(contribution) => (
                 <section class="debug-detail" aria-labelledby="debug-detail-heading">
                   <h3 id="debug-detail-heading">{contribution().name}</h3>
-                  <div class="debug-panel-content"><Dynamic component={contribution().content} /></div>
+                  <div class="debug-panel-content"><Dynamic component={contribution().content} pluginRegistry={props.registry} /></div>
                 </section>
               )}
             </Show>

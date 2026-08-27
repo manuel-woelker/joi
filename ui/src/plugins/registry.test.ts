@@ -14,6 +14,26 @@ describe("PluginRegistryBuilder", () => {
       .build();
 
     expect(registry.extensions(commands).map((command) => command())).toEqual(["first", "second"]);
+    expect(registry.metadata()).toEqual({
+      plugins: [
+        { name: "core", description: "Core points", extensionPoints: ["commands"], extensions: [] },
+        {
+          name: "commands",
+          description: "Commands",
+          extensionPoints: [],
+          extensions: ["first", "second"],
+        },
+      ],
+      extensionPoints: [{
+        id: "commands",
+        description: "Adds commands",
+        extensions: ["first", "second"],
+      }],
+      extensions: [
+        { id: "first", description: "First command" },
+        { id: "second", description: "Second command" },
+      ],
+    });
   });
 
   it("rolls back a failed plugin registration", () => {
@@ -27,6 +47,7 @@ describe("PluginRegistryBuilder", () => {
     }))).toThrow("already registered");
 
     expect(builder.build().extensions(commands)).toEqual([]);
+    expect(builder.build().metadata().plugins).toHaveLength(1);
     expect(() => builder.register(plugin("broken", "Retry", (context) => {
       context.registerExtension(commands, "working", "Working", "working");
     }))).not.toThrow();

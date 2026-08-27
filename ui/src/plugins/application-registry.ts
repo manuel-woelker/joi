@@ -4,6 +4,10 @@ import {
   PluginsDebugContribution,
 } from "../debug/PluginMetadataDebugContributions";
 import { debugContributions } from "../debug/contribution";
+import {
+  UiExtensionPointsDebugContribution,
+  UiPluginsDebugContribution,
+} from "../debug/UiPluginMetadataDebugContributions";
 import { PluginRegistryBuilder, plugin } from "./registry";
 
 export function createApplicationPluginRegistry() {
@@ -26,6 +30,22 @@ export function createApplicationPluginRegistry() {
           id: "plugins",
           name: "Plugins",
           content: PluginsDebugContribution,
+        },
+      );
+      context.registerExtension(
+        debugContributions,
+        "ui-plugins",
+        "Displays UI plugins and their contributions",
+        { id: "ui-plugins", name: "UI Plugins", content: UiPluginsDebugContribution },
+      );
+      context.registerExtension(
+        debugContributions,
+        "ui-extension-points",
+        "Displays UI extension points and their extensions",
+        {
+          id: "ui-extension-points",
+          name: "UI Extension Points",
+          content: UiExtensionPointsDebugContribution,
         },
       );
       context.registerExtension(

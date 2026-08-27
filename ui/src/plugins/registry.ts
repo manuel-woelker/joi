@@ -9,6 +9,23 @@ export interface ExtensionInfo {
   readonly description: string;
 }
 
+export interface PluginInfo {
+  readonly name: string;
+  readonly description: string;
+  readonly extensionPoints: readonly string[];
+  readonly extensions: readonly string[];
+}
+
+export interface ExtensionPointInfo extends ExtensionInfo {
+  readonly extensions: readonly string[];
+}
+
+export interface PluginRegistryMetadata {
+  readonly plugins: readonly PluginInfo[];
+  readonly extensionPoints: readonly ExtensionPointInfo[];
+  readonly extensions: readonly ExtensionInfo[];
+}
+
 export interface UiPlugin {
   readonly name: string;
   readonly description: string;
@@ -68,6 +85,7 @@ export class PluginRegistryBuilder {
   private readonly extensionIds = new Set<string>();
   private readonly points = new Map<symbol, ExtensionPoint<unknown>>();
   private readonly extensions = new Map<symbol, RegisteredExtension[]>();
+  private readonly plugins: PluginInfo[] = [];
 
   register(candidate: UiPlugin): this {
     if (this.pluginNames.has(candidate.name)) {
@@ -82,32 +100,68 @@ export class PluginRegistryBuilder {
     );
     candidate.register(new PluginContext(points, pointIds, extensionIds, extensions));
 
+    const addedPoints = [...points.values()].filter((point) => !this.pointIds.has(point.id));
+    const addedExtensions = [...extensions.values()]
+      .flat()
+      .filter((extension) => !this.extensionIds.has(extension.id));
+
     this.pluginNames.add(candidate.name);
     replaceMap(this.points, points);
     replaceSet(this.pointIds, pointIds);
     replaceSet(this.extensionIds, extensionIds);
     replaceMap(this.extensions, extensions);
+    this.plugins.push({
+      name: candidate.name,
+      description: candidate.description,
+      extensionPoints: addedPoints.map((point) => point.id),
+      extensions: addedExtensions.map((extension) => extension.id),
+    });
     return this;
   }
 
   build(): PluginRegistry {
-    return new PluginRegistry(this.extensions);
+    return new PluginRegistry(this.plugins, this.points, this.extensions);
   }
 }
 
 export class PluginRegistry {
   private readonly extensionsByPoint: ReadonlyMap<symbol, readonly RegisteredExtension[]>;
+  private readonly registryMetadata: PluginRegistryMetadata;
 
-  constructor(extensions: Map<symbol, RegisteredExtension[]>) {
+  constructor(
+    plugins: readonly PluginInfo[],
+    points: Map<symbol, ExtensionPoint<unknown>>,
+    extensions: Map<symbol, RegisteredExtension[]>,
+  ) {
     this.extensionsByPoint = new Map(
       [...extensions].map(([key, values]) => [key, Object.freeze([...values])]),
     );
+    this.registryMetadata = Object.freeze({
+      plugins: Object.freeze(plugins.map((plugin) => Object.freeze({
+        ...plugin,
+        extensionPoints: Object.freeze([...plugin.extensionPoints]),
+        extensions: Object.freeze([...plugin.extensions]),
+      }))),
+      extensionPoints: Object.freeze([...points].map(([key, point]) => Object.freeze({
+        id: point.id,
+        description: point.description,
+        extensions: Object.freeze((extensions.get(key) ?? []).map((extension) => extension.id)),
+      }))),
+      extensions: Object.freeze([...extensions.values()].flat().map((extension) => Object.freeze({
+        id: extension.id,
+        description: extension.description,
+      }))),
+    });
   }
 
   extensions<T>(point: ExtensionPoint<T>): readonly T[] {
     return (this.extensionsByPoint.get(point.key) ?? []).map(
       (extension) => extension.value as T,
     );
+  }
+
+  metadata(): PluginRegistryMetadata {
+    return this.registryMetadata;
   }
 }
 
