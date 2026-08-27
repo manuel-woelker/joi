@@ -11,6 +11,12 @@ recipe "default" {
     """
   }
 
+  task "dev" description="Run the joix-tickets backend and Joi UI" {
+    depends-on "joix-tickets"
+    depends-on "ui"
+    run shell="printf 'Task outcome: development servers stopped\n'"
+  }
+
   task "docs-dev" description="Run the API documentation development servers" {
     run shell="""
       cleanup() {
