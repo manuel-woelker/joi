@@ -1,3 +1,5 @@
+import { fetchService, type FetchService } from "../services/fetch-service";
+
 export interface PluginMetadata {
   name: string;
   description: string;
@@ -22,11 +24,8 @@ export interface PluginsResponse {
   extensions: ExtensionMetadata[];
 }
 
-export async function loadPlugins(fetcher: typeof fetch = fetch): Promise<PluginsResponse> {
-  const response = await fetcher("/api/plugins");
-  if (!response.ok) throw new Error(`Plugin metadata request failed with HTTP ${response.status}`);
-
-  const payload: unknown = await response.json();
+export async function loadPlugins(service: FetchService = fetchService): Promise<PluginsResponse> {
+  const payload = await service.get("/api/plugins");
   if (!isPluginsResponse(payload)) {
     throw new Error("Plugins action returned an invalid response");
   }

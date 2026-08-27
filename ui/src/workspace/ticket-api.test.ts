@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { loadTickets } from "./ticket-api";
+import { FetchService } from "../services/fetch-service";
 
 describe("loadTickets", () => {
   it("queries and converts columnar ticket data", async () => {
@@ -17,7 +18,7 @@ describe("loadTickets", () => {
       }),
     });
 
-    await expect(loadTickets(fetcher)).resolves.toEqual([
+    await expect(loadTickets(new FetchService(fetcher))).resolves.toEqual([
       { id: "TICKET-1", title: "Fix navigation bug", description: "Selection is lost", status: "open" },
     ]);
     expect(fetcher).toHaveBeenCalledWith("/api/tickets/query", expect.objectContaining({ method: "POST" }));
@@ -30,6 +31,6 @@ describe("loadTickets", () => {
 
   it("rejects malformed responses", async () => {
     const fetcher = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ result_columns: [] }) });
-    await expect(loadTickets(fetcher)).rejects.toThrow("invalid response");
+    await expect(loadTickets(new FetchService(fetcher))).rejects.toThrow("invalid response");
   });
 });

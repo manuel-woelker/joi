@@ -1,10 +1,9 @@
+import { fetchService, type FetchService } from "../services/fetch-service";
+
 export type InfoResponse = Record<string, string | number | boolean | null>;
 
-export async function loadInfo(fetcher: typeof fetch = fetch): Promise<InfoResponse> {
-  const response = await fetcher("/api/info");
-  if (!response.ok) throw new Error(`Info request failed with HTTP ${response.status}`);
-
-  const payload: unknown = await response.json();
+export async function loadInfo(service: FetchService = fetchService): Promise<InfoResponse> {
+  const payload = await service.get("/api/info");
   if (!isInfoResponse(payload)) throw new Error("Info action returned an invalid response");
   return payload;
 }

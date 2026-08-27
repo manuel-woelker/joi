@@ -1,3 +1,4 @@
+import { fetchService, type FetchService } from "../services/fetch-service";
 import type { Ticket, TicketField, TicketStatus } from "./model";
 
 interface TicketQueryColumn {
@@ -16,21 +17,12 @@ interface TicketQueryResponse {
 const requestedAttributes: TicketField[] = ["id", "title", "description", "status"];
 const ticketStatuses = new Set<TicketStatus>(["open", "in-progress", "closed"]);
 
-export async function loadTickets(fetcher: typeof fetch = fetch): Promise<Ticket[]> {
-  const response = await fetcher("/api/tickets/query", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      criterion: "match_any",
-      max_results: 100,
-      attributes: requestedAttributes,
-    }),
+export async function loadTickets(service: FetchService = fetchService): Promise<Ticket[]> {
+  const payload = await service.post("/api/tickets/query", {
+    criterion: "match_any",
+    max_results: 100,
+    attributes: requestedAttributes,
   });
-  if (!response.ok) {
-    throw new Error(`Ticket query failed with HTTP ${response.status}`);
-  }
-
-  const payload: unknown = await response.json();
   if (!isTicketQueryResponse(payload)) {
     throw new Error("Ticket query returned an invalid response");
   }
