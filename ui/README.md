@@ -22,6 +22,10 @@ for validating their response shapes. Permissions, sharing, and
 workspace synchronization are intentionally not yet implemented.
 
 UI capabilities can be added through the typed plugin registry during startup.
+Plugin modules use the `*.plugin.ts` or `*.plugin.tsx` suffix and default-export
+a plugin. The application bootstrap discovers them with Vite's eager
+`import.meta.glob` support, then orders them by their numeric plugin order and
+name before registration; no central plugin import list is maintained.
 The core plugin defines a `debug-contributions` extension point; its first
 contribution displays the backend's `GET /api/info` response from the debug
 control at the right edge of the status bar. Additional contributions display

@@ -29,6 +29,7 @@ export interface PluginRegistryMetadata {
 export interface UiPlugin {
   readonly name: string;
   readonly description: string;
+  readonly order: number;
   register(context: PluginContext): void;
 }
 
@@ -40,8 +41,9 @@ export function plugin(
   name: string,
   description: string,
   register: (context: PluginContext) => void,
+  order = 0,
 ): UiPlugin {
-  return { name, description, register };
+  return { name, description, order, register };
 }
 
 interface RegisteredExtension<T = unknown> extends ExtensionInfo {

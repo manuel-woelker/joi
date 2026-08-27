@@ -1,0 +1,59 @@
+import { plugin } from "../plugins/registry";
+import { InfoDebugContribution } from "./InfoDebugContribution";
+import {
+  ExtensionPointsDebugContribution,
+  PluginsDebugContribution,
+} from "./PluginMetadataDebugContributions";
+import {
+  UiExtensionPointsDebugContribution,
+  UiPluginsDebugContribution,
+} from "./UiPluginMetadataDebugContributions";
+import { debugContributions } from "./contribution";
+
+export default plugin("application-info", "Application information tools", (context) => {
+  context.registerExtension(
+    debugContributions,
+    "info",
+    "Displays application and runtime information",
+    { id: "info", name: "Info", group: "info", content: InfoDebugContribution },
+  );
+  context.registerExtension(
+    debugContributions,
+    "plugins",
+    "Displays plugins and their extension points",
+    { id: "plugins", name: "Plugins", group: "backend", content: PluginsDebugContribution },
+  );
+  context.registerExtension(
+    debugContributions,
+    "ui-plugins",
+    "Displays UI plugins and their contributions",
+    {
+      id: "ui-plugins",
+      name: "UI Plugins",
+      group: "frontend",
+      content: UiPluginsDebugContribution,
+    },
+  );
+  context.registerExtension(
+    debugContributions,
+    "ui-extension-points",
+    "Displays UI extension points and their extensions",
+    {
+      id: "ui-extension-points",
+      name: "UI Extension Points",
+      group: "frontend",
+      content: UiExtensionPointsDebugContribution,
+    },
+  );
+  context.registerExtension(
+    debugContributions,
+    "extension-points",
+    "Displays extension points and their extensions",
+    {
+      id: "extension-points",
+      name: "Extension Points",
+      group: "backend",
+      content: ExtensionPointsDebugContribution,
+    },
+  );
+});

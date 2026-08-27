@@ -5,7 +5,7 @@ import { NavigationTree } from "./components/NavigationTree";
 import { ViewContent } from "./components/ViewContent";
 import { ViewEditor } from "./components/ViewEditor";
 import { DebugTools } from "./debug/DebugTools";
-import { createApplicationPluginRegistry } from "./plugins/application-registry";
+import { createApplicationPluginRegistry } from "./application-registry";
 import type { PluginRegistry } from "./plugins/registry";
 import { WorkspaceProvider, useWorkspace } from "./workspace/controller";
 
