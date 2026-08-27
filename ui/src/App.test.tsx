@@ -49,7 +49,22 @@ describe("workspace app", () => {
       ok: true,
       json: async () => input === "/api/info"
         ? { application_name: "joix-tickets", version: "0.1.0" }
-        : {
+        : input === "/api/plugins"
+          ? {
+              plugins: [{
+                name: "infra",
+                description: "Infrastructure services",
+                extension_points: ["info-providers"],
+                extensions: ["package-info"],
+              }],
+              extension_points: [{
+                id: "info-providers",
+                description: "Contributes application information",
+                extensions: ["package-info"],
+              }],
+              extensions: [{ id: "package-info", description: "Provides package information" }],
+            }
+          : {
             number_of_hits: 0,
             result_columns: ["id", "title", "description", "status"].map((attribute) => ({
               attribute,
@@ -64,5 +79,16 @@ describe("workspace app", () => {
     expect(await screen.findByText("joix-tickets")).toBeTruthy();
     expect(screen.getByRole("navigation", { name: "Debug contributions" })).toBeTruthy();
     expect(screen.getByText("application name")).toBeTruthy();
+
+    await userEvent.click(screen.getByRole("button", { name: "Plugins" }));
+    expect(await screen.findByText("infra")).toBeTruthy();
+    expect(screen.getByText("info-providers")).toBeTruthy();
+    expect(screen.getByText("package-info")).toBeTruthy();
+
+    await userEvent.click(screen.getByRole("button", { name: "Extension Points" }));
+    expect(await screen.findByText("info-providers")).toBeTruthy();
+    expect(screen.getAllByText("infra")).toHaveLength(2);
+    expect(await screen.findByText("package-info")).toBeTruthy();
+    expect(screen.getByText("Provides package information")).toBeTruthy();
   });
 });

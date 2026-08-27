@@ -22,7 +22,9 @@ workspace synchronization are intentionally not yet implemented.
 UI capabilities can be added through the typed plugin registry during startup.
 The core plugin defines a `debug-contributions` extension point; its first
 contribution displays the backend's `GET /api/info` response from the debug
-control at the right edge of the status bar.
+control at the right edge of the status bar. Additional contributions display
+plugins with their extension points and extension points with their nested
+extensions from `GET /api/plugins`.
 
 ## How do I run it?
 
