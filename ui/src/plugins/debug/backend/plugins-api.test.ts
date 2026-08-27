@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { loadPlugins } from "./plugins-api";
-import { FetchService } from "../services/fetch-service";
+import { FetchService } from "../../../services/fetch-service";
 
 const pluginMetadata = {
   plugins: [{

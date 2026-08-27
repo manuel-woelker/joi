@@ -100,7 +100,9 @@ describe("workspace app", () => {
     expect(screen.getByText("Provides package information")).toBeTruthy();
 
     await userEvent.click(screen.getByRole("button", { name: "UI Plugins" }));
-    expect(await screen.findByText("application-info")).toBeTruthy();
+    expect(await screen.findByText("ui")).toBeTruthy();
+    expect(screen.getByText("backend")).toBeTruthy();
+    expect(screen.getAllByText("info")).toHaveLength(2);
     expect(screen.getByText("ui-extension-points", { exact: false })).toBeTruthy();
 
     await userEvent.click(screen.getByRole("button", { name: "UI Extension Points" }));

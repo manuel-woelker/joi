@@ -1,9 +1,9 @@
-import type { PluginRegistry } from "../plugins/registry";
+import type { PluginRegistry } from "../../registry";
 import {
   ExtensionPointsMetadata,
   PluginsMetadata,
-} from "./PluginMetadataDebugContributions";
-import type { PluginsResponse } from "./plugins-api";
+} from "../backend/PluginMetadataDebugContributions";
+import type { PluginsResponse } from "../backend/plugins-api";
 
 export function UiPluginsDebugContribution(props: { pluginRegistry: PluginRegistry }) {
   return <PluginsMetadata metadata={toDebugMetadata(props.pluginRegistry)} />;

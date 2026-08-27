@@ -1,4 +1,4 @@
-import { For, Match, Switch, createResource } from "solid-js";
+import { createResource, For, Match, Switch } from "solid-js";
 
 import { loadInfo } from "./info-api";
 

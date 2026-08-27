@@ -23,7 +23,11 @@ workspace synchronization are intentionally not yet implemented.
 
 UI capabilities can be added through the typed plugin registry during startup.
 Plugin modules use the `*.plugin.ts` or `*.plugin.tsx` suffix and default-export
-a plugin. The application bootstrap discovers them with Vite's eager
+a plugin. Each plugin lives in its own directory under `src/plugins`; related
+plugin families may be grouped one level deeper, as with `src/plugins/debug`.
+Registrations, components, API clients, and tests stay in the owning plugin's
+directory, while shared registry infrastructure remains in `src/plugins`. The application
+bootstrap discovers plugin modules with Vite's eager
 `import.meta.glob` support, then orders them by name; no central plugin import
 list is maintained. Registry construction first invokes every plugin's
 `registerExtensionPoints` callback, then invokes every `registerExtensions`

@@ -1,6 +1,6 @@
 import type { Component } from "solid-js";
 
-import { extensionPoint, type PluginRegistry } from "../plugins/registry";
+import { extensionPoint, type PluginRegistry } from "../../registry";
 
 export interface DebugContribution {
   readonly id: string;

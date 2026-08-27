@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { loadInfo } from "./info-api";
-import { FetchService } from "../services/fetch-service";
+import { FetchService } from "../../../services/fetch-service";
 
 describe("loadInfo", () => {
   it("loads scalar application information", async () => {

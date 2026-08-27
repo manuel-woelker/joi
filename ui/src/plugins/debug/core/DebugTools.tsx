@@ -1,7 +1,7 @@
 import { For, Show, createSignal } from "solid-js";
 import { Dynamic } from "solid-js/web";
 
-import type { PluginRegistry } from "../plugins/registry";
+import type { PluginRegistry } from "../../registry";
 import { debugContributions, type DebugContribution } from "./contribution";
 
 export interface DebugToolsProps {

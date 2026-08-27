@@ -1,4 +1,4 @@
-import { fetchService, type FetchService } from "../services/fetch-service";
+import { fetchService, type FetchService } from "../../../services/fetch-service";
 
 export type InfoResponse = Record<string, string | number | boolean | null>;
 

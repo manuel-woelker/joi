@@ -1,4 +1,4 @@
-import { plugin } from "../plugins/registry";
+import { plugin } from "../../registry";
 import { debugContributions } from "./contribution";
 
 export default plugin({

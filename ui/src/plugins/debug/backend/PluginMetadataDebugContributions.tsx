@@ -1,5 +1,4 @@
-import { For, Match, Switch, createResource } from "solid-js";
-import type { JSX, Resource } from "solid-js";
+import { createResource, For, Match, Switch, type JSX, type Resource } from "solid-js";
 
 import { loadPlugins, type PluginsResponse } from "./plugins-api";
 
