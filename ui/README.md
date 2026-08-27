@@ -26,7 +26,9 @@ control at the right edge of the status bar. Additional contributions display
 plugins with their extension points and extension points with their nested
 extensions from `GET /api/plugins`. Matching `UI Plugins` and
 `UI Extension Points` contributions inspect the immutable client-side plugin
-registry directly.
+registry directly. Debug contributions declare an `info`, `frontend`, or
+`backend` group and appear in that group order, alphabetically within each
+group.
 
 ## How do I run it?
 

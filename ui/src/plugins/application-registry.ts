@@ -20,7 +20,7 @@ export function createApplicationPluginRegistry() {
         debugContributions,
         "info",
         "Displays application and runtime information",
-        { id: "info", name: "Info", content: InfoDebugContribution },
+        { id: "info", name: "Info", group: "info", content: InfoDebugContribution },
       );
       context.registerExtension(
         debugContributions,
@@ -29,6 +29,7 @@ export function createApplicationPluginRegistry() {
         {
           id: "plugins",
           name: "Plugins",
+          group: "backend",
           content: PluginsDebugContribution,
         },
       );
@@ -36,7 +37,12 @@ export function createApplicationPluginRegistry() {
         debugContributions,
         "ui-plugins",
         "Displays UI plugins and their contributions",
-        { id: "ui-plugins", name: "UI Plugins", content: UiPluginsDebugContribution },
+        {
+          id: "ui-plugins",
+          name: "UI Plugins",
+          group: "frontend",
+          content: UiPluginsDebugContribution,
+        },
       );
       context.registerExtension(
         debugContributions,
@@ -45,6 +51,7 @@ export function createApplicationPluginRegistry() {
         {
           id: "ui-extension-points",
           name: "UI Extension Points",
+          group: "frontend",
           content: UiExtensionPointsDebugContribution,
         },
       );
@@ -55,6 +62,7 @@ export function createApplicationPluginRegistry() {
         {
           id: "extension-points",
           name: "Extension Points",
+          group: "backend",
           content: ExtensionPointsDebugContribution,
         },
       );

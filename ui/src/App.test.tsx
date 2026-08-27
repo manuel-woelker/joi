@@ -77,7 +77,15 @@ describe("workspace app", () => {
     await userEvent.click(screen.getByRole("button", { name: "Open debug tools" }));
 
     expect(await screen.findByText("joix-tickets")).toBeTruthy();
-    expect(screen.getByRole("navigation", { name: "Debug contributions" })).toBeTruthy();
+    const debugNavigation = screen.getByRole("navigation", { name: "Debug contributions" });
+    expect(debugNavigation).toBeTruthy();
+    expect([...debugNavigation.querySelectorAll("button")].map((button) => button.textContent)).toEqual([
+      "Info",
+      "UI Extension Points",
+      "UI Plugins",
+      "Extension Points",
+      "Plugins",
+    ]);
     expect(screen.getByText("application name")).toBeTruthy();
 
     await userEvent.click(screen.getByRole("button", { name: "Plugins" }));

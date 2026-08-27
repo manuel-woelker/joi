@@ -5,8 +5,11 @@ import { extensionPoint, type PluginRegistry } from "../plugins/registry";
 export interface DebugContribution {
   readonly id: string;
   readonly name: string;
+  readonly group: DebugContributionGroup;
   readonly content: Component<{ pluginRegistry: PluginRegistry }>;
 }
+
+export type DebugContributionGroup = "info" | "frontend" | "backend";
 
 export const debugContributions = extensionPoint<DebugContribution>(
   "debug-contributions",

@@ -9,7 +9,11 @@ export interface DebugToolsProps {
 }
 
 export function DebugTools(props: DebugToolsProps) {
-  const contributions = props.registry.extensions(debugContributions);
+  const groupOrder = ["info", "frontend", "backend"] as const;
+  const contributions = [...props.registry.extensions(debugContributions)].sort((left, right) => {
+    const groupDifference = groupOrder.indexOf(left.group) - groupOrder.indexOf(right.group);
+    return groupDifference || left.name.localeCompare(right.name);
+  });
   const [open, setOpen] = createSignal(false);
   const [active, setActive] = createSignal<DebugContribution>(contributions[0]);
 
