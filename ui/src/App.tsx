@@ -4,9 +4,14 @@ import { IconButton } from "./components/IconButton";
 import { NavigationTree } from "./components/NavigationTree";
 import { ViewContent } from "./components/ViewContent";
 import { ViewEditor } from "./components/ViewEditor";
+import { DebugTools } from "./debug/DebugTools";
+import { createApplicationPluginRegistry } from "./plugins/application-registry";
+import type { PluginRegistry } from "./plugins/registry";
 import { WorkspaceProvider, useWorkspace } from "./workspace/controller";
 
-function WorkspaceApp() {
+const applicationPluginRegistry = createApplicationPluginRegistry();
+
+function WorkspaceApp(props: { pluginRegistry: PluginRegistry }) {
   const controller = useWorkspace();
   return (
     <div class="app-shell" style={{ "--sidebar-width": `${controller.sidebarWidth()}px` }}>
@@ -16,7 +21,7 @@ function WorkspaceApp() {
       </header>
       <Show when={controller.navigationOpen()}><button class="navigation-backdrop" aria-label="Close navigation" onClick={() => controller.setNavigationOpen(false)} /></Show>
       <div class="workspace-layout"><NavigationTree /><ViewContent /></div>
-      <footer class="footer"><span>Joi</span><span>Built with SolidJS</span></footer>
+      <footer class="footer"><span>Joi</span><div class="footer-end"><span>Built with SolidJS</span><DebugTools registry={props.pluginRegistry} /></div></footer>
       <ViewEditor />
       <Show when={controller.warning()}><div class="warning-banner" role="alert">{controller.warning()}</div></Show>
       <div class="sr-only" aria-live="polite">{controller.announcement()}</div>
@@ -24,6 +29,6 @@ function WorkspaceApp() {
   );
 }
 
-export default function App() {
-  return <WorkspaceProvider><WorkspaceApp /></WorkspaceProvider>;
+export default function App(props: { pluginRegistry?: PluginRegistry }) {
+  return <WorkspaceProvider><WorkspaceApp pluginRegistry={props.pluginRegistry ?? applicationPluginRegistry} /></WorkspaceProvider>;
 }

@@ -19,6 +19,11 @@ are loaded from the backend's `POST /api/tickets/query` action and validated
 before they are converted from columnar data. Permissions, sharing, and
 workspace synchronization are intentionally not yet implemented.
 
+UI capabilities can be added through the typed plugin registry during startup.
+The core plugin defines a `debug-contributions` extension point; its first
+contribution displays the backend's `GET /api/info` response from the debug
+control at the right edge of the status bar.
+
 ## How do I run it?
 
 ```sh

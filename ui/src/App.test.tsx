@@ -43,4 +43,26 @@ describe("workspace app", () => {
     expect(screen.getByRole("complementary", { name: "Configure view" })).toBeTruthy();
     expect(screen.getByText("Save as private copy")).toBeTruthy();
   });
+
+  it("opens the Info debug contribution", async () => {
+    vi.mocked(fetch).mockImplementation(async (input) => ({
+      ok: true,
+      json: async () => input === "/api/info"
+        ? { application_name: "joix-tickets", version: "0.1.0" }
+        : {
+            number_of_hits: 0,
+            result_columns: ["id", "title", "description", "status"].map((attribute) => ({
+              attribute,
+              values: { type: "string", values: [] },
+            })),
+          },
+    } as Response));
+
+    render(() => <App />);
+    await userEvent.click(screen.getByRole("button", { name: "Open debug tools" }));
+
+    expect(await screen.findByText("joix-tickets")).toBeTruthy();
+    expect(screen.getByRole("navigation", { name: "Debug contributions" })).toBeTruthy();
+    expect(screen.getByText("application name")).toBeTruthy();
+  });
 });
