@@ -7,12 +7,12 @@ export interface WorkspaceRepository {
   reset(): WorkspaceDocument;
 }
 
-export const WORKSPACE_STORAGE_KEY = "joi.workspace.v1";
+export const WORKSPACE_STORAGE_KEY = "joi.workspace.v2";
 
 export function isWorkspaceDocument(value: unknown): value is WorkspaceDocument {
   if (!value || typeof value !== "object") return false;
   const document = value as Partial<WorkspaceDocument>;
-  return document.version === 1 && !!document.queries && !!document.presentations &&
+  return document.version === 2 && !!document.queries && !!document.presentations &&
     !!document.views && !!document.navigation && Array.isArray(document.rootItems) &&
     Array.isArray(document.favorites);
 }

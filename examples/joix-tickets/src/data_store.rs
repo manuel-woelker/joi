@@ -110,7 +110,7 @@ pub struct DataStoreInsertMutation {
 pub struct DataStoreMutationResult {}
 
 /// Executes queries and mutations against a data store.
-pub trait DataStore {
+pub trait DataStore: Send {
     /// Ensures that the requested tables and columns exist.
     fn ensure_tables(&mut self, tables: Vec<TableDescription>) -> JoiResult<()>;
 

@@ -15,11 +15,11 @@ describe("LocalWorkspaceRepository", () => {
     localStorage.setItem(WORKSPACE_STORAGE_KEY, "not json");
     const loaded = new LocalWorkspaceRepository(localStorage).load();
     expect(loaded.warning).toContain("could not be loaded");
-    expect(loaded.workspace.version).toBe(1);
+    expect(loaded.workspace.version).toBe(2);
   });
 
   it("rejects unsupported versions", () => {
-    localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify({ version: 2 }));
+    localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify({ version: 1 }));
     expect(new LocalWorkspaceRepository(localStorage).load().warning).toBeDefined();
   });
 });

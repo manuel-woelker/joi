@@ -1,4 +1,7 @@
-use std::process::ExitCode;
+use std::{
+    process::ExitCode,
+    sync::{Arc, Mutex},
+};
 
 use joi_base::JoiString;
 use joi_error::{JoiResult, joi_error, report};
@@ -11,6 +14,7 @@ use crate::data_store::{DataStore, TableDescriptionProvider, TestDataProvider};
 use crate::info_action::{InfoAction, InfoCollector, InfoProvider};
 use crate::module_registry::ModuleRegistry;
 use crate::sqlite_data_store::SqliteDataStore;
+use crate::ticket_query_action::{SharedDataStore, TicketQueryAction};
 use crate::tickets_module::{
     TicketTableDescriptionProvider, TicketTestDataProvider, TicketsModule,
 };
@@ -25,6 +29,7 @@ pub mod info_action;
 pub mod module;
 pub mod module_registry;
 pub mod sqlite_data_store;
+pub mod ticket_query_action;
 pub mod tickets_module;
 
 struct PackageInfoProvider;
@@ -71,15 +76,16 @@ async fn main() -> ExitCode {
 
 async fn run(arguments: impl IntoIterator<Item = String>) -> JoiResult<()> {
     let plugin_registry = create_plugin_registry()?;
-    let registry = build_action_registry(plugin_registry.clone())?;
+    let mut data_store = SqliteDataStore::open(DATA_STORE_PATH)?;
+    initialize_data_store(&plugin_registry, &mut data_store)?;
+    let data_store: SharedDataStore = Arc::new(Mutex::new(Box::new(data_store)));
+    let registry = build_action_registry(plugin_registry.clone(), data_store)?;
     if let Some(action_name) = parse_action_name(arguments)? {
         print!("{}", execute_cli_action(&registry, &action_name)?);
         return Ok(());
     }
 
-    let mut data_store = SqliteDataStore::open(DATA_STORE_PATH)?;
-    initialize_data_store(&plugin_registry, &mut data_store)?;
-    run_service(registry, data_store).await
+    run_service(registry).await
 }
 
 fn create_plugin_registry() -> JoiResult<PluginRegistry> {
@@ -100,9 +106,13 @@ fn create_plugin_registry() -> JoiResult<PluginRegistry> {
     Ok(builder.build())
 }
 
-fn build_action_registry(plugin_registry: PluginRegistry) -> JoiResult<ActionRegistry> {
+fn build_action_registry(
+    plugin_registry: PluginRegistry,
+    data_store: SharedDataStore,
+) -> JoiResult<ActionRegistry> {
     let mut builder = ActionRegistryBuilder::new();
     builder.register(InfoAction::new(plugin_registry))?;
+    builder.register(TicketQueryAction::new(data_store))?;
     Ok(builder.build())
 }
 
@@ -141,7 +151,7 @@ fn execute_cli_action(registry: &ActionRegistry, action_name: &str) -> JoiResult
     yaml_serde::to_string(&response).map_err(report)
 }
 
-async fn run_service(registry: ActionRegistry, _data_store: SqliteDataStore) -> JoiResult<()> {
+async fn run_service(registry: ActionRegistry) -> JoiResult<()> {
     println!("joix-tickets testbed");
     let mut module_registry = ModuleRegistry::new();
     module_registry.register::<TicketsModule>();
@@ -158,21 +168,37 @@ async fn run_service(registry: ActionRegistry, _data_store: SqliteDataStore) -> 
 
 #[cfg(test)]
 mod tests {
+    use std::sync::{Arc, Mutex};
+
+    use axum::{
+        body::{Body, to_bytes},
+        http::{Request, StatusCode, header::CONTENT_TYPE},
+    };
     use serde_json::json;
+    use tower::ServiceExt;
 
     use crate::data_store::{
         AttributeName, DataStore, DataStoreQuery, QueryCriterion, TableDescriptionProvider, Values,
     };
     use crate::sqlite_data_store::SqliteDataStore;
+    use crate::ticket_query_action::SharedDataStore;
 
     use super::{
         build_action_registry, create_plugin_registry, execute_cli_action, initialize_data_store,
         parse_action_name,
     };
 
+    fn test_action_registry() -> crate::action_registry::ActionRegistry {
+        let plugin_registry = create_plugin_registry().unwrap();
+        let mut store = SqliteDataStore::in_memory().unwrap();
+        initialize_data_store(&plugin_registry, &mut store).unwrap();
+        let store: SharedDataStore = Arc::new(Mutex::new(Box::new(store)));
+        build_action_registry(plugin_registry, store).unwrap()
+    }
+
     #[test]
     fn info_action_collects_application_and_os_info() {
-        let registry = build_action_registry(create_plugin_registry().unwrap()).unwrap();
+        let registry = test_action_registry();
         let response = registry.execute("info", json!({})).unwrap().unwrap();
 
         assert_eq!(response["application_name"], env!("CARGO_PKG_NAME"));
@@ -180,6 +206,50 @@ mod tests {
         assert_eq!(response["os"], std::env::consts::OS);
         assert_eq!(response["architecture"], std::env::consts::ARCH);
         assert_eq!(response["os_family"], std::env::consts::FAMILY);
+    }
+
+    #[test]
+    fn ticket_query_action_returns_columnar_json() {
+        let response = test_action_registry()
+            .execute(
+                "tickets/query",
+                json!({
+                    "criterion": "match_any",
+                    "max_results": 2,
+                    "attributes": ["id", "title", "status"]
+                }),
+            )
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(response["number_of_hits"], 3);
+        assert_eq!(response["result_columns"][0]["attribute"], "id");
+        assert_eq!(
+            response["result_columns"][0]["values"],
+            json!({ "type": "string", "values": ["TICKET-1", "TICKET-2"] })
+        );
+    }
+
+    #[tokio::test]
+    async fn ticket_query_action_is_available_over_http() {
+        let response = crate::action_service::ActionService::new(test_action_registry())
+            .into_router()
+            .oneshot(
+                Request::post("/api/tickets/query")
+                    .header(CONTENT_TYPE, "application/json")
+                    .body(Body::from(
+                        r#"{"criterion":"match_any","max_results":100,"attributes":["id","title","description","status"]}"#,
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let body: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(body["number_of_hits"], 3);
+        assert_eq!(body["result_columns"][1]["attribute"], "title");
     }
 
     #[test]
@@ -240,7 +310,7 @@ mod tests {
 
     #[test]
     fn executes_actions_as_yaml() {
-        let registry = build_action_registry(create_plugin_registry().unwrap()).unwrap();
+        let registry = test_action_registry();
         let output = execute_cli_action(&registry, "info").unwrap();
 
         assert_eq!(
@@ -257,7 +327,7 @@ mod tests {
 
     #[test]
     fn rejects_unknown_cli_actions() {
-        let registry = build_action_registry(create_plugin_registry().unwrap()).unwrap();
+        let registry = test_action_registry();
         let error = execute_cli_action(&registry, "missing").unwrap_err();
 
         assert_eq!(error.to_string(), "action `missing` is not registered");

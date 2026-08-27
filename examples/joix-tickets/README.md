@@ -44,7 +44,8 @@ Each `TestDataProvider` receives the configured `DataStore` and inserts its own
 development records. In server mode, startup ensures every contributed table
 before invoking the test-data providers. The tickets provider adds three sample
 tickets representing open, in-progress, and closed work when the table is
-empty. CLI action execution does not initialize the data store.
+empty. Application startup initializes the data store before selecting HTTP or
+CLI action execution.
 
 ## How does the SQLite data store work?
 
@@ -93,8 +94,9 @@ returns a JSON `422` response. Successful responses are serialized as JSON.
 JSON `500 Internal Server Error` response whose `error` field contains the
 current error context.
 
-The executable currently registers `InfoAction` and listens on
-`127.0.0.1:3000`. Its empty request is represented by JSON `{}`:
+The executable currently registers `InfoAction` and `TicketQueryAction` and
+listens on `127.0.0.1:3000`. The info action's empty request is represented by
+JSON `{}`:
 
 ```bash
 curl \
@@ -122,6 +124,35 @@ The info action also accepts a bodyless GET request:
 
 ```bash
 curl http://127.0.0.1:3000/api/info
+```
+
+The `tickets/query` action accepts a request analogous to `DataStoreQuery`.
+The table is fixed to `tickets`; callers choose the criterion, result limit,
+and returned attributes:
+
+```bash
+curl \
+  --request POST \
+  --header 'content-type: application/json' \
+  --data '{"criterion":"match_any","max_results":100,"attributes":["id","title","description","status"]}' \
+  http://127.0.0.1:3000/api/tickets/query
+```
+
+Results remain columnar and preserve each column's data type:
+
+```json
+{
+  "number_of_hits": 3,
+  "result_columns": [
+    {
+      "attribute": "id",
+      "values": {
+        "type": "string",
+        "values": ["TICKET-1", "TICKET-2", "TICKET-3"]
+      }
+    }
+  ]
+}
 ```
 
 The `actions/list` action returns the names and descriptions of all registered

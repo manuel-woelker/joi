@@ -14,9 +14,10 @@ duplication, deletion with undo, and keyboard navigation. View URLs use the
 `#/views/<id>` hash format.
 
 Workspace definitions are currently stored in browser `localStorage`. The
-included reset command restores the example ticket workspace. Data loading,
-permissions, sharing, and backend synchronization are intentionally not yet
-implemented.
+included reset command restores the example ticket workspace. Ticket records
+are loaded from the backend's `POST /api/tickets/query` action and validated
+before they are converted from columnar data. Permissions, sharing, and
+workspace synchronization are intentionally not yet implemented.
 
 ## How do I run it?
 
@@ -24,6 +25,9 @@ implemented.
 pnpm install
 pnpm dev
 ```
+
+During development, Vite proxies `/api` requests to the joix-tickets backend at
+`http://127.0.0.1:3000`. Start that service separately with `nao joix-tickets`.
 
 ## How do I check and build it?
 

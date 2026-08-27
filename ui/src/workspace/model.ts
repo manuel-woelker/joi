@@ -4,15 +4,12 @@ export type PresentationId = string;
 export type NavigationId = string;
 
 export type TicketStatus = "open" | "in-progress" | "closed";
-export type TicketPriority = "low" | "medium" | "high";
 
 export interface Ticket {
   id: string;
   title: string;
+  description: string;
   status: TicketStatus;
-  priority: TicketPriority;
-  assignee: string;
-  updatedAt: string;
 }
 
 export type TicketField = keyof Ticket;
@@ -76,7 +73,7 @@ export interface ViewNavigationItem {
 export type NavigationItem = FolderNavigationItem | ViewNavigationItem;
 
 export interface WorkspaceDocument {
-  version: 1;
+  version: 2;
   queries: Record<QueryId, QueryDefinition>;
   presentations: Record<PresentationId, PresentationDefinition>;
   views: Record<ViewId, SavedView>;
@@ -87,12 +84,10 @@ export interface WorkspaceDocument {
 
 export const ticketFields: Record<
   TicketField,
-  { label: string; type: "string" | "date" }
+  { label: string; type: "string" }
 > = {
   id: { label: "ID", type: "string" },
   title: { label: "Title", type: "string" },
+  description: { label: "Description", type: "string" },
   status: { label: "Status", type: "string" },
-  priority: { label: "Priority", type: "string" },
-  assignee: { label: "Assignee", type: "string" },
-  updatedAt: { label: "Updated", type: "date" },
 };
