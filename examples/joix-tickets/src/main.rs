@@ -13,6 +13,7 @@ use crate::action_service::ActionService;
 use crate::data_store::{DataStore, TableDescriptionProvider, TestDataProvider};
 use crate::info_action::{InfoAction, InfoCollector, InfoProvider};
 use crate::module_registry::ModuleRegistry;
+use crate::plugins_action::PluginsAction;
 use crate::sqlite_data_store::SqliteDataStore;
 use crate::ticket_query_action::{SharedDataStore, TicketQueryAction};
 use crate::tickets_module::{
@@ -28,6 +29,7 @@ pub mod data_store;
 pub mod info_action;
 pub mod module;
 pub mod module_registry;
+pub mod plugins_action;
 pub mod sqlite_data_store;
 pub mod ticket_query_action;
 pub mod tickets_module;
@@ -90,14 +92,14 @@ async fn run(arguments: impl IntoIterator<Item = String>) -> JoiResult<()> {
 
 fn create_plugin_registry() -> JoiResult<PluginRegistry> {
     let mut builder = PluginRegistryBuilder::new();
-    builder.register(plugin("infra", |context| {
+    builder.register(plugin("infra", "Infrastructure services", |context| {
         context.register_extension_point::<dyn InfoProvider>()?;
         context.register_extension_point::<dyn TableDescriptionProvider>()?;
         context.register_extension_point::<dyn TestDataProvider>()?;
         context.register_extension::<dyn InfoProvider>(Box::new(PackageInfoProvider))?;
         context.register_extension::<dyn InfoProvider>(Box::new(OsInfoProvider))
     }))?;
-    builder.register(plugin("tickets", |context| {
+    builder.register(plugin("tickets", "Ticket management", |context| {
         context.register_extension::<dyn TableDescriptionProvider>(Box::new(
             TicketTableDescriptionProvider,
         ))?;
@@ -111,7 +113,8 @@ fn build_action_registry(
     data_store: SharedDataStore,
 ) -> JoiResult<ActionRegistry> {
     let mut builder = ActionRegistryBuilder::new();
-    builder.register(InfoAction::new(plugin_registry))?;
+    builder.register(InfoAction::new(plugin_registry.clone()))?;
+    builder.register(PluginsAction::new(plugin_registry))?;
     builder.register(TicketQueryAction::new(data_store))?;
     Ok(builder.build())
 }
@@ -206,6 +209,30 @@ mod tests {
         assert_eq!(response["os"], std::env::consts::OS);
         assert_eq!(response["architecture"], std::env::consts::ARCH);
         assert_eq!(response["os_family"], std::env::consts::FAMILY);
+    }
+
+    #[test]
+    fn plugins_action_lists_the_application_plugins() {
+        let response = test_action_registry()
+            .execute("plugins", json!({}))
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(
+            response,
+            json!({
+                "plugins": [
+                    {
+                        "name": "infra",
+                        "description": "Infrastructure services"
+                    },
+                    {
+                        "name": "tickets",
+                        "description": "Ticket management"
+                    }
+                ]
+            })
+        );
     }
 
     #[test]

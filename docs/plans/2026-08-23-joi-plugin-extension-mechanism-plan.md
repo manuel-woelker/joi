@@ -25,7 +25,7 @@ trait InfoProvider: Send + Sync {
 
 let mut builder = PluginRegistryBuilder::new();
 
-builder.register(plugin("infra", |context| {
+builder.register(plugin("infra", "Infrastructure services", |context| {
     context.register_extension_point::<dyn InfoProvider>()?;
     context.register_extension::<dyn InfoProvider>(Box::new(VersionInfoProvider))?;
     Ok(())
@@ -80,7 +80,7 @@ classification.
 
 - [x] Create `libs-rust/joi-plugin` with `Cargo.toml`, `src/lib.rs`, a short
       README, and dependencies on `joi-base` and `joi-error`.
-- [x] Define a named `Plugin` abstraction and a `plugin(name, callback)`
+- [x] Define a named `Plugin` abstraction and a `plugin(name, description, callback)`
       constructor for one-shot registration callbacks returning `JoiResult<()>`.
 - [x] Implement `PluginContext` with typed `register_extension_point` and
       `register_extension` methods whose generic parameter is the extension

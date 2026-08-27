@@ -8,14 +8,15 @@ use joi_base::JoiString;
 use joi_error::{JoiResult, joi_error};
 
 use crate::{
-    Plugin, PluginContext, extension_collection::ExtensionCollection,
+    Plugin, PluginContext, PluginInfo, extension_collection::ExtensionCollection,
     plugin_context::ExtensionCollections,
 };
 
 /// Collects plugins before producing an immutable [`PluginRegistry`].
 #[derive(Default)]
 pub struct PluginRegistryBuilder {
-    plugin_names: HashSet<JoiString>,
+    registered_plugin_names: HashSet<JoiString>,
+    plugins: Vec<PluginInfo>,
     extension_points: ExtensionCollections,
 }
 
@@ -26,8 +27,11 @@ impl PluginRegistryBuilder {
 
     /// Runs and atomically commits a plugin's registration callback.
     pub fn register(&mut self, plugin: Plugin) -> JoiResult<()> {
-        if self.plugin_names.contains(&plugin.name) {
-            return Err(joi_error!("plugin `{}` is already registered", plugin.name));
+        if self.registered_plugin_names.contains(&plugin.info.name) {
+            return Err(joi_error!(
+                "plugin `{}` is already registered",
+                plugin.info.name
+            ));
         }
 
         let mut context = PluginContext::new(&self.extension_points);
@@ -41,7 +45,9 @@ impl PluginRegistryBuilder {
                 .append(extensions)?;
         }
         self.extension_points.extend(staged_points);
-        self.plugin_names.insert(plugin.name);
+        self.registered_plugin_names
+            .insert(plugin.info.name.clone());
+        self.plugins.push(plugin.info);
         Ok(())
     }
 
@@ -49,6 +55,7 @@ impl PluginRegistryBuilder {
     pub fn build(self) -> PluginRegistry {
         PluginRegistry {
             inner: Arc::new(PluginRegistryInner {
+                plugins: self.plugins,
                 extension_points: self.extension_points,
             }),
         }
@@ -62,10 +69,16 @@ pub struct PluginRegistry {
 }
 
 struct PluginRegistryInner {
+    plugins: Vec<PluginInfo>,
     extension_points: ExtensionCollections,
 }
 
 impl PluginRegistry {
+    /// Returns registered plugin metadata in registration order.
+    pub fn plugins(&self) -> impl Iterator<Item = &PluginInfo> {
+        self.inner.plugins.iter()
+    }
+
     /// Returns extensions registered for trait `T` in registration order.
     pub fn extensions<T>(&self) -> JoiResult<impl Iterator<Item = &T>>
     where

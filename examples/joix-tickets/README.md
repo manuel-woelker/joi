@@ -94,9 +94,9 @@ returns a JSON `422` response. Successful responses are serialized as JSON.
 JSON `500 Internal Server Error` response whose `error` field contains the
 current error context.
 
-The executable currently registers `InfoAction` and `TicketQueryAction` and
-listens on `127.0.0.1:3000`. The info action's empty request is represented by
-JSON `{}`:
+The executable currently registers `InfoAction`, `PluginsAction`, and
+`TicketQueryAction` and listens on `127.0.0.1:3000`. The info action's empty
+request is represented by JSON `{}`:
 
 ```bash
 curl \
@@ -124,6 +124,24 @@ The info action also accepts a bodyless GET request:
 
 ```bash
 curl http://127.0.0.1:3000/api/info
+```
+
+The `plugins` action accepts the same empty request and returns plugin names in
+registration order:
+
+```json
+{
+  "plugins": [
+    {
+      "name": "infra",
+      "description": "Infrastructure services"
+    },
+    {
+      "name": "tickets",
+      "description": "Ticket management"
+    }
+  ]
+}
 ```
 
 The `tickets/query` action accepts a request analogous to `DataStoreQuery`.

@@ -26,7 +26,7 @@ impl InfoProvider for VersionInfo {
 }
 
 let mut builder = PluginRegistryBuilder::new();
-builder.register(plugin("infra", |context| {
+builder.register(plugin("infra", "Infrastructure services", |context| {
     context.register_extension_point::<dyn InfoProvider>()?;
     context.register_extension::<dyn InfoProvider>(Box::new(VersionInfo))?;
     Ok(())
@@ -44,6 +44,15 @@ assert_eq!(values, ["1.0.0"]);
 The builder owns the mutable registration phase. Building produces an immutable
 registry whose clones share the same state. Extension lookup is lock-free and
 borrows values directly from the registry.
+
+Registered plugin names are retained in registration order and can be inspected
+without exposing extension internals:
+
+```rust
+let plugins = registry.plugins().collect::<Vec<_>>();
+```
+
+Only plugins whose callbacks committed successfully are included.
 
 ## What does it depend on?
 
