@@ -14,7 +14,8 @@ impl TableDescriptionProvider for TicketTableDescriptionProvider {
         TableDescription {
             name: TableName("tickets".into()),
             columns: vec![
-                ticket_column("id", "Unique ticket identifier"),
+                ticket_column("id", "Immutable KSUID ticket identifier"),
+                ticket_column("key", "Human-readable ticket key in PROJECT-NUMBER form"),
                 ticket_column("title", "Short summary of the ticket"),
                 ticket_column("description", "Detailed ticket description"),
                 ticket_column("status", "Current workflow status"),
@@ -50,7 +51,15 @@ impl TestDataProvider for TicketTestDataProvider {
             steps: vec![DataStoreMutationStep::Insert(DataStoreInsertMutation {
                 table_name: TableName("tickets".into()),
                 columns: vec![
-                    test_data_column("id", ["TICKET-1", "TICKET-2", "TICKET-3"]),
+                    test_data_column(
+                        "id",
+                        [
+                            ksuid::Ksuid::generate().to_base62(),
+                            ksuid::Ksuid::generate().to_base62(),
+                            ksuid::Ksuid::generate().to_base62(),
+                        ],
+                    ),
+                    test_data_column("key", ["TEST-1", "TEST-2", "TEST-3"]),
                     test_data_column(
                         "title",
                         [
@@ -75,9 +84,9 @@ impl TestDataProvider for TicketTestDataProvider {
     }
 }
 
-fn test_data_column<const N: usize>(
+fn test_data_column<T: Into<joi_base::JoiString>, const N: usize>(
     name: &'static str,
-    values: [&'static str; N],
+    values: [T; N],
 ) -> AttributeColumn {
     AttributeColumn {
         attribute: AttributeName(name.into()),
@@ -119,7 +128,7 @@ mod tests {
                 .iter()
                 .map(|column| column.name.0.as_str())
                 .collect::<Vec<_>>(),
-            ["id", "title", "description", "status"]
+            ["id", "key", "title", "description", "status"]
         );
         assert!(
             table
@@ -143,14 +152,23 @@ mod tests {
                 table_name: crate::data_store::TableName("tickets".into()),
                 criterion: QueryCriterion::MatchAny,
                 max_results: 10,
-                attributes: vec![AttributeName("id".into()), AttributeName("status".into())],
+                attributes: vec![
+                    AttributeName("id".into()),
+                    AttributeName("key".into()),
+                    AttributeName("status".into()),
+                ],
             })
             .unwrap();
         assert_eq!(result.number_of_hits, 3);
         assert!(matches!(
             &result.result_columns[0].values,
+            Values::String(values) if values.iter().map(|value| value.as_str()).collect::<Vec<_>>().iter()
+                .all(|value| ksuid::Ksuid::from_base62(value).is_ok())
+        ));
+        assert!(matches!(
+            &result.result_columns[1].values,
             Values::String(values) if values.iter().map(|value| value.as_str()).collect::<Vec<_>>()
-                == ["TICKET-1", "TICKET-2", "TICKET-3"]
+                == ["TEST-1", "TEST-2", "TEST-3"]
         ));
 
         TicketTestDataProvider.insert_test_data(&mut store).unwrap();

@@ -15,7 +15,14 @@ beforeEach(() => {
       json: async () => ({
         number_of_hits: 3,
         result_columns: [
-          { attribute: "id", values: { type: "string", values: ["TICKET-1", "TICKET-2", "TICKET-3"] } },
+          {
+            attribute: "id",
+            values: {
+              type: "string",
+              values: ["0o5Fs0EELR0fUjHjbCnEtdUwQe3", "0o5Fs0EELR0fUjHjbCnEtdUwQe4", "0o5Fs0EELR0fUjHjbCnEtdUwQe5"],
+            },
+          },
+          { attribute: "key", values: { type: "string", values: ["TEST-1", "TEST-2", "TEST-3"] } },
           {
             attribute: "title",
             values: { type: "string", values: ["Fix navigation bug", "Add issue filters", "Review table schema"] },
@@ -82,7 +89,7 @@ describe("workspace app", () => {
                   }
                 : {
                     number_of_hits: 0,
-                    result_columns: ["id", "title", "description", "status"].map((attribute) => ({
+                    result_columns: ["id", "key", "title", "description", "status"].map((attribute) => ({
                       attribute,
                       values: { type: "string", values: [] },
                     })),

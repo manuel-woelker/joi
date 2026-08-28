@@ -10,7 +10,8 @@ describe("loadTickets", () => {
       json: async () => ({
         number_of_hits: 1,
         result_columns: [
-          { attribute: "id", values: { type: "string", values: ["TICKET-1"] } },
+          { attribute: "id", values: { type: "string", values: ["0o5Fs0EELR0fUjHjbCnEtdUwQe3"] } },
+          { attribute: "key", values: { type: "string", values: ["TEST-1"] } },
           { attribute: "title", values: { type: "string", values: ["Fix navigation bug"] } },
           { attribute: "description", values: { type: "string", values: ["Selection is lost"] } },
           { attribute: "status", values: { type: "string", values: ["open"] } },
@@ -19,14 +20,20 @@ describe("loadTickets", () => {
     });
 
     await expect(loadTickets(new FetchService(fetcher))).resolves.toEqual([
-      { id: "TICKET-1", title: "Fix navigation bug", description: "Selection is lost", status: "open" },
+      {
+        id: "0o5Fs0EELR0fUjHjbCnEtdUwQe3",
+        key: "TEST-1",
+        title: "Fix navigation bug",
+        description: "Selection is lost",
+        status: "open",
+      },
     ]);
     expect(fetcher).toHaveBeenCalledWith("/api/query", expect.objectContaining({ method: "POST" }));
     expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({
       table_name: "tickets",
       criterion: "match_any",
       max_results: 100,
-      attributes: ["id", "title", "description", "status"],
+      attributes: ["id", "key", "title", "description", "status"],
     });
   });
 

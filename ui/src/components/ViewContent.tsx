@@ -102,7 +102,7 @@ export function ViewContent() {
                                 </div>
                                 <div class="issue-meta">
                                   <span class={`status ${ticket.status}`}>{ticket.status}</span>
-                                  <span>{ticket.id}</span>
+                                  <span>{ticket.key}</span>
                                 </div>
                               </article>
                             )}

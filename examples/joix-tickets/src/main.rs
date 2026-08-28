@@ -298,17 +298,17 @@ mod tests {
                     "table_name": "tickets",
                     "criterion": "match_any",
                     "max_results": 2,
-                    "attributes": ["id", "title", "status"]
+                    "attributes": ["key", "title", "status"]
                 }),
             )
             .unwrap()
             .unwrap();
 
         assert_eq!(response["number_of_hits"], 3);
-        assert_eq!(response["result_columns"][0]["attribute"], "id");
+        assert_eq!(response["result_columns"][0]["attribute"], "key");
         assert_eq!(
             response["result_columns"][0]["values"],
-            json!({ "type": "string", "values": ["TICKET-1", "TICKET-2"] })
+            json!({ "type": "string", "values": ["TEST-1", "TEST-2"] })
         );
     }
 
@@ -320,7 +320,7 @@ mod tests {
                 Request::post("/api/query")
                     .header(CONTENT_TYPE, "application/json")
                     .body(Body::from(
-                        r#"{"table_name":"tickets","criterion":"match_any","max_results":100,"attributes":["id","title","description","status"]}"#,
+                        r#"{"table_name":"tickets","criterion":"match_any","max_results":100,"attributes":["key","title","description","status"]}"#,
                     ))
                     .unwrap(),
             )

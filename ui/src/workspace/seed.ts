@@ -34,7 +34,7 @@ export function createSeedWorkspace(): WorkspaceDocument {
         layout: "table",
         density: "compact",
         fields: [
-          { field: "id", label: "ID", width: 100 },
+          { field: "key", label: "Key", width: 100 },
           { field: "title", label: "Issue" },
           { field: "status", label: "Status", width: 120 },
           { field: "description", label: "Description" },

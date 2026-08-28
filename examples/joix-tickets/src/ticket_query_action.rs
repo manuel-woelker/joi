@@ -126,7 +126,7 @@ mod tests {
                 table_name: "tickets".into(),
                 criterion: QueryRequestCriterion::MatchAny,
                 max_results: 2,
-                attributes: vec!["id".into(), "status".into()],
+                attributes: vec!["key".into(), "status".into()],
             })
             .unwrap();
 
@@ -134,7 +134,7 @@ mod tests {
         assert_eq!(response.result_columns.len(), 2);
         assert!(matches!(
             &response.result_columns[0].values,
-            QueryValues::String(values) if values.len() == 2 && values[0] == "TICKET-1"
+            QueryValues::String(values) if values.len() == 2 && values[0] == "TEST-1"
         ));
     }
 }

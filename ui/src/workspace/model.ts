@@ -7,6 +7,7 @@ export type TicketStatus = "open" | "in-progress" | "closed";
 
 export interface Ticket {
   id: string;
+  key: string;
   title: string;
   description: string;
   status: TicketStatus;
@@ -84,6 +85,7 @@ export interface WorkspaceDocument {
 
 export const ticketFields: Record<TicketField, { label: string; type: "string" }> = {
   id: { label: "ID", type: "string" },
+  key: { label: "Key", type: "string" },
   title: { label: "Title", type: "string" },
   description: { label: "Description", type: "string" },
   status: { label: "Status", type: "string" },

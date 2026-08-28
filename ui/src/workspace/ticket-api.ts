@@ -14,7 +14,7 @@ interface TicketQueryResponse {
   result_columns: TicketQueryColumn[];
 }
 
-const requestedAttributes: TicketField[] = ["id", "title", "description", "status"];
+const requestedAttributes: TicketField[] = ["id", "key", "title", "description", "status"];
 const ticketStatuses = new Set<TicketStatus>(["open", "in-progress", "closed"]);
 
 export async function loadTickets(service: FetchService = fetchService): Promise<Ticket[]> {
@@ -40,6 +40,7 @@ export async function loadTickets(service: FetchService = fetchService): Promise
     }
     return {
       id: columns.get("id")![index],
+      key: columns.get("key")![index],
       title: columns.get("title")![index],
       description: columns.get("description")![index],
       status: status as TicketStatus,

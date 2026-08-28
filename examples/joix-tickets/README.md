@@ -195,7 +195,7 @@ Callers choose the table, criterion, result limit, and returned attributes:
 curl \
   --request POST \
   --header 'content-type: application/json' \
-  --data '{"table_name":"tickets","criterion":"match_any","max_results":100,"attributes":["id","title","description","status"]}' \
+  --data '{"table_name":"tickets","criterion":"match_any","max_results":100,"attributes":["id","key","title","description","status"]}' \
   http://127.0.0.1:3000/api/query
 ```
 
@@ -209,7 +209,14 @@ Results remain columnar and preserve each column's data type:
       "attribute": "id",
       "values": {
         "type": "string",
-        "values": ["TICKET-1", "TICKET-2", "TICKET-3"]
+        "values": ["0o5Fs0EELR0fUjHjbCnEtdUwQe3", "0o5Fs0EELR0fUjHjbCnEtdUwQe4", "0o5Fs0EELR0fUjHjbCnEtdUwQe5"]
+      }
+    },
+    {
+      "attribute": "key",
+      "values": {
+        "type": "string",
+        "values": ["TEST-1", "TEST-2", "TEST-3"]
       }
     }
   ]
