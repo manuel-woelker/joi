@@ -21,8 +21,9 @@ describe("loadTickets", () => {
     await expect(loadTickets(new FetchService(fetcher))).resolves.toEqual([
       { id: "TICKET-1", title: "Fix navigation bug", description: "Selection is lost", status: "open" },
     ]);
-    expect(fetcher).toHaveBeenCalledWith("/api/tickets/query", expect.objectContaining({ method: "POST" }));
+    expect(fetcher).toHaveBeenCalledWith("/api/query", expect.objectContaining({ method: "POST" }));
     expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({
+      table_name: "tickets",
       criterion: "match_any",
       max_results: 100,
       attributes: ["id", "title", "description", "status"],

@@ -15,7 +15,7 @@ use crate::info_action::{InfoAction, InfoCollector, InfoProvider};
 use crate::module_registry::ModuleRegistry;
 use crate::plugins_action::PluginsAction;
 use crate::sqlite_data_store::SqliteDataStore;
-use crate::ticket_query_action::{SharedDataStore, TicketQueryAction};
+use crate::ticket_query_action::{QueryAction, SharedDataStore};
 use crate::tickets_module::{
     TicketTableDescriptionProvider, TicketTestDataProvider, TicketsModule,
 };
@@ -138,7 +138,7 @@ fn build_action_registry(
     let mut builder = ActionRegistryBuilder::new();
     builder.register(InfoAction::new(plugin_registry.clone()))?;
     builder.register(PluginsAction::new(plugin_registry))?;
-    builder.register(TicketQueryAction::new(data_store))?;
+    builder.register(QueryAction::new(data_store))?;
     Ok(builder.build())
 }
 
@@ -290,11 +290,12 @@ mod tests {
     }
 
     #[test]
-    fn ticket_query_action_returns_columnar_json() {
+    fn query_action_returns_columnar_json() {
         let response = test_action_registry()
             .execute(
-                "tickets/query",
+                "query",
                 json!({
+                    "table_name": "tickets",
                     "criterion": "match_any",
                     "max_results": 2,
                     "attributes": ["id", "title", "status"]
@@ -312,14 +313,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn ticket_query_action_is_available_over_http() {
+    async fn query_action_is_available_over_http() {
         let response = crate::action_service::ActionService::new(test_action_registry())
             .into_router()
             .oneshot(
-                Request::post("/api/tickets/query")
+                Request::post("/api/query")
                     .header(CONTENT_TYPE, "application/json")
                     .body(Body::from(
-                        r#"{"criterion":"match_any","max_results":100,"attributes":["id","title","description","status"]}"#,
+                        r#"{"table_name":"tickets","criterion":"match_any","max_results":100,"attributes":["id","title","description","status"]}"#,
                     ))
                     .unwrap(),
             )

@@ -18,7 +18,8 @@ const requestedAttributes: TicketField[] = ["id", "title", "description", "statu
 const ticketStatuses = new Set<TicketStatus>(["open", "in-progress", "closed"]);
 
 export async function loadTickets(service: FetchService = fetchService): Promise<Ticket[]> {
-  const payload = await service.post("/api/tickets/query", {
+  const payload = await service.post("/api/query", {
+    table_name: "tickets",
     criterion: "match_any",
     max_results: 100,
     attributes: requestedAttributes,

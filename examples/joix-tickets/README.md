@@ -95,7 +95,7 @@ JSON `500 Internal Server Error` response whose `error` field contains the
 current error context.
 
 The executable currently registers `InfoAction`, `PluginsAction`, and
-`TicketQueryAction` and listens on `127.0.0.1:3000`. The info action's empty
+`QueryAction` and listens on `127.0.0.1:3000`. The info action's empty
 request is represented by JSON `{}`:
 
 ```bash
@@ -187,16 +187,16 @@ registration order:
 }
 ```
 
-The `tickets/query` action accepts a request analogous to `DataStoreQuery`.
-The table is fixed to `tickets`; callers choose the criterion, result limit,
-and returned attributes:
+The `query` action accepts a request analogous to `DataStoreQuery`. The table is
+selected with `table_name`, so the same action can query any registered table.
+Callers choose the table, criterion, result limit, and returned attributes:
 
 ```bash
 curl \
   --request POST \
   --header 'content-type: application/json' \
-  --data '{"criterion":"match_any","max_results":100,"attributes":["id","title","description","status"]}' \
-  http://127.0.0.1:3000/api/tickets/query
+  --data '{"table_name":"tickets","criterion":"match_any","max_results":100,"attributes":["id","title","description","status"]}' \
+  http://127.0.0.1:3000/api/query
 ```
 
 Results remain columnar and preserve each column's data type:

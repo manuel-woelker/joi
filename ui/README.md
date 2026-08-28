@@ -15,7 +15,7 @@ duplication, deletion with undo, and keyboard navigation. View URLs use the
 
 Workspace definitions are currently stored in browser `localStorage`. The
 included reset command restores the example ticket workspace. Ticket records
-are loaded from the backend's `POST /api/tickets/query` action and validated
+are loaded from the backend's `POST /api/query` action and validated
 before they are converted from columnar data. All backend HTTP communication
 runs through the injectable `FetchService`; domain clients retain responsibility
 for validating their response shapes. Permissions, sharing, and
