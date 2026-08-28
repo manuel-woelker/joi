@@ -43,6 +43,8 @@ Features should be covered by automated tests where practical.
 
 Before completing a unit of work, run the most relevant checks for the packages touched.
 If repository-wide tooling exists, prefer that over ad hoc commands.
+After completing a unit of work, run `nao check` and request active development
+tasks to restart with `nao --restart`.
 
 When adding a new package, document its standard commands in the package README and wire it into shared checks when appropriate.
 

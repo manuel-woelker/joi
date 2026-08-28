@@ -28,7 +28,10 @@ export async function loadTickets(service: FetchService = fetchService): Promise
     throw new Error("Ticket query returned an invalid response");
   }
   const columns = new Map(payload.result_columns.map((column) => [column.attribute, column.values.values]));
-  const rowCount = Math.min(payload.number_of_hits, ...requestedAttributes.map((attribute) => columns.get(attribute)?.length ?? 0));
+  const rowCount = Math.min(
+    payload.number_of_hits,
+    ...requestedAttributes.map((attribute) => columns.get(attribute)?.length ?? 0),
+  );
 
   return Array.from({ length: rowCount }, (_, index) => {
     const status = columns.get("status")![index];
@@ -47,9 +50,17 @@ export async function loadTickets(service: FetchService = fetchService): Promise
 function isTicketQueryResponse(value: unknown): value is TicketQueryResponse {
   if (!value || typeof value !== "object") return false;
   const response = value as Partial<TicketQueryResponse>;
-  return typeof response.number_of_hits === "number" && Array.isArray(response.result_columns) &&
-    response.result_columns.every((column) =>
-      !!column && typeof column.attribute === "string" && column.values?.type === "string" &&
-      Array.isArray(column.values.values) && column.values.values.every((item) => typeof item === "string"),
-    ) && requestedAttributes.every((attribute) => response.result_columns!.some((column) => column.attribute === attribute));
+  return (
+    typeof response.number_of_hits === "number" &&
+    Array.isArray(response.result_columns) &&
+    response.result_columns.every(
+      (column) =>
+        !!column &&
+        typeof column.attribute === "string" &&
+        column.values?.type === "string" &&
+        Array.isArray(column.values.values) &&
+        column.values.values.every((item) => typeof item === "string"),
+    ) &&
+    requestedAttributes.every((attribute) => response.result_columns!.some((column) => column.attribute === attribute))
+  );
 }

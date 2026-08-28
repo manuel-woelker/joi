@@ -31,9 +31,7 @@ export interface ApiType {
   arguments: ApiTypeArgument[];
 }
 
-export type ApiTypeArgument =
-  | { kind: "type"; value: ApiType }
-  | { kind: "string"; value: string };
+export type ApiTypeArgument = { kind: "type"; value: ApiType } | { kind: "string"; value: string };
 
 export async function loadApiDocumentation(): Promise<ApiDocumentation> {
   const embedded = document.querySelector<HTMLScriptElement>("#joi-api-data");

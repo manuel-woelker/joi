@@ -17,6 +17,52 @@ recipe "default" {
     run shell="printf 'Task outcome: development servers stopped\n'"
   }
 
+  task "cargo-fmt" description="Check Rust formatting" {
+    run shell="""
+      cargo fmt --manifest-path libs-rust/joi-base/Cargo.toml -- --check
+      cargo fmt --manifest-path libs-rust/joi-error/Cargo.toml -- --check
+      cargo fmt --manifest-path libs-rust/joi-plugin/Cargo.toml -- --check
+      cargo fmt --manifest-path libs-rust/joi-template/Cargo.toml --all -- --check
+      cargo fmt --manifest-path libs-rust/joi-api/Cargo.toml --all -- --check
+      cargo fmt --manifest-path examples/joix-tickets/Cargo.toml -- --check
+    """
+  }
+
+  task "cargo-clippy" description="Run Rust clippy" {
+    run shell="""
+      cargo clippy --manifest-path libs-rust/joi-base/Cargo.toml --all-targets -- -D warnings
+      cargo clippy --manifest-path libs-rust/joi-error/Cargo.toml --all-targets -- -D warnings
+      cargo clippy --manifest-path libs-rust/joi-plugin/Cargo.toml --all-targets -- -D warnings
+      cargo clippy --manifest-path libs-rust/joi-template/Cargo.toml --workspace --all-targets -- -D warnings
+      cargo clippy --manifest-path libs-rust/joi-api/Cargo.toml --workspace --all-targets -- -D warnings
+      cargo clippy --manifest-path examples/joix-tickets/Cargo.toml --all-targets -- -D warnings
+    """
+  }
+
+  task "biome-lint" description="Run Biome linting" {
+    run shell="cd ui && pnpm exec biome lint src vite.config.ts ../libs-rust/joi-api/api-docs-ui/src ../libs-rust/joi-api/api-docs-ui/vite.config.ts"
+  }
+
+  task "biome-format" description="Check Biome formatting" {
+    run shell="""
+      cd ui
+      paths="src vite.config.ts tsconfig.json package.json ../libs-rust/joi-api/api-docs-ui/src ../libs-rust/joi-api/api-docs-ui/vite.config.ts ../libs-rust/joi-api/api-docs-ui/tsconfig.json ../libs-rust/joi-api/api-docs-ui/package.json ../biome.json"
+      before=$(mktemp)
+      trap 'rm -f "$before"' EXIT
+      git diff --binary -- $paths > "$before"
+      pnpm exec biome format --write $paths
+      git diff --binary -- $paths | cmp -s "$before" -
+    """
+  }
+
+  task "check" description="Run all repository checks" {
+    depends-on "cargo-fmt"
+    depends-on "cargo-clippy"
+    depends-on "biome-lint"
+    depends-on "biome-format"
+    run shell="printf 'Task outcome: repository checks passed\n'"
+  }
+
   task "docs-dev" description="Run the API documentation development servers" {
     run shell="""
       cleanup() {

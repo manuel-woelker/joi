@@ -15,8 +15,10 @@ export class BackendInfoService {
 export const backendInfoServiceKey = serviceKey<BackendInfoService>("backend-info-service");
 
 function isInfoResponse(value: unknown): value is InfoResponse {
-  return !!value && typeof value === "object" && !Array.isArray(value) &&
-    Object.values(value).every((item) =>
-      item === null || ["string", "number", "boolean"].includes(typeof item),
-    );
+  return (
+    !!value &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    Object.values(value).every((item) => item === null || ["string", "number", "boolean"].includes(typeof item))
+  );
 }

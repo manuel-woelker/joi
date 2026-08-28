@@ -24,7 +24,6 @@ describe("FetchService", () => {
   it("rejects unsuccessful responses before decoding", async () => {
     const fetcher = vi.fn().mockResolvedValue({ ok: false, status: 503 });
 
-    await expect(new FetchService(fetcher).get("/api/info"))
-      .rejects.toThrow("GET /api/info failed with HTTP 503");
+    await expect(new FetchService(fetcher).get("/api/info")).rejects.toThrow("GET /api/info failed with HTTP 503");
   });
 });

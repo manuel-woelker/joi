@@ -38,19 +38,28 @@ export const backendPluginsServiceKey = serviceKey<BackendPluginsService>("backe
 
 function isPluginsResponse(value: unknown): value is PluginsResponse {
   if (!isRecord(value)) return false;
-  return Array.isArray(value.plugins) && value.plugins.every(isPlugin) &&
-    Array.isArray(value.extension_points) && value.extension_points.every(isExtensionPoint) &&
-    Array.isArray(value.extensions) && value.extensions.every(isExtension);
+  return (
+    Array.isArray(value.plugins) &&
+    value.plugins.every(isPlugin) &&
+    Array.isArray(value.extension_points) &&
+    value.extension_points.every(isExtensionPoint) &&
+    Array.isArray(value.extensions) &&
+    value.extensions.every(isExtension)
+  );
 }
 
 function isPlugin(value: unknown): value is PluginMetadata {
-  return isRecord(value) && hasText(value, "name") && hasText(value, "description") &&
-    hasTextArray(value, "extension_points") && hasTextArray(value, "extensions");
+  return (
+    isRecord(value) &&
+    hasText(value, "name") &&
+    hasText(value, "description") &&
+    hasTextArray(value, "extension_points") &&
+    hasTextArray(value, "extensions")
+  );
 }
 
 function isExtensionPoint(value: unknown): value is ExtensionPointMetadata {
-  return isRecord(value) && hasText(value, "id") && hasText(value, "description") &&
-    hasTextArray(value, "extensions");
+  return isRecord(value) && hasText(value, "id") && hasText(value, "description") && hasTextArray(value, "extensions");
 }
 
 function isExtension(value: unknown): value is ExtensionMetadata {

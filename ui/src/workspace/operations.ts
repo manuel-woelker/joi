@@ -25,7 +25,13 @@ export function addFolder(workspace: WorkspaceDocument, name: string): Navigatio
   return id;
 }
 
-export function addView(workspace: WorkspaceDocument, name: string, queryId: string, presentationId: string, parentId?: NavigationId): ViewId {
+export function addView(
+  workspace: WorkspaceDocument,
+  name: string,
+  queryId: string,
+  presentationId: string,
+  parentId?: NavigationId,
+): ViewId {
   const viewId = nextId("view");
   const navigationId = nextId("nav");
   workspace.views[viewId] = { id: viewId, name, queryId, presentationId };
@@ -42,7 +48,9 @@ export function duplicateView(workspace: WorkspaceDocument, viewId: ViewId): Vie
   if (!source || !navigation) return undefined;
   const copyId = addView(workspace, `${source.name} copy`, source.queryId, source.presentationId);
   workspace.views[copyId].description = source.description;
-  const copyNavigation = Object.values(workspace.navigation).find((item) => item.type === "view" && item.viewId === copyId);
+  const copyNavigation = Object.values(workspace.navigation).find(
+    (item) => item.type === "view" && item.viewId === copyId,
+  );
   const container = containerFor(workspace, navigation.id);
   if (copyNavigation && container) {
     workspace.rootItems = workspace.rootItems.filter((id) => id !== copyNavigation.id);

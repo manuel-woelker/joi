@@ -1,7 +1,4 @@
-import {
-  ExtensionPointsDebugContribution,
-  PluginsDebugContribution,
-} from "./PluginMetadataDebugContributions";
+import { ExtensionPointsDebugContribution, PluginsDebugContribution } from "./PluginMetadataDebugContributions";
 import { plugin } from "../../registry";
 import { fetchServiceKey } from "../../../services/fetch-service";
 import { debugContributions } from "../core/contribution";
@@ -35,7 +32,9 @@ export default plugin({
         id: "extension-points",
         name: "Extension Points",
         group: "backend",
-        content: () => <ExtensionPointsDebugContribution backendPluginsService={context.services.backendPluginsService} />,
+        content: () => (
+          <ExtensionPointsDebugContribution backendPluginsService={context.services.backendPluginsService} />
+        ),
       },
     });
   },

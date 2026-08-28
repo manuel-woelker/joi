@@ -8,18 +8,27 @@ import { WORKSPACE_STORAGE_KEY } from "./workspace/repository";
 beforeEach(() => {
   localStorage.removeItem(WORKSPACE_STORAGE_KEY);
   window.location.hash = "";
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-    ok: true,
-    json: async () => ({
-      number_of_hits: 3,
-      result_columns: [
-        { attribute: "id", values: { type: "string", values: ["TICKET-1", "TICKET-2", "TICKET-3"] } },
-        { attribute: "title", values: { type: "string", values: ["Fix navigation bug", "Add issue filters", "Review table schema"] } },
-        { attribute: "description", values: { type: "string", values: ["Selection is lost", "Filter by status", "Check columns"] } },
-        { attribute: "status", values: { type: "string", values: ["open", "in-progress", "closed"] } },
-      ],
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        number_of_hits: 3,
+        result_columns: [
+          { attribute: "id", values: { type: "string", values: ["TICKET-1", "TICKET-2", "TICKET-3"] } },
+          {
+            attribute: "title",
+            values: { type: "string", values: ["Fix navigation bug", "Add issue filters", "Review table schema"] },
+          },
+          {
+            attribute: "description",
+            values: { type: "string", values: ["Selection is lost", "Filter by status", "Check columns"] },
+          },
+          { attribute: "status", values: { type: "string", values: ["open", "in-progress", "closed"] } },
+        ],
+      }),
     }),
-  }));
+  );
 });
 afterEach(() => {
   cleanup();
@@ -45,33 +54,41 @@ describe("workspace app", () => {
   });
 
   it("opens the Info debug contribution", async () => {
-    vi.mocked(fetch).mockImplementation(async (input) => ({
-      ok: true,
-      json: async () => input === "/api/info"
-        ? { application_name: "joix-tickets", version: "0.1.0" }
-        : input === "/api/plugins"
-          ? {
-              plugins: [{
-                name: "infra",
-                description: "Infrastructure services",
-                extension_points: ["info-providers"],
-                extensions: ["package-info"],
-              }],
-              extension_points: [{
-                id: "info-providers",
-                description: "Contributes application information",
-                extensions: ["package-info"],
-              }],
-              extensions: [{ id: "package-info", description: "Provides package information" }],
-            }
-          : {
-            number_of_hits: 0,
-            result_columns: ["id", "title", "description", "status"].map((attribute) => ({
-              attribute,
-              values: { type: "string", values: [] },
-            })),
-          },
-    } as Response));
+    vi.mocked(fetch).mockImplementation(
+      async (input) =>
+        ({
+          ok: true,
+          json: async () =>
+            input === "/api/info"
+              ? { application_name: "joix-tickets", version: "0.1.0" }
+              : input === "/api/plugins"
+                ? {
+                    plugins: [
+                      {
+                        name: "infra",
+                        description: "Infrastructure services",
+                        extension_points: ["info-providers"],
+                        extensions: ["package-info"],
+                      },
+                    ],
+                    extension_points: [
+                      {
+                        id: "info-providers",
+                        description: "Contributes application information",
+                        extensions: ["package-info"],
+                      },
+                    ],
+                    extensions: [{ id: "package-info", description: "Provides package information" }],
+                  }
+                : {
+                    number_of_hits: 0,
+                    result_columns: ["id", "title", "description", "status"].map((attribute) => ({
+                      attribute,
+                      values: { type: "string", values: [] },
+                    })),
+                  },
+        }) as Response,
+    );
 
     render(() => <App />);
     await userEvent.click(screen.getByRole("button", { name: "Open debug tools" }));

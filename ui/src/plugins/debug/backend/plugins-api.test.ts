@@ -4,17 +4,21 @@ import { BackendPluginsService } from "./plugins-api";
 import { FetchService } from "../../../services/fetch-service";
 
 const pluginMetadata = {
-  plugins: [{
-    name: "infra",
-    description: "Infrastructure services",
-    extension_points: ["info-providers"],
-    extensions: ["package-info"],
-  }],
-  extension_points: [{
-    id: "info-providers",
-    description: "Contributes application information",
-    extensions: ["package-info"],
-  }],
+  plugins: [
+    {
+      name: "infra",
+      description: "Infrastructure services",
+      extension_points: ["info-providers"],
+      extensions: ["package-info"],
+    },
+  ],
+  extension_points: [
+    {
+      id: "info-providers",
+      description: "Contributes application information",
+      extensions: ["package-info"],
+    },
+  ],
   extensions: [{ id: "package-info", description: "Provides package information" }],
 };
 

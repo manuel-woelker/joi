@@ -1,13 +1,7 @@
 import { For, Show, createMemo, createSignal, createUniqueId } from "solid-js";
 import type { ParentProps } from "solid-js";
 
-import type {
-  ApiDocumentation,
-  ApiField,
-  ApiModel,
-  ApiOperation,
-  ApiType,
-} from "./api";
+import type { ApiDocumentation, ApiField, ApiModel, ApiOperation, ApiType } from "./api";
 
 interface AppProps {
   documentation: ApiDocumentation;
@@ -28,9 +22,7 @@ export function App(props: AppProps) {
     props.documentation.models.filter((model) => matchesModel(model, normalizedFilter())),
   );
   const operations = createMemo(() =>
-    props.documentation.operations.filter((operation) =>
-      matchesOperation(operation, normalizedFilter()),
-    ),
+    props.documentation.operations.filter((operation) => matchesOperation(operation, normalizedFilter())),
   );
   const navigateToModel = (name: string) => {
     setFilter("");
@@ -62,9 +54,7 @@ export function App(props: AppProps) {
 
         <nav aria-label="API reference">
           <NavGroup title="Models">
-            <For each={models()}>
-              {(model) => <a href={`#model-${model.name}`}>{model.name}</a>}
-            </For>
+            <For each={models()}>{(model) => <a href={`#model-${model.name}`}>{model.name}</a>}</For>
           </NavGroup>
           <NavGroup title="Operations">
             <For each={operations()}>
@@ -89,8 +79,12 @@ export function App(props: AppProps) {
             <p class="overview-description">{props.documentation.description}</p>
           </Show>
           <div class="overview-stats" aria-label="API summary">
-            <span><strong>{props.documentation.models.length}</strong> models</span>
-            <span><strong>{props.documentation.operations.length}</strong> operations</span>
+            <span>
+              <strong>{props.documentation.models.length}</strong> models
+            </span>
+            <span>
+              <strong>{props.documentation.operations.length}</strong> operations
+            </span>
           </div>
         </header>
 
@@ -207,9 +201,7 @@ function OperationReference(props: { operation: ApiOperation } & TypeNavigationP
   );
 }
 
-function FieldGroup(
-  props: { title: string; fields: ApiField[]; emptyLabel: string } & TypeNavigationProps,
-) {
+function FieldGroup(props: { title: string; fields: ApiField[]; emptyLabel: string } & TypeNavigationProps) {
   return (
     <section class="field-group">
       <h4>{props.title}</h4>
@@ -232,14 +224,12 @@ function FieldTable(props: { fields: ApiField[]; emptyLabel: string } & TypeNavi
             <div class="field-row">
               <dt>
                 <code>{field.name}</code>
-                <Show when={field.description}><span>{field.description}</span></Show>
+                <Show when={field.description}>
+                  <span>{field.description}</span>
+                </Show>
               </dt>
               <dd>
-                <TypeReference
-                  type={field.type}
-                  models={props.models}
-                  onNavigateToModel={props.onNavigateToModel}
-                />
+                <TypeReference type={field.type} models={props.models} onNavigateToModel={props.onNavigateToModel} />
               </dd>
             </div>
           )}
@@ -259,18 +249,11 @@ function TypeReference(props: { type: ApiType } & TypeNavigationProps) {
         when={model()}
         fallback={
           <Show when={builtinDescription()} fallback={props.type.name}>
-            {(description) => (
-              <BuiltinTypeName name={props.type.name} description={description()} />
-            )}
+            {(description) => <BuiltinTypeName name={props.type.name} description={description()} />}
           </Show>
         }
       >
-        {(resolvedModel) => (
-          <ModelTypeLink
-            model={resolvedModel()}
-            onNavigateToModel={props.onNavigateToModel}
-          />
-        )}
+        {(resolvedModel) => <ModelTypeLink model={resolvedModel()} onNavigateToModel={props.onNavigateToModel} />}
       </Show>
       <Show when={props.type.arguments.length > 0}>
         &lt;
@@ -354,8 +337,6 @@ function matchesOperation(operation: ApiOperation, filter: string): boolean {
     filter.length === 0 ||
     operation.name.toLowerCase().includes(filter) ||
     operation.kind.includes(filter) ||
-    [...operation.parameters, ...operation.returns].some((field) =>
-      field.name.toLowerCase().includes(filter),
-    )
+    [...operation.parameters, ...operation.returns].some((field) => field.name.toLowerCase().includes(filter))
   );
 }

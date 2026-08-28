@@ -82,10 +82,7 @@ export interface WorkspaceDocument {
   favorites: ViewId[];
 }
 
-export const ticketFields: Record<
-  TicketField,
-  { label: string; type: "string" }
-> = {
+export const ticketFields: Record<TicketField, { label: string; type: "string" }> = {
   id: { label: "ID", type: "string" },
   title: { label: "Title", type: "string" },
   description: { label: "Description", type: "string" },

@@ -18,7 +18,10 @@ describe("executeQuery", () => {
   });
 
   it("preserves source order when sort values are equal", () => {
-    const query = { ...createSeedWorkspace().queries["query-all"], sorting: [{ field: "status" as const, direction: "ascending" as const }] };
+    const query = {
+      ...createSeedWorkspace().queries["query-all"],
+      sorting: [{ field: "status" as const, direction: "ascending" as const }],
+    };
     const duplicateStatus = [{ ...tickets[0] }, { ...tickets[0], id: "TICKET-4" }];
     expect(executeQuery(duplicateStatus, query).map((ticket) => ticket.id)).toEqual(["TICKET-1", "TICKET-4"]);
   });
@@ -27,6 +30,11 @@ describe("executeQuery", () => {
 describe("validatePresentation", () => {
   it("rejects an empty presentation", () => {
     const workspace = createSeedWorkspace();
-    expect(validatePresentation(workspace.queries["query-all"], { ...workspace.presentations["presentation-table"], fields: [] })).toContain("at least one field");
+    expect(
+      validatePresentation(workspace.queries["query-all"], {
+        ...workspace.presentations["presentation-table"],
+        fields: [],
+      }),
+    ).toContain("at least one field");
   });
 });

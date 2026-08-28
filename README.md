@@ -52,6 +52,15 @@ Cross-library examples:
 - Prefer local package checks first, then repository-wide checks when available.
 - Document any new package with its purpose, status, and basic usage.
 
+Run the repository-wide formatting and lint checks with:
+
+```bash
+nao check
+```
+
+This checks Rust formatting and clippy warnings, plus Biome linting and
+formatting for the TypeScript projects.
+
 See [AGENTS.md](AGENTS.md) for contributor and agent guidance.
 
 ## Status

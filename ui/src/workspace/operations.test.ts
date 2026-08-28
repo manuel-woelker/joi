@@ -1,16 +1,29 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { addFolder, addView, deleteNavigationItem, duplicateView, moveItemToFolder, saveDefinitions } from "./operations";
+import {
+  addFolder,
+  addView,
+  deleteNavigationItem,
+  duplicateView,
+  moveItemToFolder,
+  saveDefinitions,
+} from "./operations";
 import { createSeedWorkspace } from "./seed";
 
-beforeEach(() => vi.stubGlobal("crypto", { randomUUID: vi.fn().mockReturnValueOnce("one").mockReturnValueOnce("two").mockReturnValue("three") }));
+beforeEach(() =>
+  vi.stubGlobal("crypto", {
+    randomUUID: vi.fn().mockReturnValueOnce("one").mockReturnValueOnce("two").mockReturnValue("three"),
+  }),
+);
 
 describe("workspace operations", () => {
   it("creates folders and moves new views into them", () => {
     const workspace = createSeedWorkspace();
     const folderId = addFolder(workspace, "Planning");
     const viewId = addView(workspace, "Roadmap", "query-all", "presentation-table");
-    const navigation = Object.values(workspace.navigation).find((item) => item.type === "view" && item.viewId === viewId)!;
+    const navigation = Object.values(workspace.navigation).find(
+      (item) => item.type === "view" && item.viewId === viewId,
+    )!;
     moveItemToFolder(workspace, navigation.id, folderId);
     expect(workspace.navigation[folderId]).toMatchObject({ type: "folder", children: [navigation.id] });
   });
@@ -18,7 +31,11 @@ describe("workspace operations", () => {
   it("duplicates a view while reusing its definitions", () => {
     const workspace = createSeedWorkspace();
     const id = duplicateView(workspace, "view-active")!;
-    expect(workspace.views[id]).toMatchObject({ name: "Active issues copy", queryId: "query-open", presentationId: "presentation-table" });
+    expect(workspace.views[id]).toMatchObject({
+      name: "Active issues copy",
+      queryId: "query-open",
+      presentationId: "presentation-table",
+    });
   });
 
   it("only deletes empty folders", () => {

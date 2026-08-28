@@ -1,7 +1,4 @@
-import {
-  UiExtensionPointsDebugContribution,
-  UiPluginsDebugContribution,
-} from "./UiPluginMetadataDebugContributions";
+import { UiExtensionPointsDebugContribution, UiPluginsDebugContribution } from "./UiPluginMetadataDebugContributions";
 import { plugin } from "../../registry";
 import { debugContributions } from "../core/contribution";
 

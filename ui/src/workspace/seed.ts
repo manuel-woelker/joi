@@ -54,9 +54,27 @@ export function createSeedWorkspace(): WorkspaceDocument {
       },
     },
     views: {
-      "view-active": { id: "view-active", name: "Active issues", description: "Open work across the project", queryId: "query-open", presentationId: "presentation-table" },
-      "view-closed": { id: "view-closed", name: "Closed issues", description: "Completed work", queryId: "query-closed", presentationId: "presentation-table" },
-      "view-all": { id: "view-all", name: "All issues", description: "Complete issue history", queryId: "query-all", presentationId: "presentation-list" },
+      "view-active": {
+        id: "view-active",
+        name: "Active issues",
+        description: "Open work across the project",
+        queryId: "query-open",
+        presentationId: "presentation-table",
+      },
+      "view-closed": {
+        id: "view-closed",
+        name: "Closed issues",
+        description: "Completed work",
+        queryId: "query-closed",
+        presentationId: "presentation-table",
+      },
+      "view-all": {
+        id: "view-all",
+        name: "All issues",
+        description: "Complete issue history",
+        queryId: "query-all",
+        presentationId: "presentation-list",
+      },
     },
     navigation: {
       "folder-work": { id: "folder-work", type: "folder", name: "Work", children: ["nav-active", "nav-closed"] },

@@ -12,9 +12,15 @@ export const WORKSPACE_STORAGE_KEY = "joi.workspace.v2";
 export function isWorkspaceDocument(value: unknown): value is WorkspaceDocument {
   if (!value || typeof value !== "object") return false;
   const document = value as Partial<WorkspaceDocument>;
-  return document.version === 2 && !!document.queries && !!document.presentations &&
-    !!document.views && !!document.navigation && Array.isArray(document.rootItems) &&
-    Array.isArray(document.favorites);
+  return (
+    document.version === 2 &&
+    !!document.queries &&
+    !!document.presentations &&
+    !!document.views &&
+    !!document.navigation &&
+    Array.isArray(document.rootItems) &&
+    Array.isArray(document.favorites)
+  );
 }
 
 export class LocalWorkspaceRepository implements WorkspaceRepository {
@@ -30,7 +36,10 @@ export class LocalWorkspaceRepository implements WorkspaceRepository {
     } catch {
       // Fall through to a recoverable seed workspace.
     }
-    return { workspace: createSeedWorkspace(), warning: "Saved workspace data could not be loaded. A fresh workspace is shown instead." };
+    return {
+      workspace: createSeedWorkspace(),
+      warning: "Saved workspace data could not be loaded. A fresh workspace is shown instead.",
+    };
   }
 
   save(workspace: WorkspaceDocument) {

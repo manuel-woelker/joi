@@ -2,7 +2,17 @@ import { createContext, createMemo, createSignal, onCleanup, useContext, type Pa
 import { createStore, reconcile } from "solid-js/store";
 
 import type { NavigationId, PresentationDefinition, QueryDefinition, ViewId, WorkspaceDocument } from "./model";
-import { addFolder, addView, cloneValue, cloneWorkspace, deleteNavigationItem, duplicateView, moveItem, moveItemToFolder, saveDefinitions } from "./operations";
+import {
+  addFolder,
+  addView,
+  cloneValue,
+  cloneWorkspace,
+  deleteNavigationItem,
+  duplicateView,
+  moveItem,
+  moveItemToFolder,
+  saveDefinitions,
+} from "./operations";
 import { LocalWorkspaceRepository, type WorkspaceRepository } from "./repository";
 
 export interface WorkspaceController {
@@ -31,7 +41,13 @@ export interface WorkspaceController {
   undo(): void;
   move(id: NavigationId, direction: -1 | 1): void;
   moveToFolder(id: NavigationId, folderId?: NavigationId): void;
-  saveView(name: string, description: string, query: QueryDefinition, presentation: PresentationDefinition, mode: "update" | "copy"): void;
+  saveView(
+    name: string,
+    description: string,
+    query: QueryDefinition,
+    presentation: PresentationDefinition,
+    mode: "update" | "copy",
+  ): void;
   reset(): void;
 }
 
@@ -111,7 +127,9 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
       localStorage.setItem("joi.sidebar.width", String(width));
     },
     toggleFolder(id) {
-      const next = expandedFolderIds().includes(id) ? expandedFolderIds().filter((folderId) => folderId !== id) : [...expandedFolderIds(), id];
+      const next = expandedFolderIds().includes(id)
+        ? expandedFolderIds().filter((folderId) => folderId !== id)
+        : [...expandedFolderIds(), id];
       setExpandedFolderIds(next);
       localStorage.setItem("joi.expanded-folders", JSON.stringify(next));
     },
@@ -120,14 +138,18 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
     setNavigationOpen,
     toggleFavorite(id) {
       commit((draft) => {
-        draft.favorites = draft.favorites.includes(id) ? draft.favorites.filter((favorite) => favorite !== id) : [...draft.favorites, id];
+        draft.favorites = draft.favorites.includes(id)
+          ? draft.favorites.filter((favorite) => favorite !== id)
+          : [...draft.favorites, id];
       });
       setAnnouncement("Favorites updated.");
     },
     createFolder() {
       const name = window.prompt("Folder name", "New folder")?.trim();
       if (!name) return;
-      commit((draft) => { addFolder(draft, name); });
+      commit((draft) => {
+        addFolder(draft, name);
+      });
       setAnnouncement(`Folder ${name} created.`);
     },
     createView(parentId) {
@@ -136,7 +158,9 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
       const presentationId = Object.keys(workspace.presentations)[0];
       if (!name || !queryId || !presentationId) return;
       let id = "";
-      commit((draft) => { id = addView(draft, name, queryId, presentationId, parentId); });
+      commit((draft) => {
+        id = addView(draft, name, queryId, presentationId, parentId);
+      });
       selectView(id);
       setEditorOpen(true);
       setAnnouncement(`View ${name} created.`);
@@ -156,7 +180,9 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
     },
     duplicate(id) {
       let copyId: string | undefined;
-      commit((draft) => { copyId = duplicateView(draft, id); });
+      commit((draft) => {
+        copyId = duplicateView(draft, id);
+      });
       if (copyId) selectView(copyId);
       setAnnouncement("View duplicated.");
     },
@@ -169,7 +195,9 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
       }
       setUndoSnapshot(cloneWorkspace(workspace));
       let removedView: string | undefined;
-      commit((draft) => { removedView = deleteNavigationItem(draft, id); });
+      commit((draft) => {
+        removedView = deleteNavigationItem(draft, id);
+      });
       if (removedView === selectedViewId()) {
         const next = Object.keys(workspace.views).find((viewId) => viewId !== removedView);
         setSelectedViewId(next);
