@@ -4,18 +4,18 @@ use joi_base::JoiString;
 use joi_error::{JoiResult, joi_error};
 use serde::{Deserialize, Serialize};
 
-use crate::action::{Action, ActionDescriptor, ActionRequest};
+use crate::command::{Command, CommandDescriptor, CommandRequest};
 use crate::data_store::{
     AttributeName, DataStore, DataStoreQuery, QueryCriterion, TableName, Values,
 };
 
 pub type SharedDataStore = Arc<Mutex<Box<dyn DataStore>>>;
 
-pub struct QueryAction {
+pub struct QueryCommand {
     data_store: SharedDataStore,
 }
 
-impl QueryAction {
+impl QueryCommand {
     pub fn new(data_store: SharedDataStore) -> Self {
         Self { data_store }
     }
@@ -41,7 +41,7 @@ enum QueryRequestCriterion {
     },
 }
 
-impl ActionRequest for QueryRequest {
+impl CommandRequest for QueryRequest {
     type Response = QueryResponse;
 }
 
@@ -64,11 +64,11 @@ pub enum QueryValues {
     Int(Vec<i64>),
 }
 
-impl Action for QueryAction {
+impl Command for QueryCommand {
     type Request = QueryRequest;
 
-    fn descriptor() -> ActionDescriptor {
-        ActionDescriptor {
+    fn descriptor() -> CommandDescriptor {
+        CommandDescriptor {
             name: "query".into(),
             description: "Queries a table from the data store".into(),
         }
@@ -130,12 +130,12 @@ fn query_criterion(criterion: QueryRequestCriterion) -> QueryCriterion {
 mod tests {
     use std::sync::{Arc, Mutex};
 
-    use crate::action::Action;
+    use crate::command::Command;
     use crate::data_store::{DataStore, TableDescriptionProvider, TestDataProvider};
     use crate::sqlite_data_store::SqliteDataStore;
     use crate::tickets_module::{TicketTableDescriptionProvider, TicketTestDataProvider};
 
-    use super::{QueryAction, QueryRequest, QueryRequestCriterion, QueryValues};
+    use super::{QueryCommand, QueryRequest, QueryRequestCriterion, QueryValues};
 
     #[test]
     fn queries_ticket_columns() {
@@ -144,9 +144,9 @@ mod tests {
             .ensure_tables(vec![TicketTableDescriptionProvider.table_description()])
             .unwrap();
         TicketTestDataProvider.insert_test_data(&mut store).unwrap();
-        let action = QueryAction::new(Arc::new(Mutex::new(Box::new(store))));
+        let command = QueryCommand::new(Arc::new(Mutex::new(Box::new(store))));
 
-        let response = action
+        let response = command
             .execute(QueryRequest {
                 table_name: "tickets".into(),
                 criterion: QueryRequestCriterion::MatchAny,

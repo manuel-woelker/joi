@@ -8,14 +8,14 @@ use joi_error::{JoiResult, joi_error, report};
 use joi_plugin::{PluginRegistry, PluginRegistryBuilder, plugin};
 use serde_json::Value as JsonValue;
 
-use crate::action_registry::{ActionRegistry, ActionRegistryBuilder};
-use crate::action_service::ActionService;
+use crate::command_registry::{CommandRegistry, CommandRegistryBuilder};
+use crate::command_service::CommandService;
 use crate::data_store::{DataStore, TableDescriptionProvider, TestDataProvider};
-use crate::info_action::{InfoAction, InfoCollector, InfoProvider};
+use crate::info_command::{InfoCollector, InfoCommand, InfoProvider};
 use crate::module_registry::ModuleRegistry;
-use crate::plugins_action::PluginsAction;
+use crate::plugins_command::PluginsCommand;
 use crate::sqlite_data_store::SqliteDataStore;
-use crate::ticket_query_action::{QueryAction, SharedDataStore};
+use crate::ticket_query_command::{QueryCommand, SharedDataStore};
 use crate::tickets_module::{
     TicketTableDescriptionProvider, TicketTestDataProvider, TicketsModule,
     UserTableDescriptionProvider, UserTestDataProvider,
@@ -23,16 +23,16 @@ use crate::tickets_module::{
 
 const DATA_STORE_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/joix-tickets.sqlite3");
 
-pub mod action;
-pub mod action_registry;
-pub mod action_service;
+pub mod command;
+pub mod command_registry;
+pub mod command_service;
 pub mod data_store;
-pub mod info_action;
+pub mod info_command;
 pub mod module;
 pub mod module_registry;
-pub mod plugins_action;
+pub mod plugins_command;
 pub mod sqlite_data_store;
-pub mod ticket_query_action;
+pub mod ticket_query_command;
 pub mod tickets_module;
 
 struct PackageInfoProvider;
@@ -82,9 +82,9 @@ async fn run(arguments: impl IntoIterator<Item = String>) -> JoiResult<()> {
     let mut data_store = SqliteDataStore::open(DATA_STORE_PATH)?;
     initialize_data_store(&plugin_registry, &mut data_store)?;
     let data_store: SharedDataStore = Arc::new(Mutex::new(Box::new(data_store)));
-    let registry = build_action_registry(plugin_registry.clone(), data_store)?;
-    if let Some(action_name) = parse_action_name(arguments)? {
-        print!("{}", execute_cli_action(&registry, &action_name)?);
+    let registry = build_command_registry(plugin_registry.clone(), data_store)?;
+    if let Some(command_name) = parse_command_name(arguments)? {
+        print!("{}", execute_cli_command(&registry, &command_name)?);
         return Ok(());
     }
 
@@ -142,14 +142,14 @@ fn create_plugin_registry() -> JoiResult<PluginRegistry> {
     Ok(builder.build())
 }
 
-fn build_action_registry(
+fn build_command_registry(
     plugin_registry: PluginRegistry,
     data_store: SharedDataStore,
-) -> JoiResult<ActionRegistry> {
-    let mut builder = ActionRegistryBuilder::new();
-    builder.register(InfoAction::new(plugin_registry.clone()))?;
-    builder.register(PluginsAction::new(plugin_registry))?;
-    builder.register(QueryAction::new(data_store))?;
+) -> JoiResult<CommandRegistry> {
+    let mut builder = CommandRegistryBuilder::new();
+    builder.register(InfoCommand::new(plugin_registry.clone()))?;
+    builder.register(PluginsCommand::new(plugin_registry))?;
+    builder.register(QueryCommand::new(data_store))?;
     Ok(builder.build())
 }
 
@@ -168,9 +168,9 @@ fn initialize_data_store(
     Ok(())
 }
 
-fn parse_action_name(arguments: impl IntoIterator<Item = String>) -> JoiResult<Option<JoiString>> {
+fn parse_command_name(arguments: impl IntoIterator<Item = String>) -> JoiResult<Option<JoiString>> {
     let mut arguments = arguments.into_iter();
-    let Some(action_name) = arguments.next() else {
+    let Some(command_name) = arguments.next() else {
         return Ok(None);
     };
     if let Some(unexpected) = arguments.next() {
@@ -178,17 +178,17 @@ fn parse_action_name(arguments: impl IntoIterator<Item = String>) -> JoiResult<O
             "unexpected command-line argument `{unexpected}`"
         ));
     }
-    Ok(Some(action_name.into()))
+    Ok(Some(command_name.into()))
 }
 
-fn execute_cli_action(registry: &ActionRegistry, action_name: &str) -> JoiResult<String> {
+fn execute_cli_command(registry: &CommandRegistry, command_name: &str) -> JoiResult<String> {
     let response = registry
-        .execute(action_name, serde_json::json!({}))
-        .ok_or_else(|| joi_error!("action `{action_name}` is not registered"))??;
+        .execute(command_name, serde_json::json!({}))
+        .ok_or_else(|| joi_error!("command `{command_name}` is not registered"))??;
     yaml_serde::to_string(&response).map_err(report)
 }
 
-async fn run_service(registry: ActionRegistry) -> JoiResult<()> {
+async fn run_service(registry: CommandRegistry) -> JoiResult<()> {
     println!("joix-tickets testbed");
     let mut module_registry = ModuleRegistry::new();
     module_registry.register::<TicketsModule>();
@@ -197,8 +197,8 @@ async fn run_service(registry: ActionRegistry) -> JoiResult<()> {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
         .await
         .map_err(report)?;
-    println!("HTTP actions available at http://127.0.0.1:3000/api/<action-name>");
-    axum::serve(listener, ActionService::new(registry).into_router())
+    println!("HTTP commands available at http://127.0.0.1:3000/api/<command-name>");
+    axum::serve(listener, CommandService::new(registry).into_router())
         .await
         .map_err(report)
 }
@@ -218,24 +218,24 @@ mod tests {
         AttributeName, DataStore, DataStoreQuery, QueryCriterion, TableDescriptionProvider, Values,
     };
     use crate::sqlite_data_store::SqliteDataStore;
-    use crate::ticket_query_action::SharedDataStore;
+    use crate::ticket_query_command::SharedDataStore;
 
     use super::{
-        build_action_registry, create_plugin_registry, execute_cli_action, initialize_data_store,
-        parse_action_name,
+        build_command_registry, create_plugin_registry, execute_cli_command, initialize_data_store,
+        parse_command_name,
     };
 
-    fn test_action_registry() -> crate::action_registry::ActionRegistry {
+    fn test_command_registry() -> crate::command_registry::CommandRegistry {
         let plugin_registry = create_plugin_registry().unwrap();
         let mut store = SqliteDataStore::in_memory().unwrap();
         initialize_data_store(&plugin_registry, &mut store).unwrap();
         let store: SharedDataStore = Arc::new(Mutex::new(Box::new(store)));
-        build_action_registry(plugin_registry, store).unwrap()
+        build_command_registry(plugin_registry, store).unwrap()
     }
 
     #[test]
-    fn info_action_collects_application_and_os_info() {
-        let registry = test_action_registry();
+    fn info_command_collects_application_and_os_info() {
+        let registry = test_command_registry();
         let response = registry.execute("info", json!({})).unwrap().unwrap();
 
         assert_eq!(response["application_name"], env!("CARGO_PKG_NAME"));
@@ -246,8 +246,8 @@ mod tests {
     }
 
     #[test]
-    fn plugins_action_lists_the_application_plugins() {
-        let response = test_action_registry()
+    fn plugins_command_lists_the_application_plugins() {
+        let response = test_command_registry()
             .execute("plugins", json!({}))
             .unwrap()
             .unwrap();
@@ -303,8 +303,8 @@ mod tests {
     }
 
     #[test]
-    fn query_action_returns_columnar_json() {
-        let response = test_action_registry()
+    fn query_command_returns_columnar_json() {
+        let response = test_command_registry()
             .execute(
                 "query",
                 json!({
@@ -326,8 +326,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn query_action_is_available_over_http() {
-        let response = crate::action_service::ActionService::new(test_action_registry())
+    async fn query_command_is_available_over_http() {
+        let response = crate::command_service::CommandService::new(test_command_registry())
             .into_router()
             .oneshot(
                 Request::post("/api/query")
@@ -389,10 +389,10 @@ mod tests {
     }
 
     #[test]
-    fn parses_server_and_action_modes() {
-        assert_eq!(parse_action_name(Vec::new()).unwrap(), None);
+    fn parses_server_and_command_modes() {
+        assert_eq!(parse_command_name(Vec::new()).unwrap(), None);
         assert_eq!(
-            parse_action_name(vec!["info".to_owned()])
+            parse_command_name(vec!["info".to_owned()])
                 .unwrap()
                 .as_deref(),
             Some("info")
@@ -401,7 +401,7 @@ mod tests {
 
     #[test]
     fn rejects_extra_command_line_arguments() {
-        let error = parse_action_name(vec!["info".to_owned(), "extra".to_owned()]).unwrap_err();
+        let error = parse_command_name(vec!["info".to_owned(), "extra".to_owned()]).unwrap_err();
 
         assert_eq!(
             error.to_string(),
@@ -410,9 +410,9 @@ mod tests {
     }
 
     #[test]
-    fn executes_actions_as_yaml() {
-        let registry = test_action_registry();
-        let output = execute_cli_action(&registry, "info").unwrap();
+    fn executes_commands_as_yaml() {
+        let registry = test_command_registry();
+        let output = execute_cli_command(&registry, "info").unwrap();
 
         assert_eq!(
             yaml_serde::from_str::<serde_json::Value>(&output).unwrap(),
@@ -427,10 +427,10 @@ mod tests {
     }
 
     #[test]
-    fn rejects_unknown_cli_actions() {
-        let registry = test_action_registry();
-        let error = execute_cli_action(&registry, "missing").unwrap_err();
+    fn rejects_unknown_cli_commands() {
+        let registry = test_command_registry();
+        let error = execute_cli_command(&registry, "missing").unwrap_err();
 
-        assert_eq!(error.to_string(), "action `missing` is not registered");
+        assert_eq!(error.to_string(), "command `missing` is not registered");
     }
 }

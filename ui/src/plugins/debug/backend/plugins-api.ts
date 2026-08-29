@@ -29,7 +29,7 @@ export class BackendPluginsService {
   constructor(private readonly dependencies: { fetchService: FetchService }) {}
   async load(): Promise<PluginsResponse> {
     const payload = await this.dependencies.fetchService.get("/api/plugins");
-    if (!isPluginsResponse(payload)) throw new Error("Plugins action returned an invalid response");
+    if (!isPluginsResponse(payload)) throw new Error("Plugins command returned an invalid response");
     return payload;
   }
 }

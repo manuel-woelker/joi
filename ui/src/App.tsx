@@ -2,7 +2,7 @@ import { Show } from "solid-js";
 
 import { IconButton } from "./components/IconButton";
 import { NavigationTree } from "./components/NavigationTree";
-import { SavedViewActions, SavedViewContent } from "./components/SavedViewContent";
+import { SavedViewCommands, SavedViewContent } from "./components/SavedViewContent";
 import { ViewContent } from "./components/ViewContent";
 import { ViewEditor } from "./components/ViewEditor";
 import { createApplicationPluginRegistry } from "./application-registry";
@@ -30,7 +30,7 @@ function WorkspaceApp(props: { pluginRegistry: PluginRegistry }) {
           ...view,
           section: "Saved view",
           content: SavedViewContent,
-          actions: SavedViewActions,
+          commands: SavedViewCommands,
         }
       : undefined;
   };
@@ -50,7 +50,7 @@ function WorkspaceApp(props: { pluginRegistry: PluginRegistry }) {
           <span class={styles.topDivider} />
           <span class={styles.currentView}>{selectedView()?.name ?? "Workspace"}</span>
         </div>
-        <div class={styles.topActions}>
+        <div class={styles.topCommands}>
           <Show when={controller.announcement().includes("Undo")}>
             <button class={styles.textButton} onClick={() => controller.undo()}>
               <span aria-hidden="true">↶</span>Undo

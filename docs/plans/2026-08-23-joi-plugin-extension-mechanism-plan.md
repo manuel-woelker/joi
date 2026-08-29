@@ -139,7 +139,7 @@ classification.
   The proposed design allows it because trait objects do not provide a reliable
   implementation identity; callers can add explicit IDs later if deduplication
   becomes necessary.
-- The final registry is immutable after startup, following the action-registry
+- The final registry is immutable after startup, following the command-registry
   builder pattern. Runtime registration can be introduced later with an
   explicit snapshot mechanism if a concrete use case requires it.
 

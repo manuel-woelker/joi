@@ -7,19 +7,19 @@ use axum::{
 use joi_base::JoiString;
 use serde::Serialize;
 
-use crate::action_registry::ActionRegistry;
+use crate::command_registry::CommandRegistry;
 
-/// Serves registered actions as JSON HTTP endpoints.
-pub struct ActionService {
+/// Serves registered commands as JSON HTTP endpoints.
+pub struct CommandService {
     router: Router,
 }
 
-impl ActionService {
-    pub fn new(registry: ActionRegistry) -> Self {
+impl CommandService {
+    pub fn new(registry: CommandRegistry) -> Self {
         Self {
             router: Router::new()
                 .route(
-                    "/api/{*action_name}",
+                    "/api/{*command_name}",
                     post(execute).get(execute_empty_object),
                 )
                 .with_state(registry),
@@ -32,26 +32,26 @@ impl ActionService {
 }
 
 async fn execute(
-    State(registry): State<ActionRegistry>,
-    Path(action_name): Path<JoiString>,
+    State(registry): State<CommandRegistry>,
+    Path(command_name): Path<JoiString>,
     Json(request): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, (StatusCode, Json<ActionResponseError>)> {
-    execute_registered(&registry, &action_name, request)
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<CommandResponseError>)> {
+    execute_registered(&registry, &command_name, request)
 }
 
 async fn execute_empty_object(
-    State(registry): State<ActionRegistry>,
-    Path(action_name): Path<JoiString>,
-) -> Result<Json<serde_json::Value>, (StatusCode, Json<ActionResponseError>)> {
-    execute_registered(&registry, &action_name, serde_json::json!({}))
+    State(registry): State<CommandRegistry>,
+    Path(command_name): Path<JoiString>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<CommandResponseError>)> {
+    execute_registered(&registry, &command_name, serde_json::json!({}))
 }
 
 #[derive(Debug, Serialize)]
-struct ActionResponseError {
+struct CommandResponseError {
     error: JoiString,
 }
 
-fn action_error(error: joi_error::JoiError) -> (StatusCode, Json<ActionResponseError>) {
+fn command_error(error: joi_error::JoiError) -> (StatusCode, Json<CommandResponseError>) {
     let status = if error
         .current_context()
         .downcast_ref::<serde_json::Error>()
@@ -63,29 +63,29 @@ fn action_error(error: joi_error::JoiError) -> (StatusCode, Json<ActionResponseE
     };
     (
         status,
-        Json(ActionResponseError {
+        Json(CommandResponseError {
             error: error.to_string().into(),
         }),
     )
 }
 
 fn execute_registered(
-    registry: &ActionRegistry,
-    action_name: &str,
+    registry: &CommandRegistry,
+    command_name: &str,
     request: serde_json::Value,
-) -> Result<Json<serde_json::Value>, (StatusCode, Json<ActionResponseError>)> {
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<CommandResponseError>)> {
     registry
-        .execute(action_name, request)
+        .execute(command_name, request)
         .ok_or_else(|| {
             (
                 StatusCode::NOT_FOUND,
-                Json(ActionResponseError {
-                    error: format!("action `{action_name}` is not registered").into(),
+                Json(CommandResponseError {
+                    error: format!("command `{command_name}` is not registered").into(),
                 }),
             )
         })?
         .map(Json)
-        .map_err(action_error)
+        .map_err(command_error)
 }
 
 #[cfg(test)]
@@ -102,11 +102,11 @@ mod tests {
     use serde_json::Value as JsonValue;
     use tower::ServiceExt;
 
-    use crate::action::{Action, ActionDescriptor, ActionRequest};
-    use crate::action_registry::ActionRegistryBuilder;
-    use crate::info_action::{InfoAction, InfoCollector, InfoProvider};
+    use crate::command::{Command, CommandDescriptor, CommandRequest};
+    use crate::command_registry::CommandRegistryBuilder;
+    use crate::info_command::{InfoCollector, InfoCommand, InfoProvider};
 
-    use super::ActionService;
+    use super::CommandService;
 
     #[derive(Deserialize)]
     struct GreetingRequest {
@@ -118,17 +118,17 @@ mod tests {
         message: JoiString,
     }
 
-    impl ActionRequest for GreetingRequest {
+    impl CommandRequest for GreetingRequest {
         type Response = GreetingResponse;
     }
 
-    struct GreetingAction;
+    struct GreetingCommand;
 
-    impl Action for GreetingAction {
+    impl Command for GreetingCommand {
         type Request = GreetingRequest;
 
-        fn descriptor() -> ActionDescriptor {
-            ActionDescriptor {
+        fn descriptor() -> CommandDescriptor {
+            CommandDescriptor {
                 name: "greet".into(),
                 description: "Greets a person".into(),
             }
@@ -141,58 +141,58 @@ mod tests {
         }
     }
 
-    struct InvalidNameAction;
+    struct InvalidNameCommand;
 
-    impl Action for InvalidNameAction {
+    impl Command for InvalidNameCommand {
         type Request = GreetingRequest;
 
-        fn descriptor() -> ActionDescriptor {
-            ActionDescriptor {
+        fn descriptor() -> CommandDescriptor {
+            CommandDescriptor {
                 name: "invalid//name".into(),
                 description: "Has an invalid route name".into(),
             }
         }
 
         fn execute(&self, request: Self::Request) -> joi_error::JoiResult<GreetingResponse> {
-            GreetingAction.execute(request)
+            GreetingCommand.execute(request)
         }
     }
 
     #[derive(Debug)]
-    struct ExampleActionError;
+    struct ExampleCommandError;
 
-    impl fmt::Display for ExampleActionError {
+    impl fmt::Display for ExampleCommandError {
         fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-            formatter.write_str("action execution failed")
+            formatter.write_str("command execution failed")
         }
     }
 
-    impl Error for ExampleActionError {}
+    impl Error for ExampleCommandError {}
 
-    struct FailingAction;
+    struct FailingCommand;
 
-    impl Action for FailingAction {
+    impl Command for FailingCommand {
         type Request = GreetingRequest;
 
-        fn descriptor() -> ActionDescriptor {
-            ActionDescriptor {
+        fn descriptor() -> CommandDescriptor {
+            CommandDescriptor {
                 name: "fail".into(),
                 description: "Always fails".into(),
             }
         }
 
         fn execute(&self, _request: Self::Request) -> joi_error::JoiResult<GreetingResponse> {
-            Err(joi_error::report(ExampleActionError))
+            Err(joi_error::report(ExampleCommandError))
         }
     }
 
-    fn service_with<A>(action: A) -> ActionService
+    fn service_with<A>(command: A) -> CommandService
     where
-        A: Action + Send + Sync + 'static,
+        A: Command + Send + Sync + 'static,
     {
-        let mut registry = ActionRegistryBuilder::new();
-        registry.register(action).unwrap();
-        ActionService::new(registry.build())
+        let mut registry = CommandRegistryBuilder::new();
+        registry.register(command).unwrap();
+        CommandService::new(registry.build())
     }
 
     struct TestInfoProvider;
@@ -210,7 +210,7 @@ mod tests {
         }
     }
 
-    fn info_action() -> InfoAction {
+    fn info_command() -> InfoCommand {
         let mut builder = PluginRegistryBuilder::new();
         builder
             .register(plugin("test-info", "Test information", |context| {
@@ -225,12 +225,12 @@ mod tests {
                 )
             }))
             .unwrap();
-        InfoAction::new(builder.build())
+        InfoCommand::new(builder.build())
     }
 
     #[tokio::test]
-    async fn invokes_registered_actions_with_json() {
-        let service = service_with(GreetingAction);
+    async fn invokes_registered_commands_with_json() {
+        let service = service_with(GreetingCommand);
 
         let response = service
             .into_router()
@@ -255,8 +255,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn invokes_the_info_action_with_an_empty_object_request() {
-        let service = service_with(info_action());
+    async fn invokes_the_info_command_with_an_empty_object_request() {
+        let service = service_with(info_command());
 
         let response = service
             .into_router()
@@ -281,8 +281,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn invokes_get_actions_without_a_request_body() {
-        let service = service_with(info_action());
+    async fn invokes_get_commands_without_a_request_body() {
+        let service = service_with(info_command());
 
         let response = service
             .into_router()
@@ -303,13 +303,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn invokes_actions_with_nested_names() {
-        let service = ActionService::new(ActionRegistryBuilder::new().build());
+    async fn invokes_commands_with_nested_names() {
+        let service = CommandService::new(CommandRegistryBuilder::new().build());
 
         let response = service
             .into_router()
             .oneshot(
-                Request::get("/api/actions/list")
+                Request::get("/api/commands/list")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -321,9 +321,9 @@ mod tests {
         assert_eq!(
             serde_json::from_slice::<serde_json::Value>(&body).unwrap(),
             serde_json::json!({
-                "actions": [{
-                    "name": "actions/list",
-                    "description": "Lists all registered actions"
+                "commands": [{
+                    "name": "commands/list",
+                    "description": "Lists all registered commands"
                 }]
             })
         );
@@ -331,7 +331,7 @@ mod tests {
 
     #[tokio::test]
     async fn returns_json_when_an_empty_object_cannot_deserialize() {
-        let service = service_with(GreetingAction);
+        let service = service_with(GreetingCommand);
 
         let response = service
             .into_router()
@@ -352,8 +352,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn returns_action_errors_as_json() {
-        let service = service_with(FailingAction);
+    async fn returns_command_errors_as_json() {
+        let service = service_with(FailingCommand);
 
         let response = service
             .into_router()
@@ -371,24 +371,24 @@ mod tests {
         let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
         assert_eq!(
             serde_json::from_slice::<serde_json::Value>(&body).unwrap(),
-            serde_json::json!({ "error": "action execution failed" })
+            serde_json::json!({ "error": "command execution failed" })
         );
     }
 
     #[test]
-    fn rejects_duplicate_action_names() {
-        let mut registry = ActionRegistryBuilder::new();
-        registry.register(GreetingAction).unwrap();
+    fn rejects_duplicate_command_names() {
+        let mut registry = CommandRegistryBuilder::new();
+        registry.register(GreetingCommand).unwrap();
 
-        let error = registry.register(GreetingAction).unwrap_err();
-        assert_eq!(error.to_string(), "action `greet` is already registered");
+        let error = registry.register(GreetingCommand).unwrap_err();
+        assert_eq!(error.to_string(), "command `greet` is already registered");
     }
 
     #[test]
-    fn rejects_action_names_that_cannot_form_one_path_segment() {
-        let mut registry = ActionRegistryBuilder::new();
+    fn rejects_command_names_that_cannot_form_one_path_segment() {
+        let mut registry = CommandRegistryBuilder::new();
 
-        let error = registry.register(InvalidNameAction).unwrap_err();
-        assert_eq!(error.to_string(), "invalid action name `invalid//name`");
+        let error = registry.register(InvalidNameCommand).unwrap_err();
+        assert_eq!(error.to_string(), "invalid command name `invalid//name`");
     }
 }

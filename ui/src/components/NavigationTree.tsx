@@ -181,7 +181,7 @@ export function NavigationTree(props: { registry: import("../plugins/registry").
     >
       <div class={styles.panelHeading}>
         <h2>Views</h2>
-        <div class={styles.headingActions}>
+        <div class={styles.headingCommands}>
           <IconButton label="Create folder" icon="□+" onClick={() => controller.createFolder()} />
           <IconButton label="Create view" icon="+" onClick={() => controller.createView()} />
         </div>

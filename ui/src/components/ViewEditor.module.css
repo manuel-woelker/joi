@@ -1,6 +1,6 @@
 .panelBackdrop { position: fixed; z-index: 50; inset: 0; border: 0; background: var(--color-backdrop); }
 .editorPanel { position: fixed; z-index: 60; top: 0; right: 0; bottom: 0; display: grid; width: min(420px, 100vw); border-left: 1px solid var(--color-border); background: var(--color-surface); box-shadow: -14px 0 32px var(--color-shadow); grid-template-rows: auto 1fr auto; }
-.panelHeading, .sectionHeading, .editorActions { display: flex; align-items: center; }
+.panelHeading, .sectionHeading, .editorCommands { display: flex; align-items: center; }
 .panelHeading { justify-content: space-between; gap: 12px; min-height: 34px; padding: 16px 18px 12px; border-bottom: 1px solid var(--color-border-soft); }
 .panelHeading h2 { margin: 0; font-size: 18px; }
 .eyebrow { margin: 0 0 5px; color: var(--color-primary); font-size: 11px; font-weight: 750; text-transform: uppercase; }
@@ -24,7 +24,7 @@
 .radioRow { display: flex !important; align-items: flex-start; gap: 9px !important; padding: 8px; border: 1px solid var(--color-border-soft); border-radius: 5px; }
 .radioRow span { display: grid; gap: 2px; }
 .radioRow small { color: var(--color-text-muted); font-weight: 400; }
-.editorActions { justify-content: flex-end; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--color-border-soft); }
+.editorCommands { justify-content: flex-end; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--color-border-soft); }
 .primary { padding: 8px 13px; border: 1px solid var(--color-primary-dark); border-radius: 4px; color: var(--color-surface); background: var(--color-primary); font-size: 13px; font-weight: 650; }
 .primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .formError { color: var(--color-danger); font-size: 12px; }

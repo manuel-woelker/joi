@@ -3,13 +3,13 @@ use joi_error::JoiResult;
 use joi_plugin::PluginRegistry;
 use serde::{Deserialize, Serialize};
 
-use crate::action::{Action, ActionDescriptor, ActionRequest};
+use crate::command::{Command, CommandDescriptor, CommandRequest};
 
-pub struct PluginsAction {
+pub struct PluginsCommand {
     plugin_registry: PluginRegistry,
 }
 
-impl PluginsAction {
+impl PluginsCommand {
     pub fn new(plugin_registry: PluginRegistry) -> Self {
         Self { plugin_registry }
     }
@@ -17,14 +17,14 @@ impl PluginsAction {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct PluginsActionRequest {}
+pub struct PluginsCommandRequest {}
 
-impl ActionRequest for PluginsActionRequest {
-    type Response = PluginsActionResponse;
+impl CommandRequest for PluginsCommandRequest {
+    type Response = PluginsCommandResponse;
 }
 
 #[derive(Debug, PartialEq, Serialize)]
-pub struct PluginsActionResponse {
+pub struct PluginsCommandResponse {
     pub plugins: Vec<PluginSummary>,
     pub extension_points: Vec<ExtensionPointSummary>,
     pub extensions: Vec<ExtensionSummary>,
@@ -51,18 +51,18 @@ pub struct ExtensionSummary {
     pub description: JoiString,
 }
 
-impl Action for PluginsAction {
-    type Request = PluginsActionRequest;
+impl Command for PluginsCommand {
+    type Request = PluginsCommandRequest;
 
-    fn descriptor() -> ActionDescriptor {
-        ActionDescriptor {
+    fn descriptor() -> CommandDescriptor {
+        CommandDescriptor {
             name: "plugins".into(),
             description: "Lists all registered plugins".into(),
         }
     }
 
-    fn execute(&self, _request: Self::Request) -> JoiResult<PluginsActionResponse> {
-        Ok(PluginsActionResponse {
+    fn execute(&self, _request: Self::Request) -> JoiResult<PluginsCommandResponse> {
+        Ok(PluginsCommandResponse {
             plugins: self
                 .plugin_registry
                 .plugins()
@@ -98,11 +98,11 @@ impl Action for PluginsAction {
 mod tests {
     use joi_plugin::{PluginRegistryBuilder, plugin};
 
-    use crate::action::Action;
+    use crate::command::Command;
 
     use super::{
-        ExtensionPointSummary, ExtensionSummary, PluginSummary, PluginsAction,
-        PluginsActionRequest, PluginsActionResponse,
+        ExtensionPointSummary, ExtensionSummary, PluginSummary, PluginsCommand,
+        PluginsCommandRequest, PluginsCommandResponse,
     };
 
     #[test]
@@ -126,13 +126,13 @@ mod tests {
             .register(plugin("tickets", "Ticket management", |_| Ok(())))
             .unwrap();
 
-        let response = PluginsAction::new(builder.build())
-            .execute(PluginsActionRequest {})
+        let response = PluginsCommand::new(builder.build())
+            .execute(PluginsCommandRequest {})
             .unwrap();
 
         assert_eq!(
             response,
-            PluginsActionResponse {
+            PluginsCommandResponse {
                 plugins: vec![
                     PluginSummary {
                         name: "infra".into(),

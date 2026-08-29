@@ -1,8 +1,8 @@
 .navigationPanel { position: fixed; z-index: 20; top: 52px; bottom: 0; left: 0; width: var(--sidebar-width); overflow: auto; border-right: 1px solid var(--color-border); background: var(--color-surface-muted); padding: 14px 10px; }
-.panelHeading, .headingActions { display: flex; align-items: center; }
+.panelHeading, .headingCommands { display: flex; align-items: center; }
 .panelHeading { justify-content: space-between; gap: 12px; min-height: 34px; padding: 0 4px 10px; }
 .panelHeading h2 { margin: 0; font-size: 15px; }
-.headingActions { gap: 2px; }
+.headingCommands { gap: 2px; }
 .favorites { padding: 8px 4px 14px; border-bottom: 1px solid var(--color-border-soft); }
 .favorites h3 { margin: 0 0 8px; color: var(--color-text-muted); font-size: 11px; text-transform: uppercase; }
 .favoriteLink { display: flex; width: 100%; align-items: center; gap: 7px; padding: 6px 5px; border: 0; border-radius: 4px; color: var(--color-ink-soft); background: transparent; font-size: 13px; text-align: left; }

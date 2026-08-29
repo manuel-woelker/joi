@@ -7,7 +7,7 @@ export class BackendInfoService {
   constructor(private readonly dependencies: { fetchService: FetchService }) {}
   async load(): Promise<InfoResponse> {
     const payload = await this.dependencies.fetchService.get("/api/info");
-    if (!isInfoResponse(payload)) throw new Error("Info action returned an invalid response");
+    if (!isInfoResponse(payload)) throw new Error("Info command returned an invalid response");
     return payload;
   }
 }

@@ -99,7 +99,7 @@ assets makes them necessary.
 - Keyboard navigation follows tree semantics: arrow keys move and expand,
   Enter opens, and focus remains visible.
 - Contextual commands are available from a compact menu; common create and
-  edit actions remain directly reachable.
+  edit commands remain directly reachable.
 - Drag and drop may supplement move controls, but must not be the only way to
   structure the tree.
 

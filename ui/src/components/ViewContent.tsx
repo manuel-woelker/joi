@@ -24,7 +24,7 @@ export function ViewContent(props: { view?: ApplicationView }) {
                 <h1>{view().name}</h1>
                 <Show when={view().description}>{(description) => <p>{description()}</p>}</Show>
               </div>
-              <Show when={view().actions}>{(Actions) => <Dynamic component={Actions()} />}</Show>
+              <Show when={view().commands}>{(Commands) => <Dynamic component={Commands()} />}</Show>
             </div>
             <Dynamic component={view().content} />
           </>

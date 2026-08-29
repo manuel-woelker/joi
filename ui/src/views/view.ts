@@ -6,5 +6,5 @@ export interface ApplicationView {
   readonly description?: string;
   readonly section: string;
   readonly content: Component;
-  readonly actions?: Component;
+  readonly commands?: Component;
 }

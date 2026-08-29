@@ -9,7 +9,7 @@ import { DataTable, type DataTableColumn } from "./DataTable";
 import { IconButton } from "./IconButton";
 import styles from "./ViewContent.module.css";
 
-export function SavedViewActions() {
+export function SavedViewCommands() {
   const controller = useWorkspace();
   return <IconButton label="Configure view" icon="⚙" onClick={() => controller.setEditorOpen(true)} />;
 }

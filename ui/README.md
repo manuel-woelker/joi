@@ -15,7 +15,7 @@ duplication, deletion with undo, and keyboard navigation. View URLs use the
 
 Workspace definitions are currently stored in browser `localStorage`. The
 included reset command restores the example ticket workspace. Records are
-loaded from the backend's `POST /api/query` action into a shared, validated,
+loaded from the backend's `POST /api/query` command into a shared, validated,
 columnar query-result model. Response-local branded row and column indexes
 provide direct value access without converting flexible results into fixed
 domain objects. Persisted configurations continue to use attribute names and

@@ -18,7 +18,7 @@ selection, or virtualization.
 
 ## How should query data be modeled?
 
-Introduce one shared UI model matching the query action's tagged columnar
+Introduce one shared UI model matching the query command's tagged columnar
 response:
 
 ```ts

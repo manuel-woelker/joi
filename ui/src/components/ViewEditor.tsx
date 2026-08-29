@@ -201,7 +201,7 @@ export function ViewEditor() {
             <p class={styles.formError}>{error()}</p>
           </Show>
         </div>
-        <div class={styles.editorActions}>
+        <div class={styles.editorCommands}>
           <button class={styles.secondary} onClick={() => controller.setEditorOpen(false)}>
             Cancel
           </button>
