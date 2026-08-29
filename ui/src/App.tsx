@@ -7,6 +7,7 @@ import { ViewEditor } from "./components/ViewEditor";
 import { DebugTools } from "./plugins/debug/core/DebugTools";
 import { createApplicationPluginRegistry } from "./application-registry";
 import type { PluginRegistry } from "./plugins/registry";
+import { REVISION } from "./revision";
 import { WorkspaceProvider, useWorkspace } from "./workspace/controller";
 
 const applicationPluginRegistry = createApplicationPluginRegistry();
@@ -50,7 +51,10 @@ function WorkspaceApp(props: { pluginRegistry: PluginRegistry }) {
         <ViewContent />
       </div>
       <footer class="footer">
-        <span>Joi</span>
+        <div class="footer-start">
+          <span>Joi</span>
+          <span class="status-revision">{REVISION}</span>
+        </div>
         <div class="footer-end">
           <span>Built with SolidJS</span>
           <DebugTools registry={props.pluginRegistry} />

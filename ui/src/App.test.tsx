@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
+import { REVISION } from "./revision";
 import { WORKSPACE_STORAGE_KEY } from "./workspace/repository";
 
 beforeEach(() => {
@@ -47,6 +48,7 @@ describe("workspace app", () => {
     render(() => <App />);
     expect(screen.getByRole("heading", { name: "Active issues" })).toBeTruthy();
     expect(screen.getByText("Built with SolidJS")).toBeTruthy();
+    expect(screen.getByText(REVISION)).toBeTruthy();
     expect(await screen.findByText("Fix navigation bug")).toBeTruthy();
     await userEvent.type(screen.getByPlaceholderText("Search this view"), "filters");
     expect(screen.getByText("Add issue filters")).toBeTruthy();

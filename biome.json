@@ -18,10 +18,14 @@
     "enabled": true,
     "rules": {
       "recommended": false,
-      "correctness": "error"
+      "correctness": {
+        "noNodejsModules": "off",
+        "noUndeclaredVariables": "error"
+      }
     }
   },
   "javascript": {
+    "globals": ["__JOI_REVISION__"],
     "formatter": {
       "arrowParentheses": "always",
       "bracketSameLine": false,
