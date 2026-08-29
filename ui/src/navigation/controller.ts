@@ -5,7 +5,7 @@ import type { ViewId, WorkspaceDocument } from "../workspace/model";
 export type NavigationSelection =
   | { type: "view"; id: ViewId }
   | { type: "administration"; id: string }
-  | { type: "ticket"; id: string };
+  | { type: "ticket"; id: string; viewId: ViewId };
 
 export interface NavigationController {
   selection: () => NavigationSelection;
@@ -18,14 +18,16 @@ export interface NavigationController {
 }
 
 function selectionFromHash(workspace: WorkspaceDocument): NavigationSelection {
-  const viewMatch = window.location.hash.match(/^#\/views\/(.+)$/);
+  const ticketMatch = window.location.hash.match(/^#\/views\/([^/]+)\/tickets\/(.+)$/);
+  if (ticketMatch?.[1] && ticketMatch[2] && workspace.views[ticketMatch[1]]) {
+    return { type: "ticket", viewId: ticketMatch[1], id: decodeURIComponent(ticketMatch[2]) };
+  }
+
+  const viewMatch = window.location.hash.match(/^#\/views\/([^/]+)$/);
   if (viewMatch?.[1] && workspace.views[viewMatch[1]]) return { type: "view", id: viewMatch[1] };
 
   const administrationMatch = window.location.hash.match(/^#\/administration\/(.+)$/);
   if (administrationMatch?.[1]) return { type: "administration", id: administrationMatch[1] };
-
-  const ticketMatch = window.location.hash.match(/^#\/tickets\/(.+)$/);
-  if (ticketMatch?.[1]) return { type: "ticket", id: decodeURIComponent(ticketMatch[1]) };
 
   const id = workspace.favorites.find((candidate) => workspace.views[candidate]) ?? Object.keys(workspace.views)[0];
   return { type: "view", id };
@@ -35,7 +37,7 @@ export function createNavigationController(workspace: WorkspaceDocument): Naviga
   const [selection, setSelection] = createSignal(selectionFromHash(workspace));
   const selectedViewId = createMemo(() => {
     const current = selection();
-    return current.type === "view" ? current.id : undefined;
+    return current.type === "view" ? current.id : current.type === "ticket" ? current.viewId : undefined;
   });
   const selectedAdministrationId = createMemo(() => {
     const current = selection();
@@ -64,8 +66,10 @@ export function createNavigationController(workspace: WorkspaceDocument): Naviga
       window.location.hash = `/administration/${id}`;
     },
     selectTicket(id) {
-      setSelection({ type: "ticket", id });
-      window.location.hash = `/tickets/${encodeURIComponent(id)}`;
+      const viewId = selectedViewId();
+      if (!viewId) return;
+      setSelection({ type: "ticket", id, viewId });
+      window.location.hash = `/views/${viewId}/tickets/${encodeURIComponent(id)}`;
     },
   };
 }

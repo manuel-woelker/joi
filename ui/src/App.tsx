@@ -5,7 +5,7 @@ import { NavigationTree } from "./components/NavigationTree";
 import { SavedViewCommands, SavedViewContent } from "./components/SavedViewContent";
 import { ViewContent } from "./components/ViewContent";
 import { ViewEditor } from "./components/ViewEditor";
-import { TicketDetail } from "./tickets/TicketDetail";
+import { TicketWorkspaceContent } from "./tickets/TicketWorkspaceContent";
 import { createApplicationPluginRegistry } from "./application-registry";
 import { administrationEntries } from "./administration/Administration";
 import type { PluginRegistry } from "./plugins/registry";
@@ -25,12 +25,15 @@ function WorkspaceApp(props: { pluginRegistry: PluginRegistry }) {
       return entries.find((entry) => entry.id === selection.id);
     }
     if (selection.type === "ticket") {
-      return {
-        id: `ticket-${selection.id}`,
-        name: "Ticket",
-        section: "Issues",
-        content: () => <TicketDetail ticketId={selection.id} />,
-      };
+      const view = controller.workspace.views[selection.viewId];
+      return view
+        ? {
+            ...view,
+            section: "Saved view",
+            content: () => <TicketWorkspaceContent ticketId={selection.id} />,
+            commands: SavedViewCommands,
+          }
+        : undefined;
     }
 
     const view = controller.selectedView();

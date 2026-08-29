@@ -85,8 +85,10 @@ describe("workspace app", () => {
     render(() => <App />);
     await userEvent.click(await screen.findByText("Fix navigation bug"));
 
-    expect(window.location.hash).toBe("#/tickets/0o5Fs0EELR0fUjHjbCnEtdUwQe3");
-    expect(screen.getByRole("heading", { name: "Ticket" })).toBeTruthy();
+    expect(window.location.hash).toBe("#/views/view-active/tickets/0o5Fs0EELR0fUjHjbCnEtdUwQe3");
+    expect(screen.getByRole("heading", { name: "Active issues" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Ticket details" })).toBeTruthy();
+    expect(screen.getByRole("table", { name: "Active issues" })).toBeTruthy();
     const title = await screen.findByRole("textbox", { name: "Title" });
     const description = screen.getByRole("textbox", { name: "Description" });
     await userEvent.clear(title);

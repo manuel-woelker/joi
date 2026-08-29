@@ -48,7 +48,15 @@ export function TicketDetail(props: { ticketId: string }) {
     <Show when={!ticket.loading} fallback={<div class={styles.state}>Loading ticket</div>}>
       <Show when={!ticket.error && ticket()?.rows.length} fallback={<div class={styles.state}>Ticket not found.</div>}>
         <form class={styles.form} onSubmit={save}>
-          <div class={styles.ticketKey}>{key()}</div>
+          <header class={styles.header}>
+            <div>
+              <div class={styles.ticketKey}>{key()}</div>
+              <h2>Ticket details</h2>
+            </div>
+            <a href={`#/views/${encodeURIComponent(currentViewId())}`} aria-label="Close ticket details">
+              ×
+            </a>
+          </header>
           <label>
             <span>Title</span>
             <input value={title()} onInput={(event) => setTitle(event.currentTarget.value)} required />
@@ -70,4 +78,8 @@ export function TicketDetail(props: { ticketId: string }) {
       </Show>
     </Show>
   );
+}
+
+function currentViewId(): string {
+  return window.location.hash.match(/^#\/views\/([^/]+)/)?.[1] ?? "";
 }
