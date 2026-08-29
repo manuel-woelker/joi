@@ -55,11 +55,21 @@ recipe "default" {
     """
   }
 
+  task "ui-typecheck" description="Run the UI TypeScript typecheck" {
+    run shell="cd ui && pnpm check"
+  }
+
+  task "ui-test" description="Run the UI tests" {
+    run shell="cd ui && pnpm test -- --run"
+  }
+
   task "check" description="Run all repository checks" {
     depends-on "cargo-fmt"
     depends-on "cargo-clippy"
     depends-on "biome-lint"
     depends-on "biome-format"
+    depends-on "ui-typecheck"
+    depends-on "ui-test"
     run shell="printf 'Task outcome: repository checks passed\n'"
   }
 
