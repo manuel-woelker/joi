@@ -4,10 +4,9 @@ import { IconButton } from "./components/IconButton";
 import { NavigationTree } from "./components/NavigationTree";
 import { ViewContent } from "./components/ViewContent";
 import { ViewEditor } from "./components/ViewEditor";
-import { DebugTools } from "./plugins/debug/core/DebugTools";
 import { createApplicationPluginRegistry } from "./application-registry";
 import type { PluginRegistry } from "./plugins/registry";
-import { REVISION } from "./revision";
+import { StatusBar } from "./status-bar/StatusBar";
 import { WorkspaceProvider, useWorkspace } from "./workspace/controller";
 import styles from "./App.module.css";
 
@@ -51,16 +50,7 @@ function WorkspaceApp(props: { pluginRegistry: PluginRegistry }) {
         <NavigationTree />
         <ViewContent />
       </div>
-      <footer class={styles.footer}>
-        <div class={styles.footerStart}>
-          <span>Joi</span>
-          <span class={styles.statusRevision}>{REVISION}</span>
-        </div>
-        <div class={styles.footerEnd}>
-          <span>Built with SolidJS</span>
-          <DebugTools registry={props.pluginRegistry} />
-        </div>
-      </footer>
+      <StatusBar registry={props.pluginRegistry} />
       <ViewEditor />
       <Show when={controller.warning()}>
         <div class={styles.warningBanner} role="alert">
