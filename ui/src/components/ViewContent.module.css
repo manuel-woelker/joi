@@ -10,13 +10,6 @@
 .searchField svg { color: var(--color-text-muted); }
 .searchField input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; font-size: 13px; }
 .resultCount { color: var(--color-text-muted); font-size: 12px; white-space: nowrap; }
-.tableScroll { max-width: 1080px; overflow: auto; margin: auto; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); }
-.table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.tableScroll th { color: var(--color-text-muted); background: var(--color-canvas); font-size: 11px; text-align: left; text-transform: uppercase; }
-.tableScroll th, .tableScroll td { padding: 11px 14px; border-bottom: 1px solid var(--color-border-soft); white-space: nowrap; }
-.table.compact th, .table.compact td { padding-top: 8px; padding-bottom: 8px; }
-.tableScroll tbody tr:last-child td { border-bottom: 0; }
-.tableScroll tbody tr:hover { background: var(--color-surface-muted); }
 .status { display: inline-flex; padding: 3px 7px; border-radius: 999px; color: var(--color-ink-soft); background: var(--color-surface-hover); font-size: 11px; text-transform: capitalize; }
 .status.open { color: var(--color-secondary-dark); background: var(--color-secondary-soft); }
 .status.in-progress { color: var(--color-primary-dark); background: var(--color-primary-soft); }

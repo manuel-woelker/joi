@@ -1,7 +1,8 @@
-import type { FilterDefinition, PresentationDefinition, QueryDefinition, Ticket } from "./model";
+import type { QueryColumnHandle, QueryResult, QueryResultRow } from "../query/query-result";
+import type { FilterDefinition, PresentationDefinition, QueryDefinition } from "./model";
 
-function matchesFilter(ticket: Ticket, filter: FilterDefinition): boolean {
-  const actual = String(ticket[filter.field]).toLocaleLowerCase();
+function matchesFilter(row: QueryResultRow, column: QueryColumnHandle, filter: FilterDefinition): boolean {
+  const actual = String(row.value(column) ?? "").toLocaleLowerCase();
   const values = (Array.isArray(filter.value) ? filter.value : [filter.value]).map((value) =>
     value.toLocaleLowerCase(),
   );
@@ -18,24 +19,31 @@ function matchesFilter(ticket: Ticket, filter: FilterDefinition): boolean {
   }
 }
 
-export function executeQuery(records: Ticket[], query: QueryDefinition, text = ""): Ticket[] {
+export function executeQuery(result: QueryResult, query: QueryDefinition, text = ""): QueryResultRow[] {
   const needle = text.trim().toLocaleLowerCase();
-  const filtered = records.filter(
-    (ticket) =>
-      query.filters.every((filter) => matchesFilter(ticket, filter)) &&
-      (!needle || ticket.id.toLocaleLowerCase().includes(needle) || ticket.title.toLocaleLowerCase().includes(needle)),
+  const filters = query.filters.map((filter) => ({ filter, column: result.requireColumn(filter.field) }));
+  const sorting = query.sorting.map((sort) => ({ sort, column: result.requireColumn(sort.field) }));
+  const filtered = result.rows.filter(
+    (row) =>
+      filters.every(({ filter, column }) => matchesFilter(row, column, filter)) &&
+      (!needle ||
+        result.columns.some((column) =>
+          String(row.value(column) ?? "")
+            .toLocaleLowerCase()
+            .includes(needle),
+        )),
   );
 
   return filtered
-    .map((ticket, index) => ({ ticket, index }))
+    .map((row) => ({ row, index: row.index }))
     .sort((left, right) => {
-      for (const sort of query.sorting) {
-        const comparison = String(left.ticket[sort.field]).localeCompare(String(right.ticket[sort.field]));
+      for (const { sort, column } of sorting) {
+        const comparison = String(left.row.value(column) ?? "").localeCompare(String(right.row.value(column) ?? ""));
         if (comparison !== 0) return sort.direction === "ascending" ? comparison : -comparison;
       }
       return left.index - right.index;
     })
-    .map(({ ticket }) => ticket);
+    .map(({ row }) => row);
 }
 
 export function validatePresentation(query: QueryDefinition, presentation: PresentationDefinition): string | undefined {

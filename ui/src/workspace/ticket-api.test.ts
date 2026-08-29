@@ -27,15 +27,8 @@ describe("loadTickets", () => {
       filters: [{ field: "status", operator: "in", value: ["open", "in-progress"] }],
       sorting: [],
     };
-    await expect(loadTickets(new FetchService(fetcher), query)).resolves.toEqual([
-      {
-        id: "0o5Fs0EELR0fUjHjbCnEtdUwQe3",
-        key: "TEST-1",
-        title: "Fix navigation bug",
-        description: "Selection is lost",
-        status: "open",
-      },
-    ]);
+    const result = await loadTickets(new FetchService(fetcher), query);
+    expect(result.rows[0].value(result.requireColumn("key"))).toBe("TEST-1");
     expect(fetcher).toHaveBeenCalledWith("/api/query", expect.objectContaining({ method: "POST" }));
     expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({
       table_name: "tickets",
@@ -47,6 +40,6 @@ describe("loadTickets", () => {
 
   it("rejects malformed responses", async () => {
     const fetcher = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ result_columns: [] }) });
-    await expect(loadTickets(new FetchService(fetcher))).rejects.toThrow("invalid response");
+    await expect(loadTickets(new FetchService(fetcher))).rejects.toThrow("invalid number_of_hits");
   });
 });

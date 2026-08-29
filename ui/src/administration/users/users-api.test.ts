@@ -16,9 +16,12 @@ describe("loadUsers", () => {
       }),
     });
 
-    await expect(loadUsers(new FetchService(fetcher))).resolves.toEqual([
-      { username: "jane.developer", name: "Jane Developer" },
-      { username: "joe.tester", name: "Joe Tester" },
+    const result = await loadUsers(new FetchService(fetcher));
+    const username = result.requireColumn("username");
+    const name = result.requireColumn("name");
+    expect(result.rows.map((row) => [row.value(username), row.value(name)])).toEqual([
+      ["jane.developer", "Jane Developer"],
+      ["joe.tester", "Joe Tester"],
     ]);
     expect(fetcher).toHaveBeenCalledWith("/api/query", {
       method: "POST",

@@ -2,28 +2,19 @@ export type ViewId = string;
 export type QueryId = string;
 export type PresentationId = string;
 export type NavigationId = string;
+export type AttributeName = string;
 
 export type TicketStatus = "open" | "in-progress" | "closed";
-
-export interface Ticket {
-  id: string;
-  key: string;
-  title: string;
-  description: string;
-  status: TicketStatus;
-}
-
-export type TicketField = keyof Ticket;
 export type FilterOperator = "equals" | "not-equals" | "in" | "contains";
 
 export interface FilterDefinition {
-  field: TicketField;
+  field: AttributeName;
   operator: FilterOperator;
   value: string | string[];
 }
 
 export interface SortDefinition {
-  field: TicketField;
+  field: AttributeName;
   direction: "ascending" | "descending";
 }
 
@@ -36,7 +27,7 @@ export interface QueryDefinition {
 }
 
 export interface PresentationField {
-  field: TicketField;
+  field: AttributeName;
   label: string;
   width?: number;
 }
@@ -83,7 +74,7 @@ export interface WorkspaceDocument {
   favorites: ViewId[];
 }
 
-export const ticketFields: Record<TicketField, { label: string; type: "string" }> = {
+export const ticketFields: Record<AttributeName, { label: string; type: "string" }> = {
   id: { label: "ID", type: "string" },
   key: { label: "Key", type: "string" },
   title: { label: "Title", type: "string" },

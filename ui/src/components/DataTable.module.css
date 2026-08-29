@@ -1,0 +1,44 @@
+.tableScroll {
+  width: 100%;
+  max-width: 1080px;
+  overflow: auto;
+  margin: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table th {
+  color: var(--color-text-muted);
+  background: var(--color-canvas);
+  font-size: 11px;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.table th,
+.table td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--color-border-soft);
+  white-space: nowrap;
+}
+
+.table[data-density="compact"] th,
+.table[data-density="compact"] td {
+  padding-top: 7px;
+  padding-bottom: 7px;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.table tbody tr:hover {
+  background: var(--color-surface-muted);
+}

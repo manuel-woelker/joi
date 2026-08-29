@@ -1,14 +1,13 @@
 import { For, Show, createMemo, createResource } from "solid-js";
 
+import type { QueryColumnHandle, QueryResult } from "../query/query-result";
 import { fetchService } from "../services/fetch-service";
 import { useWorkspace } from "../workspace/controller";
-import type { Ticket } from "../workspace/model";
 import { executeQuery, validatePresentation } from "../workspace/query";
 import { loadTickets } from "../workspace/ticket-api";
+import { DataTable, type DataTableColumn } from "./DataTable";
 import { IconButton } from "./IconButton";
 import styles from "./ViewContent.module.css";
-
-const displayValue = (ticket: Ticket, field: keyof Ticket) => ticket[field];
 
 export function SavedViewActions() {
   const controller = useWorkspace();
@@ -26,7 +25,36 @@ export function SavedViewContent() {
     const view = controller.selectedView();
     return view ? controller.workspace.presentations[view.presentationId] : undefined;
   };
-  const records = createMemo(() => (query() ? executeQuery(ticketRecords() ?? [], query()!, controller.search()) : []));
+  const records = createMemo(() => {
+    const result = ticketRecords();
+    const currentQuery = query();
+    return result && currentQuery ? executeQuery(result, currentQuery, controller.search()) : [];
+  });
+  const tableColumns = createMemo<DataTableColumn[]>(() => {
+    const result = ticketRecords();
+    return result
+      ? (presentation()?.fields ?? []).map((field) => ({
+          column: result.requireColumn(field.field),
+          header: field.label,
+          width: field.width,
+          cell:
+            field.field === "status"
+              ? (value) => <span class={`${styles.status} ${styles[String(value)]}`}>{String(value ?? "")}</span>
+              : undefined,
+        }))
+      : [];
+  });
+  const listColumns = createMemo(() => {
+    const result = ticketRecords();
+    return result
+      ? {
+          key: result.requireColumn("key"),
+          title: result.requireColumn("title"),
+          description: result.requireColumn("description"),
+          status: result.requireColumn("status"),
+        }
+      : undefined;
+  });
   const validation = () =>
     query() && presentation() ? validatePresentation(query()!, presentation()!) : "View configuration is incomplete.";
 
@@ -44,7 +72,9 @@ export function SavedViewContent() {
             placeholder="Search this view"
           />
         </label>
-        <span class={styles.resultCount}>{ticketRecords.loading ? "Loading" : `${records().length} issues`}</span>
+        <span class={styles.resultCount}>
+          {ticketRecords.loading ? "Loading" : resultCount(ticketRecords(), records().length)}
+        </span>
       </div>
       <Show when={!validation()} fallback={<div class={styles.errorState}>{validation()}</div>}>
         <Show
@@ -80,15 +110,17 @@ export function SavedViewContent() {
                 fallback={
                   <div class={styles.issueList}>
                     <For each={records()}>
-                      {(ticket) => (
+                      {(row) => (
                         <article>
                           <div>
-                            <strong>{ticket.title}</strong>
-                            <span>{ticket.description}</span>
+                            <strong>{rowValue(row, listColumns()?.title)}</strong>
+                            <span>{rowValue(row, listColumns()?.description)}</span>
                           </div>
                           <div class={styles.issueMeta}>
-                            <span class={`${styles.status} ${styles[ticket.status]}`}>{ticket.status}</span>
-                            <span>{ticket.key}</span>
+                            <span class={`${styles.status} ${styles[rowValue(row, listColumns()?.status)]}`}>
+                              {rowValue(row, listColumns()?.status)}
+                            </span>
+                            <span>{rowValue(row, listColumns()?.key)}</span>
                           </div>
                         </article>
                       )}
@@ -96,36 +128,14 @@ export function SavedViewContent() {
                   </div>
                 }
               >
-                <div class={styles.tableScroll}>
-                  <table class={`${styles.table} ${styles[presentation()?.density ?? ""]}`}>
-                    <thead>
-                      <tr>
-                        <For each={presentation()?.fields}>
-                          {(field) => (
-                            <th style={{ width: field.width ? `${field.width}px` : undefined }}>{field.label}</th>
-                          )}
-                        </For>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <For each={records()}>
-                        {(ticket) => (
-                          <tr>
-                            <For each={presentation()?.fields}>
-                              {(field) => (
-                                <td>
-                                  <Show when={field.field === "status"} fallback={displayValue(ticket, field.field)}>
-                                    <span class={`${styles.status} ${styles[ticket.status]}`}>{ticket.status}</span>
-                                  </Show>
-                                </td>
-                              )}
-                            </For>
-                          </tr>
-                        )}
-                      </For>
-                    </tbody>
-                  </table>
-                </div>
+                <DataTable
+                  ariaLabel={controller.selectedView()?.name ?? "Issues"}
+                  result={ticketRecords()!}
+                  rows={records()}
+                  columns={tableColumns()}
+                  rowKey={ticketRecords()?.column("id")}
+                  density={presentation()?.density}
+                />
               </Show>
             </Show>
           </Show>
@@ -133,4 +143,15 @@ export function SavedViewContent() {
       </Show>
     </>
   );
+}
+
+function rowValue(row: QueryResult["rows"][number], column: QueryColumnHandle | undefined): string {
+  return column ? String(row.value(column) ?? "") : "";
+}
+
+function resultCount(result: QueryResult | undefined, visibleRows: number): string {
+  if (!result) return "0 issues";
+  return visibleRows === result.numberOfHits
+    ? `${result.numberOfHits} issues`
+    : `${visibleRows} of ${result.numberOfHits} issues`;
 }

@@ -157,46 +157,46 @@ badge styles with the ticket view.
 
 ## Implementation Checklist
 
-- [ ] Add a compatible `@tanstack/solid-table` dependency to `ui/package.json`
+- [x] Add a compatible `@tanstack/solid-table` dependency to `ui/package.json`
       and update the pnpm lockfile.
-- [ ] Add shared `QueryResponse`, tagged column-value, `QueryValue`, and
+- [x] Add shared `QueryResponse`, tagged column-value, `QueryValue`, and
       `QueryResultRow` types plus a centralized runtime response parser.
-- [ ] Add tests for string and integer columns, malformed values, duplicate
+- [x] Add tests for string and integer columns, malformed values, duplicate
       attributes, unequal column lengths, empty projections, and total hits
       exceeding returned rows.
-- [ ] Add a generic query client accepting table, criterion, attributes, and
+- [x] Add a generic query client accepting table, criterion, attributes, and
       result limit, and remove the duplicated users/tickets response parsing.
-- [ ] Define shared branded-index infrastructure plus distinct
+- [x] Define shared branded-index infrastructure plus distinct
       `QueryColumnIndex` and `QueryRowIndex` types, with narrow constructors
       confined to the query-result implementation.
-- [ ] Implement a query-result wrapper with response-local branded indexes,
+- [x] Implement a query-result wrapper with response-local branded indexes,
       column handles, one-time name-to-handle binding, lazy rows, direct indexed
       value access, and configurable stable row identity.
-- [ ] Add compile-time type assertions proving row indexes, column indexes,
+- [x] Add compile-time type assertions proving row indexes, column indexes,
       counts, and plain numbers are not interchangeable.
-- [ ] Add runtime tests that reject cross-result handles and verify configured
+- [x] Add runtime tests that reject cross-result handles and verify configured
       names are resolved once rather than looked up for each rendered cell.
-- [ ] Add a query-oriented `DataTable` that adapts resolved column handles to
+- [x] Add a query-oriented `DataTable` that adapts resolved column handles to
       TanStack, uses a reactive core row model, renders semantic markup, and
       supports labels, widths, custom cells, density, and overflow containment.
-- [ ] Add a focused CSS module using existing color variables for shared table
+- [x] Add a focused CSS module using existing color variables for shared table
       headers, cells, hover states, borders, density, and responsive overflow.
-- [ ] Migrate Users to the generic query response and table without exposing
+- [x] Migrate Users to the generic query response and table without exposing
       its internal ID or materializing `User[]`.
-- [ ] Migrate the saved ticket table to generic result columns while preserving
+- [x] Migrate the saved ticket table to generic result columns while preserving
       configured fields, status badges, widths, ordering, and density.
-- [ ] Adapt ticket list rendering, transient search, and presentation sorting
+- [x] Adapt ticket list rendering, transient search, and presentation sorting
       to generic query rows and remove the table-only `Ticket` dependency where
       it is no longer needed.
-- [ ] Remove obsolete domain response validators, row conversion code, and
+- [x] Remove obsolete domain response validators, row conversion code, and
       duplicated table CSS.
-- [ ] Add component tests for asynchronously supplied responses, dynamic
+- [x] Add component tests for asynchronously supplied responses, dynamic
       schemas, integer rendering, custom cells, accessible naming, density,
       and stable row keys.
-- [ ] Extend application tests to verify Users and ticket tables still render
+- [x] Extend application tests to verify Users and ticket tables still render
       expected columns and records and do not retain stale schema after view
       navigation.
-- [ ] Update `ui/README.md` with the generic query-result model, TanStack Table
+- [x] Update `ui/README.md` with the generic query-result model, TanStack Table
       role, and intentionally deferred features.
 
 ## What assumptions does the plan make?
@@ -262,3 +262,11 @@ string and integer values render, configured ticket widths and status badges
 remain intact, hidden internal attributes stay hidden, compact density is
 visibly denser, overflow remains inside the main area, total hits are distinct
 from rendered rows, and switching views does not retain stale rows or columns.
+
+Automated verification completed on 2026-08-29. Type checking, 44 tests across
+13 files, and the Vite production build pass. Application tests cover switching
+between Users and Active issues without retaining stale schemas, hiding the
+internal user ID, dynamic result updates, custom cells, integer values, density,
+accessibility, and stable row IDs. Responsive containment is implemented in the
+shared CSS module; no browser automation was available for a separate visual
+desktop/mobile pass.

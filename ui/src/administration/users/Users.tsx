@@ -1,5 +1,6 @@
-import { createResource, For, Match, Switch } from "solid-js";
+import { createResource, Match, Switch } from "solid-js";
 
+import { DataTable } from "../../components/DataTable";
 import type { FetchService } from "../../services/fetch-service";
 import { loadUsers } from "./users-api";
 import styles from "./Users.module.css";
@@ -18,25 +19,17 @@ export function Users(props: { fetchService: FetchService }) {
         <p class={styles.loading}>Loading users...</p>
       </Match>
       <Match when={users()}>
-        {(records) => (
-          <table class={styles.table}>
-            <thead>
-              <tr>
-                <th>Username</th>
-                <th>Name</th>
-              </tr>
-            </thead>
-            <tbody>
-              <For each={records()}>
-                {(user) => (
-                  <tr>
-                    <td>{user.username}</td>
-                    <td>{user.name}</td>
-                  </tr>
-                )}
-              </For>
-            </tbody>
-          </table>
+        {(result) => (
+          <DataTable
+            ariaLabel="Users"
+            result={result()}
+            columns={[
+              { column: result().requireColumn("username"), header: "Username" },
+              { column: result().requireColumn("name"), header: "Name" },
+            ]}
+            rowKey={result().requireColumn("username")}
+            density="compact"
+          />
         )}
       </Match>
     </Switch>

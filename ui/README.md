@@ -14,12 +14,19 @@ duplication, deletion with undo, and keyboard navigation. View URLs use the
 `#/views/<id>` hash format.
 
 Workspace definitions are currently stored in browser `localStorage`. The
-included reset command restores the example ticket workspace. Ticket records
-are loaded from the backend's `POST /api/query` action and validated
-before they are converted from columnar data. All backend HTTP communication
-runs through the injectable `FetchService`; domain clients retain responsibility
-for validating their response shapes. Permissions, sharing, and
-workspace synchronization are intentionally not yet implemented.
+included reset command restores the example ticket workspace. Records are
+loaded from the backend's `POST /api/query` action into a shared, validated,
+columnar query-result model. Response-local branded row and column indexes
+provide direct value access without converting flexible results into fixed
+domain objects. Persisted configurations continue to use attribute names and
+resolve them to column handles once per response.
+
+Tabular views use TanStack Table as a headless row and cell model over these
+query results. Joi retains native table markup and its own styling. Sorting,
+pagination, column resizing, selection, and virtualization are intentionally
+deferred until their interaction requirements are clear. All backend HTTP
+communication runs through the injectable `FetchService`. Permissions,
+sharing, and workspace synchronization are not yet implemented.
 
 UI capabilities can be added through the typed plugin registry during startup.
 Plugin modules use the `*.plugin.ts` or `*.plugin.tsx` suffix and default-export

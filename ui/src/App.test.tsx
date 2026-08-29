@@ -11,30 +11,56 @@ beforeEach(() => {
   window.location.hash = "";
   vi.stubGlobal(
     "fetch",
-    vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        number_of_hits: 3,
-        result_columns: [
-          {
-            attribute: "id",
-            values: {
-              type: "string",
-              values: ["0o5Fs0EELR0fUjHjbCnEtdUwQe3", "0o5Fs0EELR0fUjHjbCnEtdUwQe4", "0o5Fs0EELR0fUjHjbCnEtdUwQe5"],
-            },
-          },
-          { attribute: "key", values: { type: "string", values: ["TEST-1", "TEST-2", "TEST-3"] } },
-          {
-            attribute: "title",
-            values: { type: "string", values: ["Fix navigation bug", "Add issue filters", "Review table schema"] },
-          },
-          {
-            attribute: "description",
-            values: { type: "string", values: ["Selection is lost", "Filter by status", "Check columns"] },
-          },
-          { attribute: "status", values: { type: "string", values: ["open", "in-progress", "closed"] } },
-        ],
-      }),
+    vi.fn().mockImplementation(async (_input, init) => {
+      const request = JSON.parse(String(init?.body));
+      return {
+        ok: true,
+        json: async () =>
+          request.table_name === "users"
+            ? {
+                number_of_hits: 2,
+                result_columns: [
+                  { attribute: "id", values: { type: "string", values: ["user-1", "user-2"] } },
+                  {
+                    attribute: "username",
+                    values: { type: "string", values: ["jane.developer", "joe.tester"] },
+                  },
+                  { attribute: "name", values: { type: "string", values: ["Jane Developer", "Joe Tester"] } },
+                ],
+              }
+            : {
+                number_of_hits: 3,
+                result_columns: [
+                  {
+                    attribute: "id",
+                    values: {
+                      type: "string",
+                      values: [
+                        "0o5Fs0EELR0fUjHjbCnEtdUwQe3",
+                        "0o5Fs0EELR0fUjHjbCnEtdUwQe4",
+                        "0o5Fs0EELR0fUjHjbCnEtdUwQe5",
+                      ],
+                    },
+                  },
+                  { attribute: "key", values: { type: "string", values: ["TEST-1", "TEST-2", "TEST-3"] } },
+                  {
+                    attribute: "title",
+                    values: {
+                      type: "string",
+                      values: ["Fix navigation bug", "Add issue filters", "Review table schema"],
+                    },
+                  },
+                  {
+                    attribute: "description",
+                    values: { type: "string", values: ["Selection is lost", "Filter by status", "Check columns"] },
+                  },
+                  {
+                    attribute: "status",
+                    values: { type: "string", values: ["open", "in-progress", "closed"] },
+                  },
+                ],
+              },
+      };
     }),
   );
 });
@@ -69,10 +95,15 @@ describe("workspace app", () => {
     expect(window.location.hash).toBe("#/administration/users");
     expect(screen.getByRole("heading", { name: "Users" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Active issues" }).parentElement?.className).not.toMatch(/selected/);
+    expect(await screen.findByRole("columnheader", { name: "Username" })).toBeTruthy();
+    expect(screen.getByText("Jane Developer")).toBeTruthy();
+    expect(screen.queryByRole("columnheader", { name: "ID" })).toBeNull();
 
     await userEvent.click(screen.getByRole("button", { name: "Active issues" }));
     expect(window.location.hash).toBe("#/views/view-active");
     expect(screen.getByRole("heading", { name: "Active issues" })).toBeTruthy();
+    expect(await screen.findByRole("columnheader", { name: "Issue" })).toBeTruthy();
+    expect(screen.queryByRole("columnheader", { name: "Username" })).toBeNull();
 
     window.location.hash = "/administration/users";
     window.dispatchEvent(new HashChangeEvent("hashchange"));
