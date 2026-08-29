@@ -14,7 +14,8 @@ interface TicketQueryResponse {
   result_columns: TicketQueryColumn[];
 }
 
-const requestedAttributes: TicketField[] = ["id", "key", "title", "description", "status"];
+const requestedAttributes = ["*"] as const;
+const ticketAttributes: TicketField[] = ["id", "key", "title", "description", "status"];
 const ticketStatuses = new Set<TicketStatus>(["open", "in-progress", "closed"]);
 
 export async function loadTickets(service: FetchService = fetchService): Promise<Ticket[]> {
@@ -30,7 +31,7 @@ export async function loadTickets(service: FetchService = fetchService): Promise
   const columns = new Map(payload.result_columns.map((column) => [column.attribute, column.values.values]));
   const rowCount = Math.min(
     payload.number_of_hits,
-    ...requestedAttributes.map((attribute) => columns.get(attribute)?.length ?? 0),
+    ...ticketAttributes.map((attribute) => columns.get(attribute)?.length ?? 0),
   );
 
   return Array.from({ length: rowCount }, (_, index) => {
@@ -62,6 +63,6 @@ function isTicketQueryResponse(value: unknown): value is TicketQueryResponse {
         Array.isArray(column.values.values) &&
         column.values.values.every((item) => typeof item === "string"),
     ) &&
-    requestedAttributes.every((attribute) => response.result_columns!.some((column) => column.attribute === attribute))
+    ticketAttributes.every((attribute) => response.result_columns!.some((column) => column.attribute === attribute))
   );
 }

@@ -27,7 +27,7 @@ describe("loadUsers", () => {
         table_name: "users",
         criterion: "match_any",
         max_results: 100,
-        attributes: ["username", "name"],
+        attributes: ["*"],
       }),
     });
   });

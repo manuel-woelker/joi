@@ -33,7 +33,7 @@ describe("loadTickets", () => {
       table_name: "tickets",
       criterion: "match_any",
       max_results: 100,
-      attributes: ["id", "key", "title", "description", "status"],
+      attributes: ["*"],
     });
   });
 

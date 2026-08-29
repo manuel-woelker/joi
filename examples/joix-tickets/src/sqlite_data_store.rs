@@ -62,11 +62,20 @@ impl DataStore for SqliteDataStore {
         let number_of_hits = usize::try_from(number_of_hits)
             .map_err(|_| joi_error::joi_error!("SQLite returned a negative row count"))?;
 
-        if query.attributes.is_empty() {
+        let schema = table_schema(&self.connection, &query.table_name.0)?;
+        let attributes = if query.attributes.len() == 1 && query.attributes[0].0 == "*" {
+            schema
+                .iter()
+                .map(|column| column.description.name.clone())
+                .collect()
+        } else {
+            query.attributes
+        };
+
+        if attributes.is_empty() {
             return Ok(DataStoreQueryResult {
                 number_of_hits,
-                result_columns: query
-                    .attributes
+                result_columns: attributes
                     .into_iter()
                     .map(|attribute| AttributeColumn {
                         attribute,
@@ -76,9 +85,8 @@ impl DataStore for SqliteDataStore {
             });
         }
 
-        let schema = table_schema(&self.connection, &query.table_name.0)?;
-        let mut result_columns = Vec::with_capacity(query.attributes.len());
-        for attribute in &query.attributes {
+        let mut result_columns = Vec::with_capacity(attributes.len());
+        for attribute in &attributes {
             let Some(data_type) = schema
                 .iter()
                 .find(|column| column.description.name.0 == attribute.0)
@@ -99,13 +107,12 @@ impl DataStore for SqliteDataStore {
             });
         }
 
-        let attributes = query
-            .attributes
+        let selected_attributes = attributes
             .iter()
             .map(|attribute| quote_identifier(&attribute.0))
             .collect::<Vec<_>>()
             .join(", ");
-        let select_sql = format!("SELECT {attributes} FROM {table} LIMIT ?1");
+        let select_sql = format!("SELECT {selected_attributes} FROM {table} LIMIT ?1");
         let limit = i64::try_from(query.max_results)
             .map_err(|_| joi_error::joi_error!("query result limit is too large"))?;
         let mut statement = self.connection.prepare(&select_sql).map_err(report)?;
@@ -402,6 +409,22 @@ mod tests {
             &result.result_columns[1].values,
             Values::Int(values) if values == &[2]
         ));
+
+        let all = store
+            .query(DataStoreQuery {
+                table_name: table("tickets"),
+                criterion: QueryCriterion::MatchAny,
+                max_results: 1,
+                attributes: vec![attribute("*")],
+            })
+            .unwrap();
+        assert_eq!(
+            all.result_columns
+                .iter()
+                .map(|column| column.attribute.0.as_str())
+                .collect::<Vec<_>>(),
+            ["id", "priority"]
+        );
     }
 
     #[test]

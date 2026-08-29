@@ -13,7 +13,8 @@ interface UserQueryResponse {
   }>;
 }
 
-const requestedAttributes = ["username", "name"] as const;
+const requestedAttributes = ["*"] as const;
+const userAttributes = ["username", "name"] as const;
 
 export async function loadUsers(service: FetchService = fetchService): Promise<User[]> {
   const payload = await service.post("/api/query", {
@@ -27,7 +28,7 @@ export async function loadUsers(service: FetchService = fetchService): Promise<U
   const columns = new Map(payload.result_columns.map((column) => [column.attribute, column.values.values]));
   const rowCount = Math.min(
     payload.number_of_hits,
-    ...requestedAttributes.map((attribute) => columns.get(attribute)!.length),
+    ...userAttributes.map((attribute) => columns.get(attribute)!.length),
   );
   return Array.from({ length: rowCount }, (_, index) => ({
     username: columns.get("username")![index],
@@ -49,6 +50,6 @@ function isUserQueryResponse(value: unknown): value is UserQueryResponse {
         Array.isArray(column.values.values) &&
         column.values.values.every((item) => typeof item === "string"),
     ) &&
-    requestedAttributes.every((attribute) => response.result_columns!.some((column) => column.attribute === attribute))
+    userAttributes.every((attribute) => response.result_columns!.some((column) => column.attribute === attribute))
   );
 }
