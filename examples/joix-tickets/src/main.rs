@@ -18,6 +18,7 @@ use crate::sqlite_data_store::SqliteDataStore;
 use crate::ticket_query_action::{QueryAction, SharedDataStore};
 use crate::tickets_module::{
     TicketTableDescriptionProvider, TicketTestDataProvider, TicketsModule,
+    UserTableDescriptionProvider, UserTestDataProvider,
 };
 
 const DATA_STORE_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/joix-tickets.sqlite3");
@@ -122,10 +123,20 @@ fn create_plugin_registry() -> JoiResult<PluginRegistry> {
             "Defines the tickets table",
             Box::new(TicketTableDescriptionProvider),
         )?;
+        context.register_extension::<dyn TableDescriptionProvider>(
+            "users-table",
+            "Defines the users table",
+            Box::new(UserTableDescriptionProvider),
+        )?;
         context.register_extension::<dyn TestDataProvider>(
             "ticket-test-data",
             "Adds representative tickets for development",
             Box::new(TicketTestDataProvider),
+        )?;
+        context.register_extension::<dyn TestDataProvider>(
+            "user-test-data",
+            "Adds representative users for development",
+            Box::new(UserTestDataProvider),
         )
     }))?;
     Ok(builder.build())
@@ -259,7 +270,7 @@ mod tests {
                         "name": "tickets",
                         "description": "Ticket management",
                         "extension_points": [],
-                        "extensions": ["tickets-table", "ticket-test-data"]
+                        "extensions": ["tickets-table", "users-table", "ticket-test-data", "user-test-data"]
                     }
                 ],
                 "extension_points": [
@@ -271,19 +282,21 @@ mod tests {
                     {
                         "id": "table-descriptions",
                         "description": "Defines data-store tables",
-                        "extensions": ["tickets-table"]
+                        "extensions": ["tickets-table", "users-table"]
                     },
                     {
                         "id": "test-data-providers",
                         "description": "Populates tables with development data",
-                        "extensions": ["ticket-test-data"]
+                        "extensions": ["ticket-test-data", "user-test-data"]
                     }
                 ],
                 "extensions": [
                     { "id": "package-info", "description": "Provides package name and version" },
                     { "id": "os-info", "description": "Provides operating-system information" },
                     { "id": "tickets-table", "description": "Defines the tickets table" },
-                    { "id": "ticket-test-data", "description": "Adds representative tickets for development" }
+                    { "id": "users-table", "description": "Defines the users table" },
+                    { "id": "ticket-test-data", "description": "Adds representative tickets for development" },
+                    { "id": "user-test-data", "description": "Adds representative users for development" }
                 ]
             })
         );
@@ -343,8 +356,14 @@ mod tests {
             .map(TableDescriptionProvider::table_description)
             .collect::<Vec<_>>();
 
-        assert_eq!(tables.len(), 1);
-        assert_eq!(tables[0].name.0, "tickets");
+        assert_eq!(tables.len(), 2);
+        assert_eq!(
+            tables
+                .iter()
+                .map(|table| table.name.0.as_str())
+                .collect::<Vec<_>>(),
+            ["tickets", "users"]
+        );
     }
 
     #[test]
