@@ -62,6 +62,18 @@ describe("workspace app", () => {
     expect(screen.getByText("Save as private copy")).toBeTruthy();
   });
 
+  it("navigates administration entries through the URL", async () => {
+    render(() => <App />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Users" }));
+    expect(window.location.hash).toBe("#/administration/users");
+    expect(screen.getByRole("heading", { name: "Users" })).toBeTruthy();
+
+    await userEvent.click(screen.getByRole("button", { name: "Active issues" }));
+    expect(window.location.hash).toBe("#/views/view-active");
+    expect(screen.getByRole("heading", { name: "Active issues" })).toBeTruthy();
+  });
+
   it("opens the Info debug contribution", async () => {
     vi.mocked(fetch).mockImplementation(
       async (input) =>

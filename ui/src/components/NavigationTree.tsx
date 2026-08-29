@@ -3,9 +3,11 @@ import { For, Show, createSignal } from "solid-js";
 import type { NavigationId } from "../workspace/model";
 import { useWorkspace } from "../workspace/controller";
 import { IconButton } from "./IconButton";
+import { Administration } from "../administration/Administration";
+import type { AdministrationContribution } from "../administration/contribution";
 import styles from "./NavigationTree.module.css";
 
-function TreeItem(props: { id: NavigationId; level: number }) {
+function TreeItem(props: { id: NavigationId; level: number; onViewSelect: () => void }) {
   const controller = useWorkspace();
   const item = () => controller.workspace.navigation[props.id];
   const [menuOpen, setMenuOpen] = createSignal(false);
@@ -28,7 +30,10 @@ function TreeItem(props: { id: NavigationId; level: number }) {
     if (folder() && event.key === "ArrowRight" && !expanded()) controller.toggleFolder(props.id);
     if (folder() && event.key === "ArrowLeft" && expanded()) controller.toggleFolder(props.id);
     const currentView = viewItem();
-    if (currentView && event.key === "Enter") controller.selectView(currentView.viewId);
+    if (currentView && event.key === "Enter") {
+      props.onViewSelect();
+      controller.selectView(currentView.viewId);
+    }
     const rows = [...document.querySelectorAll<HTMLButtonElement>(`.${styles.treeLabel}`)];
     const index = rows.indexOf(event.currentTarget as HTMLButtonElement);
     const target =
@@ -57,7 +62,11 @@ function TreeItem(props: { id: NavigationId; level: number }) {
           class={styles.treeLabel}
           onClick={() => {
             const current = viewItem();
-            folder() ? controller.toggleFolder(props.id) : current && controller.selectView(current.viewId);
+            if (folder()) controller.toggleFolder(props.id);
+            else if (current) {
+              props.onViewSelect();
+              controller.selectView(current.viewId);
+            }
           }}
           onKeyDown={onKeyDown}
         >
@@ -147,14 +156,21 @@ function TreeItem(props: { id: NavigationId; level: number }) {
       </div>
       <Show when={folder() && expanded()}>
         <ul role="group">
-          <For each={folder()?.children ?? []}>{(child) => <TreeItem id={child} level={props.level + 1} />}</For>
+          <For each={folder()?.children ?? []}>
+            {(child) => <TreeItem id={child} level={props.level + 1} onViewSelect={props.onViewSelect} />}
+          </For>
         </ul>
       </Show>
     </li>
   );
 }
 
-export function NavigationTree() {
+export function NavigationTree(props: {
+  registry: import("../plugins/registry").PluginRegistry;
+  selectedAdministrationId?: string;
+  onAdministrationSelect: (contribution: AdministrationContribution) => void;
+  onViewSelect: () => void;
+}) {
   const controller = useWorkspace();
   const startResize = (event: PointerEvent) => {
     const origin = event.clientX;
@@ -184,7 +200,13 @@ export function NavigationTree() {
           <h3 id="favorites-heading">Favorites</h3>
           <For each={controller.workspace.favorites}>
             {(id) => (
-              <button class={styles.favoriteLink} onClick={() => controller.selectView(id)}>
+              <button
+                class={styles.favoriteLink}
+                onClick={() => {
+                  props.onViewSelect();
+                  controller.selectView(id);
+                }}
+              >
                 <span aria-hidden="true">★</span>
                 {controller.workspace.views[id]?.name}
               </button>
@@ -193,8 +215,15 @@ export function NavigationTree() {
         </section>
       </Show>
       <ul class={styles.tree} role="tree" aria-label="Saved views">
-        <For each={controller.workspace.rootItems}>{(id) => <TreeItem id={id} level={0} />}</For>
+        <For each={controller.workspace.rootItems}>
+          {(id) => <TreeItem id={id} level={0} onViewSelect={props.onViewSelect} />}
+        </For>
       </ul>
+      <Administration
+        registry={props.registry}
+        selectedId={props.selectedAdministrationId}
+        onSelect={props.onAdministrationSelect}
+      />
       <button
         class={styles.sidebarResizer}
         aria-label="Resize navigation"
