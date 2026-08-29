@@ -2,12 +2,14 @@ import { Show } from "solid-js";
 
 import { IconButton } from "./components/IconButton";
 import { NavigationTree } from "./components/NavigationTree";
+import { SavedViewActions, SavedViewContent } from "./components/SavedViewContent";
 import { ViewContent } from "./components/ViewContent";
 import { ViewEditor } from "./components/ViewEditor";
 import { createApplicationPluginRegistry } from "./application-registry";
 import { administrationEntries } from "./administration/Administration";
 import type { PluginRegistry } from "./plugins/registry";
 import { StatusBar } from "./status-bar/StatusBar";
+import type { ApplicationView } from "./views/view";
 import { WorkspaceProvider, useWorkspace } from "./workspace/controller";
 import styles from "./App.module.css";
 
@@ -16,8 +18,22 @@ const applicationPluginRegistry = createApplicationPluginRegistry();
 function WorkspaceApp(props: { pluginRegistry: PluginRegistry }) {
   const controller = useWorkspace();
   const entries = administrationEntries(props.pluginRegistry);
-  const selectedAdministration = () =>
-    entries.find((entry) => entry.id === controller.navigation.selectedAdministrationId());
+  const selectedView = (): ApplicationView | undefined => {
+    const selection = controller.navigation.selection();
+    if (selection.type === "administration") {
+      return entries.find((entry) => entry.id === selection.id);
+    }
+
+    const view = controller.selectedView();
+    return view
+      ? {
+          ...view,
+          section: "Saved view",
+          content: SavedViewContent,
+          actions: SavedViewActions,
+        }
+      : undefined;
+  };
   return (
     <div class={styles.appShell} style={{ "--sidebar-width": `${controller.sidebarWidth()}px` }}>
       <header class={styles.topBar}>
@@ -32,7 +48,7 @@ function WorkspaceApp(props: { pluginRegistry: PluginRegistry }) {
             Joi
           </a>
           <span class={styles.topDivider} />
-          <span class={styles.currentView}>{controller.selectedView()?.name ?? "Workspace"}</span>
+          <span class={styles.currentView}>{selectedView()?.name ?? "Workspace"}</span>
         </div>
         <div class={styles.topActions}>
           <Show when={controller.announcement().includes("Undo")}>
@@ -52,7 +68,7 @@ function WorkspaceApp(props: { pluginRegistry: PluginRegistry }) {
       </Show>
       <div class={styles.workspaceLayout}>
         <NavigationTree registry={props.pluginRegistry} />
-        <ViewContent administration={selectedAdministration()} />
+        <ViewContent view={selectedView()} />
       </div>
       <StatusBar registry={props.pluginRegistry} />
       <ViewEditor />

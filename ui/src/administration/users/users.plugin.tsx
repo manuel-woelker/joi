@@ -15,6 +15,7 @@ export default plugin({
       value: {
         id: "users",
         name: "Users",
+        section: "Administration",
         content: () => <Users fetchService={context.services.fetchService} />,
       },
     });

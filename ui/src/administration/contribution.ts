@@ -1,12 +1,7 @@
-import type { Component } from "solid-js";
-
 import { extensionPoint } from "../plugins/registry";
+import type { ApplicationView } from "../views/view";
 
-export interface AdministrationContribution {
-  readonly id: string;
-  readonly name: string;
-  readonly content: Component;
-}
+export type AdministrationContribution = ApplicationView;
 
 export const administrationContributions = extensionPoint<AdministrationContribution>(
   "administration-contributions",
