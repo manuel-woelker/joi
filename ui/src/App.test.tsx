@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@solidjs/testing-library";
+import { cleanup, render, screen, waitFor } from "@solidjs/testing-library";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -68,10 +68,16 @@ describe("workspace app", () => {
     await userEvent.click(screen.getByRole("button", { name: "Users" }));
     expect(window.location.hash).toBe("#/administration/users");
     expect(screen.getByRole("heading", { name: "Users" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Active issues" }).parentElement?.className).not.toMatch(/selected/);
 
     await userEvent.click(screen.getByRole("button", { name: "Active issues" }));
     expect(window.location.hash).toBe("#/views/view-active");
     expect(screen.getByRole("heading", { name: "Active issues" })).toBeTruthy();
+
+    window.location.hash = "/administration/users";
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Users" })).toBeTruthy());
+    expect(screen.getByRole("button", { name: "Active issues" }).parentElement?.className).not.toMatch(/selected/);
   });
 
   it("opens the Info debug contribution", async () => {

@@ -7,7 +7,7 @@ import { Administration } from "../administration/Administration";
 import type { AdministrationContribution } from "../administration/contribution";
 import styles from "./NavigationTree.module.css";
 
-function TreeItem(props: { id: NavigationId; level: number; onViewSelect: () => void }) {
+function TreeItem(props: { id: NavigationId; level: number }) {
   const controller = useWorkspace();
   const item = () => controller.workspace.navigation[props.id];
   const [menuOpen, setMenuOpen] = createSignal(false);
@@ -31,7 +31,6 @@ function TreeItem(props: { id: NavigationId; level: number; onViewSelect: () => 
     if (folder() && event.key === "ArrowLeft" && expanded()) controller.toggleFolder(props.id);
     const currentView = viewItem();
     if (currentView && event.key === "Enter") {
-      props.onViewSelect();
       controller.selectView(currentView.viewId);
     }
     const rows = [...document.querySelectorAll<HTMLButtonElement>(`.${styles.treeLabel}`)];
@@ -55,7 +54,7 @@ function TreeItem(props: { id: NavigationId; level: number; onViewSelect: () => 
   return (
     <li role="treeitem" aria-expanded={folder() ? expanded() : undefined}>
       <div
-        class={`${styles.treeRow} ${view()?.id === controller.selectedViewId() ? styles.selected : ""}`}
+        class={`${styles.treeRow} ${view()?.id === controller.navigation.selectedViewId() ? styles.selected : ""}`}
         style={{ "padding-left": `${8 + props.level * 16}px` }}
       >
         <button
@@ -64,7 +63,6 @@ function TreeItem(props: { id: NavigationId; level: number; onViewSelect: () => 
             const current = viewItem();
             if (folder()) controller.toggleFolder(props.id);
             else if (current) {
-              props.onViewSelect();
               controller.selectView(current.viewId);
             }
           }}
@@ -156,21 +154,14 @@ function TreeItem(props: { id: NavigationId; level: number; onViewSelect: () => 
       </div>
       <Show when={folder() && expanded()}>
         <ul role="group">
-          <For each={folder()?.children ?? []}>
-            {(child) => <TreeItem id={child} level={props.level + 1} onViewSelect={props.onViewSelect} />}
-          </For>
+          <For each={folder()?.children ?? []}>{(child) => <TreeItem id={child} level={props.level + 1} />}</For>
         </ul>
       </Show>
     </li>
   );
 }
 
-export function NavigationTree(props: {
-  registry: import("../plugins/registry").PluginRegistry;
-  selectedAdministrationId?: string;
-  onAdministrationSelect: (contribution: AdministrationContribution) => void;
-  onViewSelect: () => void;
-}) {
+export function NavigationTree(props: { registry: import("../plugins/registry").PluginRegistry }) {
   const controller = useWorkspace();
   const startResize = (event: PointerEvent) => {
     const origin = event.clientX;
@@ -200,13 +191,7 @@ export function NavigationTree(props: {
           <h3 id="favorites-heading">Favorites</h3>
           <For each={controller.workspace.favorites}>
             {(id) => (
-              <button
-                class={styles.favoriteLink}
-                onClick={() => {
-                  props.onViewSelect();
-                  controller.selectView(id);
-                }}
-              >
+              <button class={styles.favoriteLink} onClick={() => controller.selectView(id)}>
                 <span aria-hidden="true">★</span>
                 {controller.workspace.views[id]?.name}
               </button>
@@ -215,14 +200,12 @@ export function NavigationTree(props: {
         </section>
       </Show>
       <ul class={styles.tree} role="tree" aria-label="Saved views">
-        <For each={controller.workspace.rootItems}>
-          {(id) => <TreeItem id={id} level={0} onViewSelect={props.onViewSelect} />}
-        </For>
+        <For each={controller.workspace.rootItems}>{(id) => <TreeItem id={id} level={0} />}</For>
       </ul>
       <Administration
         registry={props.registry}
-        selectedId={props.selectedAdministrationId}
-        onSelect={props.onAdministrationSelect}
+        selectedId={controller.navigation.selectedAdministrationId()}
+        onSelect={(contribution: AdministrationContribution) => controller.selectAdministration(contribution.id)}
       />
       <button
         class={styles.sidebarResizer}

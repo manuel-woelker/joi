@@ -1,4 +1,4 @@
-import { Show, createSignal, onCleanup } from "solid-js";
+import { Show } from "solid-js";
 
 import { IconButton } from "./components/IconButton";
 import { NavigationTree } from "./components/NavigationTree";
@@ -6,7 +6,6 @@ import { ViewContent } from "./components/ViewContent";
 import { ViewEditor } from "./components/ViewEditor";
 import { createApplicationPluginRegistry } from "./application-registry";
 import { administrationEntries } from "./administration/Administration";
-import type { AdministrationContribution } from "./administration/contribution";
 import type { PluginRegistry } from "./plugins/registry";
 import { StatusBar } from "./status-bar/StatusBar";
 import { WorkspaceProvider, useWorkspace } from "./workspace/controller";
@@ -17,22 +16,8 @@ const applicationPluginRegistry = createApplicationPluginRegistry();
 function WorkspaceApp(props: { pluginRegistry: PluginRegistry }) {
   const controller = useWorkspace();
   const entries = administrationEntries(props.pluginRegistry);
-  const administrationFromHash = () => {
-    const match = window.location.hash.match(/^#\/administration\/(.+)$/);
-    return entries.find((entry) => entry.id === match?.[1]);
-  };
-  const [selectedAdministration, setSelectedAdministration] = createSignal<AdministrationContribution | undefined>(
-    administrationFromHash(),
-  );
-  const selectAdministration = (contribution: AdministrationContribution) => {
-    setSelectedAdministration(contribution);
-    window.location.hash = `/administration/${contribution.id}`;
-    controller.setNavigationOpen(false);
-  };
-  const selectView = () => setSelectedAdministration(undefined);
-  const onHashChange = () => setSelectedAdministration(administrationFromHash());
-  window.addEventListener("hashchange", onHashChange);
-  onCleanup(() => window.removeEventListener("hashchange", onHashChange));
+  const selectedAdministration = () =>
+    entries.find((entry) => entry.id === controller.navigation.selectedAdministrationId());
   return (
     <div class={styles.appShell} style={{ "--sidebar-width": `${controller.sidebarWidth()}px` }}>
       <header class={styles.topBar}>
@@ -66,12 +51,7 @@ function WorkspaceApp(props: { pluginRegistry: PluginRegistry }) {
         />
       </Show>
       <div class={styles.workspaceLayout}>
-        <NavigationTree
-          registry={props.pluginRegistry}
-          selectedAdministrationId={selectedAdministration()?.id}
-          onAdministrationSelect={selectAdministration}
-          onViewSelect={selectView}
-        />
+        <NavigationTree registry={props.pluginRegistry} />
         <ViewContent administration={selectedAdministration()} />
       </div>
       <StatusBar registry={props.pluginRegistry} />

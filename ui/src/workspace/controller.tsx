@@ -1,6 +1,7 @@
-import { createContext, createMemo, createSignal, onCleanup, useContext, type ParentProps } from "solid-js";
+import { createContext, createMemo, createSignal, useContext, type ParentProps } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 
+import { createNavigationController, type NavigationController } from "../navigation/controller";
 import type { NavigationId, PresentationDefinition, QueryDefinition, ViewId, WorkspaceDocument } from "./model";
 import {
   addFolder,
@@ -17,7 +18,7 @@ import { LocalWorkspaceRepository, type WorkspaceRepository } from "./repository
 
 export interface WorkspaceController {
   workspace: WorkspaceDocument;
-  selectedViewId: () => ViewId | undefined;
+  navigation: NavigationController;
   selectedView: () => WorkspaceDocument["views"][string] | undefined;
   warning: () => string | undefined;
   announcement: () => string;
@@ -30,6 +31,7 @@ export interface WorkspaceController {
   setSidebarWidth(value: number): void;
   toggleFolder(id: NavigationId): void;
   selectView(id: ViewId): void;
+  selectAdministration(id: string): void;
   setEditorOpen(open: boolean): void;
   setNavigationOpen(open: boolean): void;
   toggleFavorite(id: ViewId): void;
@@ -53,12 +55,6 @@ export interface WorkspaceController {
 
 const WorkspaceContext = createContext<WorkspaceController>();
 
-function viewIdFromHash(workspace: WorkspaceDocument): ViewId | undefined {
-  const match = window.location.hash.match(/^#\/views\/(.+)$/);
-  if (match?.[1] && workspace.views[match[1]]) return match[1];
-  return workspace.favorites.find((id) => workspace.views[id]) ?? Object.keys(workspace.views)[0];
-}
-
 function loadExpandedFolders(): NavigationId[] {
   try {
     const value: unknown = JSON.parse(localStorage.getItem("joi.expanded-folders") ?? "[]");
@@ -72,7 +68,7 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
   const repository = props.repository ?? new LocalWorkspaceRepository();
   const loaded = repository.load();
   const [workspace, setWorkspace] = createStore(loaded.workspace);
-  const [selectedViewId, setSelectedViewId] = createSignal<ViewId | undefined>(viewIdFromHash(workspace));
+  const navigation = createNavigationController(workspace);
   const [warning, setWarning] = createSignal(loaded.warning);
   const [announcement, setAnnouncement] = createSignal("");
   const [editorOpen, setEditorOpen] = createSignal(false);
@@ -83,7 +79,7 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
   const [undoSnapshot, setUndoSnapshot] = createSignal<WorkspaceDocument>();
 
   const selectedView = createMemo(() => {
-    const id = selectedViewId();
+    const id = navigation.selectedViewId();
     return id ? workspace.views[id] : undefined;
   });
 
@@ -96,22 +92,20 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
 
   const selectView = (id: ViewId) => {
     if (!workspace.views[id]) return;
-    setSelectedViewId(id);
-    window.location.hash = `/views/${id}`;
+    navigation.selectView(id);
     setNavigationOpen(false);
     setSearch("");
   };
 
-  const onHashChange = () => {
-    const id = viewIdFromHash(workspace);
-    if (id) setSelectedViewId(id);
+  const selectAdministration = (id: string) => {
+    navigation.selectAdministration(id);
+    setNavigationOpen(false);
+    setSearch("");
   };
-  window.addEventListener("hashchange", onHashChange);
-  onCleanup(() => window.removeEventListener("hashchange", onHashChange));
 
   const controller: WorkspaceController = {
     workspace,
-    selectedViewId,
+    navigation,
     selectedView,
     warning,
     announcement,
@@ -134,6 +128,7 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
       localStorage.setItem("joi.expanded-folders", JSON.stringify(next));
     },
     selectView,
+    selectAdministration,
     setEditorOpen,
     setNavigationOpen,
     toggleFavorite(id) {
@@ -198,10 +193,9 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
       commit((draft) => {
         removedView = deleteNavigationItem(draft, id);
       });
-      if (removedView === selectedViewId()) {
+      if (removedView === navigation.selectedViewId()) {
         const next = Object.keys(workspace.views).find((viewId) => viewId !== removedView);
-        setSelectedViewId(next);
-        if (next) window.location.hash = `/views/${next}`;
+        if (next) selectView(next);
       }
       setAnnouncement("Item deleted. Undo is available.");
     },
@@ -222,7 +216,7 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
       setAnnouncement("Item moved.");
     },
     saveView(name, description, query, presentation, mode) {
-      const id = selectedViewId();
+      const id = navigation.selectedViewId();
       if (!id) return;
       commit((draft) => {
         draft.views[id].name = name;
@@ -236,8 +230,9 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
       const reset = repository.reset();
       setWorkspace(reconcile(reset));
       setWarning(undefined);
-      const id = viewIdFromHash(reset);
-      if (id) selectView(id);
+      const id = navigation.selectedViewId();
+      if (id && reset.views[id]) selectView(id);
+      else selectView(Object.keys(reset.views)[0]);
       setAnnouncement("Workspace reset.");
     },
   };
