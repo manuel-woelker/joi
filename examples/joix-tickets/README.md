@@ -94,8 +94,8 @@ returns a JSON `422` response. Successful responses are serialized as JSON.
 JSON `500 Internal Server Error` response whose `error` field contains the
 current error context.
 
-The executable currently registers `InfoCommand`, `PluginsCommand`, and
-`QueryCommand` and listens on `127.0.0.1:3000`. The info command's empty
+The executable currently registers `InfoCommand`, `PluginsCommand`,
+`QueryCommand`, and `MutateCommand` and listens on `127.0.0.1:3000`. The info command's empty
 request is represented by JSON `{}`:
 
 ```bash
@@ -222,6 +222,45 @@ Results remain columnar and preserve each column's data type:
   ]
 }
 ```
+
+The generic `mutate` command applies one or more insert or update steps in a
+single datastore transaction. Columns use the same tagged string and integer
+value representation as query results. Every column in an insert must have the
+same number of values. Update columns must contain one value per ID:
+
+```bash
+curl \
+  --request POST \
+  --header 'content-type: application/json' \
+  --data '{
+    "steps": [
+      {
+        "insert": {
+          "table_name": "users",
+          "columns": [
+            { "attribute": "id", "values": { "type": "string", "values": ["user-3"] } },
+            { "attribute": "username", "values": { "type": "string", "values": ["alex.builder"] } },
+            { "attribute": "name", "values": { "type": "string", "values": ["Alex Builder"] } }
+          ]
+        }
+      },
+      {
+        "update": {
+          "table_name": "users",
+          "ids": ["user-3"],
+          "columns": [
+            { "attribute": "name", "values": { "type": "string", "values": ["Alex Engineer"] } }
+          ]
+        }
+      }
+    ]
+  }' \
+  http://127.0.0.1:3000/api/mutate
+```
+
+Updates identify rows through the table's first, primary-key column. Primary
+keys are immutable, duplicate IDs and attributes are rejected, and a missing
+ID fails the complete mutation. A successful mutation returns `{}`.
 
 The `commands/list` command returns the names and descriptions of all registered
 commands in name order:

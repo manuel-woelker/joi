@@ -10,12 +10,13 @@ use serde_json::Value as JsonValue;
 
 use crate::command_registry::{CommandRegistry, CommandRegistryBuilder};
 use crate::command_service::CommandService;
-use crate::data_store::{DataStore, TableDescriptionProvider, TestDataProvider};
+use crate::data_mutation_command::MutateCommand;
+use crate::data_store::{DataStore, SharedDataStore, TableDescriptionProvider, TestDataProvider};
 use crate::info_command::{InfoCollector, InfoCommand, InfoProvider};
 use crate::module_registry::ModuleRegistry;
 use crate::plugins_command::PluginsCommand;
 use crate::sqlite_data_store::SqliteDataStore;
-use crate::ticket_query_command::{QueryCommand, SharedDataStore};
+use crate::ticket_query_command::QueryCommand;
 use crate::tickets_module::{
     TicketTableDescriptionProvider, TicketTestDataProvider, TicketsModule,
     UserTableDescriptionProvider, UserTestDataProvider,
@@ -26,6 +27,7 @@ const DATA_STORE_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/joix-tickets
 pub mod command;
 pub mod command_registry;
 pub mod command_service;
+pub mod data_mutation_command;
 pub mod data_store;
 pub mod info_command;
 pub mod module;
@@ -149,7 +151,8 @@ fn build_command_registry(
     let mut builder = CommandRegistryBuilder::new();
     builder.register(InfoCommand::new(plugin_registry.clone()))?;
     builder.register(PluginsCommand::new(plugin_registry))?;
-    builder.register(QueryCommand::new(data_store))?;
+    builder.register(QueryCommand::new(data_store.clone()))?;
+    builder.register(MutateCommand::new(data_store))?;
     Ok(builder.build())
 }
 
@@ -215,10 +218,10 @@ mod tests {
     use tower::ServiceExt;
 
     use crate::data_store::{
-        AttributeName, DataStore, DataStoreQuery, QueryCriterion, TableDescriptionProvider, Values,
+        AttributeName, DataStore, DataStoreQuery, QueryCriterion, SharedDataStore,
+        TableDescriptionProvider, Values,
     };
     use crate::sqlite_data_store::SqliteDataStore;
-    use crate::ticket_query_command::SharedDataStore;
 
     use super::{
         build_command_registry, create_plugin_registry, execute_cli_command, initialize_data_store,
@@ -325,6 +328,59 @@ mod tests {
         );
     }
 
+    #[test]
+    fn mutate_command_inserts_and_updates_columnar_data() {
+        let registry = test_command_registry();
+        let response = registry
+            .execute(
+                "mutate",
+                json!({
+                    "steps": [
+                        {
+                            "insert": {
+                                "table_name": "users",
+                                "columns": [
+                                    { "attribute": "id", "values": { "type": "string", "values": ["user-command-test"] } },
+                                    { "attribute": "username", "values": { "type": "string", "values": ["command.test"] } },
+                                    { "attribute": "name", "values": { "type": "string", "values": ["Command Test"] } }
+                                ]
+                            }
+                        },
+                        {
+                            "update": {
+                                "table_name": "users",
+                                "ids": ["user-command-test"],
+                                "columns": [
+                                    { "attribute": "name", "values": { "type": "string", "values": ["Updated Command Test"] } }
+                                ]
+                            }
+                        }
+                    ]
+                }),
+            )
+            .unwrap()
+            .unwrap();
+        assert_eq!(response, json!({}));
+
+        let users = registry
+            .execute(
+                "query",
+                json!({
+                    "table_name": "users",
+                    "criterion": { "equals": { "attribute": "id", "values": ["user-command-test"] } },
+                    "max_results": 1,
+                    "attributes": ["username", "name"]
+                }),
+            )
+            .unwrap()
+            .unwrap();
+        assert_eq!(users["number_of_hits"], 1);
+        assert_eq!(
+            users["result_columns"][1]["values"]["values"][0],
+            "Updated Command Test"
+        );
+    }
+
     #[tokio::test]
     async fn query_command_is_available_over_http() {
         let response = crate::command_service::CommandService::new(test_command_registry())
@@ -345,6 +401,30 @@ mod tests {
         let body: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(body["number_of_hits"], 3);
         assert_eq!(body["result_columns"][1]["attribute"], "title");
+    }
+
+    #[tokio::test]
+    async fn mutate_command_is_available_over_http() {
+        let service =
+            crate::command_service::CommandService::new(test_command_registry()).into_router();
+        let response = service
+            .oneshot(
+                Request::post("/api/mutate")
+                    .header(CONTENT_TYPE, "application/json")
+                    .body(Body::from(
+                        r#"{"steps":[{"insert":{"table_name":"users","columns":[{"attribute":"id","values":{"type":"string","values":["http-user"]}},{"attribute":"username","values":{"type":"string","values":["http.user"]}},{"attribute":"name","values":{"type":"string","values":["HTTP User"]}}]}}]}"#,
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        assert_eq!(
+            serde_json::from_slice::<serde_json::Value>(&body).unwrap(),
+            json!({})
+        );
     }
 
     #[test]

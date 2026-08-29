@@ -1,5 +1,10 @@
+use std::sync::{Arc, Mutex};
+
 use joi_base::JoiString;
 use joi_error::JoiResult;
+
+/// A data store shared by commands that query or mutate application data.
+pub type SharedDataStore = Arc<Mutex<Box<dyn DataStore>>>;
 
 /// Identifies a table within a data store.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -105,6 +110,8 @@ pub struct DataStoreMutation {
 pub enum DataStoreMutationStep {
     /// Inserts records into a table.
     Insert(DataStoreInsertMutation),
+    /// Updates records in a table by primary-key ID.
+    Update(DataStoreUpdateMutation),
 }
 
 /// Describes records to insert into one table in columnar form.
@@ -112,6 +119,16 @@ pub struct DataStoreInsertMutation {
     /// The table receiving the records.
     pub table_name: TableName,
     /// The attribute columns to insert.
+    pub columns: Vec<AttributeColumn>,
+}
+
+/// Describes records to update in one table in columnar form.
+pub struct DataStoreUpdateMutation {
+    /// The table containing the records.
+    pub table_name: TableName,
+    /// Primary-key IDs identifying records to update.
+    pub ids: Vec<JoiString>,
+    /// Attribute columns containing one new value per ID.
     pub columns: Vec<AttributeColumn>,
 }
 

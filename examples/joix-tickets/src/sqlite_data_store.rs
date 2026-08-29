@@ -10,7 +10,7 @@ use rusqlite::{Connection, Transaction, params, params_from_iter, types::Value};
 use crate::data_store::{
     AttributeColumn, ColumnDataType, ColumnDescription, DataStore, DataStoreInsertMutation,
     DataStoreMutation, DataStoreMutationResult, DataStoreMutationStep, DataStoreQuery,
-    DataStoreQueryResult, QueryCriterion, TableDescription, Values,
+    DataStoreQueryResult, DataStoreUpdateMutation, QueryCriterion, TableDescription, Values,
 };
 
 /// A SQLite-backed [`DataStore`].
@@ -147,6 +147,7 @@ impl DataStore for SqliteDataStore {
         for step in mutation.steps {
             match step {
                 DataStoreMutationStep::Insert(insert) => insert_rows(&transaction, insert)?,
+                DataStoreMutationStep::Update(update) => update_rows(&transaction, update)?,
             }
         }
         transaction.commit().map_err(report)?;
@@ -328,6 +329,109 @@ fn insert_rows(transaction: &Transaction<'_>, insert: DataStoreInsertMutation) -
     Ok(())
 }
 
+fn update_rows(transaction: &Transaction<'_>, update: DataStoreUpdateMutation) -> JoiResult<()> {
+    if update.columns.is_empty() {
+        joi_bail!(
+            "update of `{}` must include at least one column",
+            update.table_name.0
+        );
+    }
+    let schema = table_schema(transaction, &update.table_name.0)?;
+    let Some(primary_key) = schema.iter().find(|column| column.primary_key) else {
+        joi_bail!("table `{}` has no primary key", update.table_name.0);
+    };
+    if primary_key.description.data_type != ColumnDataType::String {
+        joi_bail!(
+            "table `{}` does not have a string primary key",
+            update.table_name.0
+        );
+    }
+    let schema_by_name = schema
+        .iter()
+        .map(|column| {
+            (
+                column.description.name.0.clone(),
+                column.description.data_type,
+            )
+        })
+        .collect::<HashMap<_, _>>();
+    let mut ids = HashSet::new();
+    for id in &update.ids {
+        if !ids.insert(id) {
+            joi_bail!("update contains duplicate ID `{id}`");
+        }
+    }
+    let mut names = HashSet::new();
+    for column in &update.columns {
+        if !names.insert(&column.attribute.0) {
+            joi_bail!(
+                "update contains duplicate attribute `{}`",
+                column.attribute.0
+            );
+        }
+        if column.attribute == primary_key.description.name {
+            joi_bail!(
+                "primary-key attribute `{}` is immutable",
+                column.attribute.0
+            );
+        }
+        if value_count(&column.values) != update.ids.len() {
+            joi_bail!("all updated columns must contain one value per ID");
+        }
+        let Some(data_type) = schema_by_name.get(&column.attribute.0) else {
+            joi_bail!(
+                "table `{}` has no attribute `{}`",
+                update.table_name.0,
+                column.attribute.0
+            );
+        };
+        if *data_type != value_data_type(&column.values) {
+            joi_bail!(
+                "values for attribute `{}` do not match its declared type",
+                column.attribute.0
+            );
+        }
+    }
+    if update.ids.is_empty() {
+        return Ok(());
+    }
+
+    let assignments = update
+        .columns
+        .iter()
+        .enumerate()
+        .map(|(index, column)| {
+            format!("{} = ?{}", quote_identifier(&column.attribute.0), index + 1)
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+    let primary_key_parameter = update.columns.len() + 1;
+    let sql = format!(
+        "UPDATE {} SET {assignments} WHERE {} = ?{primary_key_parameter}",
+        quote_identifier(&update.table_name.0),
+        quote_identifier(&primary_key.description.name.0),
+    );
+    let mut statement = transaction.prepare(&sql).map_err(report)?;
+    for (row_index, id) in update.ids.iter().enumerate() {
+        let mut values = update
+            .columns
+            .iter()
+            .map(|column| value_at(&column.values, row_index))
+            .collect::<Vec<_>>();
+        values.push(Value::Text(id.to_string()));
+        let updated = statement
+            .execute(params_from_iter(values.iter()))
+            .map_err(report)?;
+        if updated != 1 {
+            joi_bail!(
+                "table `{}` has no record with ID `{id}`",
+                update.table_name.0
+            );
+        }
+    }
+    Ok(())
+}
+
 struct SqliteColumn {
     description: ColumnDescription,
     primary_key: bool,
@@ -409,7 +513,7 @@ mod tests {
     use crate::data_store::{
         AttributeColumn, AttributeName, ColumnDataType, ColumnDescription, DataStore,
         DataStoreInsertMutation, DataStoreMutation, DataStoreMutationStep, DataStoreQuery,
-        QueryCriterion, TableDescription, TableName, Values,
+        DataStoreUpdateMutation, QueryCriterion, TableDescription, TableName, Values,
     };
 
     use super::SqliteDataStore;
@@ -509,6 +613,42 @@ mod tests {
             .unwrap();
         assert!(
             matches!(&result.result_columns[0].values, Values::Int(values) if values.is_empty())
+        );
+    }
+
+    #[test]
+    fn updates_rows_by_primary_key() {
+        let mut store = SqliteDataStore::in_memory().unwrap();
+        store.ensure_tables(vec![ticket_table()]).unwrap();
+        store
+            .mutate(DataStoreMutation {
+                steps: vec![insert_tickets(&[("T-1", 2), ("T-2", 5)])],
+            })
+            .unwrap();
+
+        store
+            .mutate(DataStoreMutation {
+                steps: vec![DataStoreMutationStep::Update(DataStoreUpdateMutation {
+                    table_name: table("tickets"),
+                    ids: vec!["T-1".into(), "T-2".into()],
+                    columns: vec![AttributeColumn {
+                        attribute: attribute("priority"),
+                        values: Values::Int(vec![8, 13]),
+                    }],
+                })],
+            })
+            .unwrap();
+
+        let result = store
+            .query(DataStoreQuery {
+                table_name: table("tickets"),
+                criterion: QueryCriterion::MatchAny,
+                max_results: 10,
+                attributes: vec![attribute("priority")],
+            })
+            .unwrap();
+        assert!(
+            matches!(&result.result_columns[0].values, Values::Int(values) if values == &[8, 13])
         );
     }
 

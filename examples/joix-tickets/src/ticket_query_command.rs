@@ -1,15 +1,11 @@
-use std::sync::{Arc, Mutex};
-
 use joi_base::JoiString;
 use joi_error::{JoiResult, joi_error};
 use serde::{Deserialize, Serialize};
 
 use crate::command::{Command, CommandDescriptor, CommandRequest};
 use crate::data_store::{
-    AttributeName, DataStore, DataStoreQuery, QueryCriterion, TableName, Values,
+    AttributeName, DataStoreQuery, QueryCriterion, SharedDataStore, TableName, Values,
 };
-
-pub type SharedDataStore = Arc<Mutex<Box<dyn DataStore>>>;
 
 pub struct QueryCommand {
     data_store: SharedDataStore,
@@ -93,7 +89,7 @@ impl Command for QueryCommand {
         let result = self
             .data_store
             .lock()
-            .map_err(|_| joi_error!("ticket data store lock is poisoned"))?
+            .map_err(|_| joi_error!("data store lock is poisoned"))?
             .query(query)?;
 
         Ok(QueryResponse {
