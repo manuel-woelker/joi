@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { loadTickets } from "./ticket-api";
 import { FetchService } from "../services/fetch-service";
+import type { QueryDefinition } from "./model";
 
 describe("loadTickets", () => {
   it("queries and converts columnar ticket data", async () => {
@@ -19,7 +20,14 @@ describe("loadTickets", () => {
       }),
     });
 
-    await expect(loadTickets(new FetchService(fetcher))).resolves.toEqual([
+    const query: QueryDefinition = {
+      id: "query-open",
+      name: "Open tickets",
+      source: "tickets",
+      filters: [{ field: "status", operator: "in", value: ["open", "in-progress"] }],
+      sorting: [],
+    };
+    await expect(loadTickets(new FetchService(fetcher), query)).resolves.toEqual([
       {
         id: "0o5Fs0EELR0fUjHjbCnEtdUwQe3",
         key: "TEST-1",
@@ -31,7 +39,7 @@ describe("loadTickets", () => {
     expect(fetcher).toHaveBeenCalledWith("/api/query", expect.objectContaining({ method: "POST" }));
     expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({
       table_name: "tickets",
-      criterion: "match_any",
+      criterion: { equals: { attribute: "status", values: ["open", "in-progress"] } },
       max_results: 100,
       attributes: ["*"],
     });

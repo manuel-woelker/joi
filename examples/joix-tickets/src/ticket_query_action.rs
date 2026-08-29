@@ -34,6 +34,11 @@ pub struct QueryRequest {
 #[serde(rename_all = "snake_case")]
 enum QueryRequestCriterion {
     MatchAny,
+    Not(Box<QueryRequestCriterion>),
+    Equals {
+        attribute: JoiString,
+        values: Vec<JoiString>,
+    },
 }
 
 impl ActionRequest for QueryRequest {
@@ -74,6 +79,13 @@ impl Action for QueryAction {
             table_name: TableName(request.table_name),
             criterion: match request.criterion {
                 QueryRequestCriterion::MatchAny => QueryCriterion::MatchAny,
+                QueryRequestCriterion::Not(criterion) => {
+                    QueryCriterion::Not(Box::new(query_criterion(*criterion)))
+                }
+                QueryRequestCriterion::Equals { attribute, values } => QueryCriterion::Equals {
+                    attribute: AttributeName(attribute),
+                    values,
+                },
             },
             max_results: request.max_results,
             attributes: request.attributes.into_iter().map(AttributeName).collect(),
@@ -98,6 +110,19 @@ impl Action for QueryAction {
                 })
                 .collect(),
         })
+    }
+}
+
+fn query_criterion(criterion: QueryRequestCriterion) -> QueryCriterion {
+    match criterion {
+        QueryRequestCriterion::MatchAny => QueryCriterion::MatchAny,
+        QueryRequestCriterion::Not(criterion) => {
+            QueryCriterion::Not(Box::new(query_criterion(*criterion)))
+        }
+        QueryRequestCriterion::Equals { attribute, values } => QueryCriterion::Equals {
+            attribute: AttributeName(attribute),
+            values,
+        },
     }
 }
 

@@ -5,6 +5,7 @@ import type { AdministrationContribution } from "../administration/contribution"
 import { useWorkspace } from "../workspace/controller";
 import { executeQuery, validatePresentation } from "../workspace/query";
 import type { Ticket } from "../workspace/model";
+import { fetchService } from "../services/fetch-service";
 import { loadTickets } from "../workspace/ticket-api";
 import { IconButton } from "./IconButton";
 import styles from "./ViewContent.module.css";
@@ -13,11 +14,11 @@ const displayValue = (ticket: Ticket, field: keyof Ticket) => ticket[field];
 
 export function ViewContent(props: { administration?: AdministrationContribution }) {
   const controller = useWorkspace();
-  const [ticketRecords, { refetch }] = createResource(() => loadTickets());
   const query = () => {
     const view = controller.selectedView();
     return view ? controller.workspace.queries[view.queryId] : undefined;
   };
+  const [ticketRecords, { refetch }] = createResource(query, (currentQuery) => loadTickets(fetchService, currentQuery));
   const presentation = () => {
     const view = controller.selectedView();
     return view ? controller.workspace.presentations[view.presentationId] : undefined;

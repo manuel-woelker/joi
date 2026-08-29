@@ -13,6 +13,15 @@ pub struct AttributeName(pub JoiString);
 pub enum QueryCriterion {
     /// Selects every available record.
     MatchAny,
+    /// Inverts another criterion.
+    Not(Box<QueryCriterion>),
+    /// Selects records whose attribute equals at least one supplied value.
+    Equals {
+        /// The attribute to compare.
+        attribute: AttributeName,
+        /// Values accepted by the comparison.
+        values: Vec<JoiString>,
+    },
 }
 
 /// Describes a query against one table.

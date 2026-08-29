@@ -49,15 +49,21 @@ impl DataStore for SqliteDataStore {
     }
 
     fn query(&self, query: DataStoreQuery) -> JoiResult<DataStoreQueryResult> {
-        match query.criterion {
-            QueryCriterion::MatchAny => {}
-        }
-
         let table = quote_identifier(&query.table_name.0);
-        let count_sql = format!("SELECT COUNT(*) FROM {table}");
+        let (where_clause, criterion_values) = criterion_sql(&query.criterion);
+        let where_sql = if where_clause.is_empty() {
+            String::new()
+        } else {
+            format!(" WHERE {where_clause}")
+        };
+        let count_sql = format!("SELECT COUNT(*) FROM {table}{where_sql}");
         let number_of_hits = self
             .connection
-            .query_row(&count_sql, [], |row| row.get::<_, i64>(0))
+            .query_row(
+                &count_sql,
+                params_from_iter(criterion_values.iter()),
+                |row| row.get::<_, i64>(0),
+            )
             .map_err(report)?;
         let number_of_hits = usize::try_from(number_of_hits)
             .map_err(|_| joi_error::joi_error!("SQLite returned a negative row count"))?;
@@ -112,11 +118,13 @@ impl DataStore for SqliteDataStore {
             .map(|attribute| quote_identifier(&attribute.0))
             .collect::<Vec<_>>()
             .join(", ");
-        let select_sql = format!("SELECT {selected_attributes} FROM {table} LIMIT ?1");
+        let select_sql = format!("SELECT {selected_attributes} FROM {table}{where_sql} LIMIT ?");
         let limit = i64::try_from(query.max_results)
             .map_err(|_| joi_error::joi_error!("query result limit is too large"))?;
         let mut statement = self.connection.prepare(&select_sql).map_err(report)?;
-        let mut rows = statement.query(params![limit]).map_err(report)?;
+        let mut values = criterion_values;
+        values.push(Value::Integer(limit));
+        let mut rows = statement.query(params_from_iter(values)).map_err(report)?;
         while let Some(row) = rows.next().map_err(report)? {
             for (index, column) in result_columns.iter_mut().enumerate() {
                 match &mut column.values {
@@ -143,6 +151,32 @@ impl DataStore for SqliteDataStore {
         }
         transaction.commit().map_err(report)?;
         Ok(DataStoreMutationResult {})
+    }
+}
+
+fn criterion_sql(criterion: &QueryCriterion) -> (String, Vec<Value>) {
+    match criterion {
+        QueryCriterion::MatchAny => ("1 = 1".into(), Vec::new()),
+        QueryCriterion::Not(criterion) => {
+            let (sql, values) = criterion_sql(criterion);
+            (format!("NOT ({sql})"), values)
+        }
+        QueryCriterion::Equals { attribute, values } => {
+            if values.is_empty() {
+                return ("1 = 0".into(), Vec::new());
+            }
+            let placeholders = std::iter::repeat_n("?", values.len())
+                .collect::<Vec<_>>()
+                .join(", ");
+            (
+                format!("{} IN ({placeholders})", quote_identifier(&attribute.0)),
+                values
+                    .iter()
+                    .cloned()
+                    .map(|value| Value::Text(value.into()))
+                    .collect(),
+            )
+        }
     }
 }
 
@@ -425,6 +459,32 @@ mod tests {
                 .collect::<Vec<_>>(),
             ["id", "priority"]
         );
+
+        let matching = store
+            .query(DataStoreQuery {
+                table_name: table("tickets"),
+                criterion: QueryCriterion::Equals {
+                    attribute: attribute("priority"),
+                    values: vec!["2".into(), "5".into()],
+                },
+                max_results: 10,
+                attributes: vec![attribute("id")],
+            })
+            .unwrap();
+        assert_eq!(matching.number_of_hits, 2);
+
+        let excluded = store
+            .query(DataStoreQuery {
+                table_name: table("tickets"),
+                criterion: QueryCriterion::Not(Box::new(QueryCriterion::Equals {
+                    attribute: attribute("priority"),
+                    values: vec!["2".into()],
+                })),
+                max_results: 10,
+                attributes: vec![attribute("id")],
+            })
+            .unwrap();
+        assert_eq!(excluded.number_of_hits, 1);
     }
 
     #[test]

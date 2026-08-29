@@ -1,5 +1,5 @@
 import { fetchService, type FetchService } from "../services/fetch-service";
-import type { Ticket, TicketField, TicketStatus } from "./model";
+import type { QueryDefinition, Ticket, TicketField, TicketStatus } from "./model";
 
 interface TicketQueryColumn {
   attribute: string;
@@ -18,10 +18,10 @@ const requestedAttributes = ["*"] as const;
 const ticketAttributes: TicketField[] = ["id", "key", "title", "description", "status"];
 const ticketStatuses = new Set<TicketStatus>(["open", "in-progress", "closed"]);
 
-export async function loadTickets(service: FetchService = fetchService): Promise<Ticket[]> {
+export async function loadTickets(service: FetchService = fetchService, query?: QueryDefinition): Promise<Ticket[]> {
   const payload = await service.post("/api/query", {
     table_name: "tickets",
-    criterion: "match_any",
+    criterion: queryCriterion(query),
     max_results: 100,
     attributes: requestedAttributes,
   });
@@ -47,6 +47,19 @@ export async function loadTickets(service: FetchService = fetchService): Promise
       status: status as TicketStatus,
     };
   });
+}
+
+type QueryCriterionRequest =
+  | "match_any"
+  | { not: { equals: { attribute: TicketField; values: string[] } } }
+  | { equals: { attribute: TicketField; values: string[] } };
+
+function queryCriterion(query: QueryDefinition | undefined): QueryCriterionRequest {
+  const filter = query?.filters.length === 1 ? query.filters[0] : undefined;
+  if (!filter || filter.operator === "contains") return "match_any";
+  const values = Array.isArray(filter.value) ? filter.value : [filter.value];
+  const equals = { equals: { attribute: filter.field, values } } as const;
+  return filter.operator === "not-equals" ? { not: equals } : equals;
 }
 
 function isTicketQueryResponse(value: unknown): value is TicketQueryResponse {
