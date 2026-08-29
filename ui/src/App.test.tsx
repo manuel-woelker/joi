@@ -81,6 +81,50 @@ describe("workspace app", () => {
     expect(screen.queryByText("Fix navigation bug")).toBeNull();
   });
 
+  it("opens and edits a ticket", async () => {
+    render(() => <App />);
+    await userEvent.click(await screen.findByText("Fix navigation bug"));
+
+    expect(window.location.hash).toBe("#/tickets/0o5Fs0EELR0fUjHjbCnEtdUwQe3");
+    expect(screen.getByRole("heading", { name: "Ticket" })).toBeTruthy();
+    const title = await screen.findByRole("textbox", { name: "Title" });
+    const description = screen.getByRole("textbox", { name: "Description" });
+    await userEvent.clear(title);
+    await userEvent.type(title, "Fix persistent navigation bug");
+    await userEvent.clear(description);
+    await userEvent.type(description, "Keep the selected view after navigation.");
+    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() =>
+      expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+        "/api/mutate",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            steps: [
+              {
+                update: {
+                  table_name: "tickets",
+                  ids: ["0o5Fs0EELR0fUjHjbCnEtdUwQe3"],
+                  columns: [
+                    {
+                      attribute: "title",
+                      values: { type: "string", values: ["Fix persistent navigation bug"] },
+                    },
+                    {
+                      attribute: "description",
+                      values: { type: "string", values: ["Keep the selected view after navigation."] },
+                    },
+                  ],
+                },
+              },
+            ],
+          }),
+        }),
+      ),
+    );
+  });
+
   it("opens the reusable view editor", async () => {
     render(() => <App />);
     await userEvent.click(screen.getByRole("button", { name: "Configure view" }));

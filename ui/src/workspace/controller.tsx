@@ -32,6 +32,7 @@ export interface WorkspaceController {
   toggleFolder(id: NavigationId): void;
   selectView(id: ViewId): void;
   selectAdministration(id: string): void;
+  selectTicket(id: string): void;
   setEditorOpen(open: boolean): void;
   setNavigationOpen(open: boolean): void;
   toggleFavorite(id: ViewId): void;
@@ -129,6 +130,11 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
     },
     selectView,
     selectAdministration,
+    selectTicket(id) {
+      navigation.selectTicket(id);
+      setNavigationOpen(false);
+      setSearch("");
+    },
     setEditorOpen,
     setNavigationOpen,
     toggleFavorite(id) {

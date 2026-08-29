@@ -111,7 +111,17 @@ export function SavedViewContent() {
                   <div class={styles.issueList}>
                     <For each={records()}>
                       {(row) => (
-                        <article>
+                        <article
+                          tabIndex={0}
+                          role="link"
+                          onClick={() => openTicket(controller, row, ticketRecords()?.column("id"))}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              openTicket(controller, row, ticketRecords()?.column("id"));
+                            }
+                          }}
+                        >
                           <div>
                             <strong>{rowValue(row, listColumns()?.title)}</strong>
                             <span>{rowValue(row, listColumns()?.description)}</span>
@@ -135,6 +145,7 @@ export function SavedViewContent() {
                   columns={tableColumns()}
                   rowKey={ticketRecords()?.column("id")}
                   density={presentation()?.density}
+                  onRowClick={(row) => openTicket(controller, row, ticketRecords()?.column("id"))}
                 />
               </Show>
             </Show>
@@ -143,6 +154,15 @@ export function SavedViewContent() {
       </Show>
     </>
   );
+}
+
+function openTicket(
+  controller: ReturnType<typeof useWorkspace>,
+  row: QueryResult["rows"][number],
+  idColumn: QueryColumnHandle | undefined,
+) {
+  const id = idColumn ? row.value(idColumn) : undefined;
+  if (typeof id === "string") controller.selectTicket(id);
 }
 
 function rowValue(row: QueryResult["rows"][number], column: QueryColumnHandle | undefined): string {

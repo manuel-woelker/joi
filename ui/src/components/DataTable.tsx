@@ -18,6 +18,7 @@ export interface DataTableProps {
   readonly columns: readonly DataTableColumn[];
   readonly density?: "compact" | "comfortable";
   readonly rowKey?: QueryColumnHandle;
+  readonly onRowClick?: (row: QueryResultRow) => void;
 }
 
 export function DataTable(props: DataTableProps) {
@@ -79,7 +80,18 @@ export function DataTable(props: DataTableProps) {
         <tbody>
           <For each={table.getRowModel().rows}>
             {(row) => (
-              <tr data-row-id={row.id}>
+              <tr
+                data-row-id={row.id}
+                class={props.onRowClick ? styles.clickableRow : undefined}
+                tabIndex={props.onRowClick ? 0 : undefined}
+                onClick={() => props.onRowClick?.(row.original)}
+                onKeyDown={(event) => {
+                  if (props.onRowClick && (event.key === "Enter" || event.key === " ")) {
+                    event.preventDefault();
+                    props.onRowClick(row.original);
+                  }
+                }}
+              >
                 <For each={row.getVisibleCells()}>
                   {(cell) => <td>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>}
                 </For>

@@ -15,7 +15,8 @@
 .status.in-progress { color: var(--color-primary-dark); background: var(--color-primary-soft); }
 .status.closed { color: var(--color-text-muted); background: var(--color-border-soft); }
 .issueList { display: grid; max-width: 900px; margin: auto; border-top: 1px solid var(--color-border); }
-.issueList article { display: flex; justify-content: space-between; gap: 20px; padding: 15px 4px; border-bottom: 1px solid var(--color-border); }
+.issueList article { display: flex; justify-content: space-between; gap: 20px; padding: 15px 4px; border-bottom: 1px solid var(--color-border); cursor: pointer; }
+.issueList article:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 .issueList article > div:first-child { display: grid; gap: 4px; }
 .issueList article span { color: var(--color-text-muted); font-size: 12px; }
 .issueMeta { display: flex; align-items: center; gap: 12px; }

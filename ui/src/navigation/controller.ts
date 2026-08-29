@@ -2,14 +2,19 @@ import { createMemo, createSignal, onCleanup } from "solid-js";
 
 import type { ViewId, WorkspaceDocument } from "../workspace/model";
 
-export type NavigationSelection = { type: "view"; id: ViewId } | { type: "administration"; id: string };
+export type NavigationSelection =
+  | { type: "view"; id: ViewId }
+  | { type: "administration"; id: string }
+  | { type: "ticket"; id: string };
 
 export interface NavigationController {
   selection: () => NavigationSelection;
   selectedViewId: () => ViewId | undefined;
   selectedAdministrationId: () => string | undefined;
+  selectedTicketId: () => string | undefined;
   selectView(id: ViewId): void;
   selectAdministration(id: string): void;
+  selectTicket(id: string): void;
 }
 
 function selectionFromHash(workspace: WorkspaceDocument): NavigationSelection {
@@ -18,6 +23,9 @@ function selectionFromHash(workspace: WorkspaceDocument): NavigationSelection {
 
   const administrationMatch = window.location.hash.match(/^#\/administration\/(.+)$/);
   if (administrationMatch?.[1]) return { type: "administration", id: administrationMatch[1] };
+
+  const ticketMatch = window.location.hash.match(/^#\/tickets\/(.+)$/);
+  if (ticketMatch?.[1]) return { type: "ticket", id: decodeURIComponent(ticketMatch[1]) };
 
   const id = workspace.favorites.find((candidate) => workspace.views[candidate]) ?? Object.keys(workspace.views)[0];
   return { type: "view", id };
@@ -33,6 +41,10 @@ export function createNavigationController(workspace: WorkspaceDocument): Naviga
     const current = selection();
     return current.type === "administration" ? current.id : undefined;
   });
+  const selectedTicketId = createMemo(() => {
+    const current = selection();
+    return current.type === "ticket" ? current.id : undefined;
+  });
   const onHashChange = () => setSelection(selectionFromHash(workspace));
 
   window.addEventListener("hashchange", onHashChange);
@@ -42,6 +54,7 @@ export function createNavigationController(workspace: WorkspaceDocument): Naviga
     selection,
     selectedViewId,
     selectedAdministrationId,
+    selectedTicketId,
     selectView(id) {
       setSelection({ type: "view", id });
       window.location.hash = `/views/${id}`;
@@ -49,6 +62,10 @@ export function createNavigationController(workspace: WorkspaceDocument): Naviga
     selectAdministration(id) {
       setSelection({ type: "administration", id });
       window.location.hash = `/administration/${id}`;
+    },
+    selectTicket(id) {
+      setSelection({ type: "ticket", id });
+      window.location.hash = `/tickets/${encodeURIComponent(id)}`;
     },
   };
 }
