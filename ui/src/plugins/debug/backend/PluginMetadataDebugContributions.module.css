@@ -1,0 +1,17 @@
+.debugError, .debugLoading { margin: 4px 0; color: var(--color-text-muted); font-size: 12px; }
+.debugError { color: var(--color-danger); }
+.debugMetadataList { margin: 0; padding: 0; list-style: none; }
+.debugMetadataList > li { padding: 10px 0; border-bottom: 1px solid var(--color-border-soft); }
+.debugMetadataList > li:first-child { padding-top: 0; }
+.debugMetadataList > li > div { display: grid; gap: 3px; }
+.debugMetadataList strong { color: var(--color-ink); font-size: 12px; }
+.debugMetadataList span { color: var(--color-text-muted); font-size: 12px; }
+.debugMetadataTitle { display: flex; min-width: 0; align-items: baseline; gap: 6px; }
+.debugMetadataTitle small { overflow: hidden; color: var(--color-text-muted); font-size: 10px; font-weight: 400; opacity: 0.78; text-overflow: ellipsis; white-space: nowrap; }
+.debugMetadataList dl { display: grid; margin: 8px 0 0; grid-template-columns: 90px minmax(0, 1fr); }
+.debugMetadataList dt, .debugMetadataList dd { margin: 0; padding: 3px 0; font-size: 11px; }
+.debugMetadataList dt { color: var(--color-text-muted); }
+.debugMetadataList dd { overflow-wrap: anywhere; color: var(--color-ink-soft); }
+.debugNestedExtensions { margin: 9px 0 0; padding: 0 0 0 10px; border-left: 2px solid var(--color-border); list-style: none; }
+.debugNestedExtensions li { display: grid; gap: 2px; padding: 5px 0; }
+.debugNestedExtensions strong, .debugNestedExtensions span { font-size: 11px; }

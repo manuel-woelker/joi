@@ -5,6 +5,7 @@ import { executeQuery, validatePresentation } from "../workspace/query";
 import type { Ticket } from "../workspace/model";
 import { loadTickets } from "../workspace/ticket-api";
 import { IconButton } from "./IconButton";
+import styles from "./ViewContent.module.css";
 
 const displayValue = (ticket: Ticket, field: keyof Ticket) => ticket[field];
 
@@ -24,11 +25,11 @@ export function ViewContent() {
     query() && presentation() ? validatePresentation(query()!, presentation()!) : "View configuration is incomplete.";
 
   return (
-    <main class="workspace-main">
+    <main class={styles.workspaceMain}>
       <Show
         when={controller.selectedView()}
         fallback={
-          <div class="empty-state">
+          <div class={styles.emptyState}>
             <h1>No view selected</h1>
             <p>Create or select a saved view from the navigation.</p>
           </div>
@@ -36,9 +37,9 @@ export function ViewContent() {
       >
         {(view) => (
           <>
-            <div class="view-heading">
+            <div class={styles.viewHeading}>
               <div>
-                <p class="eyebrow">Saved view</p>
+                <p class={styles.eyebrow}>Saved view</p>
                 <h1>{view().name}</h1>
                 <Show when={view().description}>
                   <p>{view().description}</p>
@@ -46,25 +47,25 @@ export function ViewContent() {
               </div>
               <IconButton label="Configure view" icon="⚙" onClick={() => controller.setEditorOpen(true)} />
             </div>
-            <div class="view-toolbar">
-              <label class="search-field">
-                <span class="icon-glyph" aria-hidden="true">
+            <div class={styles.viewToolbar}>
+              <label class={styles.searchField}>
+                <span class={styles.iconGlyph} aria-hidden="true">
                   ⌕
                 </span>
-                <span class="sr-only">Search issues</span>
+                <span class={styles.srOnly}>Search issues</span>
                 <input
                   value={controller.search()}
                   onInput={(event) => controller.setSearch(event.currentTarget.value)}
                   placeholder="Search this view"
                 />
               </label>
-              <span class="result-count">{ticketRecords.loading ? "Loading" : `${records().length} issues`}</span>
+              <span class={styles.resultCount}>{ticketRecords.loading ? "Loading" : `${records().length} issues`}</span>
             </div>
-            <Show when={!validation()} fallback={<div class="error-state">{validation()}</div>}>
+            <Show when={!validation()} fallback={<div class={styles.errorState}>{validation()}</div>}>
               <Show
                 when={!ticketRecords.loading}
                 fallback={
-                  <div class="empty-state compact">
+                  <div class={`${styles.emptyState} ${styles.compact}`}>
                     <h2>Loading issues</h2>
                   </div>
                 }
@@ -72,9 +73,9 @@ export function ViewContent() {
                 <Show
                   when={!ticketRecords.error}
                   fallback={
-                    <div class="error-state">
+                    <div class={styles.errorState}>
                       <p>Tickets could not be loaded.</p>
-                      <button class="secondary" onClick={() => refetch()}>
+                      <button class={styles.secondary} onClick={() => refetch()}>
                         Retry
                       </button>
                     </div>
@@ -83,7 +84,7 @@ export function ViewContent() {
                   <Show
                     when={records().length}
                     fallback={
-                      <div class="empty-state compact">
+                      <div class={`${styles.emptyState} ${styles.compact}`}>
                         <h2>No matching issues</h2>
                         <p>Adjust the search or view query.</p>
                       </div>
@@ -92,7 +93,7 @@ export function ViewContent() {
                     <Show
                       when={presentation()?.layout === "table"}
                       fallback={
-                        <div class="issue-list">
+                        <div class={styles.issueList}>
                           <For each={records()}>
                             {(ticket) => (
                               <article>
@@ -100,8 +101,8 @@ export function ViewContent() {
                                   <strong>{ticket.title}</strong>
                                   <span>{ticket.description}</span>
                                 </div>
-                                <div class="issue-meta">
-                                  <span class={`status ${ticket.status}`}>{ticket.status}</span>
+                                <div class={styles.issueMeta}>
+                                  <span class={`${styles.status} ${styles[ticket.status]}`}>{ticket.status}</span>
                                   <span>{ticket.key}</span>
                                 </div>
                               </article>
@@ -110,8 +111,8 @@ export function ViewContent() {
                         </div>
                       }
                     >
-                      <div class="table-scroll">
-                        <table class={presentation()?.density}>
+                      <div class={styles.tableScroll}>
+                        <table class={`${styles.table} ${styles[presentation()?.density ?? ""]}`}>
                           <thead>
                             <tr>
                               <For each={presentation()?.fields}>
@@ -132,7 +133,9 @@ export function ViewContent() {
                                           when={field.field === "status"}
                                           fallback={displayValue(ticket, field.field)}
                                         >
-                                          <span class={`status ${ticket.status}`}>{ticket.status}</span>
+                                          <span class={`${styles.status} ${styles[ticket.status]}`}>
+                                            {ticket.status}
+                                          </span>
                                         </Show>
                                       </td>
                                     )}

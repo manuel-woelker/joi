@@ -1,4 +1,5 @@
 import type { ComponentProps } from "solid-js";
+import styles from "./IconButton.module.css";
 
 interface IconButtonProps extends ComponentProps<"button"> {
   label: string;
@@ -7,8 +8,13 @@ interface IconButtonProps extends ComponentProps<"button"> {
 
 export function IconButton(props: IconButtonProps) {
   return (
-    <button {...props} class={`icon-button ${props.class ?? ""}`} aria-label={props.label} data-tooltip={props.label}>
-      <span class="icon-glyph" aria-hidden="true">
+    <button
+      {...props}
+      class={`${styles.iconButton} ${props.class ?? ""}`}
+      aria-label={props.label}
+      data-tooltip={props.label}
+    >
+      <span class={styles.iconGlyph} aria-hidden="true">
         {props.icon}
       </span>
     </button>

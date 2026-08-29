@@ -1,0 +1,6 @@
+.debugError, .debugLoading { margin: 4px 0; color: var(--color-text-muted); font-size: 12px; }
+.debugError { color: var(--color-danger); }
+.debugInfoList { display: grid; margin: 0; grid-template-columns: minmax(110px, auto) 1fr; }
+.debugInfoList dt, .debugInfoList dd { margin: 0; padding: 7px 0; border-bottom: 1px solid var(--color-border-soft); font-size: 12px; }
+.debugInfoList dt { color: var(--color-text-muted); text-transform: capitalize; }
+.debugInfoList dd { overflow-wrap: anywhere; color: var(--color-ink-soft); text-align: right; }

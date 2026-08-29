@@ -1,0 +1,24 @@
+.appShell { min-height: 100vh; }
+.topBar { position: fixed; z-index: 30; top: 0; right: 0; left: 0; display: flex; height: 52px; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--color-border); background: var(--color-surface); padding: 0 18px; }
+.topBarStart, .topActions, .footerStart, .footerEnd { display: flex; align-items: center; }
+.topBarStart { min-width: 0; gap: 12px; }
+.brand { color: var(--color-primary-dark); font-size: 18px; font-weight: 750; text-decoration: none; }
+.topDivider { width: 1px; height: 20px; background: var(--color-border); }
+.currentView { overflow: hidden; color: var(--color-text-muted); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.topActions { gap: 6px; }
+.textButton { display: flex; gap: 6px; align-items: center; padding: 6px 9px; border: 0; border-radius: 4px; color: var(--color-primary-dark); background: transparent; font-weight: 650; }
+.workspaceLayout { min-height: 100vh; padding-top: 52px; }
+.navigationBackdrop, .panelBackdrop { position: fixed; z-index: 50; inset: 0; border: 0; background: var(--color-backdrop); }
+.navigationBackdrop { z-index: 15; }
+.warningBanner { position: fixed; z-index: 70; right: 18px; bottom: 18px; max-width: 420px; padding: 11px 14px; border: 1px solid var(--color-secondary-border); border-radius: 5px; color: var(--color-secondary-dark); background: var(--color-secondary-soft); font-size: 13px; }
+.footer { position: fixed; z-index: 30; right: 0; bottom: 0; left: 0; display: flex; height: 38px; align-items: center; justify-content: space-between; padding: 0 10px 0 18px; border-top: 1px solid var(--color-border); color: var(--color-text-muted); background: var(--color-surface-muted); font-size: 12px; }
+.footerStart { gap: 10px; min-width: 0; }
+.statusRevision { overflow: hidden; max-width: 50vw; color: var(--color-text-subtle); font-family: monospace; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.footerEnd { height: 100%; gap: 10px; }
+.srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; margin: -1px; padding: 0; clip: rect(0, 0, 0, 0); border: 0; }
+.mobileNavigationButton { display: none; }
+
+@media (max-width: 760px) {
+  .mobileNavigationButton { display: grid; }
+  .topDivider { display: none; }
+}

@@ -1,0 +1,34 @@
+.navigationPanel { position: fixed; z-index: 20; top: 52px; bottom: 0; left: 0; width: var(--sidebar-width); overflow: auto; border-right: 1px solid var(--color-border); background: var(--color-surface-muted); padding: 14px 10px; }
+.panelHeading, .headingActions { display: flex; align-items: center; }
+.panelHeading { justify-content: space-between; gap: 12px; min-height: 34px; padding: 0 4px 10px; }
+.panelHeading h2 { margin: 0; font-size: 15px; }
+.headingActions { gap: 2px; }
+.favorites { padding: 8px 4px 14px; border-bottom: 1px solid var(--color-border-soft); }
+.favorites h3 { margin: 0 0 8px; color: var(--color-text-muted); font-size: 11px; text-transform: uppercase; }
+.favoriteLink { display: flex; width: 100%; align-items: center; gap: 7px; padding: 6px 5px; border: 0; border-radius: 4px; color: var(--color-ink-soft); background: transparent; font-size: 13px; text-align: left; }
+.favoriteLink svg { color: var(--color-secondary); }
+.tree, .tree ul { margin: 0; padding: 8px 0 0; list-style: none; }
+.tree ul { padding-top: 0; }
+.treeRow { position: relative; display: flex; min-height: 32px; align-items: center; border-radius: 4px; }
+.treeRow:hover, .selected { background: var(--color-surface-hover); }
+.selected { color: var(--color-primary-dark); font-weight: 650; }
+.treeLabel { display: flex; min-width: 0; flex: 1; align-items: center; gap: 6px; padding: 7px 2px; border: 0; background: transparent; font-size: 13px; text-align: left; }
+.treeLabel span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.treeSpacer { width: 14px; }
+.treeRow > button:last-of-type { width: 28px; height: 28px; opacity: 0; }
+.treeRow:hover > button:last-of-type, .treeRow:focus-within > button:last-of-type { opacity: 1; }
+.itemMenu { position: absolute; z-index: 40; top: 30px; right: 2px; width: 142px; padding: 4px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); box-shadow: 0 8px 24px var(--color-shadow); }
+.itemMenu button { display: flex; width: 100%; align-items: center; gap: 8px; padding: 7px 8px; border: 0; border-radius: 3px; background: transparent; font-size: 12px; text-align: left; }
+.itemMenu button:hover { background: var(--color-surface-hover); }
+.danger { color: var(--color-danger); }
+.moveLabel { display: grid; gap: 4px; padding: 6px 8px; color: var(--color-text-muted); font-size: 10px; text-transform: uppercase; }
+.moveLabel select { min-width: 0; padding: 4px; border: 1px solid var(--color-border); border-radius: 3px; color: var(--color-ink-soft); background: var(--color-surface); font-size: 12px; text-transform: none; }
+.sidebarResizer { position: fixed; z-index: 21; top: 52px; bottom: 0; left: calc(var(--sidebar-width) - 3px); width: 6px; padding: 0; border: 0; background: transparent; cursor: col-resize; }
+.sidebarResizer:hover, .sidebarResizer:focus-visible { background: color-mix(in srgb, var(--color-primary) 34%, transparent); }
+.iconGlyph { display: inline-grid; min-width: 16px; place-items: center; font-size: 17px; line-height: 1; }
+@media (max-width: 760px) {
+  .navigationPanel { width: min(288px, 88vw); transform: translateX(-100%); transition: transform 160ms ease; }
+  .navigationPanel.open { transform: translateX(0); }
+  .sidebarResizer { display: none; }
+  .treeRow > button:last-of-type { opacity: 1; }
+}

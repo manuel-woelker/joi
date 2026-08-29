@@ -1,6 +1,7 @@
 import { createResource, For, Match, Switch, type JSX, type Resource } from "solid-js";
 
 import type { BackendPluginsService, PluginsResponse } from "./plugins-api";
+import styles from "./PluginMetadataDebugContributions.module.css";
 
 export function ExtensionPointsDebugContribution(props: { backendPluginsService: BackendPluginsService }) {
   const [metadata] = createResource(() => props.backendPluginsService.load());
@@ -16,7 +17,7 @@ export function PluginsDebugContribution(props: { backendPluginsService: Backend
 
 export function PluginsMetadata(props: { metadata: PluginsResponse }) {
   return (
-    <ul class="debug-metadata-list">
+    <ul class={styles.debugMetadataList}>
       <For each={props.metadata.plugins}>
         {(plugin) => (
           <li>
@@ -39,20 +40,20 @@ export function PluginsMetadata(props: { metadata: PluginsResponse }) {
 
 export function ExtensionPointsMetadata(props: { metadata: PluginsResponse }) {
   return (
-    <ul class="debug-metadata-list">
+    <ul class={styles.debugMetadataList}>
       <For each={props.metadata.extension_points}>
         {(point) => {
           const owner = props.metadata.plugins.find((plugin) => plugin.extension_points.includes(point.id));
           return (
             <li>
               <div>
-                <div class="debug-metadata-title">
+                <div class={styles.debugMetadataTitle}>
                   <strong>{point.id}</strong>
                   <small>{owner?.name ?? "unknown plugin"}</small>
                 </div>
                 <span>{point.description}</span>
               </div>
-              <ul class="debug-nested-extensions">
+              <ul class={styles.debugNestedExtensions}>
                 <For each={point.extensions}>
                   {(extensionId) => {
                     const extension = props.metadata.extensions.find((candidate) => candidate.id === extensionId);
@@ -61,7 +62,7 @@ export function ExtensionPointsMetadata(props: { metadata: PluginsResponse }) {
                     );
                     return (
                       <li>
-                        <div class="debug-metadata-title">
+                        <div class={styles.debugMetadataTitle}>
                           <strong>{extensionId}</strong>
                           <small>{extensionOwner?.name ?? "unknown plugin"}</small>
                         </div>
@@ -88,12 +89,12 @@ function PluginMetadataResource(props: PluginMetadataResourceProps) {
   return (
     <Switch>
       <Match when={props.metadata.error}>
-        <p class="debug-error" role="alert">
+        <p class={styles.debugError} role="alert">
           {props.metadata.error.message}
         </p>
       </Match>
       <Match when={props.metadata.loading}>
-        <p class="debug-loading">Loading plugin metadata...</p>
+        <p class={styles.debugLoading}>Loading plugin metadata...</p>
       </Match>
       <Match when={props.metadata()}>{(metadata) => props.content(metadata())}</Match>
     </Switch>

@@ -5,6 +5,7 @@ import type { PresentationDefinition, QueryDefinition, TicketStatus } from "../w
 import { cloneValue } from "../workspace/operations";
 import { validatePresentation } from "../workspace/query";
 import { IconButton } from "./IconButton";
+import styles from "./ViewEditor.module.css";
 
 export function ViewEditor() {
   const controller = useWorkspace();
@@ -55,16 +56,16 @@ export function ViewEditor() {
 
   return (
     <Show when={controller.editorOpen()}>
-      <div class="panel-backdrop" onClick={() => controller.setEditorOpen(false)} />
-      <aside class="editor-panel" aria-label="Configure view">
-        <div class="panel-heading">
+      <div class={styles.panelBackdrop} onClick={() => controller.setEditorOpen(false)} />
+      <aside class={styles.editorPanel} aria-label="Configure view">
+        <div class={styles.panelHeading}>
           <div>
-            <p class="eyebrow">Configuration</p>
+            <p class={styles.eyebrow}>Configuration</p>
             <h2>Edit view</h2>
           </div>
           <IconButton label="Close editor" icon="×" onClick={() => controller.setEditorOpen(false)} />
         </div>
-        <div class="editor-content">
+        <div class={styles.editorContent}>
           <section>
             <h3>View</h3>
             <label>
@@ -77,7 +78,7 @@ export function ViewEditor() {
             </label>
           </section>
           <section>
-            <div class="section-heading">
+            <div class={styles.sectionHeading}>
               <h3>Query</h3>
               <span>
                 {queryReferences()} view{queryReferences() === 1 ? "" : "s"}
@@ -103,7 +104,7 @@ export function ViewEditor() {
             </label>
             <fieldset>
               <legend>Status filter</legend>
-              <div class="check-grid">
+              <div class={styles.checkGrid}>
                 <For each={["open", "in-progress", "closed"] as TicketStatus[]}>
                   {(status) => (
                     <label>
@@ -120,7 +121,7 @@ export function ViewEditor() {
             </fieldset>
           </section>
           <section>
-            <div class="section-heading">
+            <div class={styles.sectionHeading}>
               <h3>Presentation</h3>
               <span>
                 {presentationReferences()} view{presentationReferences() === 1 ? "" : "s"}
@@ -148,15 +149,15 @@ export function ViewEditor() {
                 }
               />
             </label>
-            <div class="segmented" aria-label="Layout">
+            <div class={styles.segmented} aria-label="Layout">
               <button
-                class={presentation()?.layout === "table" ? "active" : ""}
+                class={presentation()?.layout === "table" ? styles.active : ""}
                 onClick={() => presentation() && setPresentation({ ...presentation()!, layout: "table" })}
               >
                 Table
               </button>
               <button
-                class={presentation()?.layout === "list" ? "active" : ""}
+                class={presentation()?.layout === "list" ? styles.active : ""}
                 onClick={() => presentation() && setPresentation({ ...presentation()!, layout: "list" })}
               >
                 List
@@ -181,14 +182,14 @@ export function ViewEditor() {
           </section>
           <section>
             <h3>Save behavior</h3>
-            <label class="radio-row">
+            <label class={styles.radioRow}>
               <input type="radio" name="mode" checked={mode() === "copy"} onChange={() => setMode("copy")} />
               <span>
                 <strong>Save as private copy</strong>
                 <small>Only this view changes.</small>
               </span>
             </label>
-            <label class="radio-row">
+            <label class={styles.radioRow}>
               <input type="radio" name="mode" checked={mode() === "update"} onChange={() => setMode("update")} />
               <span>
                 <strong>Update definitions</strong>
@@ -197,15 +198,15 @@ export function ViewEditor() {
             </label>
           </section>
           <Show when={error()}>
-            <p class="form-error">{error()}</p>
+            <p class={styles.formError}>{error()}</p>
           </Show>
         </div>
-        <div class="editor-actions">
-          <button class="secondary" onClick={() => controller.setEditorOpen(false)}>
+        <div class={styles.editorActions}>
+          <button class={styles.secondary} onClick={() => controller.setEditorOpen(false)}>
             Cancel
           </button>
           <button
-            class="primary"
+            class={styles.primary}
             disabled={!name().trim() || !!error()}
             onClick={() => controller.saveView(name().trim(), description().trim(), query()!, presentation()!, mode())}
           >

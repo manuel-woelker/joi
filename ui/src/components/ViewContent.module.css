@@ -1,0 +1,40 @@
+.workspaceMain { min-width: 0; margin-left: var(--sidebar-width); padding: 28px 34px 76px; }
+.viewHeading, .viewToolbar { display: flex; max-width: 1080px; margin-right: auto; margin-left: auto; }
+.viewHeading { align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 22px; }
+.eyebrow { margin: 0 0 5px; color: var(--color-primary); font-size: 11px; font-weight: 750; text-transform: uppercase; }
+.viewHeading h1, .emptyState h1, .emptyState h2 { margin: 0; }
+.viewHeading h1 { color: var(--color-primary-dark); font-size: 28px; line-height: 1.2; }
+.viewHeading p:last-child { margin: 7px 0 0; color: var(--color-text-muted); font-size: 14px; }
+.viewToolbar { align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+.searchField { display: flex; width: min(340px, 100%); height: 34px; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--color-border); border-radius: 5px; background: var(--color-surface); }
+.searchField svg { color: var(--color-text-muted); }
+.searchField input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; font-size: 13px; }
+.resultCount { color: var(--color-text-muted); font-size: 12px; white-space: nowrap; }
+.tableScroll { max-width: 1080px; overflow: auto; margin: auto; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); }
+.table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tableScroll th { color: var(--color-text-muted); background: var(--color-canvas); font-size: 11px; text-align: left; text-transform: uppercase; }
+.tableScroll th, .tableScroll td { padding: 11px 14px; border-bottom: 1px solid var(--color-border-soft); white-space: nowrap; }
+.table.compact th, .table.compact td { padding-top: 8px; padding-bottom: 8px; }
+.tableScroll tbody tr:last-child td { border-bottom: 0; }
+.tableScroll tbody tr:hover { background: var(--color-surface-muted); }
+.status { display: inline-flex; padding: 3px 7px; border-radius: 999px; color: var(--color-ink-soft); background: var(--color-surface-hover); font-size: 11px; text-transform: capitalize; }
+.status.open { color: var(--color-secondary-dark); background: var(--color-secondary-soft); }
+.status.in-progress { color: var(--color-primary-dark); background: var(--color-primary-soft); }
+.status.closed { color: var(--color-text-muted); background: var(--color-border-soft); }
+.issueList { display: grid; max-width: 900px; margin: auto; border-top: 1px solid var(--color-border); }
+.issueList article { display: flex; justify-content: space-between; gap: 20px; padding: 15px 4px; border-bottom: 1px solid var(--color-border); }
+.issueList article > div:first-child { display: grid; gap: 4px; }
+.issueList article span { color: var(--color-text-muted); font-size: 12px; }
+.issueMeta { display: flex; align-items: center; gap: 12px; }
+.emptyState, .errorState { max-width: 650px; margin: 80px auto; text-align: center; }
+.emptyState.compact { margin-top: 60px; }
+.emptyState h1, .emptyState h2 { margin-bottom: 8px; }
+.emptyState p, .errorState { color: var(--color-text-muted); }
+.secondary { padding: 8px 13px; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-surface); font-size: 13px; font-weight: 650; }
+.iconGlyph { display: inline-grid; min-width: 16px; place-items: center; font-size: 17px; line-height: 1; }
+.srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; margin: -1px; padding: 0; clip: rect(0, 0, 0, 0); border: 0; }
+@media (max-width: 760px) {
+  .workspaceMain { margin-left: 0; padding: 24px 18px 72px; }
+  .viewToolbar { align-items: flex-start; flex-direction: column; gap: 7px; }
+  .issueList article { flex-direction: column; }
+}

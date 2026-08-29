@@ -3,6 +3,7 @@ import { For, Show, createSignal } from "solid-js";
 import type { NavigationId } from "../workspace/model";
 import { useWorkspace } from "../workspace/controller";
 import { IconButton } from "./IconButton";
+import styles from "./NavigationTree.module.css";
 
 function TreeItem(props: { id: NavigationId; level: number }) {
   const controller = useWorkspace();
@@ -28,7 +29,7 @@ function TreeItem(props: { id: NavigationId; level: number }) {
     if (folder() && event.key === "ArrowLeft" && expanded()) controller.toggleFolder(props.id);
     const currentView = viewItem();
     if (currentView && event.key === "Enter") controller.selectView(currentView.viewId);
-    const rows = [...document.querySelectorAll<HTMLButtonElement>(".tree-label")];
+    const rows = [...document.querySelectorAll<HTMLButtonElement>(`.${styles.treeLabel}`)];
     const index = rows.indexOf(event.currentTarget as HTMLButtonElement);
     const target =
       event.key === "ArrowDown"
@@ -49,24 +50,24 @@ function TreeItem(props: { id: NavigationId; level: number }) {
   return (
     <li role="treeitem" aria-expanded={folder() ? expanded() : undefined}>
       <div
-        class={`tree-row ${view()?.id === controller.selectedViewId() ? "selected" : ""}`}
+        class={`${styles.treeRow} ${view()?.id === controller.selectedViewId() ? styles.selected : ""}`}
         style={{ "padding-left": `${8 + props.level * 16}px` }}
       >
         <button
-          class="tree-label"
+          class={styles.treeLabel}
           onClick={() => {
             const current = viewItem();
             folder() ? controller.toggleFolder(props.id) : current && controller.selectView(current.viewId);
           }}
           onKeyDown={onKeyDown}
         >
-          <Show when={folder()} fallback={<span class="tree-spacer" />}>
-            <span class="icon-glyph" aria-hidden="true">
+          <Show when={folder()} fallback={<span class={styles.treeSpacer} />}>
+            <span class={styles.iconGlyph} aria-hidden="true">
               {expanded() ? "⌄" : "›"}
             </span>
           </Show>
           <Show when={folder()}>
-            <span class="icon-glyph" aria-hidden="true">
+            <span class={styles.iconGlyph} aria-hidden="true">
               □
             </span>
           </Show>
@@ -74,7 +75,7 @@ function TreeItem(props: { id: NavigationId; level: number }) {
         </button>
         <IconButton label={`Commands for ${label()}`} icon="…" onClick={() => setMenuOpen(!menuOpen())} />
         <Show when={menuOpen()}>
-          <div class="item-menu">
+          <div class={styles.itemMenu}>
             <Show when={folder()}>
               <button
                 onClick={() => {
@@ -111,7 +112,7 @@ function TreeItem(props: { id: NavigationId; level: number }) {
             <button onClick={() => controller.move(props.id, 1)}>
               <span aria-hidden="true">↓</span> Move down
             </button>
-            <label class="move-label">
+            <label class={styles.moveLabel}>
               Move to
               <select
                 aria-label={`Move ${label()} to folder`}
@@ -133,7 +134,7 @@ function TreeItem(props: { id: NavigationId; level: number }) {
               </select>
             </label>
             <button
-              class="danger"
+              class={styles.danger}
               onClick={() => {
                 controller.remove(props.id);
                 setMenuOpen(false);
@@ -167,20 +168,23 @@ export function NavigationTree() {
     window.addEventListener("pointerup", stop);
   };
   return (
-    <aside class={`navigation-panel ${controller.navigationOpen() ? "open" : ""}`} aria-label="Workspace navigation">
-      <div class="panel-heading">
+    <aside
+      class={`${styles.navigationPanel} ${controller.navigationOpen() ? styles.open : ""}`}
+      aria-label="Workspace navigation"
+    >
+      <div class={styles.panelHeading}>
         <h2>Views</h2>
-        <div class="heading-actions">
+        <div class={styles.headingActions}>
           <IconButton label="Create folder" icon="□+" onClick={() => controller.createFolder()} />
           <IconButton label="Create view" icon="+" onClick={() => controller.createView()} />
         </div>
       </div>
       <Show when={controller.workspace.favorites.length}>
-        <section class="favorites" aria-labelledby="favorites-heading">
+        <section class={styles.favorites} aria-labelledby="favorites-heading">
           <h3 id="favorites-heading">Favorites</h3>
           <For each={controller.workspace.favorites}>
             {(id) => (
-              <button class="favorite-link" onClick={() => controller.selectView(id)}>
+              <button class={styles.favoriteLink} onClick={() => controller.selectView(id)}>
                 <span aria-hidden="true">★</span>
                 {controller.workspace.views[id]?.name}
               </button>
@@ -188,11 +192,11 @@ export function NavigationTree() {
           </For>
         </section>
       </Show>
-      <ul class="tree" role="tree" aria-label="Saved views">
+      <ul class={styles.tree} role="tree" aria-label="Saved views">
         <For each={controller.workspace.rootItems}>{(id) => <TreeItem id={id} level={0} />}</For>
       </ul>
       <button
-        class="sidebar-resizer"
+        class={styles.sidebarResizer}
         aria-label="Resize navigation"
         aria-orientation="vertical"
         onPointerDown={startResize}

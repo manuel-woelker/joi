@@ -9,30 +9,31 @@ import { createApplicationPluginRegistry } from "./application-registry";
 import type { PluginRegistry } from "./plugins/registry";
 import { REVISION } from "./revision";
 import { WorkspaceProvider, useWorkspace } from "./workspace/controller";
+import styles from "./App.module.css";
 
 const applicationPluginRegistry = createApplicationPluginRegistry();
 
 function WorkspaceApp(props: { pluginRegistry: PluginRegistry }) {
   const controller = useWorkspace();
   return (
-    <div class="app-shell" style={{ "--sidebar-width": `${controller.sidebarWidth()}px` }}>
-      <header class="top-bar">
-        <div class="top-bar-start">
+    <div class={styles.appShell} style={{ "--sidebar-width": `${controller.sidebarWidth()}px` }}>
+      <header class={styles.topBar}>
+        <div class={styles.topBarStart}>
           <IconButton
-            class="mobile-navigation-button"
+            class={styles.mobileNavigationButton}
             label="Open navigation"
             icon="☰"
             onClick={() => controller.setNavigationOpen(true)}
           />
-          <a class="brand" href="/" aria-label="Joi home">
+          <a class={styles.brand} href="/" aria-label="Joi home">
             Joi
           </a>
-          <span class="top-divider" />
-          <span class="current-view">{controller.selectedView()?.name ?? "Workspace"}</span>
+          <span class={styles.topDivider} />
+          <span class={styles.currentView}>{controller.selectedView()?.name ?? "Workspace"}</span>
         </div>
-        <div class="top-actions">
+        <div class={styles.topActions}>
           <Show when={controller.announcement().includes("Undo")}>
-            <button class="text-button" onClick={() => controller.undo()}>
+            <button class={styles.textButton} onClick={() => controller.undo()}>
               <span aria-hidden="true">↶</span>Undo
             </button>
           </Show>
@@ -41,32 +42,32 @@ function WorkspaceApp(props: { pluginRegistry: PluginRegistry }) {
       </header>
       <Show when={controller.navigationOpen()}>
         <button
-          class="navigation-backdrop"
+          class={styles.navigationBackdrop}
           aria-label="Close navigation"
           onClick={() => controller.setNavigationOpen(false)}
         />
       </Show>
-      <div class="workspace-layout">
+      <div class={styles.workspaceLayout}>
         <NavigationTree />
         <ViewContent />
       </div>
-      <footer class="footer">
-        <div class="footer-start">
+      <footer class={styles.footer}>
+        <div class={styles.footerStart}>
           <span>Joi</span>
-          <span class="status-revision">{REVISION}</span>
+          <span class={styles.statusRevision}>{REVISION}</span>
         </div>
-        <div class="footer-end">
+        <div class={styles.footerEnd}>
           <span>Built with SolidJS</span>
           <DebugTools registry={props.pluginRegistry} />
         </div>
       </footer>
       <ViewEditor />
       <Show when={controller.warning()}>
-        <div class="warning-banner" role="alert">
+        <div class={styles.warningBanner} role="alert">
           {controller.warning()}
         </div>
       </Show>
-      <div class="sr-only" aria-live="polite">
+      <div class={styles.srOnly} aria-live="polite">
         {controller.announcement()}
       </div>
     </div>

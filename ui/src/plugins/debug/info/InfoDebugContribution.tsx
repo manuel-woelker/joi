@@ -1,6 +1,7 @@
 import { createResource, For, Match, Switch } from "solid-js";
 
 import type { BackendInfoService } from "./info-api";
+import styles from "./InfoDebugContribution.module.css";
 
 export function InfoDebugContribution(props: { backendInfoService: BackendInfoService }) {
   const [info] = createResource(() => props.backendInfoService.load());
@@ -8,16 +9,16 @@ export function InfoDebugContribution(props: { backendInfoService: BackendInfoSe
   return (
     <Switch>
       <Match when={info.error}>
-        <p class="debug-error" role="alert">
+        <p class={styles.debugError} role="alert">
           {info.error.message}
         </p>
       </Match>
       <Match when={info.loading}>
-        <p class="debug-loading">Loading information...</p>
+        <p class={styles.debugLoading}>Loading information...</p>
       </Match>
       <Match when={info()}>
         {(values) => (
-          <dl class="debug-info-list">
+          <dl class={styles.debugInfoList}>
             <For each={Object.entries(values())}>
               {([key, value]) => (
                 <>

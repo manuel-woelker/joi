@@ -1,0 +1,22 @@
+.debugTools { position: relative; height: 100%; }
+.debugTrigger { display: grid; width: 34px; height: 100%; padding: 0; place-items: center; border: 0; border-left: 1px solid var(--color-border); color: var(--color-text-muted); background: transparent; font-size: 18px; line-height: 1; }
+.debugTrigger:hover, .debugTrigger:focus-visible, .debugTrigger[aria-expanded="true"] { color: var(--color-primary-dark); background: var(--color-surface-hover); }
+.debugPanel { position: fixed; z-index: 45; right: 10px; bottom: 44px; display: grid; width: min(620px, calc(100vw - 20px)); height: min(420px, calc(100vh - 64px)); overflow: hidden; border: 1px solid var(--color-border); border-radius: 6px; color: var(--color-ink); background: var(--color-surface); box-shadow: 0 12px 32px var(--color-shadow); grid-template-rows: 40px minmax(0, 1fr); }
+.debugPanel header { display: flex; height: 40px; align-items: center; justify-content: space-between; padding: 0 8px 0 14px; border-bottom: 1px solid var(--color-border-soft); background: var(--color-surface); }
+.debugPanel h2 { margin: 0; font-size: 14px; }
+.debugClose { display: grid; width: 28px; height: 28px; padding: 0; place-items: center; border: 0; border-radius: 4px; color: var(--color-text-muted); background: transparent; font-size: 20px; }
+.debugClose:hover, .debugClose:focus-visible { background: var(--color-surface-hover); }
+.debugWorkspace { display: grid; min-height: 0; grid-template-columns: 170px minmax(0, 1fr); }
+.debugMaster { overflow: auto; padding: 6px; border-right: 1px solid var(--color-border-soft); background: var(--color-canvas); }
+.debugMaster button { display: block; width: 100%; padding: 8px 9px; border: 0; border-radius: 4px; color: var(--color-ink-soft); background: transparent; font-size: 12px; text-align: left; }
+.debugMaster button:hover, .debugMaster button:focus-visible { background: var(--color-surface-hover); }
+.debugMaster button.active { color: var(--color-primary-dark); background: var(--color-surface-selected); font-weight: 650; }
+.debugDetail { min-width: 0; overflow: auto; }
+.debugDetail h3 { margin: 0; padding: 12px 14px 9px; border-bottom: 1px solid var(--color-border-soft); font-size: 13px; }
+.debugPanelContent { padding: 10px 14px 14px; }
+@media (max-width: 520px) {
+  .debugWorkspace { grid-template-rows: auto minmax(0, 1fr); grid-template-columns: 1fr; }
+  .debugMaster { display: flex; overflow: auto; border-right: 0; border-bottom: 1px solid var(--color-border-soft); }
+  .debugMaster button { width: auto; min-width: max-content; }
+  .debugPanel { height: min(480px, calc(100vh - 64px)); }
+}

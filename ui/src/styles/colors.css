@@ -1,0 +1,23 @@
+:root {
+  --color-primary: #ff9d33;
+  --color-secondary: #16ba76;
+  --color-ink: color-mix(in srgb, var(--color-primary) 12%, black);
+  --color-ink-soft: color-mix(in srgb, var(--color-ink) 72%, white);
+  --color-text-muted: color-mix(in srgb, var(--color-ink) 58%, white);
+  --color-text-subtle: color-mix(in srgb, var(--color-ink) 42%, white);
+  --color-surface: color-mix(in srgb, var(--color-primary) 0%, white);
+  --color-canvas: color-mix(in srgb, var(--color-primary) 8%, white);
+  --color-surface-muted: color-mix(in srgb, var(--color-primary) 5%, white);
+  --color-surface-hover: color-mix(in srgb, var(--color-primary) 14%, white);
+  --color-surface-selected: color-mix(in srgb, var(--color-primary) 22%, white);
+  --color-border: color-mix(in srgb, var(--color-ink) 24%, white);
+  --color-border-soft: color-mix(in srgb, var(--color-ink) 15%, white);
+  --color-primary-dark: color-mix(in srgb, var(--color-primary) 72%, black);
+  --color-primary-soft: color-mix(in srgb, var(--color-primary) 14%, white);
+  --color-secondary-dark: color-mix(in srgb, var(--color-secondary) 68%, black);
+  --color-secondary-soft: color-mix(in srgb, var(--color-secondary) 18%, white);
+  --color-secondary-border: color-mix(in srgb, var(--color-secondary) 55%, white);
+  --color-danger: color-mix(in srgb, var(--color-secondary) 62%, black 38%);
+  --color-shadow: color-mix(in srgb, var(--color-primary) 18%, transparent);
+  --color-backdrop: color-mix(in srgb, var(--color-primary) 34%, transparent);
+}
