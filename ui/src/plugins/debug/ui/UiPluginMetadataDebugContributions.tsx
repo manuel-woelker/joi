@@ -1,16 +1,16 @@
-import type { PluginRegistry } from "../../registry";
+import type { PluginRegistryAccess } from "../../registry";
 import { ExtensionPointsMetadata, PluginsMetadata } from "../backend/PluginMetadataDebugContributions";
 import type { PluginsResponse } from "../backend/plugins-api";
 
-export function UiPluginsDebugContribution(props: { pluginRegistry: PluginRegistry }) {
+export function UiPluginsDebugContribution(props: { pluginRegistry: PluginRegistryAccess }) {
   return <PluginsMetadata metadata={toDebugMetadata(props.pluginRegistry)} />;
 }
 
-export function UiExtensionPointsDebugContribution(props: { pluginRegistry: PluginRegistry }) {
+export function UiExtensionPointsDebugContribution(props: { pluginRegistry: PluginRegistryAccess }) {
   return <ExtensionPointsMetadata metadata={toDebugMetadata(props.pluginRegistry)} />;
 }
 
-function toDebugMetadata(registry: PluginRegistry): PluginsResponse {
+function toDebugMetadata(registry: PluginRegistryAccess): PluginsResponse {
   const metadata = registry.metadata();
   return {
     plugins: metadata.plugins.map((plugin) => ({

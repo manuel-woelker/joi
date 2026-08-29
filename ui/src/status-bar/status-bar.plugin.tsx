@@ -1,5 +1,6 @@
 import { DebugTools } from "../plugins/debug/core/DebugTools";
 import { plugin } from "../plugins/registry";
+import { pluginRegistryServiceKey } from "../plugins/plugin-registry-service";
 import { REVISION } from "../revision";
 import { statusBarContributions } from "./contribution";
 import styles from "./StatusBar.module.css";
@@ -19,6 +20,7 @@ function BuiltWithContribution() {
 export default plugin({
   name: "status-bar",
   description: "Core status bar contributions",
+  requires: { pluginRegistryService: pluginRegistryServiceKey },
   registerExtensionPoints(context) {
     context.registerExtensionPoint({ point: statusBarContributions });
   },
@@ -45,7 +47,11 @@ export default plugin({
       point: statusBarContributions,
       id: "debug-status",
       description: "Provides access to debug tools",
-      value: { id: "debug-status", order: 20, content: (props) => <DebugTools registry={props.pluginRegistry} /> },
+      value: {
+        id: "debug-status",
+        order: 20,
+        content: () => <DebugTools registry={context.services.pluginRegistryService} />,
+      },
     });
   },
 });

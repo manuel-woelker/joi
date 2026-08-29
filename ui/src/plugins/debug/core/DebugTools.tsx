@@ -1,12 +1,12 @@
 import { For, Show, createSignal } from "solid-js";
 import { Dynamic } from "solid-js/web";
 
-import type { PluginRegistry } from "../../registry";
+import type { PluginRegistryService } from "../../plugin-registry-service";
 import { debugContributions, type DebugContribution } from "./contribution";
 import styles from "./DebugTools.module.css";
 
 export interface DebugToolsProps {
-  registry: PluginRegistry;
+  registry: PluginRegistryService;
 }
 
 export function DebugTools(props: DebugToolsProps) {
@@ -52,7 +52,7 @@ export function DebugTools(props: DebugToolsProps) {
                 <section class={styles.debugDetail} aria-labelledby="debug-detail-heading">
                   <h3 id="debug-detail-heading">{contribution().name}</h3>
                   <div class={styles.debugPanelContent}>
-                    <Dynamic component={contribution().content} pluginRegistry={props.registry} />
+                    <Dynamic component={contribution().content} />
                   </div>
                 </section>
               )}

@@ -1,10 +1,12 @@
 import { UiExtensionPointsDebugContribution, UiPluginsDebugContribution } from "./UiPluginMetadataDebugContributions";
 import { plugin } from "../../registry";
+import { pluginRegistryServiceKey } from "../../plugin-registry-service";
 import { debugContributions } from "../core/contribution";
 
 export default plugin({
   name: "ui",
   description: "UI diagnostics",
+  requires: { pluginRegistryService: pluginRegistryServiceKey },
   registerExtensions(context) {
     context.registerExtension({
       point: debugContributions,
@@ -14,7 +16,7 @@ export default plugin({
         id: "ui-plugins",
         name: "UI Plugins",
         group: "frontend",
-        content: UiPluginsDebugContribution,
+        content: () => <UiPluginsDebugContribution pluginRegistry={context.services.pluginRegistryService} />,
       },
     });
     context.registerExtension({
@@ -25,7 +27,7 @@ export default plugin({
         id: "ui-extension-points",
         name: "UI Extension Points",
         group: "frontend",
-        content: UiExtensionPointsDebugContribution,
+        content: () => <UiExtensionPointsDebugContribution pluginRegistry={context.services.pluginRegistryService} />,
       },
     });
   },

@@ -24,6 +24,10 @@ export interface PluginRegistryMetadata {
   readonly extensionPoints: readonly ExtensionPointInfo[];
   readonly extensions: readonly ExtensionInfo[];
 }
+export interface PluginRegistryAccess {
+  extensions<T>(point: ExtensionPoint<T>): readonly T[];
+  metadata(): PluginRegistryMetadata;
+}
 
 type AnyServices = Record<string, unknown>;
 type ExtensionPoints = Map<symbol, ExtensionPoint<unknown>>;
@@ -220,7 +224,7 @@ function resolve(definitions: ServiceDefinitions, values: Map<symbol, unknown>):
   return Object.fromEntries(Object.entries(definitions).map(([alias, key]) => [alias, values.get(key.token)]));
 }
 
-export class PluginRegistry {
+export class PluginRegistry implements PluginRegistryAccess {
   private readonly extensionsByPoint: ReadonlyMap<symbol, readonly RegisteredExtension[]>;
   private readonly registryMetadata: PluginRegistryMetadata;
   constructor(plugins: readonly PluginInfo[], points: ExtensionPoints, extensions: RegisteredExtensions) {

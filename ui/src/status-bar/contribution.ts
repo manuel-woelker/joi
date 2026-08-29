@@ -1,11 +1,11 @@
 import type { Component } from "solid-js";
 
-import { extensionPoint, type PluginRegistry } from "../plugins/registry";
+import { extensionPoint } from "../plugins/registry";
 
 export interface StatusBarContribution {
   readonly id: string;
   readonly order: number;
-  readonly content: Component<{ pluginRegistry: PluginRegistry }>;
+  readonly content: Component;
 }
 
 export const statusBarContributions = extensionPoint<StatusBarContribution>(
