@@ -1,6 +1,8 @@
 import { For, Show, createMemo, createResource } from "solid-js";
 
 import type { QueryColumnHandle, QueryResult } from "../query/query-result";
+import { MasterDetailView } from "../master-detail/MasterDetailView";
+import type { MasterDetailDefinition } from "../master-detail/definition";
 import { fetchService } from "../services/fetch-service";
 import { useWorkspace } from "../workspace/controller";
 import { executeQuery, validatePresentation } from "../workspace/query";
@@ -8,6 +10,16 @@ import { loadTickets } from "../workspace/ticket-api";
 import { DataTable, type DataTableColumn } from "./DataTable";
 import { IconButton } from "./IconButton";
 import styles from "./ViewContent.module.css";
+
+const ticketEditor: MasterDetailDefinition = {
+  tableName: "tickets",
+  identityAttribute: "id",
+  detailTitle: "Ticket details",
+  fields: [
+    { attribute: "title", label: "Title", control: "text", required: true },
+    { attribute: "description", label: "Description", control: "textarea", rows: 10 },
+  ],
+};
 
 export function SavedViewCommands() {
   const controller = useWorkspace();
@@ -58,7 +70,7 @@ export function SavedViewContent() {
   const validation = () =>
     query() && presentation() ? validatePresentation(query()!, presentation()!) : "View configuration is incomplete.";
 
-  return (
+  const master = (
     <>
       <div class={styles.viewToolbar}>
         <label class={styles.searchField}>
@@ -154,6 +166,17 @@ export function SavedViewContent() {
       </Show>
     </>
   );
+  return (
+    <MasterDetailView
+      master={master}
+      definition={ticketEditor}
+      fetchService={fetchService}
+      result={ticketRecords()}
+      selectedRecordId={controller.navigation.selectedRecordId()}
+      onClose={() => controller.closeRecord()}
+      onSaved={() => refetch()}
+    />
+  );
 }
 
 function openTicket(
@@ -162,7 +185,7 @@ function openTicket(
   idColumn: QueryColumnHandle | undefined,
 ) {
   const id = idColumn ? row.value(idColumn) : undefined;
-  if (typeof id === "string") controller.selectTicket(id);
+  if (typeof id === "string") controller.selectRecord(id);
 }
 
 function rowValue(row: QueryResult["rows"][number], column: QueryColumnHandle | undefined): string {

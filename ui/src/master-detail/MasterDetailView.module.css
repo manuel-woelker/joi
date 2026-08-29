@@ -1,0 +1,8 @@
+.layout { min-width: 0; }
+.layout.withDetail { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 400px); gap: 24px; }
+.master { min-width: 0; }
+.detail { min-width: 0; padding-left: 24px; border-left: 1px solid var(--color-border); }
+@media (max-width: 1050px) {
+  .layout.withDetail { grid-template-columns: 1fr; }
+  .detail { padding: 24px 0 0; border-top: 1px solid var(--color-border); border-left: 0; }
+}

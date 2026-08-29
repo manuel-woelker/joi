@@ -21,6 +21,20 @@ provide direct value access without converting flexible results into fixed
 domain objects. Persisted configurations continue to use attribute names and
 resolve them to column handles once per response.
 
+Record-oriented screens use a shared master-detail editor over the same
+columnar query result. Selecting a ticket or user keeps its table visible and
+opens an edit pane on the right. Editor descriptors declare the table,
+immutable identity attribute, labels, and text, multiline, or integer controls;
+they do not require domain row types. Draft values remain local to the form.
+A successful atomic `/api/mutate` update refetches the shared query once so the
+table and editor display the same server-confirmed state. Record URLs use
+`#/views/<view-id>/records/<record-id>` or
+`#/administration/<entry-id>/records/<record-id>`.
+
+The initial editor intentionally supports only string and integer fields. It
+does not yet provide optimistic updates, dirty-field patches, conflict
+detection, custom controls, or a normalized entity cache.
+
 Tabular views use TanStack Table as a headless row and cell model over these
 query results. Joi retains native table markup and its own styling. Sorting,
 pagination, column resizing, selection, and virtualization are intentionally

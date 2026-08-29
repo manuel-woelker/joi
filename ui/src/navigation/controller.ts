@@ -5,22 +5,36 @@ import type { ViewId, WorkspaceDocument } from "../workspace/model";
 export type NavigationSelection =
   | { type: "view"; id: ViewId }
   | { type: "administration"; id: string }
-  | { type: "ticket"; id: string; viewId: ViewId };
+  | { type: "record"; owner: { type: "view"; id: ViewId } | { type: "administration"; id: string }; recordId: string };
 
 export interface NavigationController {
   selection: () => NavigationSelection;
   selectedViewId: () => ViewId | undefined;
   selectedAdministrationId: () => string | undefined;
-  selectedTicketId: () => string | undefined;
+  selectedRecordId: () => string | undefined;
   selectView(id: ViewId): void;
   selectAdministration(id: string): void;
-  selectTicket(id: string): void;
+  selectRecord(id: string): void;
+  closeRecord(): void;
 }
 
 function selectionFromHash(workspace: WorkspaceDocument): NavigationSelection {
-  const ticketMatch = window.location.hash.match(/^#\/views\/([^/]+)\/tickets\/(.+)$/);
-  if (ticketMatch?.[1] && ticketMatch[2] && workspace.views[ticketMatch[1]]) {
-    return { type: "ticket", viewId: ticketMatch[1], id: decodeURIComponent(ticketMatch[2]) };
+  const viewRecordMatch = window.location.hash.match(/^#\/views\/([^/]+)\/records\/(.+)$/);
+  if (viewRecordMatch?.[1] && viewRecordMatch[2] && workspace.views[viewRecordMatch[1]]) {
+    return {
+      type: "record",
+      owner: { type: "view", id: viewRecordMatch[1] },
+      recordId: decodeURIComponent(viewRecordMatch[2]),
+    };
+  }
+
+  const administrationRecordMatch = window.location.hash.match(/^#\/administration\/([^/]+)\/records\/(.+)$/);
+  if (administrationRecordMatch?.[1] && administrationRecordMatch[2]) {
+    return {
+      type: "record",
+      owner: { type: "administration", id: administrationRecordMatch[1] },
+      recordId: decodeURIComponent(administrationRecordMatch[2]),
+    };
   }
 
   const viewMatch = window.location.hash.match(/^#\/views\/([^/]+)$/);
@@ -37,15 +51,23 @@ export function createNavigationController(workspace: WorkspaceDocument): Naviga
   const [selection, setSelection] = createSignal(selectionFromHash(workspace));
   const selectedViewId = createMemo(() => {
     const current = selection();
-    return current.type === "view" ? current.id : current.type === "ticket" ? current.viewId : undefined;
+    return current.type === "view"
+      ? current.id
+      : current.type === "record" && current.owner.type === "view"
+        ? current.owner.id
+        : undefined;
   });
   const selectedAdministrationId = createMemo(() => {
     const current = selection();
-    return current.type === "administration" ? current.id : undefined;
+    return current.type === "administration"
+      ? current.id
+      : current.type === "record" && current.owner.type === "administration"
+        ? current.owner.id
+        : undefined;
   });
-  const selectedTicketId = createMemo(() => {
+  const selectedRecordId = createMemo(() => {
     const current = selection();
-    return current.type === "ticket" ? current.id : undefined;
+    return current.type === "record" ? current.recordId : undefined;
   });
   const onHashChange = () => setSelection(selectionFromHash(workspace));
 
@@ -56,7 +78,7 @@ export function createNavigationController(workspace: WorkspaceDocument): Naviga
     selection,
     selectedViewId,
     selectedAdministrationId,
-    selectedTicketId,
+    selectedRecordId,
     selectView(id) {
       setSelection({ type: "view", id });
       window.location.hash = `/views/${id}`;
@@ -65,11 +87,17 @@ export function createNavigationController(workspace: WorkspaceDocument): Naviga
       setSelection({ type: "administration", id });
       window.location.hash = `/administration/${id}`;
     },
-    selectTicket(id) {
-      const viewId = selectedViewId();
-      if (!viewId) return;
-      setSelection({ type: "ticket", id, viewId });
-      window.location.hash = `/views/${viewId}/tickets/${encodeURIComponent(id)}`;
+    selectRecord(recordId) {
+      const current = selection();
+      const owner = current.type === "record" ? current.owner : { type: current.type, id: current.id };
+      setSelection({ type: "record", owner, recordId });
+      window.location.hash = `/${owner.type === "view" ? "views" : "administration"}/${owner.id}/records/${encodeURIComponent(recordId)}`;
+    },
+    closeRecord() {
+      const current = selection();
+      if (current.type !== "record") return;
+      setSelection(current.owner);
+      window.location.hash = `/${current.owner.type === "view" ? "views" : "administration"}/${current.owner.id}`;
     },
   };
 }

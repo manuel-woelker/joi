@@ -85,7 +85,7 @@ describe("workspace app", () => {
     render(() => <App />);
     await userEvent.click(await screen.findByText("Fix navigation bug"));
 
-    expect(window.location.hash).toBe("#/views/view-active/tickets/0o5Fs0EELR0fUjHjbCnEtdUwQe3");
+    expect(window.location.hash).toBe("#/views/view-active/records/0o5Fs0EELR0fUjHjbCnEtdUwQe3");
     expect(screen.getByRole("heading", { name: "Active issues" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Ticket details" })).toBeTruthy();
     expect(screen.getByRole("table", { name: "Active issues" })).toBeTruthy();
@@ -125,6 +125,18 @@ describe("workspace app", () => {
         }),
       ),
     );
+    await userEvent.click(screen.getByRole("button", { name: "Close details" }));
+    expect(window.location.hash).toBe("#/views/view-active");
+    expect(screen.queryByRole("heading", { name: "Ticket details" })).toBeNull();
+  });
+
+  it("restores a selected record from the URL", async () => {
+    window.location.hash = "/administration/users/records/user-2";
+    render(() => <App />);
+
+    expect(await screen.findByRole("heading", { name: "User details" })).toBeTruthy();
+    expect((screen.getByRole("textbox", { name: "Username" }) as HTMLInputElement).value).toBe("joe.tester");
+    expect(screen.getByRole("button", { name: "Users" }).className).toMatch(/selected/);
   });
 
   it("opens the reusable view editor", async () => {
@@ -155,6 +167,30 @@ describe("workspace app", () => {
     window.dispatchEvent(new HashChangeEvent("hashchange"));
     await waitFor(() => expect(screen.getByRole("heading", { name: "Users" })).toBeTruthy());
     expect(screen.getByRole("button", { name: "Active issues" }).parentElement?.className).not.toMatch(/selected/);
+  });
+
+  it("opens and edits a user beside the users table", async () => {
+    render(() => <App />);
+    await userEvent.click(screen.getByRole("button", { name: "Users" }));
+    await userEvent.click(await screen.findByText("Jane Developer"));
+
+    expect(window.location.hash).toBe("#/administration/users/records/user-1");
+    expect(screen.getByRole("table", { name: "Users" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "User details" })).toBeTruthy();
+    const name = screen.getByRole("textbox", { name: "Name" });
+    await userEvent.clear(name);
+    await userEvent.type(name, "Jane Engineer");
+    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() =>
+      expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+        "/api/mutate",
+        expect.objectContaining({
+          body: expect.stringContaining('"table_name":"users"'),
+        }),
+      ),
+    );
+    expect(screen.queryByRole("columnheader", { name: "ID" })).toBeNull();
   });
 
   it("opens the Info debug contribution", async () => {

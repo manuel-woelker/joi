@@ -1,7 +1,0 @@
-.layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 400px); gap: 24px; }
-.tablePane { min-width: 0; }
-.detailPane { min-width: 0; padding-left: 24px; border-left: 1px solid var(--color-border); }
-@media (max-width: 1050px) {
-  .layout { grid-template-columns: 1fr; }
-  .detailPane { padding: 24px 0 0; border-top: 1px solid var(--color-border); border-left: 0; }
-}

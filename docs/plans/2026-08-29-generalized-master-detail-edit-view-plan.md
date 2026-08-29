@@ -55,8 +55,10 @@ the same server-confirmed values.
 
 ## How should querying and mutation work?
 
-Add a generic `loadRecord` helper that queries any table by its identity
-attribute and ID. Add a generic `updateRecord` helper that converts typed field
+Use the owning view's query result to resolve the selected record so the table
+and editor share one snapshot. A separate `loadRecord` request is intentionally
+omitted because it would duplicate state and require cross-resource
+synchronization. Add a generic `updateRecord` helper that converts typed field
 values into the existing tagged mutation columns and submits one atomic update
 step to `/api/mutate`.
 
@@ -124,35 +126,35 @@ shared component.
 
 ## Implementation Checklist
 
-- [ ] Add shared editor definition types and binding validation for identity,
+- [x] Add shared editor definition types and binding validation for identity,
       editable fields, duplicate attributes, and field/value compatibility.
-- [ ] Add generic typed mutation request builders plus `loadRecord` and
-      `updateRecord` helpers using `FetchService`, `/api/query`, and
-      `/api/mutate`.
-- [ ] Add unit tests for string and integer updates, malformed definitions,
+- [x] Add a generic typed `updateRecord` request builder using `FetchService`
+      and `/api/mutate`; reuse the owner's shared `/api/query` result instead
+      of issuing a second record query.
+- [x] Add unit tests for string and integer updates, malformed definitions,
       missing attributes, type mismatches, and exact wire payloads.
-- [ ] Implement a generic record edit form that initializes a local draft from
+- [x] Implement a generic record edit form that initializes a local draft from
       resolved column handles and supports text, textarea, integer, required,
       saving, saved, and error states.
-- [ ] Implement the reusable master-detail shell with a flexible left pane, a
+- [x] Implement the reusable master-detail shell with a flexible left pane, a
       bounded right pane, accessible row activation and close command, and a
       narrow-screen stacked layout.
-- [ ] Ensure one shared query resource owns the visible records and is
+- [x] Ensure one shared query resource owns the visible records and is
       refetched after save, preventing stale values between table and detail.
-- [ ] Generalize navigation selection and hash parsing for records owned by
+- [x] Generalize navigation selection and hash parsing for records owned by
       saved views and administration entries; retain owner highlighting and
       support reload, close, and back/forward navigation.
-- [ ] Migrate saved ticket views to the shared shell while preserving table and
+- [x] Migrate saved ticket views to the shared shell while preserving table and
       list presentations, search, status rendering, result counts, and view
       configuration commands.
-- [ ] Migrate Users to the shared shell with editable username/name fields and
+- [x] Migrate Users to the shared shell with editable username/name fields and
       hidden immutable IDs.
-- [ ] Remove ticket-specific detail layout, editor, route state, and redundant
+- [x] Remove ticket-specific detail layout, editor, route state, and redundant
       API helpers once both migrations pass.
-- [ ] Add component tests for mouse and keyboard row selection, both URL forms,
+- [x] Add component tests for mouse and keyboard row selection, both URL forms,
       owner highlighting, reload restoration, editing tickets and users,
       server errors, close behavior, and table refresh after save.
-- [ ] Update `ui/README.md` with the generic master-detail contract, extension
+- [x] Update `ui/README.md` with the generic master-detail contract, extension
       points for custom fields, and current limitations.
 
 ## What assumptions does the plan make?
@@ -208,3 +210,11 @@ right-side editor without hiding the table, direct record URLs survive reload,
 navigation highlighting remains correct, browser back/forward works, closing
 returns to the owner view, successful saves refresh both panes, failed saves
 retain the draft, and internal IDs never become visible fields.
+
+Automated verification completed on 2026-08-29. Type checking, 51 tests across
+16 files, and the Vite production build pass. Application tests cover ticket
+and user editing, both owner-specific record routes, direct URL restoration,
+owner highlighting, close behavior, hidden user IDs, and exact mutation
+payloads. Component tests cover definition validation and failed-save draft
+retention. Responsive behavior is implemented through the shared CSS module;
+no browser automation was available for a separate visual viewport pass.
