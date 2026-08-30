@@ -81,7 +81,7 @@ describe("workspace app", () => {
     expect(screen.queryByText("Fix navigation bug")).toBeNull();
   });
 
-  it("opens and edits a ticket", async () => {
+  it("opens and autosaves a ticket", async () => {
     render(() => <App />);
     await userEvent.click(await screen.findByText("Fix navigation bug"));
 
@@ -91,12 +91,11 @@ describe("workspace app", () => {
     expect(screen.getByRole("table", { name: "Active issues" })).toBeTruthy();
     const title = await screen.findByRole("textbox", { name: "Title" });
     const description = screen.getByRole("textbox", { name: "Description" });
+    const queryCallsBeforeSave = vi.mocked(fetch).mock.calls.filter(([input]) => input === "/api/query").length;
     await userEvent.clear(title);
     await userEvent.type(title, "Fix persistent navigation bug");
     await userEvent.clear(description);
     await userEvent.type(description, "Keep the selected view after navigation.");
-    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
-
     await waitFor(() =>
       expect(vi.mocked(fetch)).toHaveBeenCalledWith(
         "/api/mutate",
@@ -125,6 +124,9 @@ describe("workspace app", () => {
         }),
       ),
     );
+    await screen.findByText("Saved");
+    expect(vi.mocked(fetch).mock.calls.filter(([input]) => input === "/api/query")).toHaveLength(queryCallsBeforeSave);
+    expect(document.activeElement).toBe(description);
     await userEvent.click(screen.getByRole("button", { name: "Close details" }));
     expect(window.location.hash).toBe("#/views/view-active");
     expect(screen.queryByRole("heading", { name: "Ticket details" })).toBeNull();
@@ -169,7 +171,7 @@ describe("workspace app", () => {
     expect(screen.getByRole("button", { name: "Active issues" }).parentElement?.className).not.toMatch(/selected/);
   });
 
-  it("opens and edits a user beside the users table", async () => {
+  it("opens and autosaves a user beside the users table", async () => {
     render(() => <App />);
     await userEvent.click(screen.getByRole("button", { name: "Users" }));
     await userEvent.click(await screen.findByText("Jane Developer"));
@@ -180,8 +182,6 @@ describe("workspace app", () => {
     const name = screen.getByRole("textbox", { name: "Name" });
     await userEvent.clear(name);
     await userEvent.type(name, "Jane Engineer");
-    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
-
     await waitFor(() =>
       expect(vi.mocked(fetch)).toHaveBeenCalledWith(
         "/api/mutate",

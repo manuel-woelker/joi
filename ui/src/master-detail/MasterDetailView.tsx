@@ -13,7 +13,6 @@ export function MasterDetailView(props: {
   result?: QueryResult;
   selectedRecordId?: string;
   onClose: () => void;
-  onSaved: () => Promise<unknown> | unknown;
 }) {
   return (
     <div class={styles.layout} classList={{ [styles.withDetail]: Boolean(props.selectedRecordId) }}>
@@ -26,7 +25,6 @@ export function MasterDetailView(props: {
             result={props.result!}
             recordId={props.selectedRecordId!}
             onClose={props.onClose}
-            onSaved={props.onSaved}
           />
         </aside>
       </Show>

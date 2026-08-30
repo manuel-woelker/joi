@@ -174,7 +174,6 @@ export function SavedViewContent() {
       result={ticketRecords()}
       selectedRecordId={controller.navigation.selectedRecordId()}
       onClose={() => controller.closeRecord()}
-      onSaved={() => refetch()}
     />
   );
 }

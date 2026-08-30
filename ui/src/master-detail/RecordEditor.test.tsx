@@ -9,7 +9,7 @@ import { RecordEditor } from "./RecordEditor";
 afterEach(cleanup);
 
 describe("RecordEditor", () => {
-  it("retains its draft when saving fails", async () => {
+  it("retains its form value when autosaving fails", async () => {
     const fetcher = vi.fn(async () => ({ ok: false, status: 500 }) as Response);
     const result = parseQueryResponse({
       number_of_hits: 1,
@@ -30,16 +30,54 @@ describe("RecordEditor", () => {
         result={result}
         recordId="record-1"
         onClose={() => undefined}
-        onSaved={() => undefined}
       />
     ));
 
     const name = screen.getByRole("textbox", { name: "Name" });
     await userEvent.clear(name);
     await userEvent.type(name, "Unsaved value");
-    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
-
     expect((await screen.findByRole("alert")).textContent).toContain("HTTP 500");
     expect((name as HTMLInputElement).value).toBe("Unsaved value");
+  });
+
+  it("does not show saved while a newer edit is dirty", async () => {
+    let completeSave: ((response: Response) => void) | undefined;
+    const fetcher = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          completeSave = resolve;
+        }),
+    );
+    const result = parseQueryResponse({
+      number_of_hits: 1,
+      result_columns: [
+        { attribute: "id", values: { type: "string", values: ["record-1"] } },
+        { attribute: "name", values: { type: "string", values: ["Before"] } },
+      ],
+    });
+    render(() => (
+      <RecordEditor
+        definition={{
+          tableName: "records",
+          identityAttribute: "id",
+          detailTitle: "Record details",
+          fields: [{ attribute: "name", label: "Name", control: "text" }],
+        }}
+        fetchService={new FetchService(fetcher)}
+        result={result}
+        recordId="record-1"
+        onClose={() => undefined}
+      />
+    ));
+
+    const name = screen.getByRole("textbox", { name: "Name" });
+    await userEvent.clear(name);
+    await userEvent.type(name, "First edit");
+    await screen.findByText("Saving");
+    await userEvent.type(name, " with newer text");
+    completeSave?.({ ok: true, status: 200, json: async () => ({}) } as Response);
+
+    await Promise.resolve();
+    expect(screen.queryByText("Saved")).toBeNull();
   });
 });

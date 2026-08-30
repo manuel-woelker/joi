@@ -63,6 +63,17 @@
   color: var(--color-surface);
 }
 
+.dirtyState {
+  justify-self: start;
+  padding: 2px 7px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-surface-muted);
+  color: var(--color-ink-soft);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
 .unmounted {
   min-height: 67px;
   margin: 0;

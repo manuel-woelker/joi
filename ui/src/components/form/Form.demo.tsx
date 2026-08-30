@@ -1,7 +1,7 @@
 import { Show, createSignal, createUniqueId } from "solid-js";
 
 import type { ComponentDemo } from "../../playground/demo";
-import { Form, useFormField } from "./Form";
+import { Form, useFormField, useFormState } from "./Form";
 import styles from "./Form.demo.module.css";
 
 function BasicFormField(props: { fieldName: string }) {
@@ -25,6 +25,11 @@ function FieldValue(props: { fieldName: string }) {
   );
 }
 
+function DirtyState() {
+  const form = useFormState();
+  return <span class={styles.dirtyState}>{form.dirty() ? "Dirty" : "Clean"}</span>;
+}
+
 function DebouncedFormDemo() {
   const [savedChanges, setSavedChanges] = createSignal("Waiting for changes");
   const [mounted, setMounted] = createSignal(true);
@@ -39,6 +44,7 @@ function DebouncedFormDemo() {
         >
           <BasicFormField fieldName="name" />
           <FieldValue fieldName="name" />
+          <DirtyState />
         </Form>
       </Show>
       <button class={styles.mountButton} type="button" onClick={() => setMounted((value) => !value)}>

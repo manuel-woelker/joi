@@ -20,7 +20,7 @@ const userEditor: MasterDetailDefinition = {
 
 export function Users(props: { fetchService: FetchService }) {
   const controller = useWorkspace();
-  const [users, { refetch }] = createResource(() => loadUsers(props.fetchService));
+  const [users] = createResource(() => loadUsers(props.fetchService));
 
   return (
     <Switch>
@@ -58,7 +58,6 @@ export function Users(props: { fetchService: FetchService }) {
               result={result()}
               selectedRecordId={controller.navigation.selectedRecordId()}
               onClose={() => controller.closeRecord()}
-              onSaved={() => refetch()}
             />
           );
         }}

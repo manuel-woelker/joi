@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen } from "@solidjs/testing-library";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { Form, useFormField } from "./Form";
+import { Form, useFormField, useFormState } from "./Form";
 
 afterEach(() => {
   cleanup();
@@ -34,6 +34,11 @@ function SaveFields() {
       <input aria-label="Role" value={role.value} onInput={role.onInput} />
     </>
   );
+}
+
+function DirtyIndicator() {
+  const form = useFormState();
+  return <output>{form.dirty() ? "Dirty" : "Clean"}</output>;
 }
 
 describe("Form", () => {
@@ -111,6 +116,33 @@ describe("Form", () => {
     fireEvent.input(input, { target: { value: "Elliot" } });
     vi.advanceTimersByTime(500);
     expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it("stays dirty until an asynchronous save completes", async () => {
+    vi.useFakeTimers();
+    let completeSave: (() => void) | undefined;
+    const onSave = () =>
+      new Promise<void>((resolve) => {
+        completeSave = resolve;
+      });
+    render(() => (
+      <Form
+        model={{ attributes: [{ id: "name", label: "Name", initialValue: "Elliot" }] }}
+        saveDebounceMs={100}
+        onSave={onSave}
+      >
+        <TestField />
+        <DirtyIndicator />
+      </Form>
+    ));
+
+    fireEvent.input(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Grace" } });
+    expect(screen.getByText("Dirty")).toBeTruthy();
+    vi.advanceTimersByTime(100);
+    expect(screen.getByText("Dirty")).toBeTruthy();
+    completeSave?.();
+    await Promise.resolve();
+    expect(screen.getByText("Clean")).toBeTruthy();
   });
 
   it("flushes pending changes immediately on unmount", () => {

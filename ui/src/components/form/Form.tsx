@@ -1,4 +1,12 @@
-import { createContext, onCleanup, useContext, type JSX, type ParentProps } from "solid-js";
+import {
+  createContext,
+  createSignal,
+  onCleanup,
+  useContext,
+  type Accessor,
+  type JSX,
+  type ParentProps,
+} from "solid-js";
 import { createStore } from "solid-js/store";
 
 /** Field values changed since the previous debounced save. */
@@ -36,7 +44,14 @@ interface FormState {
 interface FormContextValue {
   readonly model: FormModel;
   readonly state: FormState;
+  readonly dirty: Accessor<boolean>;
   readonly setValue: (fieldId: string, value: string) => void;
+}
+
+/** Reactive state shared by all controls in a form. */
+export interface FormRuntimeState {
+  /** Whether current values contain changes not confirmed by a successful save. */
+  readonly dirty: Accessor<boolean>;
 }
 
 /** Reactive field state exposed to form controls. */
@@ -48,50 +63,83 @@ export interface FormField {
   /** Updates the field value directly. */
   readonly setValue: (value: string) => void;
   /** Input handler that updates the field on every typed character. */
-  readonly onInput: JSX.EventHandler<HTMLInputElement, InputEvent>;
+  readonly onInput: JSX.EventHandler<HTMLInputElement | HTMLTextAreaElement, InputEvent>;
 }
 
 const FormContext = createContext<FormContextValue>();
 
 /** Creates a form store and provides it to descendant field components. */
 export function Form(props: FormProps) {
-  validateModel(props.model);
-  const initialValues = Object.fromEntries(
-    props.model.attributes.map((attribute) => [attribute.id, attribute.initialValue]),
-  );
+  const model = props.model;
+  validateModel(model);
+  const initialValues = Object.fromEntries(model.attributes.map((attribute) => [attribute.id, attribute.initialValue]));
   const [state, setState] = createStore<FormState>({
     values: initialValues,
   });
+  const [dirty, setDirty] = createSignal(false);
   const submittedValues = { ...initialValues };
   let saveTimer: ReturnType<typeof setTimeout> | undefined;
+  let saveInProgress = false;
+  let saveRequested = false;
 
-  const flushSave = () => {
+  const hasChanges = () =>
+    model.attributes.some((attribute) => state.values[attribute.id] !== submittedValues[attribute.id]);
+
+  const flushSave = async () => {
     saveTimer = undefined;
     if (!props.onSave) return;
+    if (saveInProgress) {
+      saveRequested = true;
+      return;
+    }
     const changes = Object.fromEntries(
-      props.model.attributes
+      model.attributes
         .filter((attribute) => state.values[attribute.id] !== submittedValues[attribute.id])
         .map((attribute) => [attribute.id, state.values[attribute.id]]),
     );
-    if (Object.keys(changes).length === 0) return;
-    Object.assign(submittedValues, changes);
-    void props.onSave(Object.freeze(changes));
+    if (Object.keys(changes).length === 0) {
+      setDirty(false);
+      return;
+    }
+    saveInProgress = true;
+    try {
+      const result = props.onSave(Object.freeze(changes));
+      if (result) await result;
+      Object.assign(submittedValues, changes);
+    } catch {
+      // The callback owns save error presentation; the form remains dirty.
+    } finally {
+      saveInProgress = false;
+      setDirty(hasChanges());
+      if (saveRequested) {
+        saveRequested = false;
+        void flushSave();
+      }
+    }
   };
 
   const setValue = (fieldId: string, value: string) => {
     if (state.values[fieldId] === value) return;
     setState("values", fieldId, value);
+    setDirty(saveInProgress || hasChanges());
     if (!props.onSave) return;
     if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(flushSave, Math.max(0, props.saveDebounceMs ?? 500));
+    saveTimer = setTimeout(() => void flushSave(), Math.max(0, props.saveDebounceMs ?? 500));
   };
 
   onCleanup(() => {
     if (saveTimer) clearTimeout(saveTimer);
-    flushSave();
+    void flushSave();
   });
 
-  return <FormContext.Provider value={{ model: props.model, state, setValue }}>{props.children}</FormContext.Provider>;
+  return <FormContext.Provider value={{ model, state, dirty, setValue }}>{props.children}</FormContext.Provider>;
+}
+
+/** Returns reactive state for the nearest form. */
+export function useFormState(): FormRuntimeState {
+  const form = useContext(FormContext);
+  if (!form) throw new Error("useFormState must be called inside a Form");
+  return { dirty: form.dirty };
 }
 
 /**
