@@ -35,6 +35,8 @@ export interface FormAttribute {
   readonly label: string;
   /** Value assigned when the form store is created. */
   readonly initialValue: string;
+  /** Whether user input is rejected for this field. Defaults to false. */
+  readonly readonly?: boolean;
   /** Validation evaluated with this field's current value. */
   readonly validation?: ValidationFunction<string>;
 }
@@ -72,6 +74,8 @@ export interface FormRuntimeState {
 export interface FormField {
   readonly id: string;
   readonly label: string;
+  /** Whether the field rejects user input. */
+  readonly readonly: boolean;
   /** Current validation failures associated with this field. */
   readonly validationMessages: Accessor<readonly ValidationFailure[]>;
   /** Current field value. Reading this property participates in Solid reactivity. */
@@ -187,15 +191,21 @@ export function useFormField(fieldId: string): FormField {
   if (!attribute) throw new Error(`Form field '${fieldId}' is not defined`);
 
   const setValue = (value: string) => form.setValue(fieldId, value);
+  const onInput: FormField["onInput"] = attribute.readonly
+    ? () => {
+        throw new Error(`Form field '${fieldId}' is readonly`);
+      }
+    : (event) => setValue(event.currentTarget.value);
   return {
     id: attribute.id,
     label: attribute.label,
+    readonly: attribute.readonly ?? false,
     validationMessages: () => form.validationMessages().filter((failure) => failure.attribute === fieldId),
     get value() {
       return form.state.values[fieldId];
     },
     setValue,
-    onInput: (event) => setValue(event.currentTarget.value),
+    onInput,
   };
 }
 

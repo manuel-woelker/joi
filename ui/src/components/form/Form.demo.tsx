@@ -2,7 +2,7 @@ import { Show, createSignal, createUniqueId } from "solid-js";
 
 import type { ComponentDemo } from "../../playground/demo";
 import { matches, notEmpty } from "../../validation/validation-functions";
-import { Form, useFormField, useFormState } from "./Form";
+import { Form, useFormField, useFormState, type FormField } from "./Form";
 import styles from "./Form.demo.module.css";
 import { FormValidationMessages } from "./FormValidationMessages";
 
@@ -16,6 +16,7 @@ function BasicFormField(props: { fieldName: string }) {
       <input
         id={inputId}
         value={formField.value}
+        readOnly={formField.readonly}
         aria-invalid={formField.validationMessages().length > 0}
         aria-describedby={formField.validationMessages().length > 0 ? messagesId : undefined}
         onInput={formField.onInput}
@@ -82,6 +83,52 @@ function DebouncedFormDemo() {
   );
 }
 
+function ReadonlyFormDemo() {
+  return (
+    <div class={styles.formDemo}>
+      <Form
+        model={{
+          attributes: [{ id: "identifier", label: "Identifier", initialValue: "user-2jx4", readonly: true }],
+        }}
+      >
+        <BasicFormField fieldName="identifier" />
+        <FieldValue fieldName="identifier" />
+        <ReadonlyBehavior fieldName="identifier" />
+      </Form>
+    </div>
+  );
+}
+
+function ReadonlyBehavior(props: { fieldName: string }) {
+  const field = useFormField(props.fieldName);
+  const [error, setError] = createSignal<string>();
+  const invokeInputHandler = () => {
+    try {
+      field.onInput({} as Parameters<FormField["onInput"]>[0]);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    }
+  };
+  return (
+    <>
+      <div class={styles.currentValue}>
+        <span>Readonly flag</span>
+        <output>{String(field.readonly)}</output>
+      </div>
+      <button class={styles.mountButton} type="button" onClick={invokeInputHandler}>
+        Invoke input handler
+      </button>
+      <Show when={error()}>
+        {(message) => (
+          <output class={styles.exception} role="alert">
+            {message()}
+          </output>
+        )}
+      </Show>
+    </>
+  );
+}
+
 export default {
   name: "Form",
   description: "Form for editing data through context-aware fields.",
@@ -90,6 +137,11 @@ export default {
       name: "Minimal",
       description: "A shared reactive field saved after 500 milliseconds without input.",
       render: () => <DebouncedFormDemo />,
+    },
+    {
+      name: "Readonly",
+      description: "A field that exposes its value while rejecting user input.",
+      render: () => <ReadonlyFormDemo />,
     },
   ],
 } satisfies ComponentDemo;

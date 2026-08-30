@@ -99,3 +99,12 @@
   font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
   font-size: 0.78rem;
 }
+
+.exception {
+  padding: 8px 10px;
+  border-left: 3px solid var(--color-secondary-dark);
+  background: var(--color-surface-muted);
+  color: var(--color-ink);
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: 0.78rem;
+}

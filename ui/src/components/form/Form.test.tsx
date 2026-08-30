@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen } from "@solidjs/testing-library";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { Form, useFormField, useFormState } from "./Form";
+import { Form, useFormField, useFormState, type FormField } from "./Form";
 import { FormValidationMessages } from "./FormValidationMessages";
 import { notEmpty } from "../../validation/validation-functions";
 
@@ -88,6 +88,29 @@ describe("Form", () => {
         />
       )),
     ).toThrow("Form field 'name' is defined more than once");
+  });
+
+  it("exposes readonly fields and rejects their input handler", () => {
+    let field: FormField | undefined;
+    const ReadonlyField = () => {
+      field = useFormField("identifier");
+      return <input aria-label="Identifier" value={field.value} readOnly={field.readonly} onInput={field.onInput} />;
+    };
+    render(() => (
+      <Form
+        model={{
+          attributes: [{ id: "identifier", label: "Identifier", initialValue: "user-2jx4", readonly: true }],
+        }}
+      >
+        <ReadonlyField />
+      </Form>
+    ));
+
+    expect(field?.readonly).toBe(true);
+    expect(screen.getByRole("textbox", { name: "Identifier" }).hasAttribute("readonly")).toBe(true);
+    expect(() => field?.onInput({} as Parameters<FormField["onInput"]>[0])).toThrow(
+      "Form field 'identifier' is readonly",
+    );
   });
 
   it("displays field validation and saves after the value becomes valid", () => {
