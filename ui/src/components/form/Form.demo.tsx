@@ -1,16 +1,26 @@
 import { Show, createSignal, createUniqueId } from "solid-js";
 
 import type { ComponentDemo } from "../../playground/demo";
+import { matches, notEmpty } from "../../validation/validation-functions";
 import { Form, useFormField, useFormState } from "./Form";
 import styles from "./Form.demo.module.css";
+import { FormValidationMessages } from "./FormValidationMessages";
 
 function BasicFormField(props: { fieldName: string }) {
   const formField = useFormField(props.fieldName);
   const inputId = createUniqueId();
+  const messagesId = `${inputId}-messages`;
   return (
     <div class={styles.field}>
       <label for={inputId}>{formField.label}</label>
-      <input id={inputId} value={formField.value} onInput={formField.onInput} />
+      <input
+        id={inputId}
+        value={formField.value}
+        aria-invalid={formField.validationMessages().length > 0}
+        aria-describedby={formField.validationMessages().length > 0 ? messagesId : undefined}
+        onInput={formField.onInput}
+      />
+      <FormValidationMessages attribute={formField.id} id={messagesId} />
     </div>
   );
 }
@@ -33,11 +43,25 @@ function DirtyState() {
 function DebouncedFormDemo() {
   const [savedChanges, setSavedChanges] = createSignal("Waiting for changes");
   const [mounted, setMounted] = createSignal(true);
+  const validateNameIsPresent = notEmpty("Enter a name.");
+  const validateNameFormat = matches(/^[\p{L} '-]+$/u, "Use letters, spaces, apostrophes, or hyphens.");
   return (
     <div class={styles.formDemo}>
       <Show when={mounted()} fallback={<p class={styles.unmounted}>Form unmounted</p>}>
         <Form
-          model={{ attributes: [{ id: "name", label: "Name", initialValue: "Elliot" }] }}
+          model={{
+            attributes: [
+              {
+                id: "name",
+                label: "Name",
+                initialValue: "Elliot",
+                validation(context) {
+                  validateNameIsPresent(context);
+                  validateNameFormat(context);
+                },
+              },
+            ],
+          }}
           onSave={(changes) => {
             setSavedChanges(JSON.stringify(changes));
           }}

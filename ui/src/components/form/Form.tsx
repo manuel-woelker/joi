@@ -1,5 +1,6 @@
 import {
   createContext,
+  createMemo,
   createSignal,
   onCleanup,
   useContext,
@@ -9,8 +10,12 @@ import {
 } from "solid-js";
 import { createStore } from "solid-js/store";
 
+import { validate, type ValidationFailure, type ValidationFunction } from "../../validation/validation";
+
 /** Field values changed since the previous debounced save. */
 export type FormChanges = Readonly<Record<string, string>>;
+/** Complete string-valued state validated by a form model. */
+export type FormValues = Readonly<Record<string, string>>;
 
 /** Properties for a form state provider. */
 export interface FormProps extends ParentProps {
@@ -30,11 +35,17 @@ export interface FormAttribute {
   readonly label: string;
   /** Value assigned when the form store is created. */
   readonly initialValue: string;
+  /** Validation evaluated with this field's current value. */
+  readonly validation?: ValidationFunction<string>;
 }
 
 /** Describes the fields available to descendants of a {@link Form}. */
 export interface FormModel {
   readonly attributes: readonly FormAttribute[];
+  /** Validation evaluated against all current field values. */
+  readonly validation?: ValidationFunction<FormValues>;
+  /** External failures, such as messages returned by a server. */
+  readonly validationMessages?: readonly ValidationFailure[];
 }
 
 interface FormState {
@@ -45,6 +56,7 @@ interface FormContextValue {
   readonly model: FormModel;
   readonly state: FormState;
   readonly dirty: Accessor<boolean>;
+  readonly validationMessages: Accessor<readonly ValidationFailure[]>;
   readonly setValue: (fieldId: string, value: string) => void;
 }
 
@@ -52,12 +64,16 @@ interface FormContextValue {
 export interface FormRuntimeState {
   /** Whether current values contain changes not confirmed by a successful save. */
   readonly dirty: Accessor<boolean>;
+  /** Current model and rule validation failures. */
+  readonly validationMessages: Accessor<readonly ValidationFailure[]>;
 }
 
 /** Reactive field state exposed to form controls. */
 export interface FormField {
   readonly id: string;
   readonly label: string;
+  /** Current validation failures associated with this field. */
+  readonly validationMessages: Accessor<readonly ValidationFailure[]>;
   /** Current field value. Reading this property participates in Solid reactivity. */
   readonly value: string;
   /** Updates the field value directly. */
@@ -77,6 +93,18 @@ export function Form(props: FormProps) {
     values: initialValues,
   });
   const [dirty, setDirty] = createSignal(false);
+  const validationMessages = createMemo(() => {
+    const formFailures = model.validation ? validate(state.values, model.validation).failures : [];
+    const attributeFailures = model.attributes.flatMap((attribute) =>
+      attribute.validation
+        ? validate(state.values[attribute.id], attribute.validation).failures.map((failure) => ({
+            ...failure,
+            attribute: attribute.id,
+          }))
+        : [],
+    );
+    return [...(model.validationMessages ?? []), ...formFailures, ...attributeFailures];
+  });
   const submittedValues = { ...initialValues };
   let saveTimer: ReturnType<typeof setTimeout> | undefined;
   let saveInProgress = false;
@@ -88,6 +116,7 @@ export function Form(props: FormProps) {
   const flushSave = async () => {
     saveTimer = undefined;
     if (!props.onSave) return;
+    if (validationMessages().length > 0) return;
     if (saveInProgress) {
       saveRequested = true;
       return;
@@ -132,14 +161,18 @@ export function Form(props: FormProps) {
     void flushSave();
   });
 
-  return <FormContext.Provider value={{ model, state, dirty, setValue }}>{props.children}</FormContext.Provider>;
+  return (
+    <FormContext.Provider value={{ model, state, dirty, validationMessages, setValue }}>
+      {props.children}
+    </FormContext.Provider>
+  );
 }
 
 /** Returns reactive state for the nearest form. */
 export function useFormState(): FormRuntimeState {
   const form = useContext(FormContext);
   if (!form) throw new Error("useFormState must be called inside a Form");
-  return { dirty: form.dirty };
+  return { dirty: form.dirty, validationMessages: form.validationMessages };
 }
 
 /**
@@ -157,6 +190,7 @@ export function useFormField(fieldId: string): FormField {
   return {
     id: attribute.id,
     label: attribute.label,
+    validationMessages: () => form.validationMessages().filter((failure) => failure.attribute === fieldId),
     get value() {
       return form.state.values[fieldId];
     },

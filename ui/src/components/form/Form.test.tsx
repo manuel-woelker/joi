@@ -3,6 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Form, useFormField, useFormState } from "./Form";
+import { FormValidationMessages } from "./FormValidationMessages";
+import { notEmpty } from "../../validation/validation-functions";
 
 afterEach(() => {
   cleanup();
@@ -41,6 +43,23 @@ function DirtyIndicator() {
   return <output>{form.dirty() ? "Dirty" : "Clean"}</output>;
 }
 
+function ValidatedField() {
+  const field = useFormField("name");
+  return (
+    <div>
+      <label for="validated-name">Name</label>
+      <input
+        id="validated-name"
+        value={field.value}
+        aria-invalid={field.validationMessages().length > 0}
+        aria-describedby={field.validationMessages().length > 0 ? "validated-name-messages" : undefined}
+        onInput={field.onInput}
+      />
+      <FormValidationMessages attribute="name" id="validated-name-messages" />
+    </div>
+  );
+}
+
 describe("Form", () => {
   it("provides reactive fields that update on every typed character", async () => {
     render(() => (
@@ -69,6 +88,64 @@ describe("Form", () => {
         />
       )),
     ).toThrow("Form field 'name' is defined more than once");
+  });
+
+  it("displays field validation and saves after the value becomes valid", () => {
+    vi.useFakeTimers();
+    const onSave = vi.fn();
+    const validateName = notEmpty("Name is required.");
+    render(() => (
+      <Form
+        model={{
+          attributes: [
+            {
+              id: "name",
+              label: "Name",
+              initialValue: "Jane",
+              validation(context) {
+                validateName(context);
+              },
+            },
+          ],
+        }}
+        saveDebounceMs={100}
+        onSave={onSave}
+      >
+        <ValidatedField />
+      </Form>
+    ));
+
+    const input = screen.getByRole("textbox", { name: "Name" });
+    fireEvent.input(input, { target: { value: "" } });
+    expect(screen.getByRole("alert").textContent).toBe("Name is required.");
+    expect(input.getAttribute("aria-invalid")).toBe("true");
+    vi.advanceTimersByTime(100);
+    expect(onSave).not.toHaveBeenCalled();
+
+    fireEvent.input(input, { target: { value: "Janet" } });
+    expect(screen.queryByRole("alert")).toBeNull();
+    vi.advanceTimersByTime(100);
+    expect(onSave).toHaveBeenCalledWith({ name: "Janet" });
+  });
+
+  it("displays attached field and form validation messages", () => {
+    render(() => (
+      <Form
+        model={{
+          attributes: [{ id: "name", label: "Name", initialValue: "Jane" }],
+          validationMessages: [
+            { attribute: "name", message: "That name is already used." },
+            { message: "The record cannot be saved." },
+          ],
+        }}
+      >
+        <ValidatedField />
+        <FormValidationMessages />
+      </Form>
+    ));
+
+    expect(screen.getByText("That name is already used.")).toBeTruthy();
+    expect(screen.getByText("The record cannot be saved.")).toBeTruthy();
   });
 
   it("debounces and coalesces changed values", () => {

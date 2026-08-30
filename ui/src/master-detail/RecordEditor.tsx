@@ -1,8 +1,11 @@
 import { For, Show, createMemo, createSignal, createUniqueId } from "solid-js";
 
 import { Form, useFormField, useFormState, type FormChanges, type FormModel } from "../components/form/Form";
+import { FormValidationMessages } from "../components/form/FormValidationMessages";
 import type { QueryResult, QueryResultRow } from "../query/query-result";
 import type { FetchService } from "../services/fetch-service";
+import { notEmpty } from "../validation/validation-functions";
+import type { ValidationFunction } from "../validation/validation";
 import { validateMasterDetailDefinition, type EditFieldDefinition, type MasterDetailDefinition } from "./definition";
 import { updateRecord, type RecordFieldValue } from "./record-api";
 import styles from "./RecordEditor.module.css";
@@ -84,6 +87,7 @@ function SaveStatus(props: { saving: () => boolean; saved: () => boolean; error:
   const form = useFormState();
   return (
     <div class={styles.actions}>
+      <FormValidationMessages />
       <Show when={props.error()}>
         {(message) => (
           <span class={styles.error} role="alert">
@@ -104,6 +108,8 @@ function SaveStatus(props: { saving: () => boolean; saved: () => boolean; error:
 function EditorField(props: { field: EditFieldDefinition }) {
   const formField = useFormField(props.field.attribute);
   const inputId = createUniqueId();
+  const messagesId = `${inputId}-messages`;
+  const hasValidationMessages = () => formField.validationMessages().length > 0;
   return (
     <div class={styles.field}>
       <label for={inputId}>{formField.label}</label>
@@ -115,6 +121,8 @@ function EditorField(props: { field: EditFieldDefinition }) {
             type={props.field.control === "integer" ? "number" : "text"}
             value={formField.value}
             required={props.field.required}
+            aria-invalid={hasValidationMessages()}
+            aria-describedby={hasValidationMessages() ? messagesId : undefined}
             onInput={formField.onInput}
           />
         }
@@ -124,9 +132,12 @@ function EditorField(props: { field: EditFieldDefinition }) {
           value={formField.value}
           required={props.field.required}
           rows={props.field.rows ?? 8}
+          aria-invalid={hasValidationMessages()}
+          aria-describedby={hasValidationMessages() ? messagesId : undefined}
           onInput={formField.onInput}
         />
       </Show>
+      <FormValidationMessages attribute={formField.id} id={messagesId} />
     </div>
   );
 }
@@ -142,7 +153,18 @@ function formModel(result: QueryResult, fields: readonly EditFieldDefinition[], 
       id: field.attribute,
       label: field.label,
       initialValue: String(row.value(result.requireColumn(field.attribute)) ?? ""),
+      validation: fieldValidation(field),
     })),
+  };
+}
+
+function fieldValidation(field: EditFieldDefinition): ValidationFunction<string> | undefined {
+  const validateRequired = field.required ? notEmpty(`${field.label} is required.`) : undefined;
+  if (!validateRequired) return field.validation;
+  if (!field.validation) return validateRequired;
+  return (context) => {
+    validateRequired(context);
+    field.validation?.(context);
   };
 }
 

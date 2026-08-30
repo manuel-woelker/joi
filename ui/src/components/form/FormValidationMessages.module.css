@@ -1,0 +1,8 @@
+.messages {
+  display: grid;
+  gap: 3px;
+  color: var(--color-danger);
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.35;
+}

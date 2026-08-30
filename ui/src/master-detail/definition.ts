@@ -1,4 +1,5 @@
 import type { QueryResult, QueryValueType } from "../query/query-result";
+import type { ValidationFunction } from "../validation/validation";
 
 export type EditControl = "text" | "textarea" | "integer";
 
@@ -8,6 +9,8 @@ export interface EditFieldDefinition {
   readonly control: EditControl;
   readonly required?: boolean;
   readonly rows?: number;
+  /** Validation evaluated with the field's current string value. */
+  readonly validation?: ValidationFunction<string>;
 }
 
 export interface MasterDetailDefinition {

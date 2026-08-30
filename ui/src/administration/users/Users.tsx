@@ -4,6 +4,7 @@ import { DataTable } from "../../components/DataTable";
 import { MasterDetailView } from "../../master-detail/MasterDetailView";
 import type { MasterDetailDefinition } from "../../master-detail/definition";
 import type { FetchService } from "../../services/fetch-service";
+import { matches } from "../../validation/validation-functions";
 import { useWorkspace } from "../../workspace/controller";
 import { loadUsers } from "./users-api";
 import styles from "./Users.module.css";
@@ -14,7 +15,16 @@ const userEditor: MasterDetailDefinition = {
   detailTitle: "User details",
   fields: [
     { attribute: "username", label: "Username", control: "text", required: true },
-    { attribute: "name", label: "Name", control: "text", required: true },
+    {
+      attribute: "name",
+      label: "Name",
+      control: "text",
+      required: true,
+      validation: matches(
+        /^(?:|[\p{L}\p{M} .'\u2018\u2019-]+)$/u,
+        "Use only letters, spaces, periods, apostrophes, and hyphens.",
+      ),
+    },
   ],
 };
 
