@@ -10,9 +10,8 @@ const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
 
 function git(...arguments_: string[]): string {
   const result = spawnSync("git", arguments_, { cwd: repositoryRoot, encoding: "utf8" });
-  const output = result.stdout.trim();
-  if (output) return output;
-  throw result.error ?? new Error(`git ${arguments_.join(" ")} failed`);
+  if (result.status === 0) return result.stdout.trim();
+  throw result.error ?? new Error(`git ${arguments_.join(" ")} failed: ${result.stderr.trim()}`);
 }
 
 const revision = `${git("log", "-1", "--format=%H").slice(0, 8)} ${git("log", "-1", "--format=%cI")}${git("status", "--porcelain") ? "-dev" : ""}`;
