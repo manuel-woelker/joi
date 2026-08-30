@@ -113,6 +113,26 @@ describe("Form", () => {
     );
   });
 
+  it("exposes a placeholder for empty fields", () => {
+    const PlaceholderField = () => {
+      const field = useFormField("summary");
+      return (
+        <input aria-label={field.label} value={field.value} placeholder={field.placeholder} onInput={field.onInput} />
+      );
+    };
+    render(() => (
+      <Form
+        model={{
+          attributes: [{ id: "summary", label: "Summary", initialValue: "", placeholder: "Briefly describe it" }],
+        }}
+      >
+        <PlaceholderField />
+      </Form>
+    ));
+
+    expect(screen.getByPlaceholderText("Briefly describe it")).toBeTruthy();
+  });
+
   it("displays field validation and saves after the value becomes valid", () => {
     vi.useFakeTimers();
     const onSave = vi.fn();

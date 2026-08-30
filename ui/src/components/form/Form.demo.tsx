@@ -16,6 +16,7 @@ function BasicFormField(props: { fieldName: string }) {
       <input
         id={inputId}
         value={formField.value}
+        placeholder={formField.placeholder}
         readOnly={formField.readonly}
         aria-invalid={formField.validationMessages().length > 0}
         aria-describedby={formField.validationMessages().length > 0 ? messagesId : undefined}
@@ -99,6 +100,21 @@ function ReadonlyFormDemo() {
   );
 }
 
+function PlaceholderFormDemo() {
+  return (
+    <div class={styles.formDemo}>
+      <Form
+        model={{
+          attributes: [{ id: "summary", label: "Summary", initialValue: "", placeholder: "Briefly describe it" }],
+        }}
+      >
+        <BasicFormField fieldName="summary" />
+        <FieldValue fieldName="summary" />
+      </Form>
+    </div>
+  );
+}
+
 function ReadonlyBehavior(props: { fieldName: string }) {
   const field = useFormField(props.fieldName);
   const [error, setError] = createSignal<string>();
@@ -142,6 +158,11 @@ export default {
       name: "Readonly",
       description: "A field that exposes its value while rejecting user input.",
       render: () => <ReadonlyFormDemo />,
+    },
+    {
+      name: "Placeholder",
+      description: "An empty field with a short input hint.",
+      render: () => <PlaceholderFormDemo />,
     },
   ],
 } satisfies ComponentDemo;

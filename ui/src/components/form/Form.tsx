@@ -35,6 +35,8 @@ export interface FormAttribute {
   readonly label: string;
   /** Value assigned when the form store is created. */
   readonly initialValue: string;
+  /** Hint displayed by controls while the field value is empty. */
+  readonly placeholder?: string;
   /** Whether user input is rejected for this field. Defaults to false. */
   readonly readonly?: boolean;
   /** Validation evaluated with this field's current value. */
@@ -74,6 +76,8 @@ export interface FormRuntimeState {
 export interface FormField {
   readonly id: string;
   readonly label: string;
+  /** Hint displayed by controls while the field value is empty. */
+  readonly placeholder?: string;
   /** Whether the field rejects user input. */
   readonly readonly: boolean;
   /** Current validation failures associated with this field. */
@@ -199,6 +203,7 @@ export function useFormField(fieldId: string): FormField {
   return {
     id: attribute.id,
     label: attribute.label,
+    placeholder: attribute.placeholder,
     readonly: attribute.readonly ?? false,
     validationMessages: () => form.validationMessages().filter((failure) => failure.attribute === fieldId),
     get value() {
