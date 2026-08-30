@@ -1,13 +1,18 @@
 use axum::{
     Json, Router,
     extract::{Path, State},
-    http::StatusCode,
+    http::{
+        HeaderMap, HeaderValue, StatusCode,
+        header::{COOKIE, SET_COOKIE},
+    },
+    response::{IntoResponse, Response},
     routing::post,
 };
 use joi_base::JoiString;
 use serde::Serialize;
 
 use crate::command_registry::CommandRegistry;
+use crate::user_session_command::{LOGIN_COMMAND, SESSION_COOKIE, USER_INFO_COMMAND};
 
 /// Serves registered commands as JSON HTTP endpoints.
 pub struct CommandService {
@@ -34,16 +39,18 @@ impl CommandService {
 async fn execute(
     State(registry): State<CommandRegistry>,
     Path(command_name): Path<JoiString>,
+    headers: HeaderMap,
     Json(request): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, (StatusCode, Json<CommandResponseError>)> {
-    execute_registered(&registry, &command_name, request)
+) -> Result<Response, (StatusCode, Json<CommandResponseError>)> {
+    execute_http(&registry, &command_name, request, &headers)
 }
 
 async fn execute_empty_object(
     State(registry): State<CommandRegistry>,
     Path(command_name): Path<JoiString>,
-) -> Result<Json<serde_json::Value>, (StatusCode, Json<CommandResponseError>)> {
-    execute_registered(&registry, &command_name, serde_json::json!({}))
+    headers: HeaderMap,
+) -> Result<Response, (StatusCode, Json<CommandResponseError>)> {
+    execute_http(&registry, &command_name, serde_json::json!({}), &headers)
 }
 
 #[derive(Debug, Serialize)]
@@ -86,6 +93,63 @@ fn execute_registered(
         })?
         .map(Json)
         .map_err(command_error)
+}
+
+fn execute_http(
+    registry: &CommandRegistry,
+    command_name: &str,
+    mut request: serde_json::Value,
+    headers: &HeaderMap,
+) -> Result<Response, (StatusCode, Json<CommandResponseError>)> {
+    if command_name == USER_INFO_COMMAND {
+        let session_id = session_cookie(headers).ok_or_else(unauthorized)?;
+        request = serde_json::json!({ "session_id": session_id });
+    }
+    let mut response = execute_registered(registry, command_name, request)
+        .map_err(|error| {
+            if command_name == USER_INFO_COMMAND {
+                unauthorized()
+            } else {
+                error
+            }
+        })?
+        .0;
+    let mut response_headers = HeaderMap::new();
+    if command_name == LOGIN_COMMAND {
+        let session_id = response
+            .get("session_id")
+            .and_then(serde_json::Value::as_str)
+            .ok_or_else(|| command_error(joi_error::joi_error!("login returned no session ID")))?;
+        let cookie = format!("{SESSION_COOKIE}={session_id}; Path=/; HttpOnly; SameSite=Strict");
+        response_headers.insert(
+            SET_COOKIE,
+            HeaderValue::from_str(&cookie)
+                .map_err(|error| command_error(joi_error::report(error)))?,
+        );
+        response
+            .as_object_mut()
+            .map(|object| object.remove("session_id"));
+    }
+    Ok((response_headers, Json(response)).into_response())
+}
+
+fn session_cookie(headers: &HeaderMap) -> Option<&str> {
+    headers
+        .get(COOKIE)?
+        .to_str()
+        .ok()?
+        .split(';')
+        .filter_map(|cookie| cookie.trim().split_once('='))
+        .find_map(|(name, value)| (name == SESSION_COOKIE).then_some(value))
+}
+
+fn unauthorized() -> (StatusCode, Json<CommandResponseError>) {
+    (
+        StatusCode::UNAUTHORIZED,
+        Json(CommandResponseError {
+            error: "login required".into(),
+        }),
+    )
 }
 
 #[cfg(test)]

@@ -12,6 +12,7 @@ The crate currently provides basic project infrastructure only:
 - a default `TicketsModule` implementation
 - an Axum service that exposes registered commands as typed JSON endpoints
 - an SQLite-backed data store with schema setup, columnar queries, and atomic mutations
+- passwordless user sessions transported by an HTTP-only cookie
 - a runnable `InfoCommand` endpoint
 - typed plugin extension registration through `joi-plugin`
 - formatting, test, and lint commands
@@ -51,7 +52,7 @@ CLI command execution.
 
 `SqliteDataStore` can open a database file or create an isolated in-memory
 database. It implements `DataStore`, creates missing tables and columns, maps
-string and integer columns, and applies every step in a mutation within one
+string and integer columns, enforces described foreign keys, and applies every step in a mutation within one
 SQLite transaction. The first column in each table description is its primary
 key. The server stores data at `examples/joix-tickets/joix-tickets.sqlite3`;
 the database and its SQLite sidecar files are ignored by Git. Identifiers are
@@ -90,12 +91,31 @@ JSON with serde. A GET request has no body, so the service invokes the command
 with the JSON object `{}`. If the request type requires fields, the endpoint
 returns a JSON `422` response. Successful responses are serialized as JSON.
 
+## How does login work?
+
+The development login is intentionally passwordless. `POST /api/login` accepts
+one existing `user_id`, inserts a row into `user_session`, and returns the
+selected user's public fields. The `sessions_id` primary key is a generated
+KSUID, and `user_id` has a SQLite foreign key to `users.id`.
+
+For HTTP clients, `CommandService` removes the session ID from the JSON response
+and stores it in the `joix_session` cookie with `HttpOnly`, `Path=/`, and
+`SameSite=Strict`. `GET /api/user-info` reads that cookie and returns the
+associated `id`, `username`, and `name`; a missing or invalid session returns
+`401 Unauthorized`. The cookie intentionally omits `Secure` for the current
+plain-HTTP localhost server. A production HTTPS deployment must add it.
+
+This is only a development identity mechanism. Sessions currently have no
+expiry, revocation, or password verification, and other commands are not yet
+authorization-gated.
+
 `Command::execute` returns `JoiResult<Response>`. Failed commands are exposed as a
 JSON `500 Internal Server Error` response whose `error` field contains the
 current error context.
 
 The executable currently registers `InfoCommand`, `PluginsCommand`,
-`QueryCommand`, and `MutateCommand` and listens on `127.0.0.1:3000`. The info command's empty
+`QueryCommand`, `MutateCommand`, `LoginCommand`, and `UserInfoCommand` and
+listens on `127.0.0.1:3000`. The info command's empty
 request is represented by JSON `{}`:
 
 ```bash

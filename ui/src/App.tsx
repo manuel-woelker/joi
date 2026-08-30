@@ -1,4 +1,4 @@
-import { Show } from "solid-js";
+import { Match, Show, Switch, createResource } from "solid-js";
 
 import { IconButton } from "./components/IconButton";
 import { NavigationTree } from "./components/NavigationTree";
@@ -12,10 +12,13 @@ import { StatusBar } from "./status-bar/StatusBar";
 import type { ApplicationView } from "./views/view";
 import { WorkspaceProvider, useWorkspace } from "./workspace/controller";
 import styles from "./App.module.css";
+import { Login } from "./authentication/Login";
+import { loadCurrentUser, type AuthenticatedUser } from "./authentication/authentication-service";
+import { fetchService } from "./services/fetch-service";
 
 const applicationPluginRegistry = createApplicationPluginRegistry();
 
-function WorkspaceApp(props: { pluginRegistry: PluginRegistry }) {
+function WorkspaceApp(props: { pluginRegistry: PluginRegistry; user: AuthenticatedUser }) {
   const controller = useWorkspace();
   const entries = administrationEntries(props.pluginRegistry);
   const selectedView = (): ApplicationView | undefined => {
@@ -52,6 +55,7 @@ function WorkspaceApp(props: { pluginRegistry: PluginRegistry }) {
           <span class={styles.currentView}>{selectedView()?.name ?? "Workspace"}</span>
         </div>
         <div class={styles.topCommands}>
+          <span class={styles.currentUser}>{props.user.name}</span>
           <Show when={controller.announcement().includes("Undo")}>
             <button class={styles.textButton} onClick={() => controller.undo()}>
               <span aria-hidden="true">↶</span>Undo
@@ -86,9 +90,22 @@ function WorkspaceApp(props: { pluginRegistry: PluginRegistry }) {
 }
 
 export default function App(props: { pluginRegistry?: PluginRegistry }) {
+  const [user, { refetch }] = createResource(() => loadCurrentUser(fetchService));
   return (
-    <WorkspaceProvider>
-      <WorkspaceApp pluginRegistry={props.pluginRegistry ?? applicationPluginRegistry} />
-    </WorkspaceProvider>
+    <Switch>
+      <Match when={user.loading}>
+        <main class={styles.startupStatus}>Loading session...</main>
+      </Match>
+      <Match when={user.error}>
+        <Login fetchService={fetchService} onLogin={() => void refetch()} />
+      </Match>
+      <Match when={user()}>
+        {(currentUser) => (
+          <WorkspaceProvider>
+            <WorkspaceApp pluginRegistry={props.pluginRegistry ?? applicationPluginRegistry} user={currentUser()} />
+          </WorkspaceProvider>
+        )}
+      </Match>
+    </Switch>
   );
 }

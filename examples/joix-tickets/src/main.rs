@@ -21,6 +21,9 @@ use crate::tickets_module::{
     TicketTableDescriptionProvider, TicketTestDataProvider, TicketsModule,
     UserTableDescriptionProvider, UserTestDataProvider,
 };
+use crate::user_session_command::{
+    LoginCommand, UserInfoCommand, UserSessionTableDescriptionProvider,
+};
 
 const DATA_STORE_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/joix-tickets.sqlite3");
 
@@ -36,6 +39,7 @@ pub mod plugins_command;
 pub mod sqlite_data_store;
 pub mod ticket_query_command;
 pub mod tickets_module;
+pub mod user_session_command;
 
 struct PackageInfoProvider;
 
@@ -130,6 +134,11 @@ fn create_plugin_registry() -> JoiResult<PluginRegistry> {
             "Defines the users table",
             Box::new(UserTableDescriptionProvider),
         )?;
+        context.register_extension::<dyn TableDescriptionProvider>(
+            "user-session-table",
+            "Defines authenticated user sessions",
+            Box::new(UserSessionTableDescriptionProvider),
+        )?;
         context.register_extension::<dyn TestDataProvider>(
             "ticket-test-data",
             "Adds representative tickets for development",
@@ -152,7 +161,9 @@ fn build_command_registry(
     builder.register(InfoCommand::new(plugin_registry.clone()))?;
     builder.register(PluginsCommand::new(plugin_registry))?;
     builder.register(QueryCommand::new(data_store.clone()))?;
-    builder.register(MutateCommand::new(data_store))?;
+    builder.register(MutateCommand::new(data_store.clone()))?;
+    builder.register(LoginCommand::new(data_store.clone()))?;
+    builder.register(UserInfoCommand::new(data_store))?;
     Ok(builder.build())
 }
 
@@ -212,7 +223,10 @@ mod tests {
 
     use axum::{
         body::{Body, to_bytes},
-        http::{Request, StatusCode, header::CONTENT_TYPE},
+        http::{
+            Request, StatusCode,
+            header::{CONTENT_TYPE, COOKIE, SET_COOKIE},
+        },
     };
     use serde_json::json;
     use tower::ServiceExt;
@@ -224,8 +238,8 @@ mod tests {
     use crate::sqlite_data_store::SqliteDataStore;
 
     use super::{
-        build_command_registry, create_plugin_registry, execute_cli_command, initialize_data_store,
-        parse_command_name,
+        CommandService, build_command_registry, create_plugin_registry, execute_cli_command,
+        initialize_data_store, parse_command_name,
     };
 
     fn test_command_registry() -> crate::command_registry::CommandRegistry {
@@ -273,7 +287,7 @@ mod tests {
                         "name": "tickets",
                         "description": "Ticket management",
                         "extension_points": [],
-                        "extensions": ["tickets-table", "users-table", "ticket-test-data", "user-test-data"]
+                        "extensions": ["tickets-table", "users-table", "user-session-table", "ticket-test-data", "user-test-data"]
                     }
                 ],
                 "extension_points": [
@@ -285,7 +299,7 @@ mod tests {
                     {
                         "id": "table-descriptions",
                         "description": "Defines data-store tables",
-                        "extensions": ["tickets-table", "users-table"]
+                        "extensions": ["tickets-table", "users-table", "user-session-table"]
                     },
                     {
                         "id": "test-data-providers",
@@ -298,6 +312,7 @@ mod tests {
                     { "id": "os-info", "description": "Provides operating-system information" },
                     { "id": "tickets-table", "description": "Defines the tickets table" },
                     { "id": "users-table", "description": "Defines the users table" },
+                    { "id": "user-session-table", "description": "Defines authenticated user sessions" },
                     { "id": "ticket-test-data", "description": "Adds representative tickets for development" },
                     { "id": "user-test-data", "description": "Adds representative users for development" }
                 ]
@@ -382,6 +397,87 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn login_cookie_authenticates_user_info() {
+        let registry = test_command_registry();
+        let users = registry
+            .execute(
+                "query",
+                json!({
+                    "table_name": "users",
+                    "criterion": "match_any",
+                    "max_results": 1,
+                    "attributes": ["id"]
+                }),
+            )
+            .unwrap()
+            .unwrap();
+        let user_id = users["result_columns"][0]["values"]["values"][0]
+            .as_str()
+            .unwrap();
+        let router = CommandService::new(registry).into_router();
+
+        let unauthenticated = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/user-info")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(unauthenticated.status(), StatusCode::UNAUTHORIZED);
+
+        let login = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/login")
+                    .header(CONTENT_TYPE, "application/json")
+                    .body(Body::from(json!({ "user_id": user_id }).to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(login.status(), StatusCode::OK);
+        let cookie = login
+            .headers()
+            .get(SET_COOKIE)
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_owned();
+        assert!(cookie.contains("HttpOnly"));
+        assert!(cookie.contains("SameSite=Strict"));
+        let session_cookie = cookie.split(';').next().unwrap().to_owned();
+        let body = to_bytes(login.into_body(), usize::MAX).await.unwrap();
+        assert!(
+            serde_json::from_slice::<serde_json::Value>(&body)
+                .unwrap()
+                .get("session_id")
+                .is_none()
+        );
+
+        let user_info = router
+            .oneshot(
+                Request::builder()
+                    .uri("/api/user-info")
+                    .header(COOKIE, session_cookie)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(user_info.status(), StatusCode::OK);
+        let body = to_bytes(user_info.into_body(), usize::MAX).await.unwrap();
+        assert_eq!(
+            serde_json::from_slice::<serde_json::Value>(&body).unwrap()["id"],
+            user_id
+        );
+    }
+
+    #[tokio::test]
     async fn query_command_is_available_over_http() {
         let response = crate::command_service::CommandService::new(test_command_registry())
             .into_router()
@@ -436,13 +532,13 @@ mod tests {
             .map(TableDescriptionProvider::table_description)
             .collect::<Vec<_>>();
 
-        assert_eq!(tables.len(), 2);
+        assert_eq!(tables.len(), 3);
         assert_eq!(
             tables
                 .iter()
                 .map(|table| table.name.0.as_str())
                 .collect::<Vec<_>>(),
-            ["tickets", "users"]
+            ["tickets", "users", "user_session"]
         );
     }
 

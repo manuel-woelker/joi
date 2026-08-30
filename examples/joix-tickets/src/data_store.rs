@@ -89,6 +89,16 @@ pub struct ColumnDescription {
     pub description: JoiString,
     /// The type of values stored in the column.
     pub data_type: ColumnDataType,
+    /// Optional foreign-key target for this column.
+    pub references: Option<ColumnReference>,
+}
+
+/// Identifies the column referenced by a foreign key.
+pub struct ColumnReference {
+    /// Referenced table.
+    pub table: TableName,
+    /// Referenced column.
+    pub attribute: AttributeName,
 }
 
 /// The value type supported by a table column.

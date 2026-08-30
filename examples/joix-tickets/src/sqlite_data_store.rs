@@ -21,21 +21,20 @@ pub struct SqliteDataStore {
 impl SqliteDataStore {
     /// Opens or creates a SQLite database at `path`.
     pub fn open(path: impl AsRef<Path>) -> JoiResult<Self> {
-        Connection::open(path)
-            .map(Self::from_connection)
-            .map_err(report)
+        Self::from_connection(Connection::open(path).map_err(report)?)
     }
 
     /// Creates an isolated in-memory SQLite database.
     pub fn in_memory() -> JoiResult<Self> {
-        Connection::open_in_memory()
-            .map(Self::from_connection)
-            .map_err(report)
+        Self::from_connection(Connection::open_in_memory().map_err(report)?)
     }
 
     /// Wraps an existing SQLite connection.
-    pub fn from_connection(connection: Connection) -> Self {
-        Self { connection }
+    pub fn from_connection(connection: Connection) -> JoiResult<Self> {
+        connection
+            .execute_batch("PRAGMA foreign_keys = ON")
+            .map_err(report)?;
+        Ok(Self { connection })
     }
 }
 
@@ -464,6 +463,7 @@ fn table_schema(connection: &Connection, table_name: &str) -> JoiResult<Vec<Sqli
                 name: crate::data_store::AttributeName(name.into()),
                 description: JoiString::new(),
                 data_type,
+                references: None,
             },
             primary_key,
         });
@@ -478,7 +478,17 @@ fn column_definition(column: &ColumnDescription, primary_key: bool) -> String {
         ColumnDataType::Int => "INTEGER",
     };
     let primary_key = if primary_key { " PRIMARY KEY" } else { "" };
-    format!("{name} {data_type} NOT NULL{primary_key}")
+    let reference = column
+        .references
+        .as_ref()
+        .map_or_else(String::new, |reference| {
+            format!(
+                " REFERENCES {}({})",
+                quote_identifier(&reference.table.0),
+                quote_identifier(&reference.attribute.0)
+            )
+        });
+    format!("{name} {data_type} NOT NULL{primary_key}{reference}")
 }
 
 fn quote_identifier(identifier: &str) -> String {
@@ -685,6 +695,7 @@ mod tests {
                     name: attribute("priority"),
                     description: "Ticket priority".into(),
                     data_type: ColumnDataType::Int,
+                    references: None,
                 },
             ],
         }
@@ -695,6 +706,7 @@ mod tests {
             name: attribute(name),
             description: JoiString::new(),
             data_type: ColumnDataType::String,
+            references: None,
         }
     }
 

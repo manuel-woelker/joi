@@ -14,6 +14,12 @@ beforeEach(() => {
   vi.stubGlobal(
     "fetch",
     vi.fn().mockImplementation(async (input, init) => {
+      if (input === "/api/user-info") {
+        return {
+          ok: true,
+          json: async () => ({ id: "user-1", username: "jane.developer", name: "Jane Developer" }),
+        };
+      }
       const request = JSON.parse(String(init?.body));
       if (input === "/api/mutate") {
         const insert = request.steps?.[0]?.insert;
@@ -120,9 +126,62 @@ afterEach(() => {
 });
 
 describe("workspace app", () => {
+  it("prompts for a user when no session exists, then retries user info", async () => {
+    let authenticated = false;
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      if (input === "/api/user-info") {
+        return authenticated
+          ? ({ ok: true, json: async () => ({ id: "user-2", username: "joe.tester", name: "Joe Tester" }) } as Response)
+          : ({ ok: false, status: 401, json: async () => ({ error: "login required" }) } as Response);
+      }
+      if (input === "/api/login") {
+        authenticated = true;
+        return {
+          ok: true,
+          json: async () => ({ user: { id: "user-2", username: "joe.tester", name: "Joe Tester" } }),
+        } as Response;
+      }
+      const request = JSON.parse(String(init?.body));
+      return {
+        ok: true,
+        json: async () =>
+          request.table_name === "users"
+            ? {
+                number_of_hits: 2,
+                result_columns: [
+                  { attribute: "id", values: { type: "string", values: ["user-1", "user-2"] } },
+                  { attribute: "username", values: { type: "string", values: ["jane.developer", "joe.tester"] } },
+                  { attribute: "name", values: { type: "string", values: ["Jane Developer", "Joe Tester"] } },
+                ],
+              }
+            : {
+                number_of_hits: 0,
+                result_columns: ["id", "key", "title", "description", "status"].map((attribute) => ({
+                  attribute,
+                  values: { type: "string", values: [] },
+                })),
+              },
+      } as Response;
+    });
+
+    render(() => <App />);
+    const selector = await screen.findByRole("combobox", { name: "User" });
+    await userEvent.selectOptions(selector, "user-2");
+    await userEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+    expect(await screen.findByText("Joe Tester")).toBeTruthy();
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+      "/api/login",
+      expect.objectContaining({
+        body: JSON.stringify({ user_id: "user-2" }),
+      }),
+    );
+    expect(vi.mocked(fetch).mock.calls.filter(([input]) => input === "/api/user-info")).toHaveLength(2);
+  });
+
   it("opens a seeded view and filters it with transient search", async () => {
     render(() => <App />);
-    expect(screen.getByRole("heading", { name: "Active issues" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Active issues" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Playground" }).getAttribute("href")).toBe("#playground");
     expect(screen.getByText(REVISION)).toBeTruthy();
     expect(await screen.findByText("Fix navigation bug")).toBeTruthy();
@@ -194,7 +253,7 @@ describe("workspace app", () => {
 
   it("opens the reusable view editor", async () => {
     render(() => <App />);
-    await userEvent.click(screen.getByRole("button", { name: "Configure view" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Configure view" }));
     expect(screen.getByRole("complementary", { name: "Configure view" })).toBeTruthy();
     expect(screen.getByText("Save as private copy")).toBeTruthy();
   });
@@ -202,12 +261,12 @@ describe("workspace app", () => {
   it("navigates administration entries through the URL", async () => {
     render(() => <App />);
 
-    await userEvent.click(screen.getByRole("button", { name: "Users" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Users" }));
     expect(window.location.hash).toBe("#/administration/users");
     expect(screen.getByRole("heading", { name: "Users" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Active issues" }).parentElement?.className).not.toMatch(/selected/);
     expect(await screen.findByRole("columnheader", { name: "Username" })).toBeTruthy();
-    expect(screen.getByText("Jane Developer")).toBeTruthy();
+    expect(screen.getAllByText("Jane Developer")).toHaveLength(2);
     expect(screen.queryByRole("columnheader", { name: "ID" })).toBeNull();
 
     await userEvent.click(screen.getByRole("button", { name: "Active issues" }));
@@ -224,8 +283,8 @@ describe("workspace app", () => {
 
   it("opens and autosaves a user beside the users table", async () => {
     render(() => <App />);
-    await userEvent.click(screen.getByRole("button", { name: "Users" }));
-    await userEvent.click(await screen.findByText("Jane Developer"));
+    await userEvent.click(await screen.findByRole("button", { name: "Users" }));
+    await userEvent.click(await screen.findByRole("row", { name: "jane.developer Jane Developer" }));
 
     expect(window.location.hash).toBe("#/administration/users/records/user-1");
     expect(screen.getByRole("table", { name: "Users" })).toBeTruthy();
@@ -247,7 +306,7 @@ describe("workspace app", () => {
 
   it("creates a user only through explicit submission", async () => {
     render(() => <App />);
-    await userEvent.click(screen.getByRole("button", { name: "Users" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Users" }));
     await screen.findByRole("table", { name: "Users" });
     await userEvent.click(screen.getByRole("button", { name: "New user" }));
 
@@ -286,39 +345,41 @@ describe("workspace app", () => {
         ({
           ok: true,
           json: async () =>
-            input === "/api/info"
-              ? { application_name: "joix-tickets", version: "0.1.0" }
-              : input === "/api/plugins"
-                ? {
-                    plugins: [
-                      {
-                        name: "infra",
-                        description: "Infrastructure services",
-                        extension_points: ["info-providers"],
-                        extensions: ["package-info"],
-                      },
-                    ],
-                    extension_points: [
-                      {
-                        id: "info-providers",
-                        description: "Contributes application information",
-                        extensions: ["package-info"],
-                      },
-                    ],
-                    extensions: [{ id: "package-info", description: "Provides package information" }],
-                  }
-                : {
-                    number_of_hits: 0,
-                    result_columns: ["id", "key", "title", "description", "status"].map((attribute) => ({
-                      attribute,
-                      values: { type: "string", values: [] },
-                    })),
-                  },
+            input === "/api/user-info"
+              ? { id: "user-1", username: "jane.developer", name: "Jane Developer" }
+              : input === "/api/info"
+                ? { application_name: "joix-tickets", version: "0.1.0" }
+                : input === "/api/plugins"
+                  ? {
+                      plugins: [
+                        {
+                          name: "infra",
+                          description: "Infrastructure services",
+                          extension_points: ["info-providers"],
+                          extensions: ["package-info"],
+                        },
+                      ],
+                      extension_points: [
+                        {
+                          id: "info-providers",
+                          description: "Contributes application information",
+                          extensions: ["package-info"],
+                        },
+                      ],
+                      extensions: [{ id: "package-info", description: "Provides package information" }],
+                    }
+                  : {
+                      number_of_hits: 0,
+                      result_columns: ["id", "key", "title", "description", "status"].map((attribute) => ({
+                        attribute,
+                        values: { type: "string", values: [] },
+                      })),
+                    },
         }) as Response,
     );
 
     render(() => <App />);
-    await userEvent.click(screen.getByRole("button", { name: "Open debug tools" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Open debug tools" }));
 
     expect(await screen.findByText("joix-tickets")).toBeTruthy();
     const debugNavigation = screen.getByRole("navigation", { name: "Debug contributions" });

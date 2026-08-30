@@ -2,6 +2,11 @@
 
 SolidJS workspace for creating and organizing customizable application views.
 
+On startup the UI requests `GET /api/user-info`. A valid HTTP-only session
+opens the workspace; otherwise a passwordless login view loads the available
+users and asks the visitor to select one. Successful login sets the backend
+session cookie and retries user-info before mounting application state.
+
 ## How does the workspace work?
 
 A saved view combines a reusable query with a reusable presentation. Queries

@@ -29,6 +29,7 @@ fn ticket_column(name: &'static str, description: &'static str) -> ColumnDescrip
         name: AttributeName(name.into()),
         description: description.into(),
         data_type: ColumnDataType::String,
+        references: None,
     }
 }
 
@@ -53,6 +54,7 @@ fn user_column(name: &'static str, description: &'static str) -> ColumnDescripti
         name: AttributeName(name.into()),
         description: description.into(),
         data_type: ColumnDataType::String,
+        references: None,
     }
 }
 
