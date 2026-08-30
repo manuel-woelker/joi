@@ -61,4 +61,20 @@ describe("validatePresentation", () => {
       }),
     ).toContain("at least one field");
   });
+
+  it("rejects unknown query and presentation attributes", () => {
+    const workspace = createSeedWorkspace();
+    expect(
+      validatePresentation(
+        { ...workspace.queries["query-all"], sorting: [{ field: "missing", direction: "ascending" }] },
+        workspace.presentations["presentation-table"],
+      ),
+    ).toContain("does not define attribute 'missing'");
+    expect(
+      validatePresentation(workspace.queries["query-all"], {
+        ...workspace.presentations["presentation-table"],
+        fields: [{ field: "missing" }],
+      }),
+    ).toContain("does not define attribute 'missing'");
+  });
 });

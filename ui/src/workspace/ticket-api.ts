@@ -1,11 +1,12 @@
 import { executeDataQuery, type QueryCriterionRequest } from "../query/query-client";
 import type { QueryResult } from "../query/query-result";
 import { fetchService, type FetchService } from "../services/fetch-service";
+import { ticketEntity } from "../entities/ticket-entity";
 import type { QueryDefinition } from "./model";
 
 export function loadTickets(service: FetchService = fetchService, query?: QueryDefinition): Promise<QueryResult> {
   return executeDataQuery(service, {
-    tableName: "tickets",
+    tableName: ticketEntity.tableName,
     criterion: queryCriterion(query),
     maxResults: 100,
     attributes: ["*"],

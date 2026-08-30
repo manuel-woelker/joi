@@ -34,10 +34,10 @@ export function createSeedWorkspace(): WorkspaceDocument {
         layout: "table",
         density: "compact",
         fields: [
-          { field: "key", label: "Key", width: 100 },
+          { field: "key", width: 100 },
           { field: "title", label: "Issue" },
-          { field: "status", label: "Status", width: 120 },
-          { field: "description", label: "Description" },
+          { field: "status", width: 120 },
+          { field: "description" },
         ],
       },
       "presentation-list": {
@@ -46,11 +46,7 @@ export function createSeedWorkspace(): WorkspaceDocument {
         source: "tickets",
         layout: "list",
         density: "comfortable",
-        fields: [
-          { field: "title", label: "Issue" },
-          { field: "status", label: "Status" },
-          { field: "description", label: "Description" },
-        ],
+        fields: [{ field: "title", label: "Issue" }, { field: "status" }, { field: "description" }],
       },
     },
     views: {

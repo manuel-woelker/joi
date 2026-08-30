@@ -1,4 +1,5 @@
-import type { QueryResult, QueryValueType } from "../query/query-result";
+import type { FormValues } from "../components/form/Form";
+import type { QueryResult, QueryResultRow, QueryValueType } from "../query/query-result";
 import type { ValidationFunction } from "../validation/validation";
 
 export type EditControl = "text" | "textarea" | "integer";
@@ -9,6 +10,9 @@ export interface EditFieldDefinition {
   readonly control: EditControl;
   readonly required?: boolean;
   readonly rows?: number;
+  readonly placeholder?: string;
+  readonly readonly?: boolean;
+  readonly disabled?: boolean;
   /** Validation evaluated with the field's current string value. */
   readonly validation?: ValidationFunction<string>;
 }
@@ -18,6 +22,7 @@ export interface MasterDetailDefinition {
   readonly identityAttribute: string;
   readonly detailTitle: string;
   readonly fields: readonly EditFieldDefinition[];
+  readonly validation?: (result: QueryResult, row: QueryResultRow) => ValidationFunction<FormValues>;
 }
 
 export function validateMasterDetailDefinition(result: QueryResult, definition: MasterDetailDefinition): void {

@@ -28,7 +28,7 @@ export interface QueryDefinition {
 
 export interface PresentationField {
   field: AttributeName;
-  label: string;
+  label?: string;
   width?: number;
 }
 
@@ -73,11 +73,3 @@ export interface WorkspaceDocument {
   rootItems: NavigationId[];
   favorites: ViewId[];
 }
-
-export const ticketFields: Record<AttributeName, { label: string; type: "string" }> = {
-  id: { label: "ID", type: "string" },
-  key: { label: "Key", type: "string" },
-  title: { label: "Title", type: "string" },
-  description: { label: "Description", type: "string" },
-  status: { label: "Status", type: "string" },
-};

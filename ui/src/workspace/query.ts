@@ -1,4 +1,6 @@
 import type { QueryColumnHandle, QueryResult, QueryResultRow } from "../query/query-result";
+import { requireEntityAttribute } from "../entities/entity-description";
+import { ticketEntity } from "../entities/ticket-entity";
 import type { FilterDefinition, PresentationDefinition, QueryDefinition } from "./model";
 
 function matchesFilter(row: QueryResultRow, column: QueryColumnHandle, filter: FilterDefinition): boolean {
@@ -49,5 +51,12 @@ export function executeQuery(result: QueryResult, query: QueryDefinition, text =
 export function validatePresentation(query: QueryDefinition, presentation: PresentationDefinition): string | undefined {
   if (query.source !== presentation.source) return "The query and presentation use different data sources.";
   if (presentation.fields.length === 0) return "The presentation must include at least one field.";
+  try {
+    for (const filter of query.filters) requireEntityAttribute(ticketEntity, filter.field);
+    for (const sort of query.sorting) requireEntityAttribute(ticketEntity, sort.field);
+    for (const field of presentation.fields) requireEntityAttribute(ticketEntity, field.field);
+  } catch (error) {
+    return error instanceof Error ? error.message : "View configuration references an unknown attribute.";
+  }
   return undefined;
 }

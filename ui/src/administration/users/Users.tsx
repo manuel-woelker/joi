@@ -1,32 +1,16 @@
 import { createResource, Match, Switch } from "solid-js";
 
 import { DataTable } from "../../components/DataTable";
+import { bindEntity, createEntityTableColumns } from "../../entities/bound-entity";
+import { createEntityEditorDefinition } from "../../entities/entity-editor";
+import { userEntity } from "../../entities/user-entity";
 import { MasterDetailView } from "../../master-detail/MasterDetailView";
-import type { MasterDetailDefinition } from "../../master-detail/definition";
 import type { FetchService } from "../../services/fetch-service";
-import { matches } from "../../validation/validation-functions";
 import { useWorkspace } from "../../workspace/controller";
 import { loadUsers } from "./users-api";
 import styles from "./Users.module.css";
 
-const userEditor: MasterDetailDefinition = {
-  tableName: "users",
-  identityAttribute: "id",
-  detailTitle: "User details",
-  fields: [
-    { attribute: "username", label: "Username", control: "text", required: true },
-    {
-      attribute: "name",
-      label: "Name",
-      control: "text",
-      required: true,
-      validation: matches(
-        /^(?:|[\p{L}\p{M} .'\u2018\u2019-]+)$/u,
-        "Use only letters, spaces, periods, apostrophes, and hyphens.",
-      ),
-    },
-  ],
-};
+const userEditor = createEntityEditorDefinition(userEntity);
 
 export function Users(props: { fetchService: FetchService }) {
   const controller = useWorkspace();
@@ -44,21 +28,18 @@ export function Users(props: { fetchService: FetchService }) {
       </Match>
       <Match when={users()}>
         {(result) => {
-          const identity = result().requireColumn("id");
+          const entity = bindEntity(result(), userEntity);
           return (
             <MasterDetailView
               master={
                 <DataTable
                   ariaLabel="Users"
                   result={result()}
-                  columns={[
-                    { column: result().requireColumn("username"), header: "Username" },
-                    { column: result().requireColumn("name"), header: "Name" },
-                  ]}
-                  rowKey={identity}
+                  columns={createEntityTableColumns(entity)}
+                  rowKey={entity.identity}
                   density="compact"
                   onRowClick={(row) => {
-                    const id = row.value(identity);
+                    const id = row.value(entity.identity);
                     if (typeof id === "string") controller.selectRecord(id);
                   }}
                 />

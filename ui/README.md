@@ -23,14 +23,28 @@ resolve them to column handles once per response.
 
 Record-oriented screens use a shared master-detail editor over the same
 columnar query result. Selecting a ticket or user keeps its table visible and
-opens an edit pane on the right. Editor descriptors declare the table,
-immutable identity attribute, labels, and text, multiline, or integer controls;
-they do not require domain row types. The shared `Form` context owns local field
-values and debounces changed values into atomic `/api/mutate` updates. Pending
-changes flush immediately when an editor unmounts. Saving does not refetch the
-owning query, so the table remains stable and focused editing is not disrupted;
-successful mutations write changed values into the existing reactive query
-rows so visible table cells update in place. Record URLs use
+opens an edit pane on the right. Code-defined entity descriptions are the
+canonical UI source for table names, identity attributes, attribute labels and
+types, default table columns, edit controls, and validation functions. Binding
+an entity description to a query result resolves response-local column handles
+and rejects missing or mismatched attributes. Saved presentations still choose
+ticket column order, density, widths, and intentional label overrides.
+
+Entity descriptions live under `src/entities` and use `defineEntity` to retain
+literal attribute IDs and typed string or integer validators. Attribute
+validation uses `ValidationFunction<T>` with the domain value type. The editor
+adapter parses input text before invoking integer validators and combines
+edited values with the current row for typed multi-attribute validation. These
+UI descriptions are intentionally separate from backend `TableDescription`s,
+which describe physical persistence and cannot contain executable TypeScript
+validation or UI controls.
+
+The shared `Form` context owns local field values and debounces changed values
+into atomic `/api/mutate` updates. Pending changes flush immediately when an
+editor unmounts. Saving does not refetch the owning query, so the table remains
+stable and focused editing is not disrupted; successful mutations write
+changed values into the existing reactive query rows so visible table cells
+update in place. Record URLs use
 `#/views/<view-id>/records/<record-id>` or
 `#/administration/<entry-id>/records/<record-id>`.
 

@@ -49,7 +49,7 @@ export function RecordEditor(props: {
         {(currentRow) => (
           <Show keyed when={props.recordId}>
             {(_recordId) => (
-              <Form model={formModel(props.result, props.definition.fields, currentRow())} onSave={save}>
+              <Form model={formModel(props.result, props.definition, currentRow())} onSave={save}>
                 <div class={styles.form}>
                   <header class={styles.header}>
                     <h2>{props.definition.detailTitle}</h2>
@@ -106,6 +106,9 @@ function EditorField(props: { field: EditFieldDefinition }) {
             id={inputId}
             type={props.field.control === "integer" ? "number" : "text"}
             value={formField.value}
+            placeholder={formField.placeholder}
+            readOnly={formField.readonly}
+            disabled={formField.disabled}
             required={props.field.required}
             aria-invalid={hasValidationMessages()}
             aria-describedby={hasValidationMessages() ? messagesId : undefined}
@@ -117,6 +120,9 @@ function EditorField(props: { field: EditFieldDefinition }) {
         <textarea
           id={inputId}
           value={formField.value}
+          placeholder={formField.placeholder}
+          readOnly={formField.readonly}
+          disabled={formField.disabled}
           required={props.field.required}
           rows={props.field.rows ?? 8}
           aria-invalid={hasValidationMessages()}
@@ -135,14 +141,18 @@ function findRecord(result: QueryResult, identityAttribute: string, id: string):
   return identity ? result.rows.find((row) => row.value(identity) === id) : undefined;
 }
 
-function formModel(result: QueryResult, fields: readonly EditFieldDefinition[], row: QueryResultRow): FormModel {
+function formModel(result: QueryResult, definition: MasterDetailDefinition, row: QueryResultRow): FormModel {
   return {
-    attributes: fields.map((field) => ({
+    attributes: definition.fields.map((field) => ({
       id: field.attribute,
       label: field.label,
       initialValue: String(row.value(result.requireColumn(field.attribute)) ?? ""),
+      placeholder: field.placeholder,
+      readonly: field.readonly,
+      disabled: field.disabled,
       validation: fieldValidation(field),
     })),
+    validation: definition.validation?.(result, row),
   };
 }
 

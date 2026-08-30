@@ -1,25 +1,19 @@
 import { For, Show, createMemo, createResource } from "solid-js";
 
+import { bindEntity, createEntityTableColumns } from "../entities/bound-entity";
+import { createEntityEditorDefinition } from "../entities/entity-editor";
+import { ticketEntity } from "../entities/ticket-entity";
 import type { QueryColumnHandle, QueryResult } from "../query/query-result";
 import { MasterDetailView } from "../master-detail/MasterDetailView";
-import type { MasterDetailDefinition } from "../master-detail/definition";
 import { fetchService } from "../services/fetch-service";
 import { useWorkspace } from "../workspace/controller";
 import { executeQuery, validatePresentation } from "../workspace/query";
 import { loadTickets } from "../workspace/ticket-api";
-import { DataTable, type DataTableColumn } from "./DataTable";
+import { DataTable } from "./DataTable";
 import { IconButton } from "./IconButton";
 import styles from "./ViewContent.module.css";
 
-const ticketEditor: MasterDetailDefinition = {
-  tableName: "tickets",
-  identityAttribute: "id",
-  detailTitle: "Ticket details",
-  fields: [
-    { attribute: "title", label: "Title", control: "text", required: true },
-    { attribute: "description", label: "Description", control: "textarea", rows: 10 },
-  ],
-};
+const ticketEditor = createEntityEditorDefinition(ticketEntity);
 
 export function SavedViewCommands() {
   const controller = useWorkspace();
@@ -42,28 +36,36 @@ export function SavedViewContent() {
     const currentQuery = query();
     return result && currentQuery ? executeQuery(result, currentQuery, controller.search()) : [];
   });
-  const tableColumns = createMemo<DataTableColumn[]>(() => {
+  const boundEntity = createMemo(() => {
     const result = ticketRecords();
-    return result
-      ? (presentation()?.fields ?? []).map((field) => ({
-          column: result.requireColumn(field.field),
-          header: field.label,
-          width: field.width,
-          cell:
-            field.field === "status"
-              ? (value) => <span class={`${styles.status} ${styles[String(value)]}`}>{String(value ?? "")}</span>
-              : undefined,
-        }))
+    return result ? bindEntity(result, ticketEntity) : undefined;
+  });
+  const tableColumns = createMemo(() => {
+    const entity = boundEntity();
+    return entity
+      ? createEntityTableColumns(
+          entity,
+          (presentation()?.fields ?? []).map((field) => ({
+            attribute: field.field,
+            label: field.label,
+            width: field.width,
+          })),
+          {
+            status: {
+              cell: (value) => <span class={`${styles.status} ${styles[String(value)]}`}>{String(value ?? "")}</span>,
+            },
+          },
+        )
       : [];
   });
   const listColumns = createMemo(() => {
-    const result = ticketRecords();
-    return result
+    const entity = boundEntity();
+    return entity
       ? {
-          key: result.requireColumn("key"),
-          title: result.requireColumn("title"),
-          description: result.requireColumn("description"),
-          status: result.requireColumn("status"),
+          key: entity.attribute("key").column,
+          title: entity.attribute("title").column,
+          description: entity.attribute("description").column,
+          status: entity.attribute("status").column,
         }
       : undefined;
   });
