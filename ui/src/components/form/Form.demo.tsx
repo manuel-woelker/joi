@@ -1,4 +1,4 @@
-import { createUniqueId } from "solid-js";
+import { Show, createSignal, createUniqueId } from "solid-js";
 
 import type { ComponentDemo } from "../../playground/demo";
 import { Form, useFormField } from "./Form";
@@ -25,21 +25,41 @@ function FieldValue(props: { fieldName: string }) {
   );
 }
 
+function DebouncedFormDemo() {
+  const [savedChanges, setSavedChanges] = createSignal("Waiting for changes");
+  const [mounted, setMounted] = createSignal(true);
+  return (
+    <div class={styles.formDemo}>
+      <Show when={mounted()} fallback={<p class={styles.unmounted}>Form unmounted</p>}>
+        <Form
+          model={{ attributes: [{ id: "name", label: "Name", initialValue: "Elliot" }] }}
+          onSave={(changes) => {
+            setSavedChanges(JSON.stringify(changes));
+          }}
+        >
+          <BasicFormField fieldName="name" />
+          <FieldValue fieldName="name" />
+        </Form>
+      </Show>
+      <button class={styles.mountButton} type="button" onClick={() => setMounted((value) => !value)}>
+        {mounted() ? "Unmount form" : "Mount form"}
+      </button>
+      <div class={styles.saveStatus}>
+        <span>Last saved changes</span>
+        <output aria-live="polite">{savedChanges()}</output>
+      </div>
+    </div>
+  );
+}
+
 export default {
   name: "Form",
   description: "Form for editing data through context-aware fields.",
   scenarios: [
     {
       name: "Minimal",
-      description: "A text field and another consumer sharing the same reactive field value.",
-      render: () => (
-        <Form model={{ attributes: [{ id: "name", label: "Name", initialValue: "Elliot" }] }}>
-          <div class={styles.formDemo}>
-            <BasicFormField fieldName="name" />
-            <FieldValue fieldName="name" />
-          </div>
-        </Form>
-      ),
+      description: "A shared reactive field saved after 500 milliseconds without input.",
+      render: () => <DebouncedFormDemo />,
     },
   ],
 } satisfies ComponentDemo;

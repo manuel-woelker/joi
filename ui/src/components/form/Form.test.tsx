@@ -1,10 +1,13 @@
 import { cleanup, fireEvent, render, screen } from "@solidjs/testing-library";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Form, useFormField } from "./Form";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 function TestField() {
   const field = useFormField("name");
@@ -18,6 +21,17 @@ function TestField() {
       <button type="button" onClick={() => field.setValue("Ada")}>
         Set value
       </button>
+    </>
+  );
+}
+
+function SaveFields() {
+  const name = useFormField("name");
+  const role = useFormField("role");
+  return (
+    <>
+      <input aria-label="Name" value={name.value} onInput={name.onInput} />
+      <input aria-label="Role" value={role.value} onInput={role.onInput} />
     </>
   );
 }
@@ -50,6 +64,73 @@ describe("Form", () => {
         />
       )),
     ).toThrow("Form field 'name' is defined more than once");
+  });
+
+  it("debounces and coalesces changed values", () => {
+    vi.useFakeTimers();
+    const onSave = vi.fn();
+    render(() => (
+      <Form
+        model={{
+          attributes: [
+            { id: "name", label: "Name", initialValue: "Elliot" },
+            { id: "role", label: "Role", initialValue: "Developer" },
+          ],
+        }}
+        saveDebounceMs={250}
+        onSave={onSave}
+      >
+        <SaveFields />
+      </Form>
+    ));
+
+    fireEvent.input(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Grace" } });
+    vi.advanceTimersByTime(200);
+    fireEvent.input(screen.getByRole("textbox", { name: "Role" }), { target: { value: "Engineer" } });
+    vi.advanceTimersByTime(249);
+    expect(onSave).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(onSave).toHaveBeenCalledWith({ name: "Grace", role: "Engineer" });
+
+    fireEvent.input(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Ada" } });
+    vi.advanceTimersByTime(250);
+    expect(onSave).toHaveBeenLastCalledWith({ name: "Ada" });
+  });
+
+  it("does not save a field reverted during the debounce period", () => {
+    vi.useFakeTimers();
+    const onSave = vi.fn();
+    render(() => (
+      <Form model={{ attributes: [{ id: "name", label: "Name", initialValue: "Elliot" }] }} onSave={onSave}>
+        <TestField />
+      </Form>
+    ));
+
+    const input = screen.getByRole("textbox", { name: "Name" });
+    fireEvent.input(input, { target: { value: "Grace" } });
+    fireEvent.input(input, { target: { value: "Elliot" } });
+    vi.advanceTimersByTime(500);
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it("flushes pending changes immediately on unmount", () => {
+    vi.useFakeTimers();
+    const onSave = vi.fn();
+    const result = render(() => (
+      <Form
+        model={{ attributes: [{ id: "name", label: "Name", initialValue: "Elliot" }] }}
+        saveDebounceMs={10_000}
+        onSave={onSave}
+      >
+        <TestField />
+      </Form>
+    ));
+
+    fireEvent.input(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Grace" } });
+    expect(onSave).not.toHaveBeenCalled();
+    result.unmount();
+    expect(onSave).toHaveBeenCalledOnce();
+    expect(onSave).toHaveBeenCalledWith({ name: "Grace" });
   });
 
   it("rejects field access outside a form", () => {
