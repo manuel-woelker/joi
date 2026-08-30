@@ -172,6 +172,30 @@ function MatchingFieldsFormDemo() {
   );
 }
 
+function FormLevelValidationDemo() {
+  return (
+    <div class={styles.formDemo}>
+      <Form
+        model={{
+          attributes: [
+            { id: "email", label: "Email", initialValue: "", placeholder: "name@example.com" },
+            { id: "phone", label: "Phone", initialValue: "", placeholder: "+49 123 456789" },
+          ],
+          validation({ value, addValidationFailure }) {
+            if (value.email.trim() === "" && value.phone.trim() === "") {
+              addValidationFailure({ message: "Provide an email address or phone number." });
+            }
+          },
+        }}
+      >
+        <BasicFormField fieldName="email" />
+        <BasicFormField fieldName="phone" />
+        <FormValidationMessages />
+      </Form>
+    </div>
+  );
+}
+
 function TouchedFormDemo() {
   return (
     <div class={styles.formDemo}>
@@ -268,6 +292,11 @@ export default {
       name: "Matching fields",
       description: "Form-level validation that associates a mismatch with one field.",
       render: () => <MatchingFieldsFormDemo />,
+    },
+    {
+      name: "Form-level validation",
+      description: "Multi-field validation with a message not associated with a specific field.",
+      render: () => <FormLevelValidationDemo />,
     },
     {
       name: "Touched validation",
