@@ -11,6 +11,7 @@ export interface PlaygroundAppProps {
 
 export function PlaygroundApp(props: PlaygroundAppProps) {
   const library = () => props.library ?? demoLibrary;
+  const scenarioElements = new Map<string, HTMLElement>();
   const [hash, setHash] = createSignal(window.location.hash);
   const onHashChange = () => setHash(window.location.hash);
   window.addEventListener("hashchange", onHashChange);
@@ -25,6 +26,12 @@ export function PlaygroundApp(props: PlaygroundAppProps) {
       window.history.replaceState(null, "", canonicalHash);
       setHash(canonicalHash);
     }
+  });
+  createEffect(() => {
+    const current = selection();
+    if (!current) return;
+    const key = scenarioKey(current.demo.id, current.scenarioName);
+    queueMicrotask(() => scenarioElements.get(key)?.scrollIntoView?.({ block: "start" }));
   });
 
   return (
@@ -88,6 +95,7 @@ export function PlaygroundApp(props: PlaygroundAppProps) {
                 <For each={current().demo.scenarios}>
                   {(scenario) => (
                     <section
+                      ref={(element) => scenarioElements.set(scenarioKey(current().demo.id, scenario.name), element)}
                       class={styles.scenario}
                       classList={{ [styles.activeScenario]: scenario.name === current().scenarioName }}
                       aria-labelledby={`scenario-${encodeURIComponent(scenario.name)}`}
@@ -107,4 +115,8 @@ export function PlaygroundApp(props: PlaygroundAppProps) {
       </Show>
     </div>
   );
+}
+
+function scenarioKey(demoId: string, scenarioName: string): string {
+  return `${demoId}\0${scenarioName}`;
 }

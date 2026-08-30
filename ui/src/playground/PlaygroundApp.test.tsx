@@ -1,6 +1,6 @@
 import { cleanup, render, screen, waitFor } from "@solidjs/testing-library";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PlaygroundDemo } from "./demo";
 import { PlaygroundApp } from "./PlaygroundApp";
@@ -34,10 +34,13 @@ describe("PlaygroundApp", () => {
   });
 
   it("updates selected scenarios through hash navigation", async () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
     render(() => <PlaygroundApp library={library} />);
     await userEvent.click(screen.getByRole("link", { name: "Tones" }));
     await waitFor(() => expect(window.location.hash).toBe(playgroundHash(library[0].id, "Tones")));
     await waitFor(() => expect(screen.getByRole("link", { name: "Tones" }).getAttribute("aria-current")).toBe("page"));
+    await waitFor(() => expect(scrollIntoView).toHaveBeenLastCalledWith({ block: "start" }));
   });
 
   it("shows a useful empty state", () => {

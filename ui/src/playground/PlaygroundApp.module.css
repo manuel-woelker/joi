@@ -1,7 +1,9 @@
 .shell {
   display: grid;
   grid-template-rows: 44px minmax(0, 1fr);
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   background: var(--color-canvas);
 }
 
@@ -16,7 +18,7 @@
 
 .brand { color: var(--color-primary-dark); font-weight: 800; text-decoration: none; }
 .divider { width: 1px; height: 20px; background: var(--color-border); }
-.layout { display: grid; grid-template-columns: minmax(210px, 260px) minmax(0, 1fr); min-height: 0; }
+.layout { display: grid; grid-template-columns: minmax(210px, 260px) minmax(0, 1fr); min-height: 0; overflow: hidden; }
 .navigation { overflow-y: auto; padding: 10px; border-right: 1px solid var(--color-border); background: var(--color-surface); }
 .navigationGroup + .navigationGroup { margin-top: 4px; }
 .demoLink { display: grid; gap: 2px; padding: 8px; border-radius: 4px; text-decoration: none; }
@@ -26,7 +28,7 @@
 .scenarioLinks { display: grid; gap: 1px; margin: 3px 0 7px 12px; border-left: 1px solid var(--color-border); padding-left: 8px; }
 .scenarioLinks a { padding: 4px 6px; color: var(--color-text-muted); font-size: 0.8rem; text-decoration: none; }
 .scenarioLinks a[aria-current="page"] { color: var(--color-ink); font-weight: 700; }
-.main { overflow-y: auto; padding: 20px clamp(14px, 3vw, 36px) 36px; }
+.main { min-height: 0; overflow-y: auto; padding: 20px clamp(14px, 3vw, 36px) 36px; }
 .demoHeader { max-width: 760px; margin-bottom: 18px; }
 .demoHeader h1 { margin: 0 0 5px; font-size: 1.45rem; }
 .demoHeader p, .scenarioHeader p, .emptyState p { margin: 0; color: var(--color-text-muted); line-height: 1.5; }
@@ -41,9 +43,6 @@
 .emptyState h1 { margin: 0 0 8px; font-size: 1.4rem; }
 
 @media (max-width: 680px) {
-  .shell { grid-template-rows: 44px auto; }
-  .layout { grid-template-columns: 1fr; }
+  .layout { grid-template-rows: auto minmax(0, 1fr); grid-template-columns: 1fr; }
   .navigation { max-height: 220px; border-right: 0; border-bottom: 1px solid var(--color-border); }
-  .main { overflow: visible; }
 }
-
