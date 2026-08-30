@@ -5,12 +5,13 @@ use serde::{Deserialize, Serialize};
 use crate::command::{Command, CommandDescriptor, CommandRequest};
 use crate::data_store::{
     AttributeColumn, AttributeName, ColumnDataType, ColumnDescription, ColumnReference, DataStore,
-    DataStoreInsertMutation, DataStoreMutation, DataStoreMutationStep, DataStoreQuery,
-    DataStoreQueryResult, QueryCriterion, SharedDataStore, TableDescription,
+    DataStoreDeleteMutation, DataStoreInsertMutation, DataStoreMutation, DataStoreMutationStep,
+    DataStoreQuery, DataStoreQueryResult, QueryCriterion, SharedDataStore, TableDescription,
     TableDescriptionProvider, TableName, Values,
 };
 
 pub const LOGIN_COMMAND: &str = "login";
+pub const LOGOUT_COMMAND: &str = "logout";
 pub const USER_INFO_COMMAND: &str = "user-info";
 pub const SESSION_COOKIE: &str = "joix_session";
 
@@ -20,10 +21,10 @@ pub struct UserSessionTableDescriptionProvider;
 impl TableDescriptionProvider for UserSessionTableDescriptionProvider {
     fn table_description(&self) -> TableDescription {
         TableDescription {
-            name: TableName("user_session".into()),
+            name: TableName("user_sessions".into()),
             columns: vec![
                 ColumnDescription {
-                    name: AttributeName("sessions_id".into()),
+                    name: AttributeName("session_id".into()),
                     description: "Cryptographically unguessable session identifier".into(),
                     data_type: ColumnDataType::String,
                     references: None,
@@ -85,12 +86,12 @@ impl Command for LoginCommand {
             .map_err(|_| joi_error!("data store lock is poisoned"))?;
         let user = find_user(data_store.as_ref(), &request.user_id)?
             .ok_or_else(|| joi_error!("user `{}` does not exist", request.user_id))?;
-        let session_id: JoiString = ksuid::Ksuid::generate().to_base62().into();
+        let session_id = generate_session_id()?;
         data_store.mutate(DataStoreMutation {
             steps: vec![DataStoreMutationStep::Insert(DataStoreInsertMutation {
-                table_name: TableName("user_session".into()),
+                table_name: TableName("user_sessions".into()),
                 columns: vec![
-                    string_column("sessions_id", session_id.clone()),
+                    string_column("session_id", session_id.clone()),
                     string_column("user_id", request.user_id),
                 ],
             })],
@@ -120,6 +121,53 @@ pub struct UserInfoCommand {
     data_store: SharedDataStore,
 }
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LogoutRequest {
+    session_id: JoiString,
+}
+
+impl CommandRequest for LogoutRequest {
+    type Response = LogoutResponse;
+}
+
+#[derive(Debug, PartialEq, Serialize)]
+pub struct LogoutResponse {}
+
+pub struct LogoutCommand {
+    data_store: SharedDataStore,
+}
+
+impl LogoutCommand {
+    pub fn new(data_store: SharedDataStore) -> Self {
+        Self { data_store }
+    }
+}
+
+impl Command for LogoutCommand {
+    type Request = LogoutRequest;
+
+    fn descriptor() -> CommandDescriptor {
+        CommandDescriptor {
+            name: LOGOUT_COMMAND.into(),
+            description: "Revokes the current user session".into(),
+        }
+    }
+
+    fn execute(&self, request: Self::Request) -> JoiResult<LogoutResponse> {
+        self.data_store
+            .lock()
+            .map_err(|_| joi_error!("data store lock is poisoned"))?
+            .mutate(DataStoreMutation {
+                steps: vec![DataStoreMutationStep::Delete(DataStoreDeleteMutation {
+                    table_name: TableName("user_sessions".into()),
+                    ids: vec![request.session_id],
+                })],
+            })?;
+        Ok(LogoutResponse {})
+    }
+}
+
 impl UserInfoCommand {
     pub fn new(data_store: SharedDataStore) -> Self {
         Self { data_store }
@@ -142,8 +190,8 @@ impl Command for UserInfoCommand {
             .lock()
             .map_err(|_| joi_error!("data store lock is poisoned"))?;
         let sessions = data_store.query(DataStoreQuery {
-            table_name: TableName("user_session".into()),
-            criterion: equals("sessions_id", request.session_id),
+            table_name: TableName("user_sessions".into()),
+            criterion: equals("session_id", request.session_id),
             max_results: 1,
             attributes: vec![AttributeName("user_id".into())],
         })?;
@@ -204,6 +252,19 @@ fn string_column(attribute: &'static str, value: JoiString) -> AttributeColumn {
     }
 }
 
+fn generate_session_id() -> JoiResult<JoiString> {
+    let mut bytes = [0_u8; 32];
+    getrandom::fill(&mut bytes)
+        .map_err(|error| joi_error!("failed to generate a secure session ID: {error}"))?;
+    let mut encoded = String::with_capacity(bytes.len() * 2);
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    for byte in bytes {
+        encoded.push(char::from(HEX[usize::from(byte >> 4)]));
+        encoded.push(char::from(HEX[usize::from(byte & 0x0f)]));
+    }
+    Ok(encoded.into())
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::{Arc, Mutex};
@@ -233,9 +294,9 @@ mod tests {
         let invalid_session = store.mutate(crate::data_store::DataStoreMutation {
             steps: vec![crate::data_store::DataStoreMutationStep::Insert(
                 crate::data_store::DataStoreInsertMutation {
-                    table_name: crate::data_store::TableName("user_session".into()),
+                    table_name: crate::data_store::TableName("user_sessions".into()),
                     columns: vec![
-                        super::string_column("sessions_id", "invalid-session".into()),
+                        super::string_column("session_id", "invalid-session".into()),
                         super::string_column("user_id", "missing-user".into()),
                     ],
                 },
@@ -256,6 +317,13 @@ mod tests {
         let login = LoginCommand::new(store.clone())
             .execute(LoginRequest { user_id })
             .unwrap();
+        assert_eq!(login.session_id.len(), 64);
+        assert!(
+            login
+                .session_id
+                .chars()
+                .all(|character| character.is_ascii_hexdigit())
+        );
         let user = UserInfoCommand::new(store)
             .execute(UserInfoRequest {
                 session_id: login.session_id,

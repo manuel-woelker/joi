@@ -122,6 +122,16 @@ pub enum DataStoreMutationStep {
     Insert(DataStoreInsertMutation),
     /// Updates records in a table by primary-key ID.
     Update(DataStoreUpdateMutation),
+    /// Deletes records by primary-key ID.
+    Delete(DataStoreDeleteMutation),
+}
+
+/// Describes records to delete from one table by primary-key ID.
+pub struct DataStoreDeleteMutation {
+    /// The table containing the records.
+    pub table_name: TableName,
+    /// Primary-key IDs identifying records to delete.
+    pub ids: Vec<JoiString>,
 }
 
 /// Describes records to insert into one table in columnar form.

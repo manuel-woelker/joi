@@ -13,12 +13,17 @@ import type { ApplicationView } from "./views/view";
 import { WorkspaceProvider, useWorkspace } from "./workspace/controller";
 import styles from "./App.module.css";
 import { Login } from "./authentication/Login";
-import { loadCurrentUser, type AuthenticatedUser } from "./authentication/authentication-service";
+import { UserMenu } from "./authentication/UserMenu";
+import { loadCurrentUser, logout, type AuthenticatedUser } from "./authentication/authentication-service";
 import { fetchService } from "./services/fetch-service";
 
 const applicationPluginRegistry = createApplicationPluginRegistry();
 
-function WorkspaceApp(props: { pluginRegistry: PluginRegistry; user: AuthenticatedUser }) {
+function WorkspaceApp(props: {
+  pluginRegistry: PluginRegistry;
+  user: AuthenticatedUser;
+  onLogout: () => Promise<void>;
+}) {
   const controller = useWorkspace();
   const entries = administrationEntries(props.pluginRegistry);
   const selectedView = (): ApplicationView | undefined => {
@@ -55,7 +60,7 @@ function WorkspaceApp(props: { pluginRegistry: PluginRegistry; user: Authenticat
           <span class={styles.currentView}>{selectedView()?.name ?? "Workspace"}</span>
         </div>
         <div class={styles.topCommands}>
-          <span class={styles.currentUser}>{props.user.name}</span>
+          <UserMenu user={props.user} onLogout={props.onLogout} />
           <Show when={controller.announcement().includes("Undo")}>
             <button class={styles.textButton} onClick={() => controller.undo()}>
               <span aria-hidden="true">↶</span>Undo
@@ -102,7 +107,14 @@ export default function App(props: { pluginRegistry?: PluginRegistry }) {
       <Match when={user()}>
         {(currentUser) => (
           <WorkspaceProvider>
-            <WorkspaceApp pluginRegistry={props.pluginRegistry ?? applicationPluginRegistry} user={currentUser()} />
+            <WorkspaceApp
+              pluginRegistry={props.pluginRegistry ?? applicationPluginRegistry}
+              user={currentUser()}
+              onLogout={async () => {
+                await logout(fetchService);
+                await refetch();
+              }}
+            />
           </WorkspaceProvider>
         )}
       </Match>

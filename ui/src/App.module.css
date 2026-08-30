@@ -6,7 +6,6 @@
 .topDivider { width: 1px; height: 20px; background: var(--color-border); }
 .currentView { overflow: hidden; color: var(--color-text-muted); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
 .topCommands { gap: 6px; }
-.currentUser { padding-right: 8px; color: var(--color-ink-soft); font-size: 13px; font-weight: 650; }
 .startupStatus { display: grid; min-height: 100vh; place-items: center; color: var(--color-text-muted); }
 .textButton { display: flex; gap: 6px; align-items: center; padding: 6px 9px; border: 0; border-radius: 4px; color: var(--color-primary-dark); background: transparent; font-weight: 650; }
 .workspaceLayout { min-height: 100vh; padding-top: 52px; }

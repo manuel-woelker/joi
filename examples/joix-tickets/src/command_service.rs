@@ -12,7 +12,9 @@ use joi_base::JoiString;
 use serde::Serialize;
 
 use crate::command_registry::CommandRegistry;
-use crate::user_session_command::{LOGIN_COMMAND, SESSION_COOKIE, USER_INFO_COMMAND};
+use crate::user_session_command::{
+    LOGIN_COMMAND, LOGOUT_COMMAND, SESSION_COOKIE, USER_INFO_COMMAND,
+};
 
 /// Serves registered commands as JSON HTTP endpoints.
 pub struct CommandService {
@@ -58,7 +60,10 @@ struct CommandResponseError {
     error: JoiString,
 }
 
-fn command_error(error: joi_error::JoiError) -> (StatusCode, Json<CommandResponseError>) {
+fn command_error(
+    command_name: &str,
+    error: joi_error::JoiError,
+) -> (StatusCode, Json<CommandResponseError>) {
     let status = if error
         .current_context()
         .downcast_ref::<serde_json::Error>()
@@ -68,6 +73,7 @@ fn command_error(error: joi_error::JoiError) -> (StatusCode, Json<CommandRespons
     } else {
         StatusCode::INTERNAL_SERVER_ERROR
     };
+    eprintln!("HTTP command `{command_name}` failed with {status}: {error:?}");
     (
         status,
         Json(CommandResponseError {
@@ -92,7 +98,7 @@ fn execute_registered(
             )
         })?
         .map(Json)
-        .map_err(command_error)
+        .map_err(|error| command_error(command_name, error))
 }
 
 fn execute_http(
@@ -101,7 +107,7 @@ fn execute_http(
     mut request: serde_json::Value,
     headers: &HeaderMap,
 ) -> Result<Response, (StatusCode, Json<CommandResponseError>)> {
-    if command_name == USER_INFO_COMMAND {
+    if command_name == USER_INFO_COMMAND || command_name == LOGOUT_COMMAND {
         let session_id = session_cookie(headers).ok_or_else(unauthorized)?;
         request = serde_json::json!({ "session_id": session_id });
     }
@@ -119,16 +125,26 @@ fn execute_http(
         let session_id = response
             .get("session_id")
             .and_then(serde_json::Value::as_str)
-            .ok_or_else(|| command_error(joi_error::joi_error!("login returned no session ID")))?;
+            .ok_or_else(|| {
+                command_error(
+                    command_name,
+                    joi_error::joi_error!("login returned no session ID"),
+                )
+            })?;
         let cookie = format!("{SESSION_COOKIE}={session_id}; Path=/; HttpOnly; SameSite=Strict");
         response_headers.insert(
             SET_COOKIE,
             HeaderValue::from_str(&cookie)
-                .map_err(|error| command_error(joi_error::report(error)))?,
+                .map_err(|error| command_error(command_name, joi_error::report(error)))?,
         );
         response
             .as_object_mut()
             .map(|object| object.remove("session_id"));
+    } else if command_name == LOGOUT_COMMAND {
+        response_headers.insert(
+            SET_COOKIE,
+            HeaderValue::from_static("joix_session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0"),
+        );
     }
     Ok((response_headers, Json(response)).into_response())
 }

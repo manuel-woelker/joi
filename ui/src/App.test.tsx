@@ -126,6 +126,58 @@ afterEach(() => {
 });
 
 describe("workspace app", () => {
+  it("logs out from the user menu and returns to login", async () => {
+    let authenticated = true;
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      if (input === "/api/user-info") {
+        return authenticated
+          ? ({
+              ok: true,
+              json: async () => ({ id: "user-1", username: "jane.developer", name: "Jane Developer" }),
+            } as Response)
+          : ({ ok: false, status: 401, json: async () => ({ error: "login required" }) } as Response);
+      }
+      if (input === "/api/logout") {
+        authenticated = false;
+        return { ok: true, json: async () => ({}) } as Response;
+      }
+      const request = JSON.parse(String(init?.body));
+      return {
+        ok: true,
+        json: async () =>
+          request.table_name === "users"
+            ? {
+                number_of_hits: 1,
+                result_columns: [
+                  { attribute: "id", values: { type: "string", values: ["user-1"] } },
+                  { attribute: "username", values: { type: "string", values: ["jane.developer"] } },
+                  { attribute: "name", values: { type: "string", values: ["Jane Developer"] } },
+                ],
+              }
+            : {
+                number_of_hits: 0,
+                result_columns: ["id", "key", "title", "description", "status"].map((attribute) => ({
+                  attribute,
+                  values: { type: "string", values: [] },
+                })),
+              },
+      } as Response;
+    });
+
+    render(() => <App />);
+    await userEvent.click(await screen.findByRole("button", { name: "Jane Developer" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Logout" }));
+
+    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeTruthy();
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+      "/api/logout",
+      expect.objectContaining({
+        method: "POST",
+        body: "{}",
+      }),
+    );
+  });
+
   it("prompts for a user when no session exists, then retries user info", async () => {
     let authenticated = false;
     vi.mocked(fetch).mockImplementation(async (input, init) => {

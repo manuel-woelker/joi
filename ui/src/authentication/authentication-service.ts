@@ -38,6 +38,10 @@ export async function login(service: FetchService, userId: string): Promise<Auth
   return parseUser(response.user);
 }
 
+export async function logout(service: FetchService): Promise<void> {
+  await service.post("/api/logout", {});
+}
+
 function parseUser(value: unknown): AuthenticatedUser {
   if (!value || typeof value !== "object") throw new Error("User info returned an invalid response");
   const user = value as Partial<AuthenticatedUser>;

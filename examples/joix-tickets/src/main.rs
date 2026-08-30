@@ -22,7 +22,7 @@ use crate::tickets_module::{
     UserTableDescriptionProvider, UserTestDataProvider,
 };
 use crate::user_session_command::{
-    LoginCommand, UserInfoCommand, UserSessionTableDescriptionProvider,
+    LoginCommand, LogoutCommand, UserInfoCommand, UserSessionTableDescriptionProvider,
 };
 
 const DATA_STORE_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/joix-tickets.sqlite3");
@@ -163,6 +163,7 @@ fn build_command_registry(
     builder.register(QueryCommand::new(data_store.clone()))?;
     builder.register(MutateCommand::new(data_store.clone()))?;
     builder.register(LoginCommand::new(data_store.clone()))?;
+    builder.register(LogoutCommand::new(data_store.clone()))?;
     builder.register(UserInfoCommand::new(data_store))?;
     Ok(builder.build())
 }
@@ -460,10 +461,11 @@ mod tests {
         );
 
         let user_info = router
+            .clone()
             .oneshot(
                 Request::builder()
                     .uri("/api/user-info")
-                    .header(COOKIE, session_cookie)
+                    .header(COOKIE, &session_cookie)
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -475,6 +477,42 @@ mod tests {
             serde_json::from_slice::<serde_json::Value>(&body).unwrap()["id"],
             user_id
         );
+
+        let logout = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/logout")
+                    .header(CONTENT_TYPE, "application/json")
+                    .header(COOKIE, &session_cookie)
+                    .body(Body::from("{}"))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(logout.status(), StatusCode::OK);
+        assert!(
+            logout
+                .headers()
+                .get(SET_COOKIE)
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .contains("Max-Age=0")
+        );
+
+        let revoked = router
+            .oneshot(
+                Request::builder()
+                    .uri("/api/user-info")
+                    .header(COOKIE, session_cookie)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(revoked.status(), StatusCode::UNAUTHORIZED);
     }
 
     #[tokio::test]
@@ -538,7 +576,7 @@ mod tests {
                 .iter()
                 .map(|table| table.name.0.as_str())
                 .collect::<Vec<_>>(),
-            ["tickets", "users", "user_session"]
+            ["tickets", "users", "user_sessions"]
         );
     }
 

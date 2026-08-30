@@ -4,8 +4,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::command::{Command, CommandDescriptor, CommandRequest};
 use crate::data_store::{
-    AttributeColumn, AttributeName, DataStoreInsertMutation, DataStoreMutation,
-    DataStoreMutationStep, DataStoreUpdateMutation, SharedDataStore, TableName, Values,
+    AttributeColumn, AttributeName, DataStoreDeleteMutation, DataStoreInsertMutation,
+    DataStoreMutation, DataStoreMutationStep, DataStoreUpdateMutation, SharedDataStore, TableName,
+    Values,
 };
 
 /// Applies generic data-store mutations supplied through the command registry.
@@ -30,6 +31,7 @@ pub struct MutateRequest {
 enum MutateRequestStep {
     Insert(InsertRequest),
     Update(UpdateRequest),
+    Delete(DeleteRequest),
 }
 
 #[derive(Deserialize)]
@@ -45,6 +47,13 @@ struct UpdateRequest {
     table_name: JoiString,
     ids: Vec<JoiString>,
     columns: Vec<MutationColumn>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DeleteRequest {
+    table_name: JoiString,
+    ids: Vec<JoiString>,
 }
 
 #[derive(Deserialize)]
@@ -105,6 +114,12 @@ fn mutation_step(step: MutateRequestStep) -> DataStoreMutationStep {
                 columns: update.columns.into_iter().map(attribute_column).collect(),
             })
         }
+        MutateRequestStep::Delete(delete) => {
+            DataStoreMutationStep::Delete(DataStoreDeleteMutation {
+                table_name: TableName(delete.table_name),
+                ids: delete.ids,
+            })
+        }
     }
 }
 
@@ -128,8 +143,8 @@ mod tests {
     use crate::tickets_module::UserTableDescriptionProvider;
 
     use super::{
-        InsertRequest, MutateCommand, MutateRequest, MutateRequestStep, MutationColumn,
-        MutationValues, UpdateRequest,
+        DeleteRequest, InsertRequest, MutateCommand, MutateRequest, MutateRequestStep,
+        MutationColumn, MutationValues, UpdateRequest,
     };
 
     #[test]
@@ -206,6 +221,46 @@ mod tests {
             })
             .unwrap_err();
         assert!(error.to_string().contains("no record with ID `missing`"));
+
+        let result = store
+            .lock()
+            .unwrap()
+            .query(DataStoreQuery {
+                table_name: crate::data_store::TableName("users".into()),
+                criterion: QueryCriterion::MatchAny,
+                max_results: 0,
+                attributes: Vec::new(),
+            })
+            .unwrap();
+        assert_eq!(result.number_of_hits, 0);
+    }
+
+    #[test]
+    fn deletes_records_by_primary_key() {
+        let mut store = SqliteDataStore::in_memory().unwrap();
+        store
+            .ensure_tables(vec![UserTableDescriptionProvider.table_description()])
+            .unwrap();
+        let store = Arc::new(Mutex::new(Box::new(store) as Box<dyn DataStore>));
+        let command = MutateCommand::new(store.clone());
+        command
+            .execute(MutateRequest {
+                steps: vec![
+                    MutateRequestStep::Insert(InsertRequest {
+                        table_name: "users".into(),
+                        columns: vec![
+                            strings("id", ["user-1"]),
+                            strings("username", ["jane.developer"]),
+                            strings("name", ["Jane Developer"]),
+                        ],
+                    }),
+                    MutateRequestStep::Delete(DeleteRequest {
+                        table_name: "users".into(),
+                        ids: vec!["user-1".into()],
+                    }),
+                ],
+            })
+            .unwrap();
 
         let result = store
             .lock()

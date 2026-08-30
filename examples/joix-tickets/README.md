@@ -94,15 +94,17 @@ returns a JSON `422` response. Successful responses are serialized as JSON.
 ## How does login work?
 
 The development login is intentionally passwordless. `POST /api/login` accepts
-one existing `user_id`, inserts a row into `user_session`, and returns the
-selected user's public fields. The `sessions_id` primary key is a generated
-KSUID, and `user_id` has a SQLite foreign key to `users.id`.
+one existing `user_id`, inserts a row into `user_sessions`, and returns the
+selected user's public fields. The `session_id` primary key is an opaque,
+256-bit cryptographically random token, and `user_id` has a SQLite foreign key
+to `users.id`.
 
 For HTTP clients, `CommandService` removes the session ID from the JSON response
 and stores it in the `joix_session` cookie with `HttpOnly`, `Path=/`, and
 `SameSite=Strict`. `GET /api/user-info` reads that cookie and returns the
 associated `id`, `username`, and `name`; a missing or invalid session returns
-`401 Unauthorized`. The cookie intentionally omits `Secure` for the current
+`401 Unauthorized`. `POST /api/logout` deletes the current session and expires
+the cookie. The cookie intentionally omits `Secure` for the current
 plain-HTTP localhost server. A production HTTPS deployment must add it.
 
 This is only a development identity mechanism. Sessions currently have no
@@ -243,7 +245,7 @@ Results remain columnar and preserve each column's data type:
 }
 ```
 
-The generic `mutate` command applies one or more insert or update steps in a
+The generic `mutate` command applies one or more insert, update, or delete steps in a
 single datastore transaction. Columns use the same tagged string and integer
 value representation as query results. Every column in an insert must have the
 same number of values. Update columns must contain one value per ID:
@@ -280,7 +282,8 @@ curl \
 
 Updates identify rows through the table's first, primary-key column. Primary
 keys are immutable, duplicate IDs and attributes are rejected, and a missing
-ID fails the complete mutation. A successful mutation returns `{}`.
+ID fails the complete mutation. Delete steps contain a table name and
+primary-key `ids`. A successful mutation returns `{}`.
 
 The `commands/list` command returns the names and descriptions of all registered
 commands in name order:

@@ -6,6 +6,8 @@ On startup the UI requests `GET /api/user-info`. A valid HTTP-only session
 opens the workspace; otherwise a passwordless login view loads the available
 users and asks the visitor to select one. Successful login sets the backend
 session cookie and retries user-info before mounting application state.
+The current user's name opens an account menu; Logout revokes the backend
+session and returns to the same login flow.
 
 ## How does the workspace work?
 

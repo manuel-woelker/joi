@@ -1,0 +1,11 @@
+.userMenu { position: relative; }
+.trigger { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border: 0; border-radius: 4px; background: transparent; color: var(--color-ink-soft); font: inherit; font-size: 13px; font-weight: 650; }
+.trigger:hover, .trigger[aria-expanded="true"] { background: var(--color-surface-hover); color: var(--color-ink); }
+.menu { position: absolute; z-index: 80; top: calc(100% + 7px); right: 0; display: grid; width: 220px; padding: 6px; border: 1px solid var(--color-border); border-radius: 5px; background: var(--color-surface); box-shadow: 0 10px 24px color-mix(in srgb, var(--color-ink) 14%, transparent); }
+.identity { display: grid; gap: 2px; padding: 8px 9px 10px; border-bottom: 1px solid var(--color-border-soft); }
+.identity strong { color: var(--color-ink); font-size: 13px; }
+.identity span { color: var(--color-text-muted); font-size: 12px; }
+.menu button { margin-top: 5px; padding: 8px 9px; border: 0; border-radius: 3px; background: transparent; color: var(--color-danger); font: inherit; font-size: 13px; text-align: left; }
+.menu button:hover { background: var(--color-surface-hover); }
+.menu button:disabled { opacity: 0.55; }
+.menu p { margin: 5px 9px; color: var(--color-danger); font-size: 12px; }

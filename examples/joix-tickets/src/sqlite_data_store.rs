@@ -8,9 +8,10 @@ use joi_error::{JoiResult, joi_bail, report};
 use rusqlite::{Connection, Transaction, params, params_from_iter, types::Value};
 
 use crate::data_store::{
-    AttributeColumn, ColumnDataType, ColumnDescription, DataStore, DataStoreInsertMutation,
-    DataStoreMutation, DataStoreMutationResult, DataStoreMutationStep, DataStoreQuery,
-    DataStoreQueryResult, DataStoreUpdateMutation, QueryCriterion, TableDescription, Values,
+    AttributeColumn, ColumnDataType, ColumnDescription, DataStore, DataStoreDeleteMutation,
+    DataStoreInsertMutation, DataStoreMutation, DataStoreMutationResult, DataStoreMutationStep,
+    DataStoreQuery, DataStoreQueryResult, DataStoreUpdateMutation, QueryCriterion,
+    TableDescription, Values,
 };
 
 /// A SQLite-backed [`DataStore`].
@@ -147,6 +148,7 @@ impl DataStore for SqliteDataStore {
             match step {
                 DataStoreMutationStep::Insert(insert) => insert_rows(&transaction, insert)?,
                 DataStoreMutationStep::Update(update) => update_rows(&transaction, update)?,
+                DataStoreMutationStep::Delete(delete) => delete_rows(&transaction, delete)?,
             }
         }
         transaction.commit().map_err(report)?;
@@ -425,6 +427,41 @@ fn update_rows(transaction: &Transaction<'_>, update: DataStoreUpdateMutation) -
             joi_bail!(
                 "table `{}` has no record with ID `{id}`",
                 update.table_name.0
+            );
+        }
+    }
+    Ok(())
+}
+
+fn delete_rows(transaction: &Transaction<'_>, delete: DataStoreDeleteMutation) -> JoiResult<()> {
+    let schema = table_schema(transaction, &delete.table_name.0)?;
+    let Some(primary_key) = schema.iter().find(|column| column.primary_key) else {
+        joi_bail!("table `{}` has no primary key", delete.table_name.0);
+    };
+    if primary_key.description.data_type != ColumnDataType::String {
+        joi_bail!(
+            "table `{}` does not have a string primary key",
+            delete.table_name.0
+        );
+    }
+    let mut ids = HashSet::new();
+    for id in &delete.ids {
+        if !ids.insert(id) {
+            joi_bail!("delete contains duplicate ID `{id}`");
+        }
+    }
+    let sql = format!(
+        "DELETE FROM {} WHERE {} = ?1",
+        quote_identifier(&delete.table_name.0),
+        quote_identifier(&primary_key.description.name.0),
+    );
+    let mut statement = transaction.prepare(&sql).map_err(report)?;
+    for id in delete.ids {
+        let deleted = statement.execute(params![id.as_str()]).map_err(report)?;
+        if deleted != 1 {
+            joi_bail!(
+                "table `{}` has no record with ID `{id}`",
+                delete.table_name.0
             );
         }
     }
