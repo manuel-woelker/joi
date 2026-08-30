@@ -25,7 +25,8 @@ Record-oriented screens use a shared master-detail editor over the same
 columnar query result. Selecting a ticket or user keeps its table visible and
 opens an edit pane on the right. Code-defined entity descriptions are the
 canonical UI source for table names, identity attributes, attribute labels and
-types, default table columns, edit controls, and validation functions. Binding
+types, default table columns, edit/create controls, initial values, and
+validation functions. Binding
 an entity description to a query result resolves response-local column handles
 and rejects missing or mismatched attributes. Saved presentations still choose
 ticket column order, density, widths, and intentional label overrides.
@@ -47,6 +48,17 @@ changed values into the existing reactive query rows so visible table cells
 update in place. Record URLs use
 `#/views/<view-id>/records/<record-id>` or
 `#/administration/<entry-id>/records/<record-id>`.
+
+Entity creation reuses the same generated controls and validation adapters in
+an explicit submit lifecycle. It never debounces or submits on unmount.
+Creation metadata supplies hidden immutable values such as KSUIDs and the
+initial ticket status, while visible values are inserted atomically through
+the generic mutate command. Create routes use `#/views/<view-id>/new` and
+`#/administration/<entry-id>/new`; after insertion the owning query is
+refetched and the route is replaced with the new record URL. Ticket keys are
+currently entered explicitly. Automatic `<PROJECT>-<INTEGER>` allocation must
+be implemented transactionally by the backend rather than inferred from a
+client query.
 
 The initial editor intentionally supports only string and integer fields. It
 does not yet provide optimistic updates, conflict detection, custom controls,

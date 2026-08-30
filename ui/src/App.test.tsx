@@ -9,27 +9,54 @@ import { WORKSPACE_STORAGE_KEY } from "./workspace/repository";
 beforeEach(() => {
   localStorage.removeItem(WORKSPACE_STORAGE_KEY);
   window.location.hash = "";
+  const createdUsers: Record<string, string>[] = [];
+  const createdTickets: Record<string, string>[] = [];
   vi.stubGlobal(
     "fetch",
-    vi.fn().mockImplementation(async (_input, init) => {
+    vi.fn().mockImplementation(async (input, init) => {
       const request = JSON.parse(String(init?.body));
+      if (input === "/api/mutate") {
+        const insert = request.steps?.[0]?.insert;
+        if (insert) {
+          const record = Object.fromEntries(
+            insert.columns.map((column: { attribute: string; values: { values: string[] } }) => [
+              column.attribute,
+              column.values.values[0],
+            ]),
+          );
+          (insert.table_name === "users" ? createdUsers : createdTickets).push(record);
+        }
+        return { ok: true, json: async () => ({}) };
+      }
       return {
         ok: true,
         json: async () =>
           request.table_name === "users"
             ? {
-                number_of_hits: 2,
+                number_of_hits: 2 + createdUsers.length,
                 result_columns: [
-                  { attribute: "id", values: { type: "string", values: ["user-1", "user-2"] } },
+                  {
+                    attribute: "id",
+                    values: { type: "string", values: ["user-1", "user-2", ...createdUsers.map((user) => user.id)] },
+                  },
                   {
                     attribute: "username",
-                    values: { type: "string", values: ["jane.developer", "joe.tester"] },
+                    values: {
+                      type: "string",
+                      values: ["jane.developer", "joe.tester", ...createdUsers.map((user) => user.username)],
+                    },
                   },
-                  { attribute: "name", values: { type: "string", values: ["Jane Developer", "Joe Tester"] } },
+                  {
+                    attribute: "name",
+                    values: {
+                      type: "string",
+                      values: ["Jane Developer", "Joe Tester", ...createdUsers.map((user) => user.name)],
+                    },
+                  },
                 ],
               }
             : {
-                number_of_hits: 3,
+                number_of_hits: 3 + createdTickets.length,
                 result_columns: [
                   {
                     attribute: "id",
@@ -39,24 +66,47 @@ beforeEach(() => {
                         "0o5Fs0EELR0fUjHjbCnEtdUwQe3",
                         "0o5Fs0EELR0fUjHjbCnEtdUwQe4",
                         "0o5Fs0EELR0fUjHjbCnEtdUwQe5",
+                        ...createdTickets.map((ticket) => ticket.id),
                       ],
                     },
                   },
-                  { attribute: "key", values: { type: "string", values: ["TEST-1", "TEST-2", "TEST-3"] } },
+                  {
+                    attribute: "key",
+                    values: {
+                      type: "string",
+                      values: ["TEST-1", "TEST-2", "TEST-3", ...createdTickets.map((ticket) => ticket.key)],
+                    },
+                  },
                   {
                     attribute: "title",
                     values: {
                       type: "string",
-                      values: ["Fix navigation bug", "Add issue filters", "Review table schema"],
+                      values: [
+                        "Fix navigation bug",
+                        "Add issue filters",
+                        "Review table schema",
+                        ...createdTickets.map((ticket) => ticket.title),
+                      ],
                     },
                   },
                   {
                     attribute: "description",
-                    values: { type: "string", values: ["Selection is lost", "Filter by status", "Check columns"] },
+                    values: {
+                      type: "string",
+                      values: [
+                        "Selection is lost",
+                        "Filter by status",
+                        "Check columns",
+                        ...createdTickets.map((ticket) => ticket.description),
+                      ],
+                    },
                   },
                   {
                     attribute: "status",
-                    values: { type: "string", values: ["open", "in-progress", "closed"] },
+                    values: {
+                      type: "string",
+                      values: ["open", "in-progress", "closed", ...createdTickets.map((ticket) => ticket.status)],
+                    },
                   },
                 ],
               },
@@ -193,6 +243,41 @@ describe("workspace app", () => {
     );
     expect(await screen.findByText("Jane Engineer")).toBeTruthy();
     expect(screen.queryByRole("columnheader", { name: "ID" })).toBeNull();
+  });
+
+  it("creates a user only through explicit submission", async () => {
+    render(() => <App />);
+    await userEvent.click(screen.getByRole("button", { name: "Users" }));
+    await screen.findByRole("table", { name: "Users" });
+    await userEvent.click(screen.getByRole("button", { name: "New user" }));
+
+    expect(window.location.hash).toBe("#/administration/users/new");
+    expect(screen.getByRole("heading", { name: "New User" })).toBeTruthy();
+    expect(screen.queryByRole("textbox", { name: "ID" })).toBeNull();
+    await userEvent.type(screen.getByRole("textbox", { name: "Username" }), "alex.builder");
+    await userEvent.type(screen.getByRole("textbox", { name: "Name" }), "Alex Builder");
+    expect(vi.mocked(fetch).mock.calls.filter(([input]) => input === "/api/mutate")).toHaveLength(0);
+    await userEvent.click(screen.getByRole("button", { name: "Create" }));
+
+    await waitFor(() => expect(window.location.hash).toMatch(/^#\/administration\/users\/records\/[0-9A-Za-z]{27}$/));
+    expect(await screen.findByText("Alex Builder")).toBeTruthy();
+  });
+
+  it("creates an open ticket with an explicit key", async () => {
+    render(() => <App />);
+    await screen.findByRole("table", { name: "Active issues" });
+    await userEvent.click(screen.getByRole("button", { name: "New ticket" }));
+    await userEvent.type(screen.getByRole("textbox", { name: "Key" }), "TEST-4");
+    await userEvent.type(screen.getByRole("textbox", { name: "Title" }), "Create ticket workflow");
+    await userEvent.type(screen.getByRole("textbox", { name: "Description" }), "Exercise explicit creation.");
+    await userEvent.click(screen.getByRole("button", { name: "Create" }));
+
+    await waitFor(() => expect(window.location.hash).toMatch(/^#\/views\/view-active\/records\/[0-9A-Za-z]{27}$/));
+    expect(await screen.findByText("Create ticket workflow")).toBeTruthy();
+    const insertCall = vi
+      .mocked(fetch)
+      .mock.calls.find(([input, init]) => input === "/api/mutate" && String(init?.body).includes('"insert"'));
+    expect(String(insertCall?.[1]?.body)).toContain('"status","values":{"type":"string","values":["open"]}');
   });
 
   it("opens the Info debug contribution", async () => {

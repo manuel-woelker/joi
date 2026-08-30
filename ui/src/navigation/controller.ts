@@ -5,20 +5,34 @@ import type { ViewId, WorkspaceDocument } from "../workspace/model";
 export type NavigationSelection =
   | { type: "view"; id: ViewId }
   | { type: "administration"; id: string }
-  | { type: "record"; owner: { type: "view"; id: ViewId } | { type: "administration"; id: string }; recordId: string };
+  | { type: "record"; owner: NavigationOwner; recordId: string }
+  | { type: "create"; owner: NavigationOwner };
+
+type NavigationOwner = { type: "view"; id: ViewId } | { type: "administration"; id: string };
 
 export interface NavigationController {
   selection: () => NavigationSelection;
   selectedViewId: () => ViewId | undefined;
   selectedAdministrationId: () => string | undefined;
   selectedRecordId: () => string | undefined;
+  creatingRecord: () => boolean;
   selectView(id: ViewId): void;
   selectAdministration(id: string): void;
   selectRecord(id: string): void;
+  createRecord(): void;
+  finishCreatingRecord(id: string): void;
   closeRecord(): void;
 }
 
 function selectionFromHash(workspace: WorkspaceDocument): NavigationSelection {
+  const viewCreateMatch = window.location.hash.match(/^#\/views\/([^/]+)\/new$/);
+  if (viewCreateMatch?.[1] && workspace.views[viewCreateMatch[1]]) {
+    return { type: "create", owner: { type: "view", id: viewCreateMatch[1] } };
+  }
+  const administrationCreateMatch = window.location.hash.match(/^#\/administration\/([^/]+)\/new$/);
+  if (administrationCreateMatch?.[1]) {
+    return { type: "create", owner: { type: "administration", id: administrationCreateMatch[1] } };
+  }
   const viewRecordMatch = window.location.hash.match(/^#\/views\/([^/]+)\/records\/(.+)$/);
   if (viewRecordMatch?.[1] && viewRecordMatch[2] && workspace.views[viewRecordMatch[1]]) {
     return {
@@ -53,7 +67,7 @@ export function createNavigationController(workspace: WorkspaceDocument): Naviga
     const current = selection();
     return current.type === "view"
       ? current.id
-      : current.type === "record" && current.owner.type === "view"
+      : (current.type === "record" || current.type === "create") && current.owner.type === "view"
         ? current.owner.id
         : undefined;
   });
@@ -61,7 +75,7 @@ export function createNavigationController(workspace: WorkspaceDocument): Naviga
     const current = selection();
     return current.type === "administration"
       ? current.id
-      : current.type === "record" && current.owner.type === "administration"
+      : (current.type === "record" || current.type === "create") && current.owner.type === "administration"
         ? current.owner.id
         : undefined;
   });
@@ -69,6 +83,7 @@ export function createNavigationController(workspace: WorkspaceDocument): Naviga
     const current = selection();
     return current.type === "record" ? current.recordId : undefined;
   });
+  const creatingRecord = createMemo(() => selection().type === "create");
   const onHashChange = () => setSelection(selectionFromHash(workspace));
 
   window.addEventListener("hashchange", onHashChange);
@@ -79,6 +94,7 @@ export function createNavigationController(workspace: WorkspaceDocument): Naviga
     selectedViewId,
     selectedAdministrationId,
     selectedRecordId,
+    creatingRecord,
     selectView(id) {
       setSelection({ type: "view", id });
       window.location.hash = `/views/${id}`;
@@ -89,13 +105,28 @@ export function createNavigationController(workspace: WorkspaceDocument): Naviga
     },
     selectRecord(recordId) {
       const current = selection();
-      const owner = current.type === "record" ? current.owner : { type: current.type, id: current.id };
+      const owner =
+        current.type === "record" || current.type === "create" ? current.owner : { type: current.type, id: current.id };
       setSelection({ type: "record", owner, recordId });
       window.location.hash = `/${owner.type === "view" ? "views" : "administration"}/${owner.id}/records/${encodeURIComponent(recordId)}`;
     },
+    createRecord() {
+      const current = selection();
+      const owner =
+        current.type === "record" || current.type === "create" ? current.owner : { type: current.type, id: current.id };
+      setSelection({ type: "create", owner });
+      window.location.hash = `/${owner.type === "view" ? "views" : "administration"}/${owner.id}/new`;
+    },
+    finishCreatingRecord(recordId) {
+      const current = selection();
+      if (current.type !== "create") return;
+      setSelection({ type: "record", owner: current.owner, recordId });
+      const hash = `#/${current.owner.type === "view" ? "views" : "administration"}/${current.owner.id}/records/${encodeURIComponent(recordId)}`;
+      window.history.replaceState(undefined, "", hash);
+    },
     closeRecord() {
       const current = selection();
-      if (current.type !== "record") return;
+      if (current.type !== "record" && current.type !== "create") return;
       setSelection(current.owner);
       window.location.hash = `/${current.owner.type === "view" ? "views" : "administration"}/${current.owner.id}`;
     },

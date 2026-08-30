@@ -1,6 +1,7 @@
 import { createResource, Match, Switch } from "solid-js";
 
 import { DataTable } from "../../components/DataTable";
+import { IconButton } from "../../components/IconButton";
 import { bindEntity, createEntityTableColumns } from "../../entities/bound-entity";
 import { createEntityEditorDefinition } from "../../entities/entity-editor";
 import { userEntity } from "../../entities/user-entity";
@@ -14,7 +15,7 @@ const userEditor = createEntityEditorDefinition(userEntity);
 
 export function Users(props: { fetchService: FetchService }) {
   const controller = useWorkspace();
-  const [users] = createResource(() => loadUsers(props.fetchService));
+  const [users, { refetch }] = createResource(() => loadUsers(props.fetchService));
 
   return (
     <Switch>
@@ -32,22 +33,38 @@ export function Users(props: { fetchService: FetchService }) {
           return (
             <MasterDetailView
               master={
-                <DataTable
-                  ariaLabel="Users"
-                  result={result()}
-                  columns={createEntityTableColumns(entity)}
-                  rowKey={entity.identity}
-                  density="compact"
-                  onRowClick={(row) => {
-                    const id = row.value(entity.identity);
-                    if (typeof id === "string") controller.selectRecord(id);
-                  }}
-                />
+                <>
+                  <div class={styles.toolbar}>
+                    <IconButton label="New user" icon="+" onClick={() => controller.createRecord()} />
+                  </div>
+                  <DataTable
+                    ariaLabel="Users"
+                    result={result()}
+                    columns={createEntityTableColumns(entity)}
+                    rowKey={entity.identity}
+                    density="compact"
+                    onRowClick={(row) => {
+                      const id = row.value(entity.identity);
+                      if (typeof id === "string") controller.selectRecord(id);
+                    }}
+                  />
+                </>
               }
               definition={userEditor}
               fetchService={props.fetchService}
               result={result()}
               selectedRecordId={controller.navigation.selectedRecordId()}
+              creating={controller.navigation.creatingRecord()}
+              onCreated={async (id) => {
+                const refreshed = await refetch();
+                const identity = refreshed?.column("id");
+                if (identity && refreshed?.rows.some((row) => row.value(identity) === id)) {
+                  controller.finishCreatingRecord(id);
+                } else {
+                  controller.closeRecord();
+                  controller.announce("User created outside the current result.");
+                }
+              }}
               onClose={() => controller.closeRecord()}
             />
           );

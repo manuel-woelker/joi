@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { parseQueryResponse } from "../query/query-result";
 import { validate } from "../validation/validation";
 import { bindEntity, createEntityTableColumns } from "./bound-entity";
+import { createEntityEditorDefinition } from "./entity-editor";
 import {
   defineEntity,
   requireEntityAttribute,
@@ -110,5 +111,28 @@ describe("entity descriptions", () => {
     if (name.valueType !== "string" || !name.validation) throw new Error("User name validation is missing");
     expect(validate("Jane Developer", name.validation).failures).toEqual([]);
     expect(validate("Jane 123", name.validation).failures[0]?.message).toContain("Use only letters");
+  });
+
+  it("derives visible create fields and hidden initial values", () => {
+    const create = createEntityEditorDefinition(userEntity).create;
+    expect(create?.fields.map((field) => field.attribute)).toEqual(["username", "name"]);
+    expect(create?.attributes.map((attribute) => attribute.attribute)).toEqual(["id", "username", "name"]);
+    expect(create?.attributes[0]?.initialValue()).toMatch(/^[0-9A-Za-z]{27}$/);
+  });
+
+  it("rejects partial create definitions", () => {
+    expect(() =>
+      defineEntity({
+        id: "partial",
+        tableName: "partial",
+        label: "Partial",
+        pluralLabel: "Partials",
+        identityAttribute: "id",
+        attributes: [
+          { id: "id", label: "ID", valueType: "string", create: { hidden: true, initialValue: "id-1" } },
+          { id: "name", label: "Name", valueType: "string" },
+        ],
+      }),
+    ).toThrow("create definition is missing attribute 'name'");
   });
 });

@@ -59,10 +59,12 @@ Configure the initial entities as follows:
   this iteration. Automatic sequence allocation requires a backend-owned,
   concurrency-safe allocator and should not be approximated in the browser.
 
-Use a maintained KSUID package rather than implementing the format locally.
-Wrap generation behind a small function so tests can inject deterministic IDs
-and a future backend-generated identity can replace it without changing the
-form model.
+Generate standard KSUIDs through a small Web Crypto-based function whose clock
+and random source are injectable in tests. The commonly used `ksuid` package is
+Node-only and imports `crypto`/`Buffer`, so it cannot be shipped by this browser
+application without inappropriate polyfills. Keep generation isolated so a
+future backend-generated identity can replace it without changing the form
+model.
 
 ## How should explicit submission work?
 
@@ -138,35 +140,35 @@ to a stale submitted form with the Back button.
 
 ## Implementation Checklist
 
-- [ ] Extend entity-description types, validation, and authoring helpers with
+- [x] Extend entity-description types, validation, and authoring helpers with
       declarative creation metadata, initial values/factories, and labels.
-- [ ] Add deterministic, injectable KSUID generation and configure complete
+- [x] Add deterministic, injectable KSUID generation and configure complete
       create metadata for users and tickets, including ticket-key validation
       and the initial `open` status.
-- [ ] Extend entity editor derivation to produce create fields, complete typed
+- [x] Extend entity editor derivation to produce create fields, complete typed
       candidate values, and the same attribute/entity validation behavior used
       by editing.
-- [ ] Introduce explicit autosave and submit form persistence modes; guarantee
+- [x] Introduce explicit autosave and submit form persistence modes; guarantee
       that submit mode never debounces, autosaves, or flushes on unmount.
-- [ ] Add generic Create, Cancel, and Reset controls with touched-state,
+- [x] Add generic Create, Cancel, and Reset controls with touched-state,
       validation, pending, success, and failure behavior.
-- [ ] Add `createRecord` using one atomic generic insert mutation and test its
+- [x] Add `createRecord` using one atomic generic insert mutation and test its
       exact string/integer wire payloads, missing values, type mismatches, and
       backend errors.
-- [ ] Generalize the record editor into create/edit modes without duplicating
+- [x] Generalize the record editor into create/edit modes without duplicating
       field rendering, validation adapters, responsive layout, or error UI.
-- [ ] Add generic create selections and owner-specific hash parsing,
+- [x] Add generic create selections and owner-specific hash parsing,
       serialization, close, replace, reload, and browser-history behavior.
-- [ ] Add New commands to saved ticket views and Users; refetch after success,
+- [x] Add New commands to saved ticket views and Users; refetch after success,
       open the created record when it remains in the result, and handle a
       filtered-out result cleanly.
-- [ ] Add form playground scenarios and focused tests for explicit submission,
+- [x] Add form playground scenarios and focused tests for explicit submission,
       invalid fields, cross-field validation, reset, failed insertion,
       duplicate-submit prevention, and unmount without submission.
-- [ ] Add application tests for creating a user and ticket, hidden generated
+- [x] Add application tests for creating a user and ticket, hidden generated
       IDs, initial ticket status, visible immutable ticket key, table refresh,
       URL transitions, cancel, and unchanged edit autosave behavior.
-- [ ] Document entity creation metadata, explicit versus autosave lifecycle,
+- [x] Document entity creation metadata, explicit versus autosave lifecycle,
       and current ticket-key limitation in `ui/README.md`.
 
 ## What assumptions does the plan make?
@@ -224,3 +226,11 @@ unmount; invalid forms do not submit; failed requests preserve input; repeated
 clicks cannot create duplicates; successful creation updates the table and URL;
 Back and Forward remain coherent; and editing existing records still autosaves
 without table flicker or focus loss.
+
+Automated verification completed on 2026-08-30. Repository checks, TypeScript
+type checking, 106 UI tests, and the Vite production build pass. Application
+tests cover explicit user and ticket creation, generated hidden identities,
+the initial open ticket status, post-create refetch, URL replacement, and
+unchanged edit autosave behavior. A separate browser viewport pass was not
+available; the create pane uses the existing tested responsive master-detail
+layout.

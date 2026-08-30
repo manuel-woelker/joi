@@ -6,6 +6,7 @@ import type { AnyEntityAttribute, EntityDescription } from "./entity-description
 
 /** Derives the existing master-detail editor contract from an entity description. */
 export function createEntityEditorDefinition(description: EntityDescription): MasterDetailDefinition {
+  const createAttributes = description.attributes.filter((attribute) => attribute.create);
   return {
     tableName: description.tableName,
     identityAttribute: description.identityAttribute,
@@ -28,6 +29,41 @@ export function createEntityEditorDefinition(description: EntityDescription): Ma
         : [],
     ),
     validation: description.validation ? (result, row) => entityValidation(description, result, row) : undefined,
+    create:
+      createAttributes.length === 0
+        ? undefined
+        : {
+            title: `New ${description.label}`,
+            attributes: createAttributes.map((attribute) => {
+              const create = attribute.create!;
+              return {
+                attribute: attribute.id,
+                valueType: attribute.valueType,
+                initialValue: () => {
+                  const initial =
+                    typeof create.initialValue === "function" ? create.initialValue() : create.initialValue;
+                  return initial ?? (attribute.valueType === "string" ? "" : 0);
+                },
+              };
+            }),
+            fields: createAttributes.flatMap((attribute) => {
+              const create = attribute.create!;
+              return create.hidden
+                ? []
+                : [
+                    {
+                      attribute: attribute.id,
+                      label: attribute.label,
+                      control: create.control ?? attribute.edit!.control,
+                      required: create.required ?? attribute.edit?.required,
+                      rows: create.rows ?? attribute.edit?.rows,
+                      placeholder: create.placeholder ?? attribute.edit?.placeholder,
+                      validation: attributeValidation(attribute),
+                    },
+                  ];
+            }),
+            validation: description.validation as ValidationFunction<Readonly<Record<string, QueryValue>>> | undefined,
+          },
   };
 }
 

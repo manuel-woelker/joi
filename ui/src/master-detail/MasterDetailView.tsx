@@ -12,18 +12,29 @@ export function MasterDetailView(props: {
   fetchService: FetchService;
   result?: QueryResult;
   selectedRecordId?: string;
+  creating?: boolean;
+  onCreated: (recordId: string) => void | Promise<void>;
   onClose: () => void;
 }) {
   return (
-    <div class={styles.layout} classList={{ [styles.withDetail]: Boolean(props.selectedRecordId) }}>
+    <div class={styles.layout} classList={{ [styles.withDetail]: Boolean(props.selectedRecordId || props.creating) }}>
       <div class={styles.master}>{props.master}</div>
       <Show when={props.selectedRecordId && props.result}>
         <aside class={styles.detail} aria-label={`${props.definition.detailTitle} details`}>
           <RecordEditor
             definition={props.definition}
             fetchService={props.fetchService}
-            result={props.result!}
-            recordId={props.selectedRecordId!}
+            mode={{ type: "edit", result: props.result!, recordId: props.selectedRecordId! }}
+            onClose={props.onClose}
+          />
+        </aside>
+      </Show>
+      <Show when={props.creating}>
+        <aside class={styles.detail} aria-label={`New ${props.definition.detailTitle}`}>
+          <RecordEditor
+            definition={props.definition}
+            fetchService={props.fetchService}
+            mode={{ type: "create", onCreated: props.onCreated }}
             onClose={props.onClose}
           />
         </aside>

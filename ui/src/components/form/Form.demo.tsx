@@ -91,9 +91,12 @@ function DebouncedFormDemo() {
               },
             ],
           }}
-          onSave={async (changes) => {
-            await new Promise((resolve) => setTimeout(resolve, 400));
-            setSavedChanges(JSON.stringify(changes));
+          persistence={{
+            type: "autosave",
+            onSave: async (changes) => {
+              await new Promise((resolve) => setTimeout(resolve, 400));
+              setSavedChanges(JSON.stringify(changes));
+            },
           }}
         >
           <BasicFormField fieldName="name" />
@@ -220,6 +223,49 @@ function TouchedFormDemo() {
   );
 }
 
+function ExplicitSubmitFormDemo() {
+  const [submitted, setSubmitted] = createSignal("Not submitted");
+  return (
+    <div class={styles.formDemo}>
+      <Form
+        model={{
+          attributes: [
+            {
+              id: "name",
+              label: "Name",
+              initialValue: "",
+              placeholder: "Enter a name",
+              validation: notEmpty("Name is required."),
+            },
+          ],
+        }}
+        persistence={{
+          type: "submit",
+          onSubmit: (values) => {
+            setSubmitted(JSON.stringify(values));
+          },
+        }}
+      >
+        <BasicFormField fieldName="name" />
+        <ExplicitSubmitButton />
+      </Form>
+      <div class={styles.saveStatus}>
+        <span>Submitted values</span>
+        <output>{submitted()}</output>
+      </div>
+    </div>
+  );
+}
+
+function ExplicitSubmitButton() {
+  const form = useFormState();
+  return (
+    <button class={styles.mountButton} type="button" disabled={form.saving()} onClick={() => void form.submit()}>
+      Submit
+    </button>
+  );
+}
+
 function ResetButton() {
   const form = useFormState();
   return (
@@ -302,6 +348,11 @@ export default {
       name: "Touched validation",
       description: "Validation feedback shown after an invalid field loses focus.",
       render: () => <TouchedFormDemo />,
+    },
+    {
+      name: "Explicit submission",
+      description: "A create-style form that validates and submits only when commanded.",
+      render: () => <ExplicitSubmitFormDemo />,
     },
   ],
 } satisfies ComponentDemo;

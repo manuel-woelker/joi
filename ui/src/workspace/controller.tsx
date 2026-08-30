@@ -33,6 +33,9 @@ export interface WorkspaceController {
   selectView(id: ViewId): void;
   selectAdministration(id: string): void;
   selectRecord(id: string): void;
+  createRecord(): void;
+  finishCreatingRecord(id: string): void;
+  announce(message: string): void;
   closeRecord(): void;
   setEditorOpen(open: boolean): void;
   setNavigationOpen(open: boolean): void;
@@ -135,6 +138,17 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
       navigation.selectRecord(id);
       setNavigationOpen(false);
       setSearch("");
+    },
+    createRecord() {
+      navigation.createRecord();
+      setNavigationOpen(false);
+      setSearch("");
+    },
+    finishCreatingRecord(id) {
+      navigation.finishCreatingRecord(id);
+    },
+    announce(message) {
+      setAnnouncement(message);
     },
     closeRecord() {
       navigation.closeRecord();

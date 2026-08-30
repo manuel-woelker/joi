@@ -20,6 +20,16 @@ export interface EntityEditDescription<TValue extends QueryValue> {
   readonly disabled?: boolean;
 }
 
+/** Form presentation and initial value used when creating an entity attribute. */
+export interface EntityCreateDescription<TValue extends QueryValue> {
+  readonly control?: TValue extends string ? "text" | "textarea" : "integer";
+  readonly required?: boolean;
+  readonly rows?: number;
+  readonly placeholder?: string;
+  readonly hidden?: boolean;
+  readonly initialValue?: TValue | (() => TValue);
+}
+
 /** Description shared by every entity attribute value type. */
 export interface EntityAttributeDescription<
   TId extends string,
@@ -31,6 +41,7 @@ export interface EntityAttributeDescription<
   readonly valueType: TValueType;
   readonly table?: EntityTableDescription;
   readonly edit?: EntityEditDescription<TValue>;
+  readonly create?: EntityCreateDescription<TValue>;
   readonly validation?: ValidationFunction<TValue>;
 }
 
@@ -96,6 +107,7 @@ export function validateEntityDescription(description: EntityDescription): void 
       throw new Error(`Entity '${description.id}' attribute '${attribute.id}' must have a non-empty label`);
     }
     validateEditControl(description.id, attribute);
+    validateCreateControl(description.id, attribute);
   }
 
   if (!ids.has(description.identityAttribute)) {
@@ -104,6 +116,34 @@ export function validateEntityDescription(description: EntityDescription): void 
   const identity = requireEntityAttribute(description, description.identityAttribute);
   if (identity.valueType !== "string")
     throw new Error(`Entity '${description.id}' identity attribute must be a string`);
+  const creatable = description.attributes.filter((attribute) => attribute.create);
+  if (creatable.length > 0 && creatable.length !== description.attributes.length) {
+    const missing = description.attributes.find((attribute) => !attribute.create)!;
+    throw new Error(`Entity '${description.id}' create definition is missing attribute '${missing.id}'`);
+  }
+}
+
+function validateCreateControl(entityId: string, attribute: AnyEntityAttribute): void {
+  if (!attribute.create) return;
+  const control = attribute.create.control ?? attribute.edit?.control;
+  if (attribute.create.hidden) {
+    if (control)
+      throw new Error(`Entity '${entityId}' attribute '${attribute.id}' is hidden but defines a create control`);
+    if (attribute.create.initialValue === undefined) {
+      throw new Error(`Entity '${entityId}' hidden create attribute '${attribute.id}' requires an initial value`);
+    }
+    return;
+  }
+  if (!control) throw new Error(`Entity '${entityId}' create attribute '${attribute.id}' requires a control`);
+  const expected: QueryValueType = control === "integer" ? "int" : "string";
+  if (attribute.valueType !== expected) {
+    throw new Error(
+      `Entity '${entityId}' attribute '${attribute.id}' uses ${control} for ${attribute.valueType} values`,
+    );
+  }
+  if (attribute.create.rows !== undefined && control !== "textarea") {
+    throw new Error(`Entity '${entityId}' attribute '${attribute.id}' defines create rows for a non-textarea control`);
+  }
 }
 
 function validateEditControl(entityId: string, attribute: AnyEntityAttribute): void {

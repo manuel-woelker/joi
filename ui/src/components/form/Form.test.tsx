@@ -55,6 +55,15 @@ function DirtyIndicator() {
   );
 }
 
+function SubmitButton() {
+  const form = useFormState();
+  return (
+    <button type="button" onClick={() => void form.submit()}>
+      Submit
+    </button>
+  );
+}
+
 function ValidatedField() {
   const field = useFormField("name");
   const visibleValidationMessages = () => field.validationMessages().filter((failure) => failure.touched);
@@ -190,7 +199,7 @@ describe("Form", () => {
           ],
         }}
         saveDebounceMs={100}
-        onSave={onSave}
+        persistence={{ type: "autosave", onSave }}
       >
         <ValidatedField />
       </Form>
@@ -267,7 +276,7 @@ describe("Form", () => {
           ],
         }}
         saveDebounceMs={250}
-        onSave={onSave}
+        persistence={{ type: "autosave", onSave }}
       >
         <SaveFields />
       </Form>
@@ -290,7 +299,10 @@ describe("Form", () => {
     vi.useFakeTimers();
     const onSave = vi.fn();
     render(() => (
-      <Form model={{ attributes: [{ id: "name", label: "Name", initialValue: "Elliot" }] }} onSave={onSave}>
+      <Form
+        model={{ attributes: [{ id: "name", label: "Name", initialValue: "Elliot" }] }}
+        persistence={{ type: "autosave", onSave }}
+      >
         <TestField />
       </Form>
     ));
@@ -313,7 +325,7 @@ describe("Form", () => {
       <Form
         model={{ attributes: [{ id: "name", label: "Name", initialValue: "Elliot" }] }}
         saveDebounceMs={100}
-        onSave={onSave}
+        persistence={{ type: "autosave", onSave }}
       >
         <TestField />
         <DirtyIndicator />
@@ -337,7 +349,7 @@ describe("Form", () => {
       <Form
         model={{ attributes: [{ id: "name", label: "Name", initialValue: "Elliot" }] }}
         saveDebounceMs={100}
-        onSave={() => Promise.reject(new Error("Save failed"))}
+        persistence={{ type: "autosave", onSave: () => Promise.reject(new Error("Save failed")) }}
       >
         <TestField />
         <DirtyIndicator />
@@ -360,7 +372,7 @@ describe("Form", () => {
       <Form
         model={{ attributes: [{ id: "name", label: "Name", initialValue: "Elliot" }] }}
         saveDebounceMs={10_000}
-        onSave={onSave}
+        persistence={{ type: "autosave", onSave }}
       >
         <TestField />
       </Form>
@@ -371,6 +383,46 @@ describe("Form", () => {
     result.unmount();
     expect(onSave).toHaveBeenCalledOnce();
     expect(onSave).toHaveBeenCalledWith({ name: "Grace" });
+  });
+
+  it("submits complete valid values only through the explicit action", async () => {
+    const onSubmit = vi.fn();
+    const result = render(() => (
+      <Form
+        model={{ attributes: [{ id: "name", label: "Name", initialValue: "", validation: notEmpty("Required") }] }}
+        persistence={{ type: "submit", onSubmit }}
+      >
+        <TestField />
+        <SubmitButton />
+      </Form>
+    ));
+
+    fireEvent.input(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Grace" } });
+    await Promise.resolve();
+    expect(onSubmit).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+    await Promise.resolve();
+    expect(onSubmit).toHaveBeenCalledWith({ name: "Grace" });
+    result.unmount();
+    expect(onSubmit).toHaveBeenCalledOnce();
+  });
+
+  it("touches fields and blocks an invalid explicit submission", async () => {
+    const onSubmit = vi.fn();
+    render(() => (
+      <Form
+        model={{ attributes: [{ id: "name", label: "Name", initialValue: "", validation: notEmpty("Required") }] }}
+        persistence={{ type: "submit", onSubmit }}
+      >
+        <ValidatedField />
+        <SubmitButton />
+      </Form>
+    ));
+
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+    await Promise.resolve();
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert").textContent).toBe("Required");
   });
 
   it("rejects field access outside a form", () => {

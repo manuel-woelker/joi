@@ -9,6 +9,43 @@ import { RecordEditor } from "./RecordEditor";
 afterEach(cleanup);
 
 describe("RecordEditor", () => {
+  it("creates a record only after explicit valid submission", async () => {
+    const fetcher = vi.fn(async () => ({ ok: true, json: async () => ({}) }) as Response);
+    const onCreated = vi.fn();
+    render(() => (
+      <RecordEditor
+        definition={{
+          tableName: "records",
+          identityAttribute: "id",
+          detailTitle: "Record details",
+          fields: [{ attribute: "name", label: "Name", control: "text" }],
+          create: {
+            title: "New record",
+            attributes: [
+              { attribute: "id", valueType: "string", initialValue: () => "record-2" },
+              {
+                attribute: "name",
+                valueType: "string",
+                initialValue: () => "",
+              },
+            ],
+            fields: [{ attribute: "name", label: "Name", control: "text", required: true }],
+          },
+        }}
+        fetchService={new FetchService(fetcher)}
+        mode={{ type: "create", onCreated }}
+        onClose={() => undefined}
+      />
+    ));
+
+    const name = screen.getByRole("textbox", { name: "Name" });
+    await userEvent.type(name, "Created record");
+    expect(fetcher).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Create" }));
+    expect(fetcher).toHaveBeenCalledOnce();
+    expect(onCreated).toHaveBeenCalledWith("record-2");
+  });
+
   it("retains its form value when autosaving fails", async () => {
     const fetcher = vi.fn(async () => ({ ok: false, status: 500 }) as Response);
     const result = parseQueryResponse({
@@ -27,8 +64,7 @@ describe("RecordEditor", () => {
           fields: [{ attribute: "name", label: "Name", control: "text" }],
         }}
         fetchService={new FetchService(fetcher)}
-        result={result}
-        recordId="record-1"
+        mode={{ type: "edit", result, recordId: "record-1" }}
         onClose={() => undefined}
       />
     ));
@@ -64,8 +100,7 @@ describe("RecordEditor", () => {
           fields: [{ attribute: "name", label: "Name", control: "text" }],
         }}
         fetchService={new FetchService(fetcher)}
-        result={result}
-        recordId="record-1"
+        mode={{ type: "edit", result, recordId: "record-1" }}
         onClose={() => undefined}
       />
     ));

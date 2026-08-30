@@ -17,7 +17,12 @@ const ticketEditor = createEntityEditorDefinition(ticketEntity);
 
 export function SavedViewCommands() {
   const controller = useWorkspace();
-  return <IconButton label="Configure view" icon="⚙" onClick={() => controller.setEditorOpen(true)} />;
+  return (
+    <>
+      <IconButton label="New ticket" icon="+" onClick={() => controller.createRecord()} />
+      <IconButton label="Configure view" icon="⚙" onClick={() => controller.setEditorOpen(true)} />
+    </>
+  );
 }
 
 export function SavedViewContent() {
@@ -175,9 +180,23 @@ export function SavedViewContent() {
       fetchService={fetchService}
       result={ticketRecords()}
       selectedRecordId={controller.navigation.selectedRecordId()}
+      creating={controller.navigation.creatingRecord()}
+      onCreated={async (id) => {
+        const refreshed = await refetch();
+        if (hasRecord(refreshed, id)) controller.finishCreatingRecord(id);
+        else {
+          controller.closeRecord();
+          controller.announce("Ticket created outside the current view.");
+        }
+      }}
       onClose={() => controller.closeRecord()}
     />
   );
+}
+
+function hasRecord(result: QueryResult | null | undefined, id: string): boolean {
+  const identity = result?.column("id");
+  return Boolean(identity && result?.rows.some((row) => row.value(identity) === id));
 }
 
 function openTicket(

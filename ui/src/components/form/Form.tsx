@@ -17,6 +17,17 @@ export type FormChanges = Readonly<Record<string, string>>;
 /** Complete string-valued state validated by a form model. */
 export type FormValues = Readonly<Record<string, string>>;
 
+/** Persistence lifecycle used by a form. */
+export type FormPersistence =
+  | {
+      readonly type: "autosave";
+      readonly onSave: (changes: FormChanges) => void | Promise<void>;
+    }
+  | {
+      readonly type: "submit";
+      readonly onSubmit: (values: FormValues) => void | Promise<void>;
+    };
+
 /** A form validation failure annotated with whether its associated field was touched. */
 export interface FormValidationFailure extends ValidationFailure {
   readonly touched: boolean;
@@ -32,8 +43,8 @@ export interface FormValidationResult {
 export interface FormProps extends ParentProps {
   /** Describes the fields and their initial values. */
   readonly model: FormModel;
-  /** Receives changed values after input is idle or immediately before unmount. */
-  readonly onSave?: (changes: FormChanges) => void | Promise<void>;
+  /** Optional persistence lifecycle. Submit mode never saves implicitly. */
+  readonly persistence?: FormPersistence;
   /** Debounce period in milliseconds. Defaults to 500. */
   readonly saveDebounceMs?: number;
 }
@@ -81,6 +92,7 @@ interface FormContextValue {
   readonly setValue: (fieldId: string, value: string) => void;
   readonly setTouched: (fieldId: string) => void;
   readonly reset: () => void;
+  readonly submit: () => Promise<boolean>;
 }
 
 /** Reactive state shared by all controls in a form. */
@@ -97,6 +109,10 @@ export interface FormRuntimeState {
   readonly validationMessages: Accessor<readonly FormValidationFailure[]>;
   /** Returns the current validation result without changing touched state. */
   readonly validate: () => FormValidationResult;
+  /** Complete current form values. */
+  readonly values: Accessor<FormValues>;
+  /** Explicitly submits a submit-mode form. Returns whether it succeeded. */
+  readonly submit: () => Promise<boolean>;
   /** Restores the most recently saved values and clears touched state. */
   readonly reset: () => void;
 }
@@ -174,7 +190,7 @@ export function Form(props: FormProps) {
 
   const flushSave = async () => {
     saveTimer = undefined;
-    if (!props.onSave) return;
+    if (props.persistence?.type !== "autosave") return;
     if (!validationResult().valid) return;
     if (saving()) {
       saveRequested = true;
@@ -192,7 +208,7 @@ export function Form(props: FormProps) {
     setSaving(true);
     setSaveError(undefined);
     try {
-      const result = props.onSave(Object.freeze(changes));
+      const result = props.persistence.onSave(Object.freeze(changes));
       if (result) await result;
       Object.assign(submittedValues, changes);
     } catch (cause) {
@@ -213,7 +229,7 @@ export function Form(props: FormProps) {
     if (state.values[fieldId] === value) return;
     setState("values", fieldId, value);
     setDirty(saving() || hasChanges());
-    if (!props.onSave) return;
+    if (props.persistence?.type !== "autosave") return;
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => void flushSave(), Math.max(0, props.saveDebounceMs ?? 500));
   };
@@ -230,15 +246,39 @@ export function Form(props: FormProps) {
     setDirty(false);
     setSaveError(undefined);
   };
+  const submit = async (): Promise<boolean> => {
+    if (props.persistence?.type !== "submit") throw new Error("Form is not configured for explicit submission");
+    if (saving()) return false;
+    for (const attribute of model.attributes) {
+      if (!attribute.disabled) setState("touched", attribute.id, true);
+    }
+    if (!validationResult().valid) return false;
+    setSaving(true);
+    setSaveError(undefined);
+    try {
+      const values = Object.freeze({ ...state.values });
+      const result = props.persistence.onSubmit(values);
+      if (result) await result;
+      Object.assign(submittedValues, values);
+      setDirty(false);
+      return true;
+    } catch (cause) {
+      setSaveError(cause instanceof Error ? cause : new Error(String(cause)));
+      setDirty(hasChanges());
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
 
   onCleanup(() => {
     if (saveTimer) clearTimeout(saveTimer);
-    void flushSave();
+    if (props.persistence?.type === "autosave") void flushSave();
   });
 
   return (
     <FormContext.Provider
-      value={{ model, state, dirty, validationResult, saving, saveError, isDirty, setValue, setTouched, reset }}
+      value={{ model, state, dirty, validationResult, saving, saveError, isDirty, setValue, setTouched, reset, submit }}
     >
       {props.children}
     </FormContext.Provider>
@@ -256,6 +296,8 @@ export function useFormState(): FormRuntimeState {
     saveError: form.saveError,
     validationMessages: () => form.validationResult().failures,
     validate: form.validationResult,
+    values: () => Object.freeze({ ...form.state.values }),
+    submit: form.submit,
     reset: form.reset,
   };
 }
