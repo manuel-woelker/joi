@@ -115,6 +115,34 @@ function PlaceholderFormDemo() {
   );
 }
 
+function MatchingFieldsFormDemo() {
+  return (
+    <div class={styles.formDemo}>
+      <Form
+        model={{
+          attributes: [
+            { id: "new-password", label: "New password", initialValue: "", placeholder: "Enter a password" },
+            {
+              id: "confirm-password",
+              label: "Confirm password",
+              initialValue: "",
+              placeholder: "Enter it again",
+            },
+          ],
+          validation({ value, addValidationFailure }) {
+            if (value["new-password"] !== value["confirm-password"]) {
+              addValidationFailure({ attribute: "confirm-password", message: "Passwords must match." });
+            }
+          },
+        }}
+      >
+        <BasicFormField fieldName="new-password" />
+        <BasicFormField fieldName="confirm-password" />
+      </Form>
+    </div>
+  );
+}
+
 function ReadonlyBehavior(props: { fieldName: string }) {
   const field = useFormField(props.fieldName);
   const [error, setError] = createSignal<string>();
@@ -163,6 +191,11 @@ export default {
       name: "Placeholder",
       description: "An empty field with a short input hint.",
       render: () => <PlaceholderFormDemo />,
+    },
+    {
+      name: "Matching fields",
+      description: "Form-level validation that associates a mismatch with one field.",
+      render: () => <MatchingFieldsFormDemo />,
     },
   ],
 } satisfies ComponentDemo;
