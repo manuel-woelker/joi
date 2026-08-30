@@ -19,6 +19,7 @@ function BasicFormField(props: { fieldName: string }) {
         value={formField.value}
         placeholder={formField.placeholder}
         readOnly={formField.readonly}
+        disabled={formField.disabled}
         aria-invalid={visibleValidationMessages().length > 0}
         aria-describedby={visibleValidationMessages().length > 0 ? messagesId : undefined}
         onInput={formField.onInput}
@@ -44,6 +45,30 @@ function DirtyState() {
   return <span class={styles.dirtyState}>{form.dirty() ? "Dirty" : "Clean"}</span>;
 }
 
+function LifecycleState(props: { fieldName: string }) {
+  const form = useFormState();
+  const field = useFormField(props.fieldName);
+  const rows = () =>
+    [
+      ["Form dirty", form.dirty()],
+      ["Field dirty", field.dirty()],
+      ["Touched", field.touched()],
+      ["Valid", form.valid()],
+      ["Saving", form.saving()],
+      ["Save error", form.saveError()?.message ?? "None"],
+    ] as const;
+  return (
+    <div class={styles.lifecycle}>
+      {rows().map(([label, value]) => (
+        <div class={styles.currentValue}>
+          <span>{label}</span>
+          <output>{String(value)}</output>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function DebouncedFormDemo() {
   const [savedChanges, setSavedChanges] = createSignal("Waiting for changes");
   const [mounted, setMounted] = createSignal(true);
@@ -66,13 +91,15 @@ function DebouncedFormDemo() {
               },
             ],
           }}
-          onSave={(changes) => {
+          onSave={async (changes) => {
+            await new Promise((resolve) => setTimeout(resolve, 400));
             setSavedChanges(JSON.stringify(changes));
           }}
         >
           <BasicFormField fieldName="name" />
           <FieldValue fieldName="name" />
           <DirtyState />
+          <LifecycleState fieldName="name" />
         </Form>
       </Show>
       <button class={styles.mountButton} type="button" onClick={() => setMounted((value) => !value)}>

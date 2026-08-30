@@ -22,6 +22,12 @@ export interface FormValidationFailure extends ValidationFailure {
   readonly touched: boolean;
 }
 
+/** Current validity and annotated failures for a form. */
+export interface FormValidationResult {
+  readonly valid: boolean;
+  readonly failures: readonly FormValidationFailure[];
+}
+
 /** Properties for a form state provider. */
 export interface FormProps extends ParentProps {
   /** Describes the fields and their initial values. */
@@ -44,6 +50,8 @@ export interface FormAttribute {
   readonly placeholder?: string;
   /** Whether user input is rejected for this field. Defaults to false. */
   readonly readonly?: boolean;
+  /** Whether the field is unavailable and excluded from validation and saving. */
+  readonly disabled?: boolean;
   /** Validation evaluated with this field's current value. */
   readonly validation?: ValidationFunction<string>;
 }
@@ -66,7 +74,10 @@ interface FormContextValue {
   readonly model: FormModel;
   readonly state: FormState;
   readonly dirty: Accessor<boolean>;
-  readonly validationMessages: Accessor<readonly FormValidationFailure[]>;
+  readonly validationResult: Accessor<FormValidationResult>;
+  readonly saving: Accessor<boolean>;
+  readonly saveError: Accessor<Error | undefined>;
+  readonly isDirty: (fieldId: string) => boolean;
   readonly setValue: (fieldId: string, value: string) => void;
   readonly setTouched: (fieldId: string) => void;
   readonly reset: () => void;
@@ -76,8 +87,16 @@ interface FormContextValue {
 export interface FormRuntimeState {
   /** Whether current values contain changes not confirmed by a successful save. */
   readonly dirty: Accessor<boolean>;
+  /** Whether the current form values have no validation failures. */
+  readonly valid: Accessor<boolean>;
+  /** Whether an asynchronous save is in progress. */
+  readonly saving: Accessor<boolean>;
+  /** Most recent save error, cleared by a successful save or reset. */
+  readonly saveError: Accessor<Error | undefined>;
   /** Current model and rule validation failures. */
   readonly validationMessages: Accessor<readonly FormValidationFailure[]>;
+  /** Returns the current validation result without changing touched state. */
+  readonly validate: () => FormValidationResult;
   /** Restores the most recently saved values and clears touched state. */
   readonly reset: () => void;
 }
@@ -90,6 +109,10 @@ export interface FormField {
   readonly placeholder?: string;
   /** Whether the field rejects user input. */
   readonly readonly: boolean;
+  /** Whether the field is unavailable. */
+  readonly disabled: boolean;
+  /** Whether this field differs from its most recently saved value. */
+  readonly dirty: Accessor<boolean>;
   /** Whether the field has lost focus after being focused. */
   readonly touched: Accessor<boolean>;
   /** Current validation failures associated with this field. */
@@ -116,7 +139,9 @@ export function Form(props: FormProps) {
     touched: Object.fromEntries(model.attributes.map((attribute) => [attribute.id, false])),
   });
   const [dirty, setDirty] = createSignal(false);
-  const validationMessages = createMemo(() => {
+  const [saving, setSaving] = createSignal(false);
+  const [saveError, setSaveError] = createSignal<Error>();
+  const validationResult = createMemo<FormValidationResult>(() => {
     const touched = (failure: ValidationFailure) =>
       failure.attribute === undefined
         ? Object.values(state.touched).some(Boolean)
@@ -126,7 +151,7 @@ export function Form(props: FormProps) {
       ? validate(state.values, model.validation).failures.map((failure) => ({ ...failure, touched: touched(failure) }))
       : [];
     const attributeFailures = model.attributes.flatMap((attribute) =>
-      attribute.validation
+      attribute.validation && !attribute.disabled
         ? validate(state.values[attribute.id], attribute.validation).failures.map((failure) => ({
             ...failure,
             attribute: attribute.id,
@@ -134,42 +159,46 @@ export function Form(props: FormProps) {
           }))
         : [],
     );
-    return [...externalFailures, ...formFailures, ...attributeFailures];
+    const failures = [...externalFailures, ...formFailures, ...attributeFailures];
+    return { valid: failures.length === 0, failures };
   });
   const submittedValues = { ...initialValues };
   let saveTimer: ReturnType<typeof setTimeout> | undefined;
-  let saveInProgress = false;
   let saveRequested = false;
 
   const hasChanges = () =>
-    model.attributes.some((attribute) => state.values[attribute.id] !== submittedValues[attribute.id]);
+    model.attributes.some(
+      (attribute) => !attribute.disabled && state.values[attribute.id] !== submittedValues[attribute.id],
+    );
+  const isDirty = (fieldId: string) => state.values[fieldId] !== submittedValues[fieldId];
 
   const flushSave = async () => {
     saveTimer = undefined;
     if (!props.onSave) return;
-    if (validationMessages().length > 0) return;
-    if (saveInProgress) {
+    if (!validationResult().valid) return;
+    if (saving()) {
       saveRequested = true;
       return;
     }
     const changes = Object.fromEntries(
       model.attributes
-        .filter((attribute) => state.values[attribute.id] !== submittedValues[attribute.id])
+        .filter((attribute) => !attribute.disabled && state.values[attribute.id] !== submittedValues[attribute.id])
         .map((attribute) => [attribute.id, state.values[attribute.id]]),
     );
     if (Object.keys(changes).length === 0) {
       setDirty(false);
       return;
     }
-    saveInProgress = true;
+    setSaving(true);
+    setSaveError(undefined);
     try {
       const result = props.onSave(Object.freeze(changes));
       if (result) await result;
       Object.assign(submittedValues, changes);
-    } catch {
-      // The callback owns save error presentation; the form remains dirty.
+    } catch (cause) {
+      setSaveError(cause instanceof Error ? cause : new Error(String(cause)));
     } finally {
-      saveInProgress = false;
+      setSaving(false);
       setDirty(hasChanges());
       if (saveRequested) {
         saveRequested = false;
@@ -179,16 +208,18 @@ export function Form(props: FormProps) {
   };
 
   const setValue = (fieldId: string, value: string) => {
+    const attribute = model.attributes.find((candidate) => candidate.id === fieldId);
+    if (attribute?.disabled) throw new Error(`Form field '${fieldId}' is disabled`);
     if (state.values[fieldId] === value) return;
     setState("values", fieldId, value);
-    setDirty(saveInProgress || hasChanges());
+    setDirty(saving() || hasChanges());
     if (!props.onSave) return;
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => void flushSave(), Math.max(0, props.saveDebounceMs ?? 500));
   };
   const setTouched = (fieldId: string) => setState("touched", fieldId, true);
   const reset = () => {
-    if (saveInProgress) throw new Error("Form cannot be reset while a save is in progress");
+    if (saving()) throw new Error("Form cannot be reset while a save is in progress");
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = undefined;
     saveRequested = false;
@@ -197,6 +228,7 @@ export function Form(props: FormProps) {
       setState("touched", attribute.id, false);
     }
     setDirty(false);
+    setSaveError(undefined);
   };
 
   onCleanup(() => {
@@ -205,7 +237,9 @@ export function Form(props: FormProps) {
   });
 
   return (
-    <FormContext.Provider value={{ model, state, dirty, validationMessages, setValue, setTouched, reset }}>
+    <FormContext.Provider
+      value={{ model, state, dirty, validationResult, saving, saveError, isDirty, setValue, setTouched, reset }}
+    >
       {props.children}
     </FormContext.Provider>
   );
@@ -215,7 +249,15 @@ export function Form(props: FormProps) {
 export function useFormState(): FormRuntimeState {
   const form = useContext(FormContext);
   if (!form) throw new Error("useFormState must be called inside a Form");
-  return { dirty: form.dirty, validationMessages: form.validationMessages, reset: form.reset };
+  return {
+    dirty: form.dirty,
+    valid: () => form.validationResult().valid,
+    saving: form.saving,
+    saveError: form.saveError,
+    validationMessages: () => form.validationResult().failures,
+    validate: form.validationResult,
+    reset: form.reset,
+  };
 }
 
 /**
@@ -230,18 +272,24 @@ export function useFormField(fieldId: string): FormField {
   if (!attribute) throw new Error(`Form field '${fieldId}' is not defined`);
 
   const setValue = (value: string) => form.setValue(fieldId, value);
-  const onInput: FormField["onInput"] = attribute.readonly
-    ? () => {
-        throw new Error(`Form field '${fieldId}' is readonly`);
-      }
-    : (event) => setValue(event.currentTarget.value);
+  const onInput: FormField["onInput"] =
+    attribute.readonly || attribute.disabled
+      ? () => {
+          throw new Error(`Form field '${fieldId}' is ${attribute.disabled ? "disabled" : "readonly"}`);
+        }
+      : (event) => setValue(event.currentTarget.value);
   return {
     id: attribute.id,
     label: attribute.label,
     placeholder: attribute.placeholder,
     readonly: attribute.readonly ?? false,
+    disabled: attribute.disabled ?? false,
+    dirty: () => {
+      form.dirty();
+      return form.isDirty(fieldId);
+    },
     touched: () => form.state.touched[fieldId] ?? false,
-    validationMessages: () => form.validationMessages().filter((failure) => failure.attribute === fieldId),
+    validationMessages: () => form.validationResult().failures.filter((failure) => failure.attribute === fieldId),
     get value() {
       return form.state.values[fieldId];
     },

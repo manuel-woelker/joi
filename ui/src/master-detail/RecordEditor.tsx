@@ -17,8 +17,6 @@ export function RecordEditor(props: {
   recordId: string;
   onClose: () => void;
 }) {
-  const [saving, setSaving] = createSignal(false);
-  const [saveError, setSaveError] = createSignal<string>();
   const [saved, setSaved] = createSignal(false);
   const validationError = createMemo(() => {
     try {
@@ -32,29 +30,17 @@ export function RecordEditor(props: {
 
   const save = async (changes: FormChanges) => {
     const values = fieldValues(props.definition.fields, changes);
-    if (values instanceof Error) {
-      setSaveError(values.message);
-      throw values;
-    }
-    setSaving(true);
-    setSaveError(undefined);
+    if (values instanceof Error) throw values;
     setSaved(false);
-    try {
-      await updateRecord(props.fetchService, props.definition, props.recordId, values);
-      const currentRow = row();
-      if (currentRow) {
-        props.result.updateRow(
-          currentRow,
-          values.map(({ field, value }) => ({ column: props.result.requireColumn(field.attribute), value })),
-        );
-      }
-      setSaved(true);
-    } catch (error) {
-      setSaveError(error instanceof Error ? error.message : "Record could not be saved.");
-      throw error;
-    } finally {
-      setSaving(false);
+    await updateRecord(props.fetchService, props.definition, props.recordId, values);
+    const currentRow = row();
+    if (currentRow) {
+      props.result.updateRow(
+        currentRow,
+        values.map(({ field, value }) => ({ column: props.result.requireColumn(field.attribute), value })),
+      );
     }
+    setSaved(true);
   };
 
   return (
@@ -72,7 +58,7 @@ export function RecordEditor(props: {
                     </button>
                   </header>
                   <For each={props.definition.fields}>{(field) => <EditorField field={field} />}</For>
-                  <SaveStatus saving={saving} saved={saved} error={saveError} />
+                  <SaveStatus saved={saved} />
                 </div>
               </Form>
             )}
@@ -83,22 +69,22 @@ export function RecordEditor(props: {
   );
 }
 
-function SaveStatus(props: { saving: () => boolean; saved: () => boolean; error: () => string | undefined }) {
+function SaveStatus(props: { saved: () => boolean }) {
   const form = useFormState();
   return (
     <div class={styles.actions}>
       <FormValidationMessages />
-      <Show when={props.error()}>
-        {(message) => (
+      <Show when={form.saveError()}>
+        {(error) => (
           <span class={styles.error} role="alert">
-            {message()}
+            {error().message}
           </span>
         )}
       </Show>
-      <Show when={props.saving()}>
+      <Show when={form.saving()}>
         <span class={styles.saving}>Saving</span>
       </Show>
-      <Show when={props.saved() && !props.saving() && !form.dirty()}>
+      <Show when={props.saved() && !form.saving() && !form.dirty()}>
         <span class={styles.saved}>Saved</span>
       </Show>
     </div>

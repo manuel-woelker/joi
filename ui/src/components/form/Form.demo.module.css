@@ -41,6 +41,14 @@
   border-top: 1px solid var(--color-border-soft);
 }
 
+.lifecycle {
+  display: grid;
+}
+
+.lifecycle .currentValue:first-child {
+  border-top: 0;
+}
+
 .currentValue output {
   overflow-wrap: anywhere;
   color: var(--color-secondary-dark);

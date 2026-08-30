@@ -21,6 +21,7 @@ function TestField() {
       </label>
       <output>{field.value}</output>
       <output data-testid="field-touched">{String(field.touched())}</output>
+      <output data-testid="field-dirty">{String(field.dirty())}</output>
       <button type="button" onClick={() => field.setValue("Ada")}>
         Set value
       </button>
@@ -44,6 +45,9 @@ function DirtyIndicator() {
   return (
     <>
       <output>{form.dirty() ? "Dirty" : "Clean"}</output>
+      <output data-testid="form-valid">{String(form.valid())}</output>
+      <output data-testid="form-saving">{String(form.saving())}</output>
+      <output data-testid="form-save-error">{form.saveError()?.message ?? ""}</output>
       <button type="button" onClick={form.reset}>
         Reset
       </button>
@@ -144,6 +148,29 @@ describe("Form", () => {
     expect(screen.getByPlaceholderText("Briefly describe it")).toBeTruthy();
   });
 
+  it("excludes disabled fields from input and validation", () => {
+    let field: FormField | undefined;
+    const DisabledField = () => {
+      field = useFormField("archived");
+      return <input aria-label={field.label} value={field.value} disabled={field.disabled} onInput={field.onInput} />;
+    };
+    render(() => (
+      <Form
+        model={{
+          attributes: [{ id: "archived", label: "Archived", initialValue: "", disabled: true, validation: notEmpty() }],
+        }}
+      >
+        <DisabledField />
+        <DirtyIndicator />
+      </Form>
+    ));
+
+    expect(field?.disabled).toBe(true);
+    expect(screen.getByRole("textbox", { name: "Archived" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByTestId("form-valid").textContent).toBe("true");
+    expect(() => field?.setValue("yes")).toThrow("Form field 'archived' is disabled");
+  });
+
   it("displays field validation and saves after the value becomes valid", () => {
     vi.useFakeTimers();
     const onSave = vi.fn();
@@ -198,11 +225,13 @@ describe("Form", () => {
     fireEvent.input(input, { target: { value: "Grace" } });
     fireEvent.blur(input);
     expect(screen.getByText("Dirty")).toBeTruthy();
+    expect(screen.getByTestId("field-dirty").textContent).toBe("true");
     expect(screen.getByTestId("field-touched").textContent).toBe("true");
 
     fireEvent.click(screen.getByRole("button", { name: "Reset" }));
     expect((input as HTMLInputElement).value).toBe("Elliot");
     expect(screen.getByText("Clean")).toBeTruthy();
+    expect(screen.getByTestId("field-dirty").textContent).toBe("false");
     expect(screen.getByTestId("field-touched").textContent).toBe("false");
   });
 
@@ -295,9 +324,33 @@ describe("Form", () => {
     expect(screen.getByText("Dirty")).toBeTruthy();
     vi.advanceTimersByTime(100);
     expect(screen.getByText("Dirty")).toBeTruthy();
+    expect(screen.getByTestId("form-saving").textContent).toBe("true");
     completeSave?.();
     await Promise.resolve();
     expect(screen.getByText("Clean")).toBeTruthy();
+    expect(screen.getByTestId("form-saving").textContent).toBe("false");
+  });
+
+  it("exposes save errors and clears them on reset", async () => {
+    vi.useFakeTimers();
+    render(() => (
+      <Form
+        model={{ attributes: [{ id: "name", label: "Name", initialValue: "Elliot" }] }}
+        saveDebounceMs={100}
+        onSave={() => Promise.reject(new Error("Save failed"))}
+      >
+        <TestField />
+        <DirtyIndicator />
+      </Form>
+    ));
+
+    fireEvent.input(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Grace" } });
+    await vi.advanceTimersByTimeAsync(100);
+    expect(screen.getByTestId("form-save-error").textContent).toBe("Save failed");
+    expect(screen.getByText("Dirty")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Reset" }));
+    expect(screen.getByTestId("form-save-error").textContent).toBe("");
   });
 
   it("flushes pending changes immediately on unmount", () => {
