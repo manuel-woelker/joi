@@ -27,14 +27,7 @@ export function DataTable(props: DataTableProps) {
       id: definition.column.attribute,
       accessorFn: (row) => row.value(definition.column),
       header: definition.header,
-      cell: (context) => {
-        const value = context.getValue() as QueryValue | undefined;
-        return definition.cell
-          ? definition.cell(value, context.row.original, definition.column)
-          : value === undefined
-            ? ""
-            : String(value);
-      },
+      cell: (context) => <DataTableCell definition={definition} row={context.row.original} />,
     })),
   );
   const columnById = createMemo(() => new Map(props.columns.map((column) => [column.column.attribute, column])));
@@ -101,5 +94,15 @@ export function DataTable(props: DataTableProps) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+function DataTableCell(props: { definition: DataTableColumn; row: QueryResultRow }) {
+  return (
+    <>
+      {props.definition.cell
+        ? props.definition.cell(props.row.value(props.definition.column), props.row, props.definition.column)
+        : String(props.row.value(props.definition.column) ?? "")}
+    </>
   );
 }

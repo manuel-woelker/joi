@@ -38,6 +38,13 @@ export function RecordEditor(props: {
     setSaved(false);
     try {
       await updateRecord(props.fetchService, props.definition, props.recordId, values);
+      const currentRow = row();
+      if (currentRow) {
+        props.result.updateRow(
+          currentRow,
+          values.map(({ field, value }) => ({ column: props.result.requireColumn(field.attribute), value })),
+        );
+      }
       setSaved(true);
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : "Record could not be saved.");

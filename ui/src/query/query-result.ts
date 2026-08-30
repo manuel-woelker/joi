@@ -1,3 +1,5 @@
+import { batch, createSignal } from "solid-js";
+
 declare const indexBrand: unique symbol;
 const resultBrand: unique symbol = Symbol("query-result-brand");
 
@@ -34,12 +36,18 @@ export interface QueryResultRow {
   value(column: QueryColumnHandle): QueryValue | undefined;
 }
 
+export interface QueryValueUpdate {
+  readonly column: QueryColumnHandle;
+  readonly value: QueryValue;
+}
+
 export interface QueryResult {
   readonly numberOfHits: number;
   readonly columns: readonly QueryColumnHandle[];
   readonly rows: readonly QueryResultRow[];
   column(attribute: string): QueryColumnHandle | undefined;
   requireColumn(attribute: string): QueryColumnHandle;
+  updateRow(row: QueryResultRow, updates: readonly QueryValueUpdate[]): void;
 }
 
 const queryColumnIndex = (value: number): QueryColumnIndex => value as QueryColumnIndex;
@@ -58,13 +66,16 @@ export function parseQueryResponse(value: unknown): QueryResult {
   );
   const columnsByAttribute = new Map(columns.map((column) => [column.attribute, column]));
   const rowCount = response.result_columns[0]?.values.values.length ?? 0;
+  const cells = response.result_columns.map((column) =>
+    column.values.values.map((value) => createSignal<QueryValue>(value)),
+  );
   const rows = Array.from({ length: rowCount }, (_, index): QueryResultRow => {
     const rowIndex = queryRowIndex(index);
     return {
       index: rowIndex,
       value(column) {
         if (column[resultBrand] !== identity) throw new Error("Query column belongs to a different result");
-        return response.result_columns[column.index]?.values.values[rowIndex];
+        return cells[column.index]?.[rowIndex]?.[0]();
       },
     };
   });
@@ -79,7 +90,23 @@ export function parseQueryResponse(value: unknown): QueryResult {
       if (!column) throw new Error(`Query result does not contain attribute ${attribute}`);
       return column;
     },
+    updateRow(row, updates) {
+      if (rows[row.index] !== row) throw new Error("Query row belongs to a different result");
+      for (const update of updates) {
+        if (update.column[resultBrand] !== identity) throw new Error("Query column belongs to a different result");
+        if (!isValueOfType(update.value, update.column.type)) {
+          throw new Error(`Query value for ${update.column.attribute} must be ${update.column.type}`);
+        }
+      }
+      batch(() => {
+        for (const update of updates) cells[update.column.index][row.index][1](() => update.value);
+      });
+    },
   };
+}
+
+function isValueOfType(value: QueryValue, type: QueryValueType): boolean {
+  return type === "string" ? typeof value === "string" : Number.isSafeInteger(value);
 }
 
 function validateResponse(value: unknown): QueryResponse {

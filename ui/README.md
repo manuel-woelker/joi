@@ -29,7 +29,8 @@ they do not require domain row types. The shared `Form` context owns local field
 values and debounces changed values into atomic `/api/mutate` updates. Pending
 changes flush immediately when an editor unmounts. Saving does not refetch the
 owning query, so the table remains stable and focused editing is not disrupted;
-it receives updated values on its next normal reload. Record URLs use
+successful mutations write changed values into the existing reactive query
+rows so visible table cells update in place. Record URLs use
 `#/views/<view-id>/records/<record-id>` or
 `#/administration/<entry-id>/records/<record-id>`.
 

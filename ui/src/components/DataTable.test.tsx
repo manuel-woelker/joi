@@ -61,4 +61,21 @@ describe("DataTable", () => {
     expect(screen.getByText("41")).toBeTruthy();
     expect(screen.queryByText("Jane")).toBeNull();
   });
+
+  it("updates a cell in place when its query row changes", () => {
+    const result = createResult("Jane", 34);
+    render(() => (
+      <DataTable
+        ariaLabel="People"
+        result={result}
+        columns={[{ column: result.requireColumn("name"), header: "Name" }]}
+      />
+    ));
+    const table = screen.getByRole("table", { name: "People" });
+
+    result.updateRow(result.rows[0], [{ column: result.requireColumn("name"), value: "Grace" }]);
+
+    expect(screen.getByText("Grace")).toBeTruthy();
+    expect(screen.getByRole("table", { name: "People" })).toBe(table);
+  });
 });

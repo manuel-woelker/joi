@@ -125,6 +125,7 @@ describe("workspace app", () => {
       ),
     );
     await screen.findByText("Saved");
+    expect(screen.getByText("Fix persistent navigation bug")).toBeTruthy();
     expect(vi.mocked(fetch).mock.calls.filter(([input]) => input === "/api/query")).toHaveLength(queryCallsBeforeSave);
     expect(document.activeElement).toBe(description);
     await userEvent.click(screen.getByRole("button", { name: "Close details" }));
@@ -190,6 +191,7 @@ describe("workspace app", () => {
         }),
       ),
     );
+    expect(await screen.findByText("Jane Engineer")).toBeTruthy();
     expect(screen.queryByRole("columnheader", { name: "ID" })).toBeNull();
   });
 

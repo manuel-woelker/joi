@@ -63,6 +63,45 @@ describe("query result", () => {
     expect(() => first.rows[0].value(second.requireColumn("name"))).toThrow("different result");
   });
 
+  it("writes typed values into an existing row", () => {
+    const result = parseQueryResponse(
+      response(
+        [
+          { attribute: "name", values: { type: "string", values: ["Jane"] } },
+          { attribute: "age", values: { type: "int", values: [34] } },
+        ],
+        1,
+      ),
+    );
+    const row = result.rows[0];
+
+    result.updateRow(row, [
+      { column: result.requireColumn("name"), value: "Grace" },
+      { column: result.requireColumn("age"), value: 35 },
+    ]);
+
+    expect(row.value(result.requireColumn("name"))).toBe("Grace");
+    expect(row.value(result.requireColumn("age"))).toBe(35);
+  });
+
+  it("validates write-back ownership and value types before updating", () => {
+    const first = parseQueryResponse(
+      response([{ attribute: "name", values: { type: "string", values: ["Jane"] } }], 1),
+    );
+    const second = parseQueryResponse(
+      response([{ attribute: "name", values: { type: "string", values: ["Joe"] } }], 1),
+    );
+
+    expect(() => first.updateRow(second.rows[0], [])).toThrow("different result");
+    expect(() => first.updateRow(first.rows[0], [{ column: second.requireColumn("name"), value: "Grace" }])).toThrow(
+      "different result",
+    );
+    expect(() => first.updateRow(first.rows[0], [{ column: first.requireColumn("name"), value: 42 }])).toThrow(
+      "must be string",
+    );
+    expect(first.rows[0].value(first.requireColumn("name"))).toBe("Jane");
+  });
+
   it("keeps row and column indexes distinct from each other and numbers", () => {
     expectTypeOf<QueryRowIndex>().not.toEqualTypeOf<QueryColumnIndex>();
     expectTypeOf<QueryRowIndex>().not.toEqualTypeOf<number>();
