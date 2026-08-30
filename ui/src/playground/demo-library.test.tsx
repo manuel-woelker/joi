@@ -12,7 +12,7 @@ const moduleWith = (name: string, scenarios = ["Default"]): ComponentDemoModule 
 });
 
 describe("collectDemoLibrary", () => {
-  it("uses source paths as IDs and sorts demos and scenarios", () => {
+  it("uses source paths as IDs, sorts demos, and preserves scenario declaration order", () => {
     const library = collectDemoLibrary({
       "./Zeta.demo.tsx": moduleWith("Zeta", ["Second", "First"]),
       "./Alpha.demo.tsx": moduleWith("Alpha"),
@@ -20,7 +20,7 @@ describe("collectDemoLibrary", () => {
 
     expect(library.map((demo) => demo.name)).toEqual(["Alpha", "Zeta"]);
     expect(library[0].id).toBe("./Alpha.demo.tsx");
-    expect(library[1].scenarios.map((scenario) => scenario.name)).toEqual(["First", "Second"]);
+    expect(library[1].scenarios.map((scenario) => scenario.name)).toEqual(["Second", "First"]);
   });
 
   it.each([

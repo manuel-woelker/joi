@@ -43,7 +43,7 @@ function validateDemo(sourcePath: string, module: ComponentDemoModule): Playgrou
     sourcePath,
     name,
     description,
-    scenarios: scenarios.sort((left, right) => left.name.localeCompare(right.name)),
+    scenarios,
   };
 }
 
