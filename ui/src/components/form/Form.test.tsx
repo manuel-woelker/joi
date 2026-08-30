@@ -17,9 +17,10 @@ function TestField() {
     <>
       <label>
         {field.label}
-        <input value={field.value} onInput={field.onInput} />
+        <input value={field.value} onInput={field.onInput} onBlur={field.onBlur} />
       </label>
       <output>{field.value}</output>
+      <output data-testid="field-touched">{String(field.touched())}</output>
       <button type="button" onClick={() => field.setValue("Ada")}>
         Set value
       </button>
@@ -40,22 +41,32 @@ function SaveFields() {
 
 function DirtyIndicator() {
   const form = useFormState();
-  return <output>{form.dirty() ? "Dirty" : "Clean"}</output>;
+  return (
+    <>
+      <output>{form.dirty() ? "Dirty" : "Clean"}</output>
+      <button type="button" onClick={form.reset}>
+        Reset
+      </button>
+    </>
+  );
 }
 
 function ValidatedField() {
   const field = useFormField("name");
+  const visibleValidationMessages = () => field.validationMessages().filter((failure) => failure.touched);
   return (
     <div>
       <label for="validated-name">Name</label>
       <input
         id="validated-name"
         value={field.value}
-        aria-invalid={field.validationMessages().length > 0}
-        aria-describedby={field.validationMessages().length > 0 ? "validated-name-messages" : undefined}
+        aria-invalid={visibleValidationMessages().length > 0}
+        aria-describedby={visibleValidationMessages().length > 0 ? "validated-name-messages" : undefined}
         onInput={field.onInput}
+        onBlur={field.onBlur}
       />
       <FormValidationMessages attribute="name" id="validated-name-messages" />
+      <output data-testid="validation-touched">{String(field.validationMessages()[0]?.touched ?? false)}</output>
     </div>
   );
 }
@@ -160,7 +171,11 @@ describe("Form", () => {
 
     const input = screen.getByRole("textbox", { name: "Name" });
     fireEvent.input(input, { target: { value: "" } });
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByTestId("validation-touched").textContent).toBe("false");
+    fireEvent.blur(input);
     expect(screen.getByRole("alert").textContent).toBe("Name is required.");
+    expect(screen.getByTestId("validation-touched").textContent).toBe("true");
     expect(input.getAttribute("aria-invalid")).toBe("true");
     vi.advanceTimersByTime(100);
     expect(onSave).not.toHaveBeenCalled();
@@ -169,6 +184,26 @@ describe("Form", () => {
     expect(screen.queryByRole("alert")).toBeNull();
     vi.advanceTimersByTime(100);
     expect(onSave).toHaveBeenCalledWith({ name: "Janet" });
+  });
+
+  it("resets field values, dirty state, and touched state", () => {
+    render(() => (
+      <Form model={{ attributes: [{ id: "name", label: "Name", initialValue: "Elliot" }] }}>
+        <TestField />
+        <DirtyIndicator />
+      </Form>
+    ));
+
+    const input = screen.getByRole("textbox", { name: "Name" });
+    fireEvent.input(input, { target: { value: "Grace" } });
+    fireEvent.blur(input);
+    expect(screen.getByText("Dirty")).toBeTruthy();
+    expect(screen.getByTestId("field-touched").textContent).toBe("true");
+
+    fireEvent.click(screen.getByRole("button", { name: "Reset" }));
+    expect((input as HTMLInputElement).value).toBe("Elliot");
+    expect(screen.getByText("Clean")).toBeTruthy();
+    expect(screen.getByTestId("field-touched").textContent).toBe("false");
   });
 
   it("displays attached field and form validation messages", () => {

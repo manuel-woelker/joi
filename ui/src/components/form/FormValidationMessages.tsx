@@ -19,7 +19,8 @@ export function FormValidationMessages(props: FormValidationMessagesProps) {
       .validationMessages()
       .filter((failure) =>
         props.attribute === undefined ? failure.attribute === undefined : failure.attribute === props.attribute,
-      );
+      )
+      .filter((failure) => failure.touched);
   return (
     <Show when={messages().length > 0}>
       <div id={props.id} class={styles.messages} role="alert">

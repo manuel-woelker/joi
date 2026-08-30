@@ -10,6 +10,7 @@ function BasicFormField(props: { fieldName: string }) {
   const formField = useFormField(props.fieldName);
   const inputId = createUniqueId();
   const messagesId = `${inputId}-messages`;
+  const visibleValidationMessages = () => formField.validationMessages().filter((failure) => failure.touched);
   return (
     <div class={styles.field}>
       <label for={inputId}>{formField.label}</label>
@@ -18,9 +19,10 @@ function BasicFormField(props: { fieldName: string }) {
         value={formField.value}
         placeholder={formField.placeholder}
         readOnly={formField.readonly}
-        aria-invalid={formField.validationMessages().length > 0}
-        aria-describedby={formField.validationMessages().length > 0 ? messagesId : undefined}
+        aria-invalid={visibleValidationMessages().length > 0}
+        aria-describedby={visibleValidationMessages().length > 0 ? messagesId : undefined}
         onInput={formField.onInput}
+        onBlur={formField.onBlur}
       />
       <FormValidationMessages attribute={formField.id} id={messagesId} />
     </div>
@@ -143,6 +145,49 @@ function MatchingFieldsFormDemo() {
   );
 }
 
+function TouchedFormDemo() {
+  return (
+    <div class={styles.formDemo}>
+      <Form
+        model={{
+          attributes: [
+            {
+              id: "display-name",
+              label: "Display name",
+              initialValue: "",
+              placeholder: "Enter a display name",
+              validation: notEmpty("Display name is required."),
+            },
+          ],
+        }}
+      >
+        <BasicFormField fieldName="display-name" />
+        <TouchedState fieldName="display-name" />
+        <ResetButton />
+      </Form>
+    </div>
+  );
+}
+
+function ResetButton() {
+  const form = useFormState();
+  return (
+    <button class={styles.mountButton} type="button" onClick={form.reset}>
+      Reset form
+    </button>
+  );
+}
+
+function TouchedState(props: { fieldName: string }) {
+  const field = useFormField(props.fieldName);
+  return (
+    <div class={styles.currentValue}>
+      <span>Touched</span>
+      <output>{String(field.touched())}</output>
+    </div>
+  );
+}
+
 function ReadonlyBehavior(props: { fieldName: string }) {
   const field = useFormField(props.fieldName);
   const [error, setError] = createSignal<string>();
@@ -196,6 +241,11 @@ export default {
       name: "Matching fields",
       description: "Form-level validation that associates a mismatch with one field.",
       render: () => <MatchingFieldsFormDemo />,
+    },
+    {
+      name: "Touched validation",
+      description: "Validation feedback shown after an invalid field loses focus.",
+      render: () => <TouchedFormDemo />,
     },
   ],
 } satisfies ComponentDemo;

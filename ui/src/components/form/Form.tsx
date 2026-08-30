@@ -17,6 +17,11 @@ export type FormChanges = Readonly<Record<string, string>>;
 /** Complete string-valued state validated by a form model. */
 export type FormValues = Readonly<Record<string, string>>;
 
+/** A form validation failure annotated with whether its associated field was touched. */
+export interface FormValidationFailure extends ValidationFailure {
+  readonly touched: boolean;
+}
+
 /** Properties for a form state provider. */
 export interface FormProps extends ParentProps {
   /** Describes the fields and their initial values. */
@@ -54,14 +59,17 @@ export interface FormModel {
 
 interface FormState {
   readonly values: Record<string, string>;
+  readonly touched: Record<string, boolean>;
 }
 
 interface FormContextValue {
   readonly model: FormModel;
   readonly state: FormState;
   readonly dirty: Accessor<boolean>;
-  readonly validationMessages: Accessor<readonly ValidationFailure[]>;
+  readonly validationMessages: Accessor<readonly FormValidationFailure[]>;
   readonly setValue: (fieldId: string, value: string) => void;
+  readonly setTouched: (fieldId: string) => void;
+  readonly reset: () => void;
 }
 
 /** Reactive state shared by all controls in a form. */
@@ -69,7 +77,9 @@ export interface FormRuntimeState {
   /** Whether current values contain changes not confirmed by a successful save. */
   readonly dirty: Accessor<boolean>;
   /** Current model and rule validation failures. */
-  readonly validationMessages: Accessor<readonly ValidationFailure[]>;
+  readonly validationMessages: Accessor<readonly FormValidationFailure[]>;
+  /** Restores the most recently saved values and clears touched state. */
+  readonly reset: () => void;
 }
 
 /** Reactive field state exposed to form controls. */
@@ -80,14 +90,18 @@ export interface FormField {
   readonly placeholder?: string;
   /** Whether the field rejects user input. */
   readonly readonly: boolean;
+  /** Whether the field has lost focus after being focused. */
+  readonly touched: Accessor<boolean>;
   /** Current validation failures associated with this field. */
-  readonly validationMessages: Accessor<readonly ValidationFailure[]>;
+  readonly validationMessages: Accessor<readonly FormValidationFailure[]>;
   /** Current field value. Reading this property participates in Solid reactivity. */
   readonly value: string;
   /** Updates the field value directly. */
   readonly setValue: (value: string) => void;
   /** Input handler that updates the field on every typed character. */
   readonly onInput: JSX.EventHandler<HTMLInputElement | HTMLTextAreaElement, InputEvent>;
+  /** Blur handler that marks the field as touched. */
+  readonly onBlur: JSX.EventHandler<HTMLInputElement | HTMLTextAreaElement, FocusEvent>;
 }
 
 const FormContext = createContext<FormContextValue>();
@@ -99,19 +113,28 @@ export function Form(props: FormProps) {
   const initialValues = Object.fromEntries(model.attributes.map((attribute) => [attribute.id, attribute.initialValue]));
   const [state, setState] = createStore<FormState>({
     values: initialValues,
+    touched: Object.fromEntries(model.attributes.map((attribute) => [attribute.id, false])),
   });
   const [dirty, setDirty] = createSignal(false);
   const validationMessages = createMemo(() => {
-    const formFailures = model.validation ? validate(state.values, model.validation).failures : [];
+    const touched = (failure: ValidationFailure) =>
+      failure.attribute === undefined
+        ? Object.values(state.touched).some(Boolean)
+        : (state.touched[failure.attribute] ?? false);
+    const externalFailures = (model.validationMessages ?? []).map((failure) => ({ ...failure, touched: true }));
+    const formFailures = model.validation
+      ? validate(state.values, model.validation).failures.map((failure) => ({ ...failure, touched: touched(failure) }))
+      : [];
     const attributeFailures = model.attributes.flatMap((attribute) =>
       attribute.validation
         ? validate(state.values[attribute.id], attribute.validation).failures.map((failure) => ({
             ...failure,
             attribute: attribute.id,
+            touched: state.touched[attribute.id] ?? false,
           }))
         : [],
     );
-    return [...(model.validationMessages ?? []), ...formFailures, ...attributeFailures];
+    return [...externalFailures, ...formFailures, ...attributeFailures];
   });
   const submittedValues = { ...initialValues };
   let saveTimer: ReturnType<typeof setTimeout> | undefined;
@@ -163,6 +186,18 @@ export function Form(props: FormProps) {
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => void flushSave(), Math.max(0, props.saveDebounceMs ?? 500));
   };
+  const setTouched = (fieldId: string) => setState("touched", fieldId, true);
+  const reset = () => {
+    if (saveInProgress) throw new Error("Form cannot be reset while a save is in progress");
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = undefined;
+    saveRequested = false;
+    for (const attribute of model.attributes) {
+      setState("values", attribute.id, submittedValues[attribute.id]);
+      setState("touched", attribute.id, false);
+    }
+    setDirty(false);
+  };
 
   onCleanup(() => {
     if (saveTimer) clearTimeout(saveTimer);
@@ -170,7 +205,7 @@ export function Form(props: FormProps) {
   });
 
   return (
-    <FormContext.Provider value={{ model, state, dirty, validationMessages, setValue }}>
+    <FormContext.Provider value={{ model, state, dirty, validationMessages, setValue, setTouched, reset }}>
       {props.children}
     </FormContext.Provider>
   );
@@ -180,7 +215,7 @@ export function Form(props: FormProps) {
 export function useFormState(): FormRuntimeState {
   const form = useContext(FormContext);
   if (!form) throw new Error("useFormState must be called inside a Form");
-  return { dirty: form.dirty, validationMessages: form.validationMessages };
+  return { dirty: form.dirty, validationMessages: form.validationMessages, reset: form.reset };
 }
 
 /**
@@ -205,12 +240,14 @@ export function useFormField(fieldId: string): FormField {
     label: attribute.label,
     placeholder: attribute.placeholder,
     readonly: attribute.readonly ?? false,
+    touched: () => form.state.touched[fieldId] ?? false,
     validationMessages: () => form.validationMessages().filter((failure) => failure.attribute === fieldId),
     get value() {
       return form.state.values[fieldId];
     },
     setValue,
     onInput,
+    onBlur: () => form.setTouched(fieldId),
   };
 }
 

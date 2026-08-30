@@ -109,7 +109,7 @@ function EditorField(props: { field: EditFieldDefinition }) {
   const formField = useFormField(props.field.attribute);
   const inputId = createUniqueId();
   const messagesId = `${inputId}-messages`;
-  const hasValidationMessages = () => formField.validationMessages().length > 0;
+  const hasValidationMessages = () => formField.validationMessages().some((failure) => failure.touched);
   return (
     <div class={styles.field}>
       <label for={inputId}>{formField.label}</label>
@@ -124,6 +124,7 @@ function EditorField(props: { field: EditFieldDefinition }) {
             aria-invalid={hasValidationMessages()}
             aria-describedby={hasValidationMessages() ? messagesId : undefined}
             onInput={formField.onInput}
+            onBlur={formField.onBlur}
           />
         }
       >
@@ -135,6 +136,7 @@ function EditorField(props: { field: EditFieldDefinition }) {
           aria-invalid={hasValidationMessages()}
           aria-describedby={hasValidationMessages() ? messagesId : undefined}
           onInput={formField.onInput}
+          onBlur={formField.onBlur}
         />
       </Show>
       <FormValidationMessages attribute={formField.id} id={messagesId} />
