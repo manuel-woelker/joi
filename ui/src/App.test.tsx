@@ -73,7 +73,7 @@ describe("workspace app", () => {
   it("opens a seeded view and filters it with transient search", async () => {
     render(() => <App />);
     expect(screen.getByRole("heading", { name: "Active issues" })).toBeTruthy();
-    expect(screen.getByText("Built with SolidJS")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Playground" }).getAttribute("href")).toBe("#playground");
     expect(screen.getByText(REVISION)).toBeTruthy();
     expect(await screen.findByText("Fix navigation bug")).toBeTruthy();
     await userEvent.type(screen.getByPlaceholderText("Search this view"), "filters");

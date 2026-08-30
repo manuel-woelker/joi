@@ -104,27 +104,27 @@ narrow screens, move navigation above the previews rather than hiding it.
 
 ## Implementation Checklist
 
-- [ ] Add `ComponentDemo`, `ComponentScenario`, and demo-module types in a
+- [x] Add `ComponentDemo`, `ComponentScenario`, and demo-module types in a
       dedicated `ui/src/playground` module.
-- [ ] Implement a pure demo-library collector with source-path IDs,
+- [x] Implement a pure demo-library collector with source-path IDs,
       deterministic ordering, validation, and actionable source-aware errors.
-- [ ] Add collector tests for valid modules, ordering, malformed exports,
+- [x] Add collector tests for valid modules, ordering, malformed exports,
       empty scenarios, duplicate scenario names, and empty discovery results.
-- [ ] Discover `**/*.demo.tsx` eagerly through one `import.meta.glob` call and
+- [x] Discover `**/*.demo.tsx` eagerly through one `import.meta.glob` call and
       expose the resulting immutable demo library.
-- [ ] Implement hash parsing and navigation for demo/scenario selection,
+- [x] Implement hash parsing and navigation for demo/scenario selection,
       canonical fallback, reload restoration, and browser back/forward.
-- [ ] Build `PlaygroundApp` with accessible demo navigation, demo metadata,
+- [x] Build `PlaygroundApp` with accessible demo navigation, demo metadata,
       scenario previews, empty state, responsive behavior, and a link back to
       the main application.
-- [ ] Route `#playground` and its nested selection hashes to the playground in
+- [x] Route `#playground` and its nested selection hashes to the playground in
       `index.tsx`, react to `hashchange`, and leave existing workspace routes
       under their current hash namespace.
-- [ ] Add representative colocated demos for `IconButton` and `DataTable`,
+- [x] Add representative colocated demos for `IconButton` and `DataTable`,
       including interactive, empty, and varied-data scenarios where relevant.
-- [ ] Add component tests for root hash selection, navigation, deep links,
+- [x] Add component tests for root hash selection, navigation, deep links,
       stale hashes, scenario rendering, and the empty library state.
-- [ ] Update `ui/README.md` with the demo contract, naming convention, and
+- [x] Update `ui/README.md` with the demo contract, naming convention, and
       `#playground` URL.
 
 ## What assumptions does the plan make?
@@ -180,3 +180,11 @@ scenario interaction, reloadable hashes, browser back/forward, the return link,
 and compact layouts at desktop and narrow widths. Confirm the default URL still
 opens the workspace, existing `#/views/...` routes continue to work, and links
 can switch between the workspace and playground without a document reload.
+
+Automated verification completed on 2026-08-30. Type checking, 67 tests across
+21 files, and the Vite production build pass. Tests cover discovery validation,
+ordering, empty libraries, route encoding, stale and malformed hashes, scenario
+navigation, root application switching, Badge behavior, and existing workspace
+behavior. The playground includes Badge, Icon Button, and Data Table demos.
+Responsive styling is implemented through a CSS module; a separate browser
+viewport screenshot pass was not available in the current environment.

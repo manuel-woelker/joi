@@ -1,6 +1,6 @@
 import { render } from "solid-js/web";
 
-import App from "./App";
+import { Root } from "./Root";
 import "./styles/colors.css";
 import "./styles/fonts.css";
 import "./styles/reset.css";
@@ -11,4 +11,4 @@ if (!root) {
   throw new Error("Root element not found");
 }
 
-render(() => <App />, root);
+render(() => <Root />, root);

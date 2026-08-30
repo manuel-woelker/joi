@@ -69,6 +69,29 @@ registry directly. Debug contributions declare an `info`, `frontend`, or
 `backend` group and appear in that group order, alphabetically within each
 group.
 
+## How do I add a component demo?
+
+The component playground is available at
+`http://localhost:5173/#playground`. It eagerly discovers colocated files
+ending in `*.demo.tsx`; no central registration list is required. Each file
+default-exports a demo with a name, description, and one or more scenarios:
+
+```tsx
+export default {
+  name: "Badge",
+  description: "Compact labels for statuses and metadata.",
+  scenarios: [
+    { name: "Default", render: () => <Badge>Draft</Badge> },
+    { name: "Success", render: () => <Badge tone="success">Ready</Badge> },
+  ],
+} satisfies ComponentDemo;
+```
+
+A scenario is one meaningful component state or configuration. Keep any
+context wrapper or lightweight test double explicit in its `render` function.
+Demo source paths and scenario names form reloadable playground hashes, so
+renaming or moving a demo invalidates old deep links.
+
 ## How do I run it?
 
 ```sh

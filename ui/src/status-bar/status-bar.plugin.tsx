@@ -13,8 +13,8 @@ function RevisionContribution() {
   return <span class={styles.revision}>{REVISION}</span>;
 }
 
-function BuiltWithContribution() {
-  return <span>Built with SolidJS</span>;
+function PlaygroundContribution() {
+  return <a href="#playground">Playground</a>;
 }
 
 export default plugin({
@@ -37,12 +37,14 @@ export default plugin({
       description: "Displays the current application revision",
       value: { id: "revision-status", order: -90, content: RevisionContribution },
     });
-    context.registerExtension({
-      point: statusBarContributions,
-      id: "built-with-status",
-      description: "Displays the UI technology",
-      value: { id: "built-with-status", order: 10, content: BuiltWithContribution },
-    });
+    if (import.meta.env.DEV) {
+      context.registerExtension({
+        point: statusBarContributions,
+        id: "playground-status",
+        description: "Links to the component playground in development",
+        value: { id: "playground-status", order: 10, content: PlaygroundContribution },
+      });
+    }
     context.registerExtension({
       point: statusBarContributions,
       id: "debug-status",
