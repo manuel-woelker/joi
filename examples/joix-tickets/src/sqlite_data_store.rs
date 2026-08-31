@@ -129,7 +129,12 @@ impl DataStore for SqliteDataStore {
             for (index, column) in result_columns.iter_mut().enumerate() {
                 match &mut column.values {
                     Values::String(values) => {
-                        values.push(row.get::<_, String>(index).map_err(report)?.into());
+                        values.push(
+                            row.get::<_, Option<String>>(index)
+                                .map_err(report)?
+                                .unwrap_or_default()
+                                .into(),
+                        );
                     }
                     Values::Int(values) => values.push(row.get(index).map_err(report)?),
                 }
@@ -225,6 +230,13 @@ fn ensure_table(transaction: &Transaction<'_>, table: TableDescription) -> JoiRe
             if existing_column.description.data_type != column.data_type {
                 joi_bail!(
                     "attribute `{}` has a different type in table `{}`",
+                    column.name.0,
+                    table.name.0
+                );
+            }
+            if existing_column.description.optional != column.optional {
+                joi_bail!(
+                    "attribute `{}` has different nullability in table `{}`",
                     column.name.0,
                     table.name.0
                 );
@@ -480,14 +492,15 @@ fn table_schema(connection: &Connection, table_name: &str) -> JoiResult<Vec<Sqli
         .query_map([], |row| {
             let name = row.get::<_, String>(1)?;
             let sqlite_type = row.get::<_, String>(2)?;
+            let not_null = row.get::<_, bool>(3)?;
             let primary_key = row.get::<_, bool>(5)?;
-            Ok((name, sqlite_type, primary_key))
+            Ok((name, sqlite_type, not_null, primary_key))
         })
         .map_err(report)?;
 
     let mut schema = Vec::new();
     for column in columns {
-        let (name, sqlite_type, primary_key) = column.map_err(report)?;
+        let (name, sqlite_type, not_null, primary_key) = column.map_err(report)?;
         let data_type = match sqlite_type.as_str() {
             "TEXT" => ColumnDataType::String,
             "INTEGER" => ColumnDataType::Int,
@@ -500,6 +513,7 @@ fn table_schema(connection: &Connection, table_name: &str) -> JoiResult<Vec<Sqli
                 name: crate::data_store::AttributeName(name.into()),
                 description: JoiString::new(),
                 data_type,
+                optional: !not_null,
                 references: None,
             },
             primary_key,
@@ -515,6 +529,7 @@ fn column_definition(column: &ColumnDescription, primary_key: bool) -> String {
         ColumnDataType::Int => "INTEGER",
     };
     let primary_key = if primary_key { " PRIMARY KEY" } else { "" };
+    let nullability = if column.optional { "" } else { " NOT NULL" };
     let reference = column
         .references
         .as_ref()
@@ -525,7 +540,7 @@ fn column_definition(column: &ColumnDescription, primary_key: bool) -> String {
                 quote_identifier(&reference.attribute.0)
             )
         });
-    format!("{name} {data_type} NOT NULL{primary_key}{reference}")
+    format!("{name} {data_type}{nullability}{primary_key}{reference}")
 }
 
 fn quote_identifier(identifier: &str) -> String {
@@ -664,6 +679,22 @@ mod tests {
     }
 
     #[test]
+    fn generates_nullability_without_rewriting_sql() {
+        let required = string_column("title");
+        let mut optional = string_column("assignee");
+        optional.optional = true;
+
+        assert_eq!(
+            super::column_definition(&required, false),
+            "\"title\" TEXT NOT NULL"
+        );
+        assert_eq!(
+            super::column_definition(&optional, false),
+            "\"assignee\" TEXT"
+        );
+    }
+
+    #[test]
     fn updates_rows_by_primary_key() {
         let mut store = SqliteDataStore::in_memory().unwrap();
         store.ensure_tables(vec![ticket_table()]).unwrap();
@@ -732,6 +763,7 @@ mod tests {
                     name: attribute("priority"),
                     description: "Ticket priority".into(),
                     data_type: ColumnDataType::Int,
+                    optional: false,
                     references: None,
                 },
             ],
@@ -743,6 +775,7 @@ mod tests {
             name: attribute(name),
             description: JoiString::new(),
             data_type: ColumnDataType::String,
+            optional: false,
             references: None,
         }
     }

@@ -140,14 +140,14 @@ fn create_plugin_registry() -> JoiResult<PluginRegistry> {
             Box::new(UserSessionTableDescriptionProvider),
         )?;
         context.register_extension::<dyn TestDataProvider>(
-            "ticket-test-data",
-            "Adds representative tickets for development",
-            Box::new(TicketTestDataProvider),
-        )?;
-        context.register_extension::<dyn TestDataProvider>(
             "user-test-data",
             "Adds representative users for development",
             Box::new(UserTestDataProvider),
+        )?;
+        context.register_extension::<dyn TestDataProvider>(
+            "ticket-test-data",
+            "Adds representative tickets for development",
+            Box::new(TicketTestDataProvider),
         )
     }))?;
     Ok(builder.build())
@@ -288,7 +288,7 @@ mod tests {
                         "name": "tickets",
                         "description": "Ticket management",
                         "extension_points": [],
-                        "extensions": ["tickets-table", "users-table", "user-session-table", "ticket-test-data", "user-test-data"]
+                        "extensions": ["tickets-table", "users-table", "user-session-table", "user-test-data", "ticket-test-data"]
                     }
                 ],
                 "extension_points": [
@@ -305,7 +305,7 @@ mod tests {
                     {
                         "id": "test-data-providers",
                         "description": "Populates tables with development data",
-                        "extensions": ["ticket-test-data", "user-test-data"]
+                        "extensions": ["user-test-data", "ticket-test-data"]
                     }
                 ],
                 "extensions": [
@@ -314,8 +314,8 @@ mod tests {
                     { "id": "tickets-table", "description": "Defines the tickets table" },
                     { "id": "users-table", "description": "Defines the users table" },
                     { "id": "user-session-table", "description": "Defines authenticated user sessions" },
-                    { "id": "ticket-test-data", "description": "Adds representative tickets for development" },
-                    { "id": "user-test-data", "description": "Adds representative users for development" }
+                    { "id": "user-test-data", "description": "Adds representative users for development" },
+                    { "id": "ticket-test-data", "description": "Adds representative tickets for development" }
                 ]
             })
         );

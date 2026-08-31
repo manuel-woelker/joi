@@ -89,6 +89,8 @@ pub struct ColumnDescription {
     pub description: JoiString,
     /// The type of values stored in the column.
     pub data_type: ColumnDataType,
+    /// Whether the column accepts null values.
+    pub optional: bool,
     /// Optional foreign-key target for this column.
     pub references: Option<ColumnReference>,
 }

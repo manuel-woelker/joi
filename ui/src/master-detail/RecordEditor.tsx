@@ -1,4 +1,4 @@
-import { For, Show, createMemo, createSignal, createUniqueId, type JSX } from "solid-js";
+import { For, Show, createMemo, createResource, createSignal, createUniqueId, type JSX } from "solid-js";
 
 import {
   Form,
@@ -13,6 +13,7 @@ import type { QueryResult, QueryResultRow, QueryValue } from "../query/query-res
 import type { FetchService } from "../services/fetch-service";
 import type { ValidationFunction } from "../validation/validation";
 import { notEmpty } from "../validation/validation-functions";
+import { useLookupService } from "../lookups/lookup";
 import {
   validateMasterDetailDefinition,
   type CreateRecordDefinition,
@@ -194,6 +195,11 @@ function SaveStatus(props: { saved: () => boolean }) {
 
 function EditorField(props: { field: EditFieldDefinition }) {
   const formField = useFormField(props.field.attribute);
+  const lookupService = props.field.lookup ? useLookupService() : undefined;
+  const [lookupEntries] = createResource(
+    () => props.field.lookup,
+    (lookup) => lookupService!.entries(lookup),
+  );
   const inputId = createUniqueId();
   const messagesId = `${inputId}-messages`;
   const hasValidationMessages = () => formField.validationMessages().some((failure) => failure.touched);
@@ -201,36 +207,55 @@ function EditorField(props: { field: EditFieldDefinition }) {
     <div class={styles.field}>
       <label for={inputId}>{formField.label}</label>
       <Show
-        when={props.field.control === "textarea"}
+        when={props.field.control !== "lookup"}
         fallback={
-          <input
+          <select
             id={inputId}
-            type={props.field.control === "integer" ? "number" : "text"}
+            value={formField.value}
+            required={props.field.required}
+            disabled={formField.disabled || lookupEntries.loading}
+            aria-invalid={hasValidationMessages()}
+            aria-describedby={hasValidationMessages() ? messagesId : undefined}
+            onInput={formField.onInput}
+            onBlur={formField.onBlur}
+          >
+            <option value="">{lookupEntries.loading ? "Loading..." : `Select ${formField.label.toLowerCase()}`}</option>
+            <For each={lookupEntries()}>{(entry) => <option value={entry.id}>{entry.label}</option>}</For>
+          </select>
+        }
+      >
+        <Show
+          when={props.field.control === "textarea"}
+          fallback={
+            <input
+              id={inputId}
+              type={props.field.control === "integer" ? "number" : "text"}
+              value={formField.value}
+              placeholder={formField.placeholder}
+              readOnly={formField.readonly}
+              disabled={formField.disabled}
+              required={props.field.required}
+              aria-invalid={hasValidationMessages()}
+              aria-describedby={hasValidationMessages() ? messagesId : undefined}
+              onInput={formField.onInput}
+              onBlur={formField.onBlur}
+            />
+          }
+        >
+          <textarea
+            id={inputId}
             value={formField.value}
             placeholder={formField.placeholder}
             readOnly={formField.readonly}
             disabled={formField.disabled}
             required={props.field.required}
+            rows={props.field.rows ?? 8}
             aria-invalid={hasValidationMessages()}
             aria-describedby={hasValidationMessages() ? messagesId : undefined}
             onInput={formField.onInput}
             onBlur={formField.onBlur}
           />
-        }
-      >
-        <textarea
-          id={inputId}
-          value={formField.value}
-          placeholder={formField.placeholder}
-          readOnly={formField.readonly}
-          disabled={formField.disabled}
-          required={props.field.required}
-          rows={props.field.rows ?? 8}
-          aria-invalid={hasValidationMessages()}
-          aria-describedby={hasValidationMessages() ? messagesId : undefined}
-          onInput={formField.onInput}
-          onBlur={formField.onBlur}
-        />
+        </Show>
       </Show>
       <FormValidationMessages attribute={formField.id} id={messagesId} />
     </div>

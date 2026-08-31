@@ -1,8 +1,9 @@
 import type { QueryValue, QueryValueType } from "../query/query-result";
 import type { ValidationFunction } from "../validation/validation";
+import type { LookupId } from "../lookups/lookup";
 
 /** Input control used to edit an entity attribute. */
-export type EntityEditControl = "text" | "textarea" | "integer";
+export type EntityEditControl = "text" | "textarea" | "integer" | "lookup";
 
 /** Default table presentation for an entity attribute. */
 export interface EntityTableDescription {
@@ -12,7 +13,7 @@ export interface EntityTableDescription {
 
 /** Form presentation for an entity attribute. */
 export interface EntityEditDescription<TValue extends QueryValue> {
-  readonly control: TValue extends string ? "text" | "textarea" : "integer";
+  readonly control: TValue extends string ? "text" | "textarea" | "lookup" : "integer";
   readonly required?: boolean;
   readonly rows?: number;
   readonly placeholder?: string;
@@ -22,7 +23,7 @@ export interface EntityEditDescription<TValue extends QueryValue> {
 
 /** Form presentation and initial value used when creating an entity attribute. */
 export interface EntityCreateDescription<TValue extends QueryValue> {
-  readonly control?: TValue extends string ? "text" | "textarea" : "integer";
+  readonly control?: TValue extends string ? "text" | "textarea" | "lookup" : "integer";
   readonly required?: boolean;
   readonly rows?: number;
   readonly placeholder?: string;
@@ -43,6 +44,7 @@ export interface EntityAttributeDescription<
   readonly edit?: EntityEditDescription<TValue>;
   readonly create?: EntityCreateDescription<TValue>;
   readonly validation?: ValidationFunction<TValue>;
+  readonly lookup?: LookupId;
 }
 
 /** String-valued entity attribute. */
@@ -136,6 +138,8 @@ function validateCreateControl(entityId: string, attribute: AnyEntityAttribute):
   }
   if (!control) throw new Error(`Entity '${entityId}' create attribute '${attribute.id}' requires a control`);
   const expected: QueryValueType = control === "integer" ? "int" : "string";
+  if (control === "lookup" && !attribute.lookup)
+    throw new Error(`Entity '${entityId}' attribute '${attribute.id}' uses a lookup control without a lookup`);
   if (attribute.valueType !== expected) {
     throw new Error(
       `Entity '${entityId}' attribute '${attribute.id}' uses ${control} for ${attribute.valueType} values`,
@@ -149,6 +153,8 @@ function validateCreateControl(entityId: string, attribute: AnyEntityAttribute):
 function validateEditControl(entityId: string, attribute: AnyEntityAttribute): void {
   if (!attribute.edit) return;
   const expected: QueryValueType = attribute.edit.control === "integer" ? "int" : "string";
+  if (attribute.edit.control === "lookup" && !attribute.lookup)
+    throw new Error(`Entity '${entityId}' attribute '${attribute.id}' uses a lookup control without a lookup`);
   if (attribute.valueType !== expected) {
     throw new Error(
       `Entity '${entityId}' attribute '${attribute.id}' uses ${attribute.edit.control} for ${attribute.valueType} values`,

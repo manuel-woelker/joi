@@ -114,6 +114,13 @@ beforeEach(() => {
                       values: ["open", "in-progress", "closed", ...createdTickets.map((ticket) => ticket.status)],
                     },
                   },
+                  {
+                    attribute: "assignee",
+                    values: {
+                      type: "string",
+                      values: ["user-1", "user-2", "user-1", ...createdTickets.map((ticket) => ticket.assignee)],
+                    },
+                  },
                 ],
               },
       };
@@ -156,7 +163,7 @@ describe("workspace app", () => {
               }
             : {
                 number_of_hits: 0,
-                result_columns: ["id", "key", "title", "description", "status"].map((attribute) => ({
+                result_columns: ["id", "key", "title", "description", "status", "assignee"].map((attribute) => ({
                   attribute,
                   values: { type: "string", values: [] },
                 })),
@@ -208,7 +215,7 @@ describe("workspace app", () => {
               }
             : {
                 number_of_hits: 0,
-                result_columns: ["id", "key", "title", "description", "status"].map((attribute) => ({
+                result_columns: ["id", "key", "title", "description", "status", "assignee"].map((attribute) => ({
                   attribute,
                   values: { type: "string", values: [] },
                 })),
@@ -237,6 +244,7 @@ describe("workspace app", () => {
     expect(screen.getByRole("link", { name: "Playground" }).getAttribute("href")).toBe("#playground");
     expect(screen.getByText(REVISION)).toBeTruthy();
     expect(await screen.findByText("Fix navigation bug")).toBeTruthy();
+    expect(await screen.findByText("Joe Tester")).toBeTruthy();
     await userEvent.type(screen.getByPlaceholderText("Search this view"), "filters");
     expect(screen.getByText("Add issue filters")).toBeTruthy();
     expect(screen.queryByText("Fix navigation bug")).toBeNull();
@@ -381,6 +389,7 @@ describe("workspace app", () => {
     await userEvent.type(screen.getByRole("textbox", { name: "Key" }), "TEST-4");
     await userEvent.type(screen.getByRole("textbox", { name: "Title" }), "Create ticket workflow");
     await userEvent.type(screen.getByRole("textbox", { name: "Description" }), "Exercise explicit creation.");
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Assignee" }), "user-1");
     await userEvent.click(screen.getByRole("button", { name: "Create" }));
 
     await waitFor(() => expect(window.location.hash).toMatch(/^#\/views\/view-active\/records\/[0-9A-Za-z]{27}$/));
@@ -422,7 +431,7 @@ describe("workspace app", () => {
                     }
                   : {
                       number_of_hits: 0,
-                      result_columns: ["id", "key", "title", "description", "status"].map((attribute) => ({
+                      result_columns: ["id", "key", "title", "description", "status", "assignee"].map((attribute) => ({
                         attribute,
                         values: { type: "string", values: [] },
                       })),

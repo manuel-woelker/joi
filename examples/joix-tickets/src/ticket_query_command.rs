@@ -129,7 +129,10 @@ mod tests {
     use crate::command::Command;
     use crate::data_store::{DataStore, TableDescriptionProvider, TestDataProvider};
     use crate::sqlite_data_store::SqliteDataStore;
-    use crate::tickets_module::{TicketTableDescriptionProvider, TicketTestDataProvider};
+    use crate::tickets_module::{
+        TicketTableDescriptionProvider, TicketTestDataProvider, UserTableDescriptionProvider,
+        UserTestDataProvider,
+    };
 
     use super::{QueryCommand, QueryRequest, QueryRequestCriterion, QueryValues};
 
@@ -137,8 +140,12 @@ mod tests {
     fn queries_ticket_columns() {
         let mut store = SqliteDataStore::in_memory().unwrap();
         store
-            .ensure_tables(vec![TicketTableDescriptionProvider.table_description()])
+            .ensure_tables(vec![
+                UserTableDescriptionProvider.table_description(),
+                TicketTableDescriptionProvider.table_description(),
+            ])
             .unwrap();
+        UserTestDataProvider.insert_test_data(&mut store).unwrap();
         TicketTestDataProvider.insert_test_data(&mut store).unwrap();
         let command = QueryCommand::new(Arc::new(Mutex::new(Box::new(store))));
 

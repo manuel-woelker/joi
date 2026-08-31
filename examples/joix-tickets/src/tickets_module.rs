@@ -1,8 +1,8 @@
 use crate::data_store::{
-    AttributeColumn, AttributeName, ColumnDataType, ColumnDescription, DataStore,
+    AttributeColumn, AttributeName, ColumnDataType, ColumnDescription, ColumnReference, DataStore,
     DataStoreInsertMutation, DataStoreMutation, DataStoreMutationStep, DataStoreQuery,
-    QueryCriterion, TableDescription, TableDescriptionProvider, TableName, TestDataProvider,
-    Values,
+    DataStoreUpdateMutation, QueryCriterion, TableDescription, TableDescriptionProvider, TableName,
+    TestDataProvider, Values,
 };
 use crate::module::{Module, ModuleInfo};
 
@@ -19,6 +19,16 @@ impl TableDescriptionProvider for TicketTableDescriptionProvider {
                 ticket_column("title", "Short summary of the ticket"),
                 ticket_column("description", "Detailed ticket description"),
                 ticket_column("status", "Current workflow status"),
+                ColumnDescription {
+                    name: AttributeName("assignee".into()),
+                    description: "User assigned to the ticket".into(),
+                    data_type: ColumnDataType::String,
+                    optional: true,
+                    references: Some(ColumnReference {
+                        table: TableName("users".into()),
+                        attribute: AttributeName("id".into()),
+                    }),
+                },
             ],
         }
     }
@@ -29,6 +39,7 @@ fn ticket_column(name: &'static str, description: &'static str) -> ColumnDescrip
         name: AttributeName(name.into()),
         description: description.into(),
         data_type: ColumnDataType::String,
+        optional: false,
         references: None,
     }
 }
@@ -54,6 +65,7 @@ fn user_column(name: &'static str, description: &'static str) -> ColumnDescripti
         name: AttributeName(name.into()),
         description: description.into(),
         data_type: ColumnDataType::String,
+        optional: false,
         references: None,
     }
 }
@@ -98,13 +110,56 @@ pub struct TicketTestDataProvider;
 
 impl TestDataProvider for TicketTestDataProvider {
     fn insert_test_data(&self, data_store: &mut dyn DataStore) -> joi_error::JoiResult<()> {
+        let users = data_store.query(DataStoreQuery {
+            table_name: TableName("users".into()),
+            criterion: QueryCriterion::MatchAny,
+            max_results: 2,
+            attributes: vec![AttributeName("id".into())],
+        })?;
+        let Values::String(user_ids) = &users.result_columns[0].values else {
+            return Err(joi_error::joi_error!("user IDs must be strings"));
+        };
+        if user_ids.is_empty() {
+            return Err(joi_error::joi_error!(
+                "ticket test data requires at least one user"
+            ));
+        }
         let existing = data_store.query(DataStoreQuery {
             table_name: TableName("tickets".into()),
             criterion: QueryCriterion::MatchAny,
-            max_results: 0,
-            attributes: Vec::new(),
+            max_results: 100,
+            attributes: vec![AttributeName("id".into()), AttributeName("assignee".into())],
         })?;
         if existing.number_of_hits > 0 {
+            let Values::String(ticket_ids) = &existing.result_columns[0].values else {
+                unreachable!()
+            };
+            let Values::String(assignees) = &existing.result_columns[1].values else {
+                unreachable!()
+            };
+            let missing = ticket_ids
+                .iter()
+                .zip(assignees)
+                .filter(|(_, assignee)| assignee.is_empty())
+                .collect::<Vec<_>>();
+            if !missing.is_empty() {
+                data_store.mutate(DataStoreMutation {
+                    steps: vec![DataStoreMutationStep::Update(DataStoreUpdateMutation {
+                        table_name: TableName("tickets".into()),
+                        ids: missing.iter().map(|(id, _)| (*id).clone()).collect(),
+                        columns: vec![AttributeColumn {
+                            attribute: AttributeName("assignee".into()),
+                            values: Values::String(
+                                missing
+                                    .iter()
+                                    .enumerate()
+                                    .map(|(index, _)| user_ids[index % user_ids.len()].clone())
+                                    .collect(),
+                            ),
+                        }],
+                    })],
+                })?;
+            }
             return Ok(());
         }
 
@@ -138,6 +193,14 @@ impl TestDataProvider for TicketTestDataProvider {
                         ],
                     ),
                     test_data_column("status", ["open", "in-progress", "closed"]),
+                    AttributeColumn {
+                        attribute: AttributeName("assignee".into()),
+                        values: Values::String(
+                            (0..3)
+                                .map(|index| user_ids[index % user_ids.len()].clone())
+                                .collect(),
+                        ),
+                    },
                 ],
             })],
         })?;
@@ -192,7 +255,7 @@ mod tests {
                 .iter()
                 .map(|column| column.name.0.as_str())
                 .collect::<Vec<_>>(),
-            ["id", "key", "title", "description", "status"]
+            ["id", "key", "title", "description", "status", "assignee"]
         );
         assert!(
             table
@@ -200,14 +263,26 @@ mod tests {
                 .iter()
                 .all(|column| column.data_type == ColumnDataType::String)
         );
+        let assignee = table
+            .columns
+            .iter()
+            .find(|column| column.name.0 == "assignee")
+            .unwrap();
+        assert!(assignee.optional);
+        assert_eq!(assignee.references.as_ref().unwrap().table.0, "users");
+        assert_eq!(assignee.references.as_ref().unwrap().attribute.0, "id");
     }
 
     #[test]
     fn inserts_test_tickets() {
         let mut store = SqliteDataStore::in_memory().unwrap();
         store
-            .ensure_tables(vec![TicketTableDescriptionProvider.table_description()])
+            .ensure_tables(vec![
+                UserTableDescriptionProvider.table_description(),
+                TicketTableDescriptionProvider.table_description(),
+            ])
             .unwrap();
+        UserTestDataProvider.insert_test_data(&mut store).unwrap();
 
         TicketTestDataProvider.insert_test_data(&mut store).unwrap();
 
@@ -220,6 +295,7 @@ mod tests {
                     AttributeName("id".into()),
                     AttributeName("key".into()),
                     AttributeName("status".into()),
+                    AttributeName("assignee".into()),
                 ],
             })
             .unwrap();
@@ -233,6 +309,10 @@ mod tests {
             &result.result_columns[1].values,
             Values::String(values) if values.iter().map(|value| value.as_str()).collect::<Vec<_>>()
                 == ["TEST-1", "TEST-2", "TEST-3"]
+        ));
+        assert!(matches!(
+            &result.result_columns[3].values,
+            Values::String(values) if values.iter().all(|value| ksuid::Ksuid::from_base62(value).is_ok())
         ));
 
         TicketTestDataProvider.insert_test_data(&mut store).unwrap();

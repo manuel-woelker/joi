@@ -1,8 +1,9 @@
 import type { FormValues } from "../components/form/Form";
 import type { QueryResult, QueryResultRow, QueryValue, QueryValueType } from "../query/query-result";
 import type { ValidationFunction } from "../validation/validation";
+import type { LookupId } from "../lookups/lookup";
 
-export type EditControl = "text" | "textarea" | "integer";
+export type EditControl = "text" | "textarea" | "integer" | "lookup";
 
 export interface EditFieldDefinition {
   readonly attribute: string;
@@ -13,6 +14,7 @@ export interface EditFieldDefinition {
   readonly placeholder?: string;
   readonly readonly?: boolean;
   readonly disabled?: boolean;
+  readonly lookup?: LookupId;
   /** Validation evaluated with the field's current string value. */
   readonly validation?: ValidationFunction<string>;
 }

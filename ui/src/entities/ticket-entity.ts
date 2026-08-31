@@ -1,5 +1,6 @@
 import { defineEntity } from "./entity-description";
 import { generateKsuid } from "./ksuid";
+import { lookupId } from "../lookups/lookup";
 
 const ticketKey = /^(?:|[A-Z][A-Z0-9]*-[1-9][0-9]*)$/;
 
@@ -44,6 +45,15 @@ export const ticketEntity = defineEntity({
       table: { visibleByDefault: true },
       edit: { control: "textarea", rows: 10 },
       create: { rows: 10 },
+    },
+    {
+      id: "assignee",
+      label: "Assignee",
+      valueType: "string",
+      lookup: lookupId("users"),
+      table: { visibleByDefault: true, width: 160 },
+      edit: { control: "lookup", required: true },
+      create: { control: "lookup", required: true },
     },
   ],
 });

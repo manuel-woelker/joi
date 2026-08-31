@@ -27,12 +27,14 @@ impl TableDescriptionProvider for UserSessionTableDescriptionProvider {
                     name: AttributeName("session_id".into()),
                     description: "Cryptographically unguessable session identifier".into(),
                     data_type: ColumnDataType::String,
+                    optional: false,
                     references: None,
                 },
                 ColumnDescription {
                     name: AttributeName("user_id".into()),
                     description: "User owning this session".into(),
                     data_type: ColumnDataType::String,
+                    optional: false,
                     references: Some(ColumnReference {
                         table: TableName("users".into()),
                         attribute: AttributeName("id".into()),

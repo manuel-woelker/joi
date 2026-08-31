@@ -16,6 +16,7 @@ import { Login } from "./authentication/Login";
 import { UserMenu } from "./authentication/UserMenu";
 import { loadCurrentUser, logout, type AuthenticatedUser } from "./authentication/authentication-service";
 import { fetchService } from "./services/fetch-service";
+import { LookupProvider } from "./lookups/lookup";
 
 const applicationPluginRegistry = createApplicationPluginRegistry();
 
@@ -44,53 +45,55 @@ function WorkspaceApp(props: {
       : undefined;
   };
   return (
-    <div class={styles.appShell} style={{ "--sidebar-width": `${controller.sidebarWidth()}px` }}>
-      <header class={styles.topBar}>
-        <div class={styles.topBarStart}>
-          <IconButton
-            class={styles.mobileNavigationButton}
-            label="Open navigation"
-            icon="☰"
-            onClick={() => controller.setNavigationOpen(true)}
+    <LookupProvider registry={props.pluginRegistry}>
+      <div class={styles.appShell} style={{ "--sidebar-width": `${controller.sidebarWidth()}px` }}>
+        <header class={styles.topBar}>
+          <div class={styles.topBarStart}>
+            <IconButton
+              class={styles.mobileNavigationButton}
+              label="Open navigation"
+              icon="☰"
+              onClick={() => controller.setNavigationOpen(true)}
+            />
+            <a class={styles.brand} href="/" aria-label="Joi home">
+              Joi
+            </a>
+            <span class={styles.topDivider} />
+            <span class={styles.currentView}>{selectedView()?.name ?? "Workspace"}</span>
+          </div>
+          <div class={styles.topCommands}>
+            <UserMenu user={props.user} onLogout={props.onLogout} />
+            <Show when={controller.announcement().includes("Undo")}>
+              <button class={styles.textButton} onClick={() => controller.undo()}>
+                <span aria-hidden="true">↶</span>Undo
+              </button>
+            </Show>
+            <IconButton label="Reset demo workspace" icon="↻" onClick={() => controller.reset()} />
+          </div>
+        </header>
+        <Show when={controller.navigationOpen()}>
+          <button
+            class={styles.navigationBackdrop}
+            aria-label="Close navigation"
+            onClick={() => controller.setNavigationOpen(false)}
           />
-          <a class={styles.brand} href="/" aria-label="Joi home">
-            Joi
-          </a>
-          <span class={styles.topDivider} />
-          <span class={styles.currentView}>{selectedView()?.name ?? "Workspace"}</span>
+        </Show>
+        <div class={styles.workspaceLayout}>
+          <NavigationTree registry={props.pluginRegistry} />
+          <ViewContent view={selectedView()} />
         </div>
-        <div class={styles.topCommands}>
-          <UserMenu user={props.user} onLogout={props.onLogout} />
-          <Show when={controller.announcement().includes("Undo")}>
-            <button class={styles.textButton} onClick={() => controller.undo()}>
-              <span aria-hidden="true">↶</span>Undo
-            </button>
-          </Show>
-          <IconButton label="Reset demo workspace" icon="↻" onClick={() => controller.reset()} />
+        <StatusBar registry={props.pluginRegistry} />
+        <ViewEditor />
+        <Show when={controller.warning()}>
+          <div class={styles.warningBanner} role="alert">
+            {controller.warning()}
+          </div>
+        </Show>
+        <div class={styles.srOnly} aria-live="polite">
+          {controller.announcement()}
         </div>
-      </header>
-      <Show when={controller.navigationOpen()}>
-        <button
-          class={styles.navigationBackdrop}
-          aria-label="Close navigation"
-          onClick={() => controller.setNavigationOpen(false)}
-        />
-      </Show>
-      <div class={styles.workspaceLayout}>
-        <NavigationTree registry={props.pluginRegistry} />
-        <ViewContent view={selectedView()} />
       </div>
-      <StatusBar registry={props.pluginRegistry} />
-      <ViewEditor />
-      <Show when={controller.warning()}>
-        <div class={styles.warningBanner} role="alert">
-          {controller.warning()}
-        </div>
-      </Show>
-      <div class={styles.srOnly} aria-live="polite">
-        {controller.announcement()}
-      </div>
-    </div>
+    </LookupProvider>
   );
 }
 

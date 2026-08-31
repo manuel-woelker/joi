@@ -37,6 +37,7 @@ export function createSeedWorkspace(): WorkspaceDocument {
           { field: "key", width: 100 },
           { field: "title", label: "Issue" },
           { field: "status", width: 120 },
+          { field: "assignee", width: 160 },
           { field: "description" },
         ],
       },

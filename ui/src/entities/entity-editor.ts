@@ -23,6 +23,7 @@ export function createEntityEditorDefinition(description: EntityDescription): Ma
               placeholder: attribute.edit.placeholder,
               readonly: attribute.edit.readonly,
               disabled: attribute.edit.disabled,
+              lookup: attribute.lookup,
               validation: attributeValidation(attribute),
             },
           ]
@@ -58,6 +59,7 @@ export function createEntityEditorDefinition(description: EntityDescription): Ma
                       required: create.required ?? attribute.edit?.required,
                       rows: create.rows ?? attribute.edit?.rows,
                       placeholder: create.placeholder ?? attribute.edit?.placeholder,
+                      lookup: attribute.lookup,
                       validation: attributeValidation(attribute),
                     },
                   ];

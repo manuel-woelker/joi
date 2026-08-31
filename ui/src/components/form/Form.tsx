@@ -138,9 +138,9 @@ export interface FormField {
   /** Updates the field value directly. */
   readonly setValue: (value: string) => void;
   /** Input handler that updates the field on every typed character. */
-  readonly onInput: JSX.EventHandler<HTMLInputElement | HTMLTextAreaElement, InputEvent>;
+  readonly onInput: JSX.EventHandler<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement, InputEvent>;
   /** Blur handler that marks the field as touched. */
-  readonly onBlur: JSX.EventHandler<HTMLInputElement | HTMLTextAreaElement, FocusEvent>;
+  readonly onBlur: JSX.EventHandler<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement, FocusEvent>;
 }
 
 const FormContext = createContext<FormContextValue>();

@@ -1,6 +1,7 @@
 import type { DataTableColumn } from "../components/DataTable";
 import type { QueryColumnHandle, QueryResult } from "../query/query-result";
 import { requireEntityAttribute, type AnyEntityAttribute, type EntityDescription } from "./entity-description";
+import { LookupValue } from "../lookups/lookup";
 
 /** Presentation override selecting one entity attribute for a table. */
 export interface EntityTableField {
@@ -62,10 +63,14 @@ export function createEntityTableColumns(
   return selected.map((field) => {
     const attribute = requireEntityAttribute(entity.description, field.attribute);
     const column = entity.attribute(attribute.id).column;
+    const lookupCell = attribute.lookup
+      ? { cell: (value: unknown) => <LookupValue lookup={attribute.lookup!} value={String(value ?? "")} /> }
+      : {};
     return {
       column,
       header: field.label ?? attribute.label,
       width: field.width ?? attribute.table?.width,
+      ...lookupCell,
       ...overrides[attribute.id],
     };
   });
