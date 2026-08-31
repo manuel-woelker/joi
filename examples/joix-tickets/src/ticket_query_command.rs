@@ -101,6 +101,9 @@ impl Command for QueryCommand {
                     attribute: column.attribute.0,
                     values: match column.values {
                         Values::String(values) => QueryValues::String(values),
+                        Values::NullableString(_) => {
+                            unreachable!("queries never return mutation-only values")
+                        }
                         Values::Int(values) => QueryValues::Int(values),
                     },
                 })

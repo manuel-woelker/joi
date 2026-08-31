@@ -92,7 +92,7 @@ export function LookupValue(props: { lookup: LookupId; value: string }) {
   const service = useLookupService();
   const [label] = createResource(
     () => [props.lookup, props.value] as const,
-    ([lookup, value]) => service.label(lookup, lookupEntryId(value)),
+    ([lookup, value]) => (value ? service.label(lookup, lookupEntryId(value)) : Promise.resolve("Unassigned")),
   );
   return <>{label() ?? props.value}</>;
 }

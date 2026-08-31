@@ -219,7 +219,13 @@ function EditorField(props: { field: EditFieldDefinition }) {
             onInput={formField.onInput}
             onBlur={formField.onBlur}
           >
-            <option value="">{lookupEntries.loading ? "Loading..." : `Select ${formField.label.toLowerCase()}`}</option>
+            <option value="">
+              {lookupEntries.loading
+                ? "Loading..."
+                : props.field.optional
+                  ? "Unassigned"
+                  : `Select ${formField.label.toLowerCase()}`}
+            </option>
             <For each={lookupEntries()}>{(entry) => <option value={entry.id}>{entry.label}</option>}</For>
           </select>
         }

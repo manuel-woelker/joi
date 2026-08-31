@@ -44,6 +44,37 @@ describe("record API", () => {
     });
   });
 
+  it("sends an empty optional lookup as null", async () => {
+    const fetcher = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) => ({ ok: true, json: async () => ({}) }) as Response,
+    );
+    const assignee = {
+      attribute: "assignee",
+      label: "Assignee",
+      control: "lookup",
+      optional: true,
+    } as const;
+
+    await updateRecord(
+      new FetchService(fetcher),
+      { tableName: "tickets", identityAttribute: "id", detailTitle: "Ticket", fields: [assignee] },
+      "ticket-1",
+      [{ field: assignee, value: "" }],
+    );
+
+    expect(JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body))).toEqual({
+      steps: [
+        {
+          update: {
+            table_name: "tickets",
+            ids: ["ticket-1"],
+            columns: [{ attribute: "assignee", values: { type: "nullable_string", values: [null] } }],
+          },
+        },
+      ],
+    });
+  });
+
   it("sends a complete typed insert and returns its identity", async () => {
     const fetcher = vi.fn(
       async (_input: RequestInfo | URL, _init?: RequestInit) => ({ ok: true, json: async () => ({}) }) as Response,

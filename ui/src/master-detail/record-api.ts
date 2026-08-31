@@ -20,9 +20,11 @@ export async function createRecord(
     return {
       attribute: attribute.attribute,
       values:
-        attribute.valueType === "int"
-          ? { type: "int" as const, values: [value as number] }
-          : { type: "string" as const, values: [value as string] },
+        attribute.optional && value === ""
+          ? { type: "nullable_string" as const, values: [null] }
+          : attribute.valueType === "int"
+            ? { type: "int" as const, values: [value as number] }
+            : { type: "string" as const, values: [value as string] },
     };
   });
   const identity = values[definition.identityAttribute];
@@ -46,7 +48,11 @@ export async function updateRecord(
           columns: fields.map(({ field, value }) => ({
             attribute: field.attribute,
             values:
-              field.control === "integer" ? { type: "int", values: [value] } : { type: "string", values: [value] },
+              field.optional && value === ""
+                ? { type: "nullable_string", values: [null] }
+                : field.control === "integer"
+                  ? { type: "int", values: [value] }
+                  : { type: "string", values: [value] },
           })),
         },
       },

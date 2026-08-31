@@ -51,9 +51,10 @@ export const ticketEntity = defineEntity({
       label: "Assignee",
       valueType: "string",
       lookup: lookupId("users"),
+      optional: true,
       table: { visibleByDefault: true, width: 160 },
-      edit: { control: "lookup", required: true },
-      create: { control: "lookup", required: true },
+      edit: { control: "lookup" },
+      create: { control: "lookup" },
     },
   ],
 });

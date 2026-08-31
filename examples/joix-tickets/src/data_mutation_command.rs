@@ -67,6 +67,7 @@ struct MutationColumn {
 #[serde(tag = "type", content = "values", rename_all = "snake_case")]
 enum MutationValues {
     String(Vec<JoiString>),
+    NullableString(Vec<Option<JoiString>>),
     Int(Vec<i64>),
 }
 
@@ -128,6 +129,7 @@ fn attribute_column(column: MutationColumn) -> AttributeColumn {
         attribute: AttributeName(column.attribute),
         values: match column.values {
             MutationValues::String(values) => Values::String(values),
+            MutationValues::NullableString(values) => Values::NullableString(values),
             MutationValues::Int(values) => Values::Int(values),
         },
     }

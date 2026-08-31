@@ -24,6 +24,7 @@ export function createEntityEditorDefinition(description: EntityDescription): Ma
               readonly: attribute.edit.readonly,
               disabled: attribute.edit.disabled,
               lookup: attribute.lookup,
+              optional: attribute.optional,
               validation: attributeValidation(attribute),
             },
           ]
@@ -40,6 +41,7 @@ export function createEntityEditorDefinition(description: EntityDescription): Ma
               return {
                 attribute: attribute.id,
                 valueType: attribute.valueType,
+                optional: attribute.optional,
                 initialValue: () => {
                   const initial =
                     typeof create.initialValue === "function" ? create.initialValue() : create.initialValue;
@@ -60,6 +62,7 @@ export function createEntityEditorDefinition(description: EntityDescription): Ma
                       rows: create.rows ?? attribute.edit?.rows,
                       placeholder: create.placeholder ?? attribute.edit?.placeholder,
                       lookup: attribute.lookup,
+                      optional: attribute.optional,
                       validation: attributeValidation(attribute),
                     },
                   ];

@@ -15,6 +15,7 @@ export interface EditFieldDefinition {
   readonly readonly?: boolean;
   readonly disabled?: boolean;
   readonly lookup?: LookupId;
+  readonly optional?: boolean;
   /** Validation evaluated with the field's current string value. */
   readonly validation?: ValidationFunction<string>;
 }
@@ -31,6 +32,7 @@ export interface MasterDetailDefinition {
 export interface CreateAttributeDefinition {
   readonly attribute: string;
   readonly valueType: QueryValueType;
+  readonly optional?: boolean;
   readonly initialValue: () => QueryValue;
 }
 

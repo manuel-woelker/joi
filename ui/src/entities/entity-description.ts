@@ -45,6 +45,7 @@ export interface EntityAttributeDescription<
   readonly create?: EntityCreateDescription<TValue>;
   readonly validation?: ValidationFunction<TValue>;
   readonly lookup?: LookupId;
+  readonly optional?: boolean;
 }
 
 /** String-valued entity attribute. */

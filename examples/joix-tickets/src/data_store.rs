@@ -53,6 +53,8 @@ pub struct AttributeColumn {
 pub enum Values {
     /// String values.
     String(Vec<JoiString>),
+    /// Nullable string values used when mutating optional columns.
+    NullableString(Vec<Option<JoiString>>),
     /// Integer values.
     Int(Vec<i64>),
 }

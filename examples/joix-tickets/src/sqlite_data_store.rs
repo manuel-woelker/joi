@@ -136,6 +136,9 @@ impl DataStore for SqliteDataStore {
                                 .into(),
                         );
                     }
+                    Values::NullableString(_) => {
+                        unreachable!("queries never construct mutation-only values")
+                    }
                     Values::Int(values) => values.push(row.get(index).map_err(report)?),
                 }
             }
@@ -283,7 +286,7 @@ fn insert_rows(transaction: &Transaction<'_>, insert: DataStoreInsertMutation) -
         .map(|column| {
             (
                 column.description.name.0.clone(),
-                column.description.data_type,
+                (column.description.data_type, column.description.optional),
             )
         })
         .collect::<HashMap<_, _>>();
@@ -298,7 +301,7 @@ fn insert_rows(transaction: &Transaction<'_>, insert: DataStoreInsertMutation) -
         if value_count(&column.values) != row_count {
             joi_bail!("all inserted columns must contain the same number of values");
         }
-        let Some(data_type) = schema.get(&column.attribute.0) else {
+        let Some((data_type, optional)) = schema.get(&column.attribute.0) else {
             joi_bail!(
                 "table `{}` has no attribute `{}`",
                 insert.table_name.0,
@@ -311,6 +314,7 @@ fn insert_rows(transaction: &Transaction<'_>, insert: DataStoreInsertMutation) -
                 column.attribute.0
             );
         }
+        validate_nullability(column, *optional)?;
     }
     if row_count == 0 {
         return Ok(());
@@ -364,7 +368,7 @@ fn update_rows(transaction: &Transaction<'_>, update: DataStoreUpdateMutation) -
         .map(|column| {
             (
                 column.description.name.0.clone(),
-                column.description.data_type,
+                (column.description.data_type, column.description.optional),
             )
         })
         .collect::<HashMap<_, _>>();
@@ -391,7 +395,7 @@ fn update_rows(transaction: &Transaction<'_>, update: DataStoreUpdateMutation) -
         if value_count(&column.values) != update.ids.len() {
             joi_bail!("all updated columns must contain one value per ID");
         }
-        let Some(data_type) = schema_by_name.get(&column.attribute.0) else {
+        let Some((data_type, optional)) = schema_by_name.get(&column.attribute.0) else {
             joi_bail!(
                 "table `{}` has no attribute `{}`",
                 update.table_name.0,
@@ -404,6 +408,7 @@ fn update_rows(transaction: &Transaction<'_>, update: DataStoreUpdateMutation) -
                 column.attribute.0
             );
         }
+        validate_nullability(column, *optional)?;
     }
     if update.ids.is_empty() {
         return Ok(());
@@ -550,6 +555,7 @@ fn quote_identifier(identifier: &str) -> String {
 fn value_count(values: &Values) -> usize {
     match values {
         Values::String(values) => values.len(),
+        Values::NullableString(values) => values.len(),
         Values::Int(values) => values.len(),
     }
 }
@@ -557,6 +563,7 @@ fn value_count(values: &Values) -> usize {
 fn value_data_type(values: &Values) -> ColumnDataType {
     match values {
         Values::String(_) => ColumnDataType::String,
+        Values::NullableString(_) => ColumnDataType::String,
         Values::Int(_) => ColumnDataType::Int,
     }
 }
@@ -564,8 +571,23 @@ fn value_data_type(values: &Values) -> ColumnDataType {
 fn value_at(values: &Values, index: usize) -> Value {
     match values {
         Values::String(values) => Value::Text(values[index].to_string()),
+        Values::NullableString(values) => values[index]
+            .as_ref()
+            .map_or(Value::Null, |value| Value::Text(value.to_string())),
         Values::Int(values) => Value::Integer(values[index]),
     }
+}
+
+fn validate_nullability(column: &AttributeColumn, optional: bool) -> JoiResult<()> {
+    if !optional
+        && matches!(&column.values, Values::NullableString(values) if values.iter().any(Option::is_none))
+    {
+        joi_bail!(
+            "attribute `{}` does not allow null values",
+            column.attribute.0
+        );
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -691,6 +713,48 @@ mod tests {
         assert_eq!(
             super::column_definition(&optional, false),
             "\"assignee\" TEXT"
+        );
+    }
+
+    #[test]
+    fn stores_null_in_optional_string_columns() {
+        let mut store = SqliteDataStore::in_memory().unwrap();
+        let mut assignee = string_column("assignee");
+        assignee.optional = true;
+        store
+            .ensure_tables(vec![TableDescription {
+                name: table("tickets"),
+                columns: vec![string_column("id"), assignee],
+            }])
+            .unwrap();
+        store
+            .mutate(DataStoreMutation {
+                steps: vec![DataStoreMutationStep::Insert(DataStoreInsertMutation {
+                    table_name: table("tickets"),
+                    columns: vec![
+                        AttributeColumn {
+                            attribute: attribute("id"),
+                            values: Values::String(vec!["ticket-1".into()]),
+                        },
+                        AttributeColumn {
+                            attribute: attribute("assignee"),
+                            values: Values::NullableString(vec![None]),
+                        },
+                    ],
+                })],
+            })
+            .unwrap();
+
+        let result = store
+            .query(DataStoreQuery {
+                table_name: table("tickets"),
+                criterion: QueryCriterion::MatchAny,
+                max_results: 1,
+                attributes: vec![attribute("assignee")],
+            })
+            .unwrap();
+        assert!(
+            matches!(&result.result_columns[0].values, Values::String(values) if values == &[JoiString::new()])
         );
     }
 
