@@ -1,8 +1,8 @@
 use crate::data_store::{
     AttributeColumn, AttributeName, ColumnDataType, ColumnDescription, ColumnReference, DataStore,
     DataStoreInsertMutation, DataStoreMutation, DataStoreMutationStep, DataStoreQuery,
-    DataStoreUpdateMutation, QueryCriterion, TableDescription, TableDescriptionProvider, TableName,
-    TestDataProvider, Values,
+    QueryCriterion, TableDescription, TableDescriptionProvider, TableName, TestDataProvider,
+    Values,
 };
 use crate::module::{Module, ModuleInfo};
 
@@ -127,39 +127,10 @@ impl TestDataProvider for TicketTestDataProvider {
         let existing = data_store.query(DataStoreQuery {
             table_name: TableName("tickets".into()),
             criterion: QueryCriterion::MatchAny,
-            max_results: 100,
-            attributes: vec![AttributeName("id".into()), AttributeName("assignee".into())],
+            max_results: 0,
+            attributes: Vec::new(),
         })?;
         if existing.number_of_hits > 0 {
-            let Values::String(ticket_ids) = &existing.result_columns[0].values else {
-                unreachable!()
-            };
-            let Values::String(assignees) = &existing.result_columns[1].values else {
-                unreachable!()
-            };
-            let missing = ticket_ids
-                .iter()
-                .zip(assignees)
-                .filter(|(_, assignee)| assignee.is_empty())
-                .collect::<Vec<_>>();
-            if !missing.is_empty() {
-                data_store.mutate(DataStoreMutation {
-                    steps: vec![DataStoreMutationStep::Update(DataStoreUpdateMutation {
-                        table_name: TableName("tickets".into()),
-                        ids: missing.iter().map(|(id, _)| (*id).clone()).collect(),
-                        columns: vec![AttributeColumn {
-                            attribute: AttributeName("assignee".into()),
-                            values: Values::String(
-                                missing
-                                    .iter()
-                                    .enumerate()
-                                    .map(|(index, _)| user_ids[index % user_ids.len()].clone())
-                                    .collect(),
-                            ),
-                        }],
-                    })],
-                })?;
-            }
             return Ok(());
         }
 
@@ -234,8 +205,9 @@ impl Module for TicketsModule {
 #[cfg(test)]
 mod tests {
     use crate::data_store::{
-        AttributeName, ColumnDataType, DataStore, DataStoreQuery, QueryCriterion,
-        TableDescriptionProvider, TestDataProvider, Values,
+        AttributeColumn, AttributeName, ColumnDataType, DataStore, DataStoreMutation,
+        DataStoreMutationStep, DataStoreQuery, QueryCriterion, TableDescriptionProvider,
+        TestDataProvider, Values,
     };
     use crate::sqlite_data_store::SqliteDataStore;
 
@@ -315,19 +287,37 @@ mod tests {
             Values::String(values) if values.iter().all(|value| ksuid::Ksuid::from_base62(value).is_ok())
         ));
 
+        let Values::String(ticket_ids) = &result.result_columns[0].values else {
+            unreachable!()
+        };
+        store
+            .mutate(DataStoreMutation {
+                steps: vec![DataStoreMutationStep::Update(
+                    crate::data_store::DataStoreUpdateMutation {
+                        table_name: crate::data_store::TableName("tickets".into()),
+                        ids: vec![ticket_ids[0].clone()],
+                        columns: vec![AttributeColumn {
+                            attribute: AttributeName("assignee".into()),
+                            values: Values::NullableString(vec![None]),
+                        }],
+                    },
+                )],
+            })
+            .unwrap();
         TicketTestDataProvider.insert_test_data(&mut store).unwrap();
-        assert_eq!(
-            store
-                .query(DataStoreQuery {
-                    table_name: crate::data_store::TableName("tickets".into()),
-                    criterion: QueryCriterion::MatchAny,
-                    max_results: 0,
-                    attributes: Vec::new(),
-                })
-                .unwrap()
-                .number_of_hits,
-            3
-        );
+        let after_reinitialization = store
+            .query(DataStoreQuery {
+                table_name: crate::data_store::TableName("tickets".into()),
+                criterion: QueryCriterion::MatchAny,
+                max_results: 10,
+                attributes: vec![AttributeName("assignee".into())],
+            })
+            .unwrap();
+        assert_eq!(after_reinitialization.number_of_hits, 3);
+        assert!(matches!(
+            &after_reinitialization.result_columns[0].values,
+            Values::String(values) if values[0].is_empty()
+        ));
     }
 
     #[test]

@@ -260,6 +260,27 @@ describe("workspace app", () => {
     expect(screen.getByRole("table", { name: "Active issues" })).toBeTruthy();
     const title = await screen.findByRole("textbox", { name: "Title" });
     const description = screen.getByRole("textbox", { name: "Description" });
+    const assignee = await screen.findByRole("combobox", { name: "Assignee" });
+    await waitFor(() => expect((assignee as HTMLSelectElement).value).toBe("user-1"));
+    await userEvent.selectOptions(assignee, "user-2");
+    await waitFor(() =>
+      expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+        "/api/mutate",
+        expect.objectContaining({
+          body: JSON.stringify({
+            steps: [
+              {
+                update: {
+                  table_name: "tickets",
+                  ids: ["0o5Fs0EELR0fUjHjbCnEtdUwQe3"],
+                  columns: [{ attribute: "assignee", values: { type: "string", values: ["user-2"] } }],
+                },
+              },
+            ],
+          }),
+        }),
+      ),
+    );
     const queryCallsBeforeSave = vi.mocked(fetch).mock.calls.filter(([input]) => input === "/api/query").length;
     await userEvent.clear(title);
     await userEvent.type(title, "Fix persistent navigation bug");

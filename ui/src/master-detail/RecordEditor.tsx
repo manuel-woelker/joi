@@ -211,22 +211,27 @@ function EditorField(props: { field: EditFieldDefinition }) {
         fallback={
           <select
             id={inputId}
-            value={formField.value}
             required={props.field.required}
             disabled={formField.disabled || lookupEntries.loading}
             aria-invalid={hasValidationMessages()}
             aria-describedby={hasValidationMessages() ? messagesId : undefined}
-            onInput={formField.onInput}
+            onChange={(event) => formField.setValue(event.currentTarget.value)}
             onBlur={formField.onBlur}
           >
-            <option value="">
+            <option value="" selected={formField.value === ""}>
               {lookupEntries.loading
                 ? "Loading..."
                 : props.field.optional
                   ? "Unassigned"
                   : `Select ${formField.label.toLowerCase()}`}
             </option>
-            <For each={lookupEntries()}>{(entry) => <option value={entry.id}>{entry.label}</option>}</For>
+            <For each={lookupEntries()}>
+              {(entry) => (
+                <option value={entry.id} selected={formField.value === entry.id}>
+                  {entry.label}
+                </option>
+              )}
+            </For>
           </select>
         }
       >
