@@ -261,8 +261,9 @@ describe("workspace app", () => {
     const title = await screen.findByRole("textbox", { name: "Title" });
     const description = screen.getByRole("textbox", { name: "Description" });
     const assignee = await screen.findByRole("combobox", { name: "Assignee" });
-    await waitFor(() => expect((assignee as HTMLSelectElement).value).toBe("user-1"));
-    await userEvent.selectOptions(assignee, "user-2");
+    await waitFor(() => expect((assignee as HTMLInputElement).value).toBe("Jane Developer"));
+    await userEvent.click(assignee);
+    await userEvent.click(await screen.findByRole("option", { name: "Joe Tester" }));
     await waitFor(() =>
       expect(vi.mocked(fetch)).toHaveBeenCalledWith(
         "/api/mutate",
@@ -410,7 +411,8 @@ describe("workspace app", () => {
     await userEvent.type(screen.getByRole("textbox", { name: "Key" }), "TEST-4");
     await userEvent.type(screen.getByRole("textbox", { name: "Title" }), "Create ticket workflow");
     await userEvent.type(screen.getByRole("textbox", { name: "Description" }), "Exercise explicit creation.");
-    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Assignee" }), "user-1");
+    await userEvent.click(screen.getByRole("combobox", { name: "Assignee" }));
+    await userEvent.click(await screen.findByRole("option", { name: "Jane Developer" }));
     await userEvent.click(screen.getByRole("button", { name: "Create" }));
 
     await waitFor(() => expect(window.location.hash).toMatch(/^#\/views\/view-active\/records\/[0-9A-Za-z]{27}$/));

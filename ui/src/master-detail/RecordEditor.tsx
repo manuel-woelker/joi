@@ -1,4 +1,4 @@
-import { For, Show, createMemo, createResource, createSignal, createUniqueId, type JSX } from "solid-js";
+import { For, Show, createMemo, createSignal, createUniqueId, type JSX } from "solid-js";
 
 import {
   Form,
@@ -9,11 +9,12 @@ import {
   type FormValues,
 } from "../components/form/Form";
 import { FormValidationMessages } from "../components/form/FormValidationMessages";
+import { Select } from "../components/Select";
 import type { QueryResult, QueryResultRow, QueryValue } from "../query/query-result";
 import type { FetchService } from "../services/fetch-service";
 import type { ValidationFunction } from "../validation/validation";
 import { notEmpty } from "../validation/validation-functions";
-import { useLookupService } from "../lookups/lookup";
+import { useLookupService, type LookupEntry } from "../lookups/lookup";
 import {
   validateMasterDetailDefinition,
   type CreateRecordDefinition,
@@ -196,10 +197,6 @@ function SaveStatus(props: { saved: () => boolean }) {
 function EditorField(props: { field: EditFieldDefinition }) {
   const formField = useFormField(props.field.attribute);
   const lookupService = props.field.lookup ? useLookupService() : undefined;
-  const [lookupEntries] = createResource(
-    () => props.field.lookup,
-    (lookup) => lookupService!.entries(lookup),
-  );
   const inputId = createUniqueId();
   const messagesId = `${inputId}-messages`;
   const hasValidationMessages = () => formField.validationMessages().some((failure) => failure.touched);
@@ -209,30 +206,25 @@ function EditorField(props: { field: EditFieldDefinition }) {
       <Show
         when={props.field.control !== "lookup"}
         fallback={
-          <select
+          <Select<LookupEntry>
             id={inputId}
+            ariaLabel={formField.label}
+            value={formField.value}
+            onChange={formField.setValue}
+            loadEntries={async () => {
+              const entries = await lookupService!.entries(props.field.lookup!);
+              return { entries, total: entries.length };
+            }}
+            entryId={(entry) => entry.id}
+            entryText={(entry) => entry.label}
+            emptyLabel={props.field.optional ? "Unassigned" : undefined}
+            placeholder={`Search ${formField.label.toLowerCase()}`}
             required={props.field.required}
-            disabled={formField.disabled || lookupEntries.loading}
-            aria-invalid={hasValidationMessages()}
-            aria-describedby={hasValidationMessages() ? messagesId : undefined}
-            onChange={(event) => formField.setValue(event.currentTarget.value)}
+            disabled={formField.disabled}
+            invalid={hasValidationMessages()}
+            describedBy={hasValidationMessages() ? messagesId : undefined}
             onBlur={formField.onBlur}
-          >
-            <option value="" selected={formField.value === ""}>
-              {lookupEntries.loading
-                ? "Loading..."
-                : props.field.optional
-                  ? "Unassigned"
-                  : `Select ${formField.label.toLowerCase()}`}
-            </option>
-            <For each={lookupEntries()}>
-              {(entry) => (
-                <option value={entry.id} selected={formField.value === entry.id}>
-                  {entry.label}
-                </option>
-              )}
-            </For>
-          </select>
+          />
         }
       >
         <Show
