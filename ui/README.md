@@ -29,8 +29,10 @@ domain objects. Persisted configurations continue to use attribute names and
 resolve them to column handles once per response.
 
 Record-oriented screens use a shared master-detail editor over the same
-columnar query result. Selecting a ticket or user keeps its table visible and
-opens an edit pane on the right. Code-defined entity descriptions are the
+columnar query result. A ticket row click selects it for contextual actions;
+double-click, Enter, or the visible Edit command opens its pane on the right.
+User rows currently open directly because they have no contextual actions.
+Code-defined entity descriptions are the
 canonical UI source for table names, identity attributes, attribute labels and
 types, default table columns, edit/create controls, initial values, and
 validation functions. Binding
@@ -48,7 +50,10 @@ which describe physical persistence and cannot contain executable TypeScript
 validation or UI controls.
 
 The shared `Form` context owns local field values and debounces changed values
-into atomic `/api/mutate` updates. Pending changes flush immediately when an
+into atomic `/api/mutate` updates. A shared mutation service serializes writes
+per record and publishes committed field changes to explicit subscribers.
+Tables and open forms reconcile those changes in place while preserving
+unrelated dirty form fields. Pending changes flush immediately when an
 editor unmounts. Saving does not refetch the owning query, so the table remains
 stable and focused editing is not disrupted; successful mutations write
 changed values into the existing reactive query rows so visible table cells
@@ -89,6 +94,16 @@ bootstrap discovers plugin modules with Vite's eager
 list is maintained. Registry construction first invokes every plugin's
 `registerExtensionPoints` callback, then invokes every `registerExtensions`
 callback, so extensions do not depend on plugin discovery order.
+
+Plugins contribute user-triggered UI actions through the `ui.actions`
+extension point. An action declares a branded ID, label, description, optional
+single-character hotkey, compatible entity types, availability predicate, and
+execution function. The action receives the authenticated user and a narrow
+active-target capability; it does not access backend transport or table
+internals. Hotkeys are case-insensitive and are ignored while focus is in an
+input, textarea, select, or editable element, while modifiers are held, or
+while another action is pending. The initial ticket action, **Assign to me**,
+uses `i` and updates the selected row without opening the editor or refetching.
 
 Plugins declare required and provided services as typed records. Registry
 construction validates providers, topologically sorts service dependencies,

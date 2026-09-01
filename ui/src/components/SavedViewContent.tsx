@@ -1,4 +1,4 @@
-import { For, Show, createMemo, createResource } from "solid-js";
+import { For, Show, createEffect, createMemo, createResource, createSignal, onCleanup } from "solid-js";
 
 import { bindEntity, createEntityTableColumns } from "../entities/bound-entity";
 import { createEntityEditorDefinition } from "../entities/entity-editor";
@@ -12,6 +12,9 @@ import { loadTickets } from "../workspace/ticket-api";
 import { DataTable } from "./DataTable";
 import { IconButton } from "./IconButton";
 import styles from "./ViewContent.module.css";
+import { useActions } from "../actions/ActionProvider";
+import type { EntityRecordActionTarget } from "../actions/action";
+import { useApplicationServices } from "../services/application-services";
 
 const ticketEditor = createEntityEditorDefinition(ticketEntity);
 
@@ -27,6 +30,9 @@ export function SavedViewCommands() {
 
 export function SavedViewContent() {
   const controller = useWorkspace();
+  const actions = useActions();
+  const { dataChanges, recordMutations } = useApplicationServices();
+  const [selectedRecordId, setSelectedRecordId] = createSignal<string>();
   const query = () => {
     const view = controller.selectedView();
     return view ? controller.workspace.queries[view.queryId] : undefined;
@@ -77,6 +83,63 @@ export function SavedViewContent() {
   const validation = () =>
     query() && presentation() ? validatePresentation(query()!, presentation()!) : "View configuration is incomplete.";
 
+  createEffect(() => {
+    const routedRecordId = controller.navigation.selectedRecordId();
+    if (routedRecordId) setSelectedRecordId(routedRecordId);
+  });
+  createEffect(() => {
+    const result = ticketRecords();
+    if (!result) return;
+    const unsubscribe = dataChanges.subscribe({ tableName: ticketEditor.tableName }, (change) => {
+      const identity = result.column(ticketEditor.identityAttribute);
+      const row = identity && result.rows.find((candidate) => candidate.value(identity) === change.recordId);
+      if (!row) return;
+      const updates = Object.entries(change.changes).flatMap(([attribute, value]) => {
+        const column = result.column(attribute);
+        return column ? [{ column, value }] : [];
+      });
+      if (updates.length) result.updateRow(row, updates);
+    });
+    onCleanup(unsubscribe);
+  });
+  createEffect(() => {
+    const id = selectedRecordId();
+    const identity = ticketRecords()?.column(ticketEditor.identityAttribute);
+    if (id && identity && !records().some((row) => row.value(identity) === id)) setSelectedRecordId(undefined);
+  });
+  const actionTarget = (): EntityRecordActionTarget | undefined => {
+    const result = ticketRecords();
+    const recordId = selectedRecordId();
+    const identity = result?.column(ticketEditor.identityAttribute);
+    const row =
+      identity && recordId ? result?.rows.find((candidate) => candidate.value(identity) === recordId) : undefined;
+    if (!result || !recordId || !row) return undefined;
+    const values = Object.freeze(
+      Object.fromEntries(result.columns.map((column) => [column.attribute, row.value(column)!])),
+    );
+    return {
+      type: "entity-record",
+      entityId: ticketEntity.id,
+      recordId,
+      values,
+      update: async (changes) => {
+        const changed = Object.fromEntries(
+          Object.entries(changes).filter(([attribute, value]) => values[attribute] !== value),
+        );
+        if (Object.keys(changed).length) await recordMutations.update(ticketEditor, recordId, changed);
+      },
+      activate: () => controller.selectRecord(recordId),
+    };
+  };
+  onCleanup(actions.registerTarget(actionTarget));
+  const selectTicket = (row: QueryResult["rows"][number]) => {
+    const id = rowId(row, ticketRecords()?.column("id"));
+    setSelectedRecordId(id);
+    if (id && (controller.navigation.selectedRecordId() || controller.navigation.creatingRecord())) {
+      controller.selectRecord(id);
+    }
+  };
+
   const master = (
     <>
       <div class={styles.viewToolbar}>
@@ -94,6 +157,14 @@ export function SavedViewContent() {
         <span class={styles.resultCount}>
           {ticketRecords.loading ? "Loading" : resultCount(ticketRecords(), records().length)}
         </span>
+        <button
+          type="button"
+          class={styles.secondary}
+          disabled={!selectedRecordId()}
+          onClick={() => selectedRecordId() && controller.selectRecord(selectedRecordId()!)}
+        >
+          Edit
+        </button>
       </div>
       <Show when={!validation()} fallback={<div class={styles.errorState}>{validation()}</div>}>
         <Show
@@ -132,12 +203,17 @@ export function SavedViewContent() {
                       {(row) => (
                         <article
                           tabIndex={0}
-                          role="link"
-                          onClick={() => openTicket(controller, row, ticketRecords()?.column("id"))}
+                          role="button"
+                          aria-pressed={rowId(row, ticketRecords()?.column("id")) === selectedRecordId()}
+                          onClick={() => selectTicket(row)}
+                          onDblClick={() => openTicket(controller, row, ticketRecords()?.column("id"))}
                           onKeyDown={(event) => {
-                            if (event.key === "Enter" || event.key === " ") {
+                            if (event.key === "Enter") {
                               event.preventDefault();
                               openTicket(controller, row, ticketRecords()?.column("id"));
+                            } else if (event.key === " ") {
+                              event.preventDefault();
+                              selectTicket(row);
                             }
                           }}
                         >
@@ -163,8 +239,10 @@ export function SavedViewContent() {
                   rows={records()}
                   columns={tableColumns()}
                   rowKey={ticketRecords()?.column("id")}
+                  selectedRowKey={selectedRecordId()}
                   density={presentation()?.density}
-                  onRowClick={(row) => openTicket(controller, row, ticketRecords()?.column("id"))}
+                  onRowSelect={selectTicket}
+                  onRowActivate={(row) => openTicket(controller, row, ticketRecords()?.column("id"))}
                 />
               </Show>
             </Show>
@@ -192,6 +270,11 @@ export function SavedViewContent() {
       onClose={() => controller.closeRecord()}
     />
   );
+}
+
+function rowId(row: QueryResult["rows"][number], idColumn: QueryColumnHandle | undefined): string | undefined {
+  const id = idColumn ? row.value(idColumn) : undefined;
+  return typeof id === "string" ? id : undefined;
 }
 
 function hasRecord(result: QueryResult | null | undefined, id: string): boolean {

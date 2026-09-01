@@ -1,0 +1,8 @@
+.commands { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.action { position: relative; padding: 7px 11px; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-surface); font-size: 13px; font-weight: 650; }
+.action:hover, .action:focus-visible { border-color: var(--color-primary); background: var(--color-surface-muted); }
+.action:disabled { cursor: wait; opacity: .6; }
+.tooltip { position: absolute; z-index: 20; top: calc(100% + 6px); right: 0; display: none; width: max-content; max-width: 260px; padding: 7px 9px; border: 1px solid var(--color-border); border-radius: 4px; color: var(--color-text); background: var(--color-surface); box-shadow: 0 5px 16px rgb(0 0 0 / 14%); font-size: 12px; font-weight: 400; text-align: left; }
+.action:hover .tooltip, .action:focus-visible .tooltip { display: block; }
+.hotkey { margin-left: 8px; color: var(--color-text-muted); }
+.error { color: var(--color-danger, #a12622); font-size: 12px; }

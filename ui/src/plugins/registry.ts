@@ -4,6 +4,7 @@ export interface ExtensionPoint<T> {
   readonly id: string;
   readonly description: string;
   readonly key: symbol;
+  readonly validate?: (extensions: readonly T[]) => void;
   readonly __type?: T;
 }
 export interface ExtensionInfo {
@@ -112,8 +113,12 @@ export function plugin<const R extends ServiceDefinitions = {}, const P extends 
   };
 }
 
-export function extensionPoint<T>(id: string, description: string): ExtensionPoint<T> {
-  return { id, description, key: Symbol(id) };
+export function extensionPoint<T>(
+  id: string,
+  description: string,
+  validate?: (extensions: readonly T[]) => void,
+): ExtensionPoint<T> {
+  return { id, description, key: Symbol(id), validate };
 }
 
 export class PluginRegistryBuilder {
@@ -161,6 +166,9 @@ export class PluginRegistryBuilder {
       replaceMap(extensions, staged);
       replaceSet(extensionIds, stagedIds);
       pluginInfo[index] = { ...pluginInfo[index], extensions: added.map((extension) => extension.id) };
+    }
+    for (const [key, point] of points) {
+      point.validate?.((extensions.get(key) ?? []).map((extension) => extension.value));
     }
     return new PluginRegistry(pluginInfo, points, extensions);
   }

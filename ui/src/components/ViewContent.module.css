@@ -1,6 +1,7 @@
 .workspaceMain { min-width: 0; margin-left: var(--sidebar-width); padding: 28px 34px 76px; }
 .viewHeading, .viewToolbar { display: flex; max-width: 1080px; margin-right: auto; margin-left: auto; }
 .viewHeading { align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 22px; }
+.headingCommands { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
 .eyebrow { margin: 0 0 5px; color: var(--color-primary); font-size: 11px; font-weight: 750; text-transform: uppercase; }
 .viewHeading h1, .emptyState h1, .emptyState h2 { margin: 0; }
 .viewHeading h1 { color: var(--color-primary-dark); font-size: 28px; line-height: 1.2; }

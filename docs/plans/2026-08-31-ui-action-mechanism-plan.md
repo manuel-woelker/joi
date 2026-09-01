@@ -204,39 +204,39 @@ extension contract and hotkey restrictions in `ui/README.md`.
 
 ## Implementation Checklist
 
-- [ ] Add branded action IDs, hotkey normalization, compatible entity-type
+- [x] Add branded action IDs, hotkey normalization, compatible entity-type
       metadata, `UiAction`, action context, entity-record target, and action
       extension-point types.
-- [ ] Add a core actions plugin that registers the extension point and validate
+- [x] Add a core actions plugin that registers the extension point and validate
       action metadata, duplicate IDs, and duplicate normalized hotkeys.
-- [ ] Implement `ActionProvider` and hooks for target registration, available
+- [x] Implement `ActionProvider` and hooks for target registration, available
       actions, pending/error state, and guarded execution.
-- [ ] Add controlled single-row selection to `DataTable`, selection styling,
+- [x] Add controlled single-row selection to `DataTable`, selection styling,
       an explicit Edit command, and selection cleanup when rows/views change.
-- [ ] Add one global hotkey dispatcher with editable-element, modifier,
+- [x] Add one global hotkey dispatcher with editable-element, modifier,
       composition, availability, and pending guards.
-- [ ] Refactor record updates into a shared mutation controller that serializes
+- [x] Refactor record updates into a shared mutation controller that serializes
       writes and publishes committed changes without refetching.
-- [ ] Implement the typed `DataChangeService`, plugin service registration,
+- [x] Implement the typed `DataChangeService`, plugin service registration,
       filtered subscriptions, safe unsubscription, ordered delivery, and
       listener-error isolation.
-- [ ] Subscribe query results and open forms to relevant committed changes;
+- [x] Subscribe query results and open forms to relevant committed changes;
       preserve unrelated dirty fields and focus during form reconciliation.
-- [ ] Register the selected table row as the active action target independently
+- [x] Register the selected table row as the active action target independently
       of editor visibility, and synchronize edit-route records back to selection.
-- [ ] Render available actions in the view command area with labels,
+- [x] Render available actions in the view command area with labels,
       descriptions, hotkey hints, pending state, and accessible errors.
-- [ ] Add the ticket action plugin contributing Assign to me with hotkey `i`.
-- [ ] Add unit tests for action validation, availability, execution, hotkey
+- [x] Add the ticket action plugin contributing Assign to me with hotkey `i`.
+- [x] Add unit tests for action validation, availability, execution, hotkey
       guards, compatible entity filtering, duplicate prevention, failures, and
       target cleanup.
-- [ ] Add integration tests proving Assign to me updates the backend payload,
+- [x] Add integration tests proving Assign to me updates the backend payload,
       ticket table, subscribed assignee combobox when already open, and saved
       form baseline without opening an editor, refetching, or losing focus.
-- [ ] Add application tests for mouse and `i` activation, no selection, input
+- [x] Add application tests for mouse and `i` activation, no selection, input
       focus, an already assigned ticket, navigation between records, and
       backend failure.
-- [ ] Document action contributions and hotkey behavior in `ui/README.md`.
+- [x] Document action contributions and hotkey behavior in `ui/README.md`.
 
 ## What assumptions does the plan make?
 

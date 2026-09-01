@@ -1,6 +1,6 @@
-import { cleanup, render, screen } from "@solidjs/testing-library";
+import { cleanup, fireEvent, render, screen } from "@solidjs/testing-library";
 import { createSignal } from "solid-js";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { parseQueryResponse } from "../query/query-result";
 import { DataTable, type DataTableColumn } from "./DataTable";
@@ -77,5 +77,30 @@ describe("DataTable", () => {
 
     expect(screen.getByText("Grace")).toBeTruthy();
     expect(screen.getByRole("table", { name: "People" })).toBe(table);
+  });
+
+  it("separates row selection from activation", () => {
+    const result = createResult("Jane", 34);
+    const select = vi.fn();
+    const activate = vi.fn();
+    render(() => (
+      <DataTable
+        ariaLabel="People"
+        result={result}
+        columns={[{ column: result.requireColumn("name"), header: "Name" }]}
+        rowKey={result.requireColumn("name")}
+        selectedRowKey="Jane"
+        onRowSelect={select}
+        onRowActivate={activate}
+      />
+    ));
+    const row = screen.getByRole("row", { name: "Jane" });
+    expect(row.getAttribute("aria-selected")).toBe("true");
+    fireEvent.click(row);
+    expect(select).toHaveBeenCalledOnce();
+    expect(activate).not.toHaveBeenCalled();
+    fireEvent.dblClick(row);
+    fireEvent.keyDown(row, { key: "Enter" });
+    expect(activate).toHaveBeenCalledTimes(2);
   });
 });

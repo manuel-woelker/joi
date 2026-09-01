@@ -23,7 +23,8 @@ function InteractiveTable() {
         result={result}
         density="compact"
         rowKey={result.requireColumn("key")}
-        onRowClick={(row) => setSelected(String(row.value(result.requireColumn("key"))))}
+        selectedRowKey={selected() === "None" ? undefined : selected()}
+        onRowSelect={(row) => setSelected(String(row.value(result.requireColumn("key"))))}
         columns={[
           { column: result.requireColumn("key"), header: "Key", width: 100 },
           { column: result.requireColumn("title"), header: "Title" },

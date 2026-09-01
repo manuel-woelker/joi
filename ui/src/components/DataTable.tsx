@@ -18,7 +18,9 @@ export interface DataTableProps {
   readonly columns: readonly DataTableColumn[];
   readonly density?: "compact" | "comfortable";
   readonly rowKey?: QueryColumnHandle;
-  readonly onRowClick?: (row: QueryResultRow) => void;
+  readonly selectedRowKey?: QueryValue;
+  readonly onRowSelect?: (row: QueryResultRow) => void;
+  readonly onRowActivate?: (row: QueryResultRow) => void;
 }
 
 export function DataTable(props: DataTableProps) {
@@ -75,13 +77,18 @@ export function DataTable(props: DataTableProps) {
             {(row) => (
               <tr
                 data-row-id={row.id}
-                class={props.onRowClick ? styles.clickableRow : undefined}
-                tabIndex={props.onRowClick ? 0 : undefined}
-                onClick={() => props.onRowClick?.(row.original)}
+                class={props.onRowSelect || props.onRowActivate ? styles.clickableRow : undefined}
+                tabIndex={props.onRowSelect || props.onRowActivate ? 0 : undefined}
+                aria-selected={isSelected(props, row.original)}
+                onClick={() => props.onRowSelect?.(row.original)}
+                onDblClick={() => props.onRowActivate?.(row.original)}
                 onKeyDown={(event) => {
-                  if (props.onRowClick && (event.key === "Enter" || event.key === " ")) {
+                  if (event.key === "Enter" && props.onRowActivate) {
                     event.preventDefault();
-                    props.onRowClick(row.original);
+                    props.onRowActivate(row.original);
+                  } else if (event.key === " " && props.onRowSelect) {
+                    event.preventDefault();
+                    props.onRowSelect(row.original);
                   }
                 }}
               >
@@ -95,6 +102,11 @@ export function DataTable(props: DataTableProps) {
       </table>
     </div>
   );
+}
+
+function isSelected(props: DataTableProps, row: QueryResultRow): boolean | undefined {
+  if (!props.rowKey || props.selectedRowKey === undefined) return undefined;
+  return row.value(props.rowKey) === props.selectedRowKey;
 }
 
 function DataTableCell(props: { definition: DataTableColumn; row: QueryResultRow }) {

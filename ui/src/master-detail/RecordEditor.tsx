@@ -1,4 +1,4 @@
-import { For, Show, createMemo, createSignal, createUniqueId, type JSX } from "solid-js";
+import { For, Show, createMemo, createSignal, createUniqueId, onCleanup, type JSX } from "solid-js";
 
 import {
   Form,
@@ -15,13 +15,19 @@ import type { FetchService } from "../services/fetch-service";
 import type { ValidationFunction } from "../validation/validation";
 import { notEmpty } from "../validation/validation-functions";
 import { useLookupService, type LookupEntry } from "../lookups/lookup";
+import { useOptionalApplicationServices } from "../services/application-services";
+import {
+  DataChangeService,
+  type DataChangeService as DataChangeServiceType,
+} from "../data-changes/data-change-service";
+import { RecordMutationService } from "../data-changes/record-mutation-service";
 import {
   validateMasterDetailDefinition,
   type CreateRecordDefinition,
   type EditFieldDefinition,
   type MasterDetailDefinition,
 } from "./definition";
-import { createRecord, updateRecord, type RecordFieldValue } from "./record-api";
+import { createRecord, type RecordFieldValue } from "./record-api";
 import styles from "./RecordEditor.module.css";
 
 export type EntityEditorMode =
@@ -51,6 +57,10 @@ function EditRecordEditor(props: {
   onClose: () => void;
 }) {
   const [saved, setSaved] = createSignal(false);
+  const applicationServices = useOptionalApplicationServices();
+  const dataChanges = applicationServices?.dataChanges ?? new DataChangeService();
+  const recordMutations =
+    applicationServices?.recordMutations ?? new RecordMutationService(props.fetchService, dataChanges);
   const validationError = createMemo(() => {
     try {
       validateMasterDetailDefinition(props.mode.result, props.definition);
@@ -64,14 +74,11 @@ function EditRecordEditor(props: {
     const values = fieldValues(props.definition.fields, changes);
     if (values instanceof Error) throw values;
     setSaved(false);
-    await updateRecord(props.fetchService, props.definition, props.mode.recordId, values);
-    const currentRow = row();
-    if (currentRow) {
-      props.mode.result.updateRow(
-        currentRow,
-        values.map(({ field, value }) => ({ column: props.mode.result.requireColumn(field.attribute), value })),
-      );
-    }
+    await recordMutations.update(
+      props.definition,
+      props.mode.recordId,
+      Object.fromEntries(values.map(({ field, value }) => [field.attribute, value])),
+    );
     setSaved(true);
   };
 
@@ -85,6 +92,13 @@ function EditRecordEditor(props: {
                 model={editFormModel(props.mode.result, props.definition, currentRow())}
                 persistence={{ type: "autosave", onSave: save }}
               >
+                <RecordChangeSubscriber
+                  dataChanges={dataChanges}
+                  tableName={props.definition.tableName}
+                  recordId={props.mode.recordId}
+                  result={props.mode.result}
+                  identityAttribute={props.definition.identityAttribute}
+                />
                 <EditorLayout
                   title={props.definition.detailTitle}
                   fields={props.definition.fields}
@@ -99,6 +113,32 @@ function EditRecordEditor(props: {
       </Show>
     </Show>
   );
+}
+
+function RecordChangeSubscriber(props: {
+  dataChanges: DataChangeServiceType;
+  tableName: string;
+  recordId: string;
+  result: QueryResult;
+  identityAttribute: string;
+}) {
+  const form = useFormState();
+  const unsubscribe = props.dataChanges.subscribe(
+    { tableName: props.tableName, recordId: props.recordId },
+    (change) => {
+      form.reconcile(Object.fromEntries(Object.entries(change.changes).map(([key, value]) => [key, String(value)])));
+      const identity = props.result.column(props.identityAttribute);
+      const row = identity && props.result.rows.find((candidate) => candidate.value(identity) === props.recordId);
+      if (!row) return;
+      const updates = Object.entries(change.changes).flatMap(([attribute, value]) => {
+        const column = props.result.column(attribute);
+        return column ? [{ column, value }] : [];
+      });
+      if (updates.length) props.result.updateRow(row, updates);
+    },
+  );
+  onCleanup(unsubscribe);
+  return null;
 }
 
 function CreateRecordEditor(props: {

@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@solidjs/testing-library";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@solidjs/testing-library";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -252,7 +252,7 @@ describe("workspace app", () => {
 
   it("opens and autosaves a ticket", async () => {
     render(() => <App />);
-    await userEvent.click(await screen.findByText("Fix navigation bug"));
+    await userEvent.dblClick(await screen.findByText("Fix navigation bug"));
 
     expect(window.location.hash).toBe("#/views/view-active/records/0o5Fs0EELR0fUjHjbCnEtdUwQe3");
     expect(screen.getByRole("heading", { name: "Active issues" })).toBeTruthy();
@@ -322,6 +322,58 @@ describe("workspace app", () => {
     await userEvent.click(screen.getByRole("button", { name: "Close details" }));
     expect(window.location.hash).toBe("#/views/view-active");
     expect(screen.queryByRole("heading", { name: "Ticket details" })).toBeNull();
+  });
+
+  it("shows a newly selected ticket in an already open detail pane", async () => {
+    render(() => <App />);
+    await userEvent.dblClick(await screen.findByText("Fix navigation bug"));
+    expect(((await screen.findByRole("textbox", { name: "Title" })) as HTMLInputElement).value).toBe(
+      "Fix navigation bug",
+    );
+
+    await userEvent.click(screen.getByRole("row", { name: /TEST-2 Add issue filters/ }));
+
+    expect(window.location.hash).toBe("#/views/view-active/records/0o5Fs0EELR0fUjHjbCnEtdUwQe4");
+    expect((screen.getByRole("textbox", { name: "Title" }) as HTMLInputElement).value).toBe("Add issue filters");
+  });
+
+  it("assigns a selected ticket without opening its editor or refetching", async () => {
+    render(() => <App />);
+    const row = await screen.findByRole("row", { name: /TEST-2 Add issue filters/ });
+    await userEvent.click(row);
+
+    expect(window.location.hash).toBe("");
+    expect(screen.queryByRole("heading", { name: "Ticket details" })).toBeNull();
+    expect(screen.getByRole("button", { name: /Assign to me/ })).toBeTruthy();
+    const queryCalls = vi.mocked(fetch).mock.calls.filter(([input]) => input === "/api/query").length;
+    const search = screen.getByPlaceholderText("Search this view");
+    search.focus();
+    fireEvent.keyDown(search, { key: "i" });
+    expect(vi.mocked(fetch).mock.calls.filter(([input]) => input === "/api/mutate")).toHaveLength(0);
+    search.blur();
+    fireEvent.keyDown(document, { key: "i" });
+
+    await waitFor(() =>
+      expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+        "/api/mutate",
+        expect.objectContaining({
+          body: JSON.stringify({
+            steps: [
+              {
+                update: {
+                  table_name: "tickets",
+                  ids: ["0o5Fs0EELR0fUjHjbCnEtdUwQe4"],
+                  columns: [{ attribute: "assignee", values: { type: "string", values: ["user-1"] } }],
+                },
+              },
+            ],
+          }),
+        }),
+      ),
+    );
+    expect(await within(row).findByText("Jane Developer")).toBeTruthy();
+    expect(window.location.hash).toBe("");
+    expect(vi.mocked(fetch).mock.calls.filter(([input]) => input === "/api/query")).toHaveLength(queryCalls);
   });
 
   it("restores a selected record from the URL", async () => {

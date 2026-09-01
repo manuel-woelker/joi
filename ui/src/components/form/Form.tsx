@@ -93,6 +93,7 @@ interface FormContextValue {
   readonly setTouched: (fieldId: string) => void;
   readonly reset: () => void;
   readonly submit: () => Promise<boolean>;
+  readonly reconcile: (changes: FormChanges) => void;
 }
 
 /** Reactive state shared by all controls in a form. */
@@ -115,6 +116,8 @@ export interface FormRuntimeState {
   readonly submit: () => Promise<boolean>;
   /** Restores the most recently saved values and clears touched state. */
   readonly reset: () => void;
+  /** Applies values persisted outside this form while preserving locally dirty fields. */
+  readonly reconcile: (changes: FormChanges) => void;
 }
 
 /** Reactive field state exposed to form controls. */
@@ -246,6 +249,15 @@ export function Form(props: FormProps) {
     setDirty(false);
     setSaveError(undefined);
   };
+  const reconcile = (changes: FormChanges) => {
+    for (const [fieldId, value] of Object.entries(changes)) {
+      if (!(fieldId in submittedValues)) continue;
+      const locallyDirty = isDirty(fieldId);
+      submittedValues[fieldId] = value;
+      if (!locallyDirty) setState("values", fieldId, value);
+    }
+    setDirty(hasChanges());
+  };
   const submit = async (): Promise<boolean> => {
     if (props.persistence?.type !== "submit") throw new Error("Form is not configured for explicit submission");
     if (saving()) return false;
@@ -278,7 +290,20 @@ export function Form(props: FormProps) {
 
   return (
     <FormContext.Provider
-      value={{ model, state, dirty, validationResult, saving, saveError, isDirty, setValue, setTouched, reset, submit }}
+      value={{
+        model,
+        state,
+        dirty,
+        validationResult,
+        saving,
+        saveError,
+        isDirty,
+        setValue,
+        setTouched,
+        reset,
+        submit,
+        reconcile,
+      }}
     >
       {props.children}
     </FormContext.Provider>
@@ -299,6 +324,7 @@ export function useFormState(): FormRuntimeState {
     values: () => Object.freeze({ ...form.state.values }),
     submit: form.submit,
     reset: form.reset,
+    reconcile: form.reconcile,
   };
 }
 

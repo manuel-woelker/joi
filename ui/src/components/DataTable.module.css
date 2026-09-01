@@ -45,3 +45,5 @@
 
 .clickableRow { cursor: pointer; }
 .clickableRow:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+.table tbody tr[aria-selected="true"] { background: var(--color-primary-soft); }
+.table tbody tr[aria-selected="true"] td:first-child { box-shadow: inset 3px 0 var(--color-primary); }

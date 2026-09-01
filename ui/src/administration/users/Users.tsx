@@ -43,7 +43,7 @@ export function Users(props: { fetchService: FetchService }) {
                     columns={createEntityTableColumns(entity)}
                     rowKey={entity.identity}
                     density="compact"
-                    onRowClick={(row) => {
+                    onRowSelect={(row) => {
                       const id = row.value(entity.identity);
                       if (typeof id === "string") controller.selectRecord(id);
                     }}

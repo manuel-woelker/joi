@@ -3,6 +3,7 @@ import { Dynamic } from "solid-js/web";
 
 import type { ApplicationView } from "../views/view";
 import styles from "./ViewContent.module.css";
+import { ActionCommands } from "../actions/ActionCommands";
 
 export function ViewContent(props: { view?: ApplicationView }) {
   return (
@@ -24,7 +25,10 @@ export function ViewContent(props: { view?: ApplicationView }) {
                 <h1>{view().name}</h1>
                 <Show when={view().description}>{(description) => <p>{description()}</p>}</Show>
               </div>
-              <Show when={view().commands}>{(Commands) => <Dynamic component={Commands()} />}</Show>
+              <div class={styles.headingCommands}>
+                <Show when={view().commands}>{(Commands) => <Dynamic component={Commands()} />}</Show>
+                <ActionCommands />
+              </div>
             </div>
             <Dynamic component={view().content} />
           </>

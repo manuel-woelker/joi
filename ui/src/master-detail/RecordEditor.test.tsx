@@ -4,6 +4,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { parseQueryResponse } from "../query/query-result";
 import { FetchService } from "../services/fetch-service";
+import { ApplicationServicesProvider } from "../services/application-services";
+import { DataChangeService } from "../data-changes/data-change-service";
+import { RecordMutationService } from "../data-changes/record-mutation-service";
 import { RecordEditor } from "./RecordEditor";
 
 afterEach(cleanup);
@@ -114,5 +117,46 @@ describe("RecordEditor", () => {
 
     await Promise.resolve();
     expect(screen.queryByText("Saved")).toBeNull();
+  });
+
+  it("reconciles external changes without replacing dirty fields or focus", async () => {
+    const fetchService = new FetchService(async () => ({ ok: true, json: async () => ({}) }) as Response);
+    const dataChanges = new DataChangeService();
+    const result = parseQueryResponse({
+      number_of_hits: 1,
+      result_columns: [
+        { attribute: "id", values: { type: "string", values: ["record-1"] } },
+        { attribute: "title", values: { type: "string", values: ["Before"] } },
+        { attribute: "description", values: { type: "string", values: ["Old description"] } },
+      ],
+    });
+    render(() => (
+      <ApplicationServicesProvider
+        services={{ dataChanges, recordMutations: new RecordMutationService(fetchService, dataChanges) }}
+      >
+        <RecordEditor
+          definition={{
+            tableName: "records",
+            identityAttribute: "id",
+            detailTitle: "Record details",
+            fields: [
+              { attribute: "title", label: "Title", control: "text" },
+              { attribute: "description", label: "Description", control: "text" },
+            ],
+          }}
+          fetchService={fetchService}
+          mode={{ type: "edit", result, recordId: "record-1" }}
+          onClose={() => undefined}
+        />
+      </ApplicationServicesProvider>
+    ));
+
+    const title = screen.getByRole("textbox", { name: "Title" });
+    await userEvent.type(title, " locally edited");
+    dataChanges.publish({ tableName: "records", recordId: "record-1", changes: { description: "Externally changed" } });
+
+    expect((title as HTMLInputElement).value).toBe("Before locally edited");
+    expect((screen.getByRole("textbox", { name: "Description" }) as HTMLInputElement).value).toBe("Externally changed");
+    expect(document.activeElement).toBe(title);
   });
 });
