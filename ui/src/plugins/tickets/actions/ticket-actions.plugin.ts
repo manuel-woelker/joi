@@ -3,6 +3,7 @@ import { actionContributions } from "../../../actions/contribution";
 import { plugin } from "../../registry";
 
 export const assignToMeActionId = actionId("tickets.assign-to-me");
+export const unassignActionId = actionId("tickets.unassign");
 
 export default plugin({
   name: "Ticket actions",
@@ -21,6 +22,25 @@ export default plugin({
         isAvailable: ({ target }) => target?.type === "entity-record",
         execute: async ({ currentUser, target }) => {
           await (target as EntityRecordActionTarget).update({ assignee: currentUser.id });
+        },
+      },
+    });
+    context.registerExtension({
+      point: actionContributions,
+      id: unassignActionId,
+      description: "Removes the assignee from the selected ticket.",
+      value: {
+        id: unassignActionId,
+        label: "Unassign",
+        description: "Remove the assignee from the selected ticket.",
+        hotkey: "u",
+        compatibleEntityTypes: ["tickets"],
+        isAvailable: ({ target }) =>
+          target?.type === "entity-record" &&
+          typeof target.values.assignee === "string" &&
+          target.values.assignee !== "",
+        execute: async ({ target }) => {
+          await (target as EntityRecordActionTarget).update({ assignee: "" });
         },
       },
     });

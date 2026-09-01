@@ -376,6 +376,39 @@ describe("workspace app", () => {
     expect(vi.mocked(fetch).mock.calls.filter(([input]) => input === "/api/query")).toHaveLength(queryCalls);
   });
 
+  it("unassigns a selected ticket with the u hotkey", async () => {
+    render(() => <App />);
+    const row = await screen.findByRole("row", { name: /TEST-1 Fix navigation bug/ });
+    await userEvent.click(row);
+    const queryCalls = vi.mocked(fetch).mock.calls.filter(([input]) => input === "/api/query").length;
+
+    expect(screen.getByRole("button", { name: /Unassign/ })).toBeTruthy();
+    fireEvent.keyDown(document, { key: "u" });
+
+    await waitFor(() =>
+      expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+        "/api/mutate",
+        expect.objectContaining({
+          body: JSON.stringify({
+            steps: [
+              {
+                update: {
+                  table_name: "tickets",
+                  ids: ["0o5Fs0EELR0fUjHjbCnEtdUwQe3"],
+                  columns: [{ attribute: "assignee", values: { type: "nullable_string", values: [null] } }],
+                },
+              },
+            ],
+          }),
+        }),
+      ),
+    );
+    expect(await within(row).findByText("Unassigned")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Unassign/ })).toBeNull();
+    expect(window.location.hash).toBe("");
+    expect(vi.mocked(fetch).mock.calls.filter(([input]) => input === "/api/query")).toHaveLength(queryCalls);
+  });
+
   it("restores a selected record from the URL", async () => {
     window.location.hash = "/administration/users/records/user-2";
     render(() => <App />);

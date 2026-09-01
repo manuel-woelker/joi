@@ -104,6 +104,8 @@ internals. Hotkeys are case-insensitive and are ignored while focus is in an
 input, textarea, select, or editable element, while modifiers are held, or
 while another action is pending. The initial ticket action, **Assign to me**,
 uses `i` and updates the selected row without opening the editor or refetching.
+The complementary **Unassign** action uses `u` and is available when the
+selected ticket has an assignee.
 
 Plugins declare required and provided services as typed records. Registry
 construction validates providers, topologically sorts service dependencies,
