@@ -10,6 +10,7 @@ import {
   useContext,
 } from "solid-js";
 import { Portal } from "solid-js/web";
+import { KeyboardShortcut } from "../KeyboardShortcut";
 import styles from "./ContextMenu.module.css";
 import {
   type ContextMenuController,
@@ -224,7 +225,9 @@ function ContextMenuItem(props: {
         </span>
         <span class={styles.entryLine}>
           <span class={styles.label}>{props.entry.label}</span>
-          <Show when={props.entry.keyboardHint}>{(hint) => <kbd class={styles.hint}>{hint()}</kbd>}</Show>
+          <Show when={props.entry.keyboardHint}>
+            {(hint) => <KeyboardShortcut class={styles.hint} shortcut={hint()} />}
+          </Show>
         </span>
       </button>
       <Show when={tooltipVisible() && button && props.entry.description}>

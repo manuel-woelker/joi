@@ -36,7 +36,7 @@
 .icon { display: grid; width: 20px; height: 20px; place-items: center; font-size: 14px; }
 .entryLine { display: flex; min-width: 0; align-items: baseline; justify-content: space-between; gap: 18px; }
 .label { min-width: 0; overflow-wrap: anywhere; font-size: 13px; font-weight: 650; }
-.hint { flex: none; padding: 0; border: 0; color: var(--color-text-muted); background: transparent; font: inherit; font-size: 11px; }
+.hint { flex: none; color: var(--color-text-muted); }
 .tooltip {
   position: fixed;
   z-index: 1001;
