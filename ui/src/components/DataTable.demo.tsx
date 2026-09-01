@@ -71,7 +71,7 @@ export default {
     },
     {
       name: "Interactive rows",
-      description: "Rows support mouse and keyboard activation.",
+      description: "Rows support selection, arrow-key navigation, and keyboard activation.",
       render: () => <InteractiveTable />,
     },
   ],

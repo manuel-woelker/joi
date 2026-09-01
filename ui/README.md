@@ -77,9 +77,11 @@ does not yet provide optimistic updates, conflict detection, custom controls,
 or a normalized entity cache.
 
 Tabular views use TanStack Table as a headless row and cell model over these
-query results. Joi retains native table markup and its own styling. Sorting,
-pagination, column resizing, selection, and virtualization are intentionally
-deferred until their interaction requirements are clear. All backend HTTP
+query results. Joi retains native table markup and its own styling. Interactive
+tables use one tab stop; Up/Down moves row selection, Home/End jumps to a
+boundary, Space selects, and Enter activates the focused row. Sorting,
+pagination, column resizing, multi-row selection, and virtualization are
+intentionally deferred until their interaction requirements are clear. All backend HTTP
 communication runs through the injectable `FetchService`. Permissions,
 sharing, and workspace synchronization are not yet implemented.
 

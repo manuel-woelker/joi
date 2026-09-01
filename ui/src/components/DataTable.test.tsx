@@ -103,4 +103,45 @@ describe("DataTable", () => {
     fireEvent.keyDown(row, { key: "Enter" });
     expect(activate).toHaveBeenCalledTimes(2);
   });
+
+  it("moves row focus and selection with arrow, Home, and End keys", () => {
+    const result = parseQueryResponse({
+      number_of_hits: 3,
+      result_columns: [
+        { attribute: "name", values: { type: "string", values: ["Jane", "Joe", "Alex"] } },
+        { attribute: "age", values: { type: "int", values: [34, 41, 29] } },
+      ],
+    });
+    const select = vi.fn();
+    render(() => (
+      <DataTable
+        ariaLabel="People"
+        result={result}
+        columns={[{ column: result.requireColumn("name"), header: "Name" }]}
+        rowKey={result.requireColumn("name")}
+        onRowSelect={select}
+      />
+    ));
+    const jane = screen.getByRole("row", { name: "Jane" });
+    const joe = screen.getByRole("row", { name: "Joe" });
+    const alex = screen.getByRole("row", { name: "Alex" });
+    expect(jane.tabIndex).toBe(0);
+    expect(joe.tabIndex).toBe(-1);
+
+    jane.focus();
+    fireEvent.keyDown(jane, { key: "ArrowDown" });
+    expect(document.activeElement).toBe(joe);
+    expect(select).toHaveBeenLastCalledWith(result.rows[1]);
+    expect(joe.tabIndex).toBe(0);
+    fireEvent.keyDown(joe, { key: "End" });
+    expect(document.activeElement).toBe(alex);
+    expect(select).toHaveBeenLastCalledWith(result.rows[2]);
+    fireEvent.keyDown(alex, { key: "Home" });
+    expect(document.activeElement).toBe(jane);
+    expect(select).toHaveBeenLastCalledWith(result.rows[0]);
+    const selectionCount = select.mock.calls.length;
+    fireEvent.keyDown(jane, { key: "ArrowUp" });
+    expect(document.activeElement).toBe(jane);
+    expect(select).toHaveBeenCalledTimes(selectionCount);
+  });
 });
