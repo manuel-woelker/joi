@@ -167,3 +167,29 @@ pnpm build
 
 From the repository root, `nao ui` starts the same development server at
 `http://localhost:5173`.
+## How do UI components work?
+
+### How are context menus opened?
+
+Mount one `ContextMenuProvider` around the application surface and call the
+controller from a mouse event handler. Entries are created at opening time, so
+they can reflect the current selection and action availability:
+
+```tsx
+const contextMenu = useContextMenu();
+
+contextMenu.open({
+  event,
+  createGroups: () => [{
+    id: contextMenuGroupId("record-actions"),
+    entries: actionsToContextMenuEntries(actions.availableActions(), {
+      disabled: Boolean(actions.pendingAction()),
+      execute: actions.execute,
+    }),
+  }],
+});
+```
+
+The provider portals the menu to the document body, keeps it inside the
+viewport, and owns dismissal and keyboard navigation. Keep entry factories
+synchronous and inexpensive; load remote state before opening the menu.

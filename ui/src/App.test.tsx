@@ -409,6 +409,59 @@ describe("workspace app", () => {
     expect(vi.mocked(fetch).mock.calls.filter(([input]) => input === "/api/query")).toHaveLength(queryCalls);
   });
 
+  it("runs ticket actions from the row context menu", async () => {
+    render(() => <App />);
+    const row = await screen.findByRole("row", { name: /TEST-2 Add issue filters/ });
+    fireEvent.contextMenu(row, { clientX: 100, clientY: 120 });
+
+    expect(row.getAttribute("aria-selected")).toBe("true");
+    expect(window.location.hash).toBe("");
+    expect(screen.queryByRole("heading", { name: "Ticket details" })).toBeNull();
+    await userEvent.click(screen.getByRole("menuitem", { name: /Assign to me/ }));
+
+    await waitFor(() =>
+      expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+        "/api/mutate",
+        expect.objectContaining({
+          body: JSON.stringify({
+            steps: [
+              {
+                update: {
+                  table_name: "tickets",
+                  ids: ["0o5Fs0EELR0fUjHjbCnEtdUwQe4"],
+                  columns: [{ attribute: "assignee", values: { type: "string", values: ["user-1"] } }],
+                },
+              },
+            ],
+          }),
+        }),
+      ),
+    );
+    expect(await within(row).findByText("Jane Developer")).toBeTruthy();
+
+    fireEvent.contextMenu(row, { clientX: 100, clientY: 120 });
+    await userEvent.click(screen.getByRole("menuitem", { name: /Unassign/ }));
+    await waitFor(() =>
+      expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+        "/api/mutate",
+        expect.objectContaining({
+          body: JSON.stringify({
+            steps: [
+              {
+                update: {
+                  table_name: "tickets",
+                  ids: ["0o5Fs0EELR0fUjHjbCnEtdUwQe4"],
+                  columns: [{ attribute: "assignee", values: { type: "nullable_string", values: [null] } }],
+                },
+              },
+            ],
+          }),
+        }),
+      ),
+    );
+    expect(await within(row).findByText("Unassigned")).toBeTruthy();
+  });
+
   it("restores a selected record from the URL", async () => {
     window.location.hash = "/administration/users/records/user-2";
     render(() => <App />);

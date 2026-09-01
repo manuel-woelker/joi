@@ -1,5 +1,5 @@
-import { createSolidTable, flexRender, getCoreRowModel, type ColumnDef, type Row } from "@tanstack/solid-table";
-import { For, createMemo, createSignal, type JSX } from "solid-js";
+import { type ColumnDef, createSolidTable, flexRender, getCoreRowModel, type Row } from "@tanstack/solid-table";
+import { createMemo, createSignal, For, type JSX } from "solid-js";
 
 import type { QueryColumnHandle, QueryResult, QueryResultRow, QueryValue } from "../query/query-result";
 import styles from "./DataTable.module.css";
@@ -21,6 +21,7 @@ export interface DataTableProps {
   readonly selectedRowKey?: QueryValue;
   readonly onRowSelect?: (row: QueryResultRow) => void;
   readonly onRowActivate?: (row: QueryResultRow) => void;
+  readonly onRowContextMenu?: (event: MouseEvent, row: QueryResultRow) => void;
 }
 
 export function DataTable(props: DataTableProps) {
@@ -93,6 +94,7 @@ export function DataTable(props: DataTableProps) {
                   props.onRowSelect?.(row.original);
                 }}
                 onDblClick={() => props.onRowActivate?.(row.original)}
+                onContextMenu={(event) => props.onRowContextMenu?.(event, row.original)}
                 onKeyDown={(event) => {
                   const destination = navigationDestination(event.key, row.id, table.getRowModel().rows);
                   if (destination) {

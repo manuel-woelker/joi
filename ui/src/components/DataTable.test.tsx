@@ -104,6 +104,26 @@ describe("DataTable", () => {
     expect(activate).toHaveBeenCalledTimes(2);
   });
 
+  it("forwards row context menu events without activating the row", () => {
+    const result = createResult("Jane", 34);
+    const contextMenu = vi.fn();
+    const activate = vi.fn();
+    render(() => (
+      <DataTable
+        ariaLabel="People"
+        result={result}
+        columns={[{ column: result.requireColumn("name"), header: "Name" }]}
+        onRowActivate={activate}
+        onRowContextMenu={contextMenu}
+      />
+    ));
+    const row = screen.getByRole("row", { name: "Jane" });
+    fireEvent.contextMenu(row, { clientX: 12, clientY: 24 });
+
+    expect(contextMenu).toHaveBeenCalledWith(expect.objectContaining({ clientX: 12, clientY: 24 }), result.rows[0]);
+    expect(activate).not.toHaveBeenCalled();
+  });
+
   it("moves row focus and selection with arrow, Home, and End keys", () => {
     const result = parseQueryResponse({
       number_of_hits: 3,

@@ -1,20 +1,22 @@
-import { For, Show, createEffect, createMemo, createResource, createSignal, onCleanup } from "solid-js";
-
+import { createEffect, createMemo, createResource, createSignal, For, onCleanup, Show } from "solid-js";
+import { useActions } from "../actions/ActionProvider";
+import type { EntityRecordActionTarget } from "../actions/action";
+import { actionsToContextMenuEntries } from "../actions/action-context-menu";
 import { bindEntity, createEntityTableColumns } from "../entities/bound-entity";
 import { createEntityEditorDefinition } from "../entities/entity-editor";
 import { ticketEntity } from "../entities/ticket-entity";
-import type { QueryColumnHandle, QueryResult } from "../query/query-result";
 import { MasterDetailView } from "../master-detail/MasterDetailView";
+import type { QueryColumnHandle, QueryResult } from "../query/query-result";
+import { useApplicationServices } from "../services/application-services";
 import { fetchService } from "../services/fetch-service";
 import { useWorkspace } from "../workspace/controller";
 import { executeQuery, validatePresentation } from "../workspace/query";
 import { loadTickets } from "../workspace/ticket-api";
+import { useContextMenu } from "./context-menu/ContextMenuProvider";
+import { contextMenuGroupId } from "./context-menu/context-menu";
 import { DataTable } from "./DataTable";
 import { IconButton } from "./IconButton";
 import styles from "./ViewContent.module.css";
-import { useActions } from "../actions/ActionProvider";
-import type { EntityRecordActionTarget } from "../actions/action";
-import { useApplicationServices } from "../services/application-services";
 
 const ticketEditor = createEntityEditorDefinition(ticketEntity);
 
@@ -31,6 +33,7 @@ export function SavedViewCommands() {
 export function SavedViewContent() {
   const controller = useWorkspace();
   const actions = useActions();
+  const contextMenu = useContextMenu();
   const { dataChanges, recordMutations } = useApplicationServices();
   const [selectedRecordId, setSelectedRecordId] = createSignal<string>();
   const query = () => {
@@ -139,6 +142,22 @@ export function SavedViewContent() {
       controller.selectRecord(id);
     }
   };
+  const openTicketContextMenu = (event: MouseEvent, row: QueryResult["rows"][number]) => {
+    selectTicket(row);
+    contextMenu.open({
+      event,
+      createGroups: () => [
+        {
+          id: contextMenuGroupId("ticket-actions"),
+          label: "Ticket actions",
+          entries: actionsToContextMenuEntries(actions.availableActions(), {
+            disabled: Boolean(actions.pendingAction()),
+            execute: actions.execute,
+          }),
+        },
+      ],
+    });
+  };
 
   const master = (
     <>
@@ -207,6 +226,7 @@ export function SavedViewContent() {
                           aria-pressed={rowId(row, ticketRecords()?.column("id")) === selectedRecordId()}
                           onClick={() => selectTicket(row)}
                           onDblClick={() => openTicket(controller, row, ticketRecords()?.column("id"))}
+                          onContextMenu={(event) => openTicketContextMenu(event, row)}
                           onKeyDown={(event) => {
                             if (event.key === "Enter") {
                               event.preventDefault();
@@ -243,6 +263,7 @@ export function SavedViewContent() {
                   density={presentation()?.density}
                   onRowSelect={selectTicket}
                   onRowActivate={(row) => openTicket(controller, row, ticketRecords()?.column("id"))}
+                  onRowContextMenu={openTicketContextMenu}
                 />
               </Show>
             </Show>

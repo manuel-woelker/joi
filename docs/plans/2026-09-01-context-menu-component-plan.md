@@ -15,6 +15,10 @@ the first iteration independent from the UI action registry so it remains
 useful for local component commands; action-backed menus can adapt available
 `UiAction` values into entries later.
 
+The implementation scope also includes a generic action-to-menu-entry adapter
+and ticket row context menus. Ticket menus expose the existing Assign to me and
+Unassign actions without adding another mutation or availability path.
+
 ## What should the component API look like?
 
 Define focused contracts under `ui/src/components/context-menu/`:
@@ -115,33 +119,36 @@ or execute.
 
 ## Implementation Checklist
 
-- [ ] Add branded IDs, entry/group contracts, open options, and controller types
+- [x] Add branded IDs, entry/group contracts, open options, and controller types
       under `ui/src/components/context-menu/`.
-- [ ] Add one application-scoped provider/host and expose a narrow imperative
+- [x] Add one application-scoped provider/host and expose a narrow imperative
       `useContextMenu()` controller hook.
-- [ ] Implement mouse-event opening, replacement of an already open menu, and
+- [x] Implement mouse-event opening, replacement of an already open menu, and
       invoke `createGroups` exactly once inside each accepted `open` call.
-- [ ] Portal the menu to `document.body` and implement measured viewport-aware
+- [x] Portal the menu to `document.body` and implement measured viewport-aware
       positioning from mouse client coordinates.
-- [ ] Implement outside-interaction, execution, Escape, blur, scroll, and resize
+- [x] Implement outside-interaction, execution, Escape, blur, scroll, and resize
       dismissal, preserving and restoring focus where appropriate.
-- [ ] Implement roving focus with Arrow Up/Down, Home/End, Enter, and Space while
+- [x] Implement roving focus with Arrow Up/Down, Home/End, Enter, and Space while
       skipping disabled entries.
-- [ ] Add menu, group, and menu-item semantics, group labels, accessible disabled
+- [x] Add menu, group, and menu-item semantics, group labels, accessible disabled
       state, and decorative icon handling.
-- [ ] Add a dedicated CSS module using existing design tokens. Prevent label,
+- [x] Add a dedicated CSS module using existing design tokens. Prevent label,
       description, icon, and hint overlap and constrain large menus.
-- [ ] Add component tests for factory timing and current-state capture,
+- [x] Add component tests for factory timing and current-state capture,
       imperative mouse-event opening, replacement, group order, disabled
-      entries, asynchronous execute callbacks, keyboard traversal, dismissal,
-      empty menus, event suppression, unmount cleanup, and viewport adjustment.
-- [ ] Add playground scenarios for a basic menu; grouped entries with icons,
+      entries, delegated execution, keyboard traversal, dismissal, empty menus,
+      event suppression, contract validation, and viewport adjustment.
+- [x] Add playground scenarios for a basic menu; grouped entries with icons,
       descriptions, and hints; disabled and dynamically recreated entries;
       repeated programmatic opening; and a target in a clipped container near a
       viewport edge.
-- [ ] Document the API, factory lifecycle, and interaction behavior in
+- [x] Add `actionsToContextMenuEntries`, expose row context-menu events from
+      `DataTable`, and use the adapter for ticket Assign to me and Unassign
+      entries in both table and list presentations.
+- [x] Document the API, factory lifecycle, and interaction behavior in
       `ui/README.md`.
-- [ ] Run `nao check` and restart active development tasks with `nao --restart`.
+- [x] Run `nao check` and restart active development tasks with `nao --restart`.
 
 ## How will we verify it?
 
