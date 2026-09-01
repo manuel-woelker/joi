@@ -193,3 +193,12 @@ contextMenu.open({
 The provider portals the menu to the document body, keeps it inside the
 viewport, and owns dismissal and keyboard navigation. Keep entry factories
 synchronous and inexpensive; load remote state before opening the menu.
+
+### How are actions launched from the keyboard?
+
+Press `Ctrl+Shift+A` to open the action launcher. It lists the currently
+available contributions from the UI action extension point. Typing filters by
+label and description; Arrow Up and Arrow Down change the active result, Enter
+runs it, and Escape closes the launcher. Action execution still flows through
+`ActionProvider`, so contextual availability, pending state, and error handling
+remain shared with action buttons, hotkeys, and context menus.

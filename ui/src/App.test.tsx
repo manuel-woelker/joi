@@ -250,6 +250,19 @@ describe("workspace app", () => {
     expect(screen.queryByText("Fix navigation bug")).toBeNull();
   });
 
+  it("opens the action launcher and navigates to the playground action", async () => {
+    render(() => <App />);
+    const workspaceSearch = await screen.findByPlaceholderText("Search this view");
+    workspaceSearch.focus();
+    fireEvent.keyDown(workspaceSearch, { key: "A", ctrlKey: true, shiftKey: true });
+
+    const launcherSearch = screen.getByRole("combobox", { name: "Filter actions" });
+    await userEvent.type(launcherSearch, "playground");
+    fireEvent.keyDown(launcherSearch, { key: "Enter" });
+
+    expect(window.location.hash).toBe("#playground");
+  });
+
   it("opens and autosaves a ticket", async () => {
     render(() => <App />);
     await userEvent.dblClick(await screen.findByText("Fix navigation bug"));

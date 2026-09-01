@@ -1,6 +1,7 @@
 import { createResource, Match, Show, Switch } from "solid-js";
 import styles from "./App.module.css";
 import { ActionProvider } from "./actions/ActionProvider";
+import { ActionQuickLauncher } from "./actions/ActionQuickLauncher";
 import { administrationEntries } from "./administration/Administration";
 import { createApplication } from "./application-registry";
 import { type AuthenticatedUser, loadCurrentUser, logout } from "./authentication/authentication-service";
@@ -51,6 +52,7 @@ function WorkspaceApp(props: {
     <ApplicationServicesProvider services={props.services}>
       <ContextMenuProvider>
         <ActionProvider registry={props.pluginRegistry} currentUser={props.user}>
+          <ActionQuickLauncher />
           <LookupProvider registry={props.pluginRegistry}>
             <div class={styles.appShell} style={{ "--sidebar-width": `${controller.sidebarWidth()}px` }}>
               <header class={styles.topBar}>
