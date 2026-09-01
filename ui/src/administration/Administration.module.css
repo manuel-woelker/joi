@@ -1,5 +1,5 @@
 .administration { padding: 14px 4px 0; }
 .heading { margin: 0 0 8px; color: var(--color-text-muted); font-size: 11px; text-transform: uppercase; }
-.contribution { display: block; width: 100%; padding: 7px 5px; border: 0; border-radius: 4px; color: var(--color-ink-soft); background: transparent; font-size: 13px; text-align: left; }
+.contribution { display: flex; width: 100%; align-items: center; gap: 7px; padding: 7px 5px; border: 0; border-radius: 4px; color: var(--color-ink-soft); background: transparent; font-size: 13px; text-align: left; }
 .contribution:hover, .selected { background: var(--color-surface-hover); }
 .selected { color: var(--color-primary-dark); font-weight: 650; }

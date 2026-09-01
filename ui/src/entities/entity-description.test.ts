@@ -1,22 +1,25 @@
 import { describe, expect, it } from "vitest";
-
+import type { IconComponent } from "../icons/icon-component";
 import { parseQueryResponse } from "../query/query-result";
 import { validate } from "../validation/validation";
 import { bindEntity, createEntityTableColumns } from "./bound-entity";
-import { createEntityEditorDefinition } from "./entity-editor";
 import {
   defineEntity,
+  type EntityDescription,
   requireEntityAttribute,
   validateEntityDescription,
-  type EntityDescription,
 } from "./entity-description";
+import { createEntityEditorDefinition } from "./entity-editor";
 import { userEntity } from "./user-entity";
+
+const TestIcon = (() => null) as IconComponent;
 
 const entity = defineEntity({
   id: "things",
   tableName: "things",
   label: "Thing",
   pluralLabel: "Things",
+  icon: TestIcon,
   identityAttribute: "id",
   attributes: [
     { id: "id", label: "ID", valueType: "string" },
@@ -67,6 +70,7 @@ describe("entity descriptions", () => {
         tableName: "broken",
         label: "Broken",
         pluralLabel: "Broken",
+        icon: TestIcon,
         identityAttribute: "missing",
         attributes: [{ id: "id", label: "ID", valueType: "string" }],
       } as EntityDescription),
@@ -77,6 +81,7 @@ describe("entity descriptions", () => {
         tableName: "duplicates",
         label: "Duplicate",
         pluralLabel: "Duplicates",
+        icon: TestIcon,
         identityAttribute: "id",
         attributes: [
           { id: "id", label: "ID", valueType: "string" },
@@ -127,6 +132,7 @@ describe("entity descriptions", () => {
         tableName: "partial",
         label: "Partial",
         pluralLabel: "Partials",
+        icon: TestIcon,
         identityAttribute: "id",
         attributes: [
           { id: "id", label: "ID", valueType: "string", create: { hidden: true, initialValue: "id-1" } },

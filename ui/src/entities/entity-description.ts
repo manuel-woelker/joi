@@ -1,6 +1,7 @@
+import type { IconComponent } from "../icons/icon-component";
+import type { LookupId } from "../lookups/lookup";
 import type { QueryValue, QueryValueType } from "../query/query-result";
 import type { ValidationFunction } from "../validation/validation";
-import type { LookupId } from "../lookups/lookup";
 
 /** Input control used to edit an entity attribute. */
 export type EntityEditControl = "text" | "textarea" | "integer" | "lookup";
@@ -73,6 +74,7 @@ export interface EntityDescription<TAttributes extends readonly AnyEntityAttribu
   readonly tableName: string;
   readonly label: string;
   readonly pluralLabel: string;
+  readonly icon: IconComponent;
   readonly identityAttribute: TAttributes[number]["id"];
   readonly attributes: TAttributes;
   readonly validation?: ValidationFunction<EntityValues<TAttributes>>;
@@ -99,6 +101,7 @@ export function validateEntityDescription(description: EntityDescription): void 
   if (!description.tableName.trim()) throw new Error(`Entity '${description.id}' must have a non-empty table name`);
   if (!description.label.trim()) throw new Error(`Entity '${description.id}' must have a non-empty label`);
   if (!description.pluralLabel.trim()) throw new Error(`Entity '${description.id}' must have a non-empty plural label`);
+  if (typeof description.icon !== "function") throw new Error(`Entity '${description.id}' must define an icon`);
   if (description.attributes.length === 0) throw new Error(`Entity '${description.id}' must define attributes`);
 
   const ids = new Set<string>();

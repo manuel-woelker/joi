@@ -13,6 +13,7 @@ import { NavigationTree } from "./components/NavigationTree";
 import { SavedViewCommands, SavedViewContent } from "./components/SavedViewContent";
 import { ViewContent } from "./components/ViewContent";
 import { ViewEditor } from "./components/ViewEditor";
+import { ticketEntity } from "./entities/ticket-entity";
 import { LookupProvider } from "./lookups/lookup";
 import type { PluginRegistry } from "./plugins/registry";
 import { type ApplicationServices, ApplicationServicesProvider } from "./services/application-services";
@@ -43,6 +44,7 @@ function WorkspaceApp(props: {
       ? {
           ...view,
           section: "Saved view",
+          icon: ticketEntity.icon,
           content: SavedViewContent,
           commands: SavedViewCommands,
         }

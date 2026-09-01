@@ -1,7 +1,6 @@
 import { For, Show } from "solid-js";
-
-import { useActions } from "./ActionProvider";
 import styles from "./ActionCommands.module.css";
+import { useActions } from "./ActionProvider";
 
 export function ActionCommands() {
   const actions = useActions();
@@ -14,7 +13,7 @@ export function ActionCommands() {
           </span>
         )}
       </Show>
-      <For each={actions.availableActions()}>
+      <For each={actions.availableActions().filter((action) => action.showInActionBar !== false)}>
         {(action) => (
           <button
             type="button"

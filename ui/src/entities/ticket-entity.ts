@@ -1,6 +1,7 @@
+import TicketIcon from "lucide-solid/icons/ticket";
+import { lookupId } from "../lookups/lookup";
 import { defineEntity } from "./entity-description";
 import { generateKsuid } from "./ksuid";
-import { lookupId } from "../lookups/lookup";
 
 const ticketKey = /^(?:|[A-Z][A-Z0-9]*-[1-9][0-9]*)$/;
 
@@ -10,6 +11,7 @@ export const ticketEntity = defineEntity({
   tableName: "tickets",
   label: "Ticket",
   pluralLabel: "Tickets",
+  icon: TicketIcon,
   identityAttribute: "id",
   attributes: [
     { id: "id", label: "ID", valueType: "string", create: { hidden: true, initialValue: generateKsuid } },

@@ -240,8 +240,12 @@ describe("workspace app", () => {
 
   it("opens a seeded view and filters it with transient search", async () => {
     render(() => <App />);
-    expect(await screen.findByRole("heading", { name: "Active issues" })).toBeTruthy();
+    const heading = await screen.findByRole("heading", { name: "Active issues" });
+    expect(heading.parentElement?.querySelector(".lucide-ticket")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Active issues" }).querySelector(".lucide-ticket")).toBeTruthy();
+    expect(screen.getByRole("tree", { name: "Saved views" }).querySelector(".lucide-folder")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Playground" }).getAttribute("href")).toBe("#playground");
+    expect(screen.queryByRole("button", { name: /Open playground/ })).toBeNull();
     expect(screen.getByText(REVISION)).toBeTruthy();
     expect(await screen.findByText("Fix navigation bug")).toBeTruthy();
     expect(await screen.findByText("Joe Tester")).toBeTruthy();
@@ -497,6 +501,7 @@ describe("workspace app", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Users" }));
     expect(window.location.hash).toBe("#/administration/users");
     expect(screen.getByRole("heading", { name: "Users" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Users" }).parentElement?.querySelector(".lucide-users")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Active issues" }).parentElement?.className).not.toMatch(/selected/);
     expect(await screen.findByRole("columnheader", { name: "Username" })).toBeTruthy();
     expect(screen.getAllByText("Jane Developer")).toHaveLength(2);

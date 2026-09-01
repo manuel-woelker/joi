@@ -1,3 +1,4 @@
+import UsersIcon from "lucide-solid/icons/users";
 import { matches } from "../validation/validation-functions";
 import { defineEntity } from "./entity-description";
 import { generateKsuid } from "./ksuid";
@@ -8,6 +9,7 @@ export const userEntity = defineEntity({
   tableName: "users",
   label: "User",
   pluralLabel: "Users",
+  icon: UsersIcon,
   identityAttribute: "id",
   attributes: [
     { id: "id", label: "ID", valueType: "string", create: { hidden: true, initialValue: generateKsuid } },

@@ -17,6 +17,7 @@ export default plugin({
         id: openPlaygroundActionId,
         label: "Open playground",
         description: "Open the component playground.",
+        showInActionBar: false,
         isAvailable: () => true,
         execute: () => {
           window.location.hash = "#playground";

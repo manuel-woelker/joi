@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@tanstack/solid-table": "^8.21.3",
+    "lucide-solid": "^1.39.0",
     "solid-js": "^1.9.13"
   },
   "devDependencies": {

@@ -1,10 +1,12 @@
-import { For, Show, createSignal } from "solid-js";
-
-import type { NavigationId } from "../workspace/model";
-import { useWorkspace } from "../workspace/controller";
-import { IconButton } from "./IconButton";
+import FolderIcon from "lucide-solid/icons/folder";
+import { createSignal, For, Show } from "solid-js";
+import { Dynamic } from "solid-js/web";
 import { Administration } from "../administration/Administration";
 import type { AdministrationContribution } from "../administration/contribution";
+import { ticketEntity } from "../entities/ticket-entity";
+import { useWorkspace } from "../workspace/controller";
+import type { NavigationId } from "../workspace/model";
+import { IconButton } from "./IconButton";
 import styles from "./NavigationTree.module.css";
 
 function TreeItem(props: { id: NavigationId; level: number }) {
@@ -74,9 +76,10 @@ function TreeItem(props: { id: NavigationId; level: number }) {
             </span>
           </Show>
           <Show when={folder()}>
-            <span class={styles.iconGlyph} aria-hidden="true">
-              □
-            </span>
+            <FolderIcon class={styles.entityIcon} size={16} aria-hidden="true" />
+          </Show>
+          <Show when={viewItem()}>
+            <Dynamic component={ticketEntity.icon} class={styles.entityIcon} size={16} aria-hidden="true" />
           </Show>
           <span>{label()}</span>
         </button>
@@ -182,7 +185,7 @@ export function NavigationTree(props: { registry: import("../plugins/registry").
       <div class={styles.panelHeading}>
         <h2>Views</h2>
         <div class={styles.headingCommands}>
-          <IconButton label="Create folder" icon="□+" onClick={() => controller.createFolder()} />
+          <IconButton label="Create folder" icon={<FolderIcon size={17} />} onClick={() => controller.createFolder()} />
           <IconButton label="Create view" icon="+" onClick={() => controller.createView()} />
         </div>
       </div>
@@ -192,7 +195,7 @@ export function NavigationTree(props: { registry: import("../plugins/registry").
           <For each={controller.workspace.favorites}>
             {(id) => (
               <button class={styles.favoriteLink} onClick={() => controller.selectView(id)}>
-                <span aria-hidden="true">★</span>
+                <Dynamic component={ticketEntity.icon} class={styles.entityIcon} size={16} aria-hidden="true" />
                 {controller.workspace.views[id]?.name}
               </button>
             )}

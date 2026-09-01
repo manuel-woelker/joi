@@ -34,8 +34,10 @@ double-click, Enter, or the visible Edit command opens its pane on the right.
 User rows currently open directly because they have no contextual actions.
 Code-defined entity descriptions are the
 canonical UI source for table names, identity attributes, attribute labels and
-types, default table columns, edit/create controls, initial values, and
-validation functions. Binding
+types, icons, default table columns, edit/create controls, initial values, and
+validation functions. Entity icons use direct `lucide-solid/icons/<name>`
+imports so production builds include only icons referenced by entity
+descriptions. Binding
 an entity description to a query result resolves response-local column handles
 and rejects missing or mismatched attributes. Saved presentations still choose
 ticket column order, density, widths, and intentional label overrides.

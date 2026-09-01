@@ -26,6 +26,7 @@
 .sidebarResizer { position: fixed; z-index: 21; top: 52px; bottom: 0; left: calc(var(--sidebar-width) - 3px); width: 6px; padding: 0; border: 0; background: transparent; cursor: col-resize; }
 .sidebarResizer:hover, .sidebarResizer:focus-visible { background: color-mix(in srgb, var(--color-primary) 34%, transparent); }
 .iconGlyph { display: inline-grid; min-width: 16px; place-items: center; font-size: 17px; line-height: 1; }
+.entityIcon { flex: none; color: var(--color-text-muted); }
 @media (max-width: 760px) {
   .navigationPanel { width: min(288px, 88vw); transform: translateX(-100%); transition: transform 160ms ease; }
   .navigationPanel.open { transform: translateX(0); }

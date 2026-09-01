@@ -1,3 +1,4 @@
+import { userEntity } from "../../entities/user-entity";
 import { plugin } from "../../plugins/registry";
 import { fetchServiceKey } from "../../services/fetch-service";
 import { administrationContributions } from "../contribution";
@@ -16,6 +17,7 @@ export default plugin({
         id: "users",
         name: "Users",
         section: "Administration",
+        icon: userEntity.icon,
         content: () => <Users fetchService={context.services.fetchService} />,
       },
     });
