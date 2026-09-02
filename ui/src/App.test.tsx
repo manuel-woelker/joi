@@ -485,7 +485,7 @@ describe("workspace app", () => {
 
     expect(await screen.findByRole("heading", { name: "User details" })).toBeTruthy();
     expect((screen.getByRole("textbox", { name: "Username" }) as HTMLInputElement).value).toBe("joe.tester");
-    expect(screen.getByRole("button", { name: "Users" }).className).toMatch(/selected/);
+    expect(screen.getByRole("button", { name: "Users" }).className).toMatch(/contributionSelected/);
   });
 
   it("opens the reusable view editor", async () => {
@@ -502,7 +502,12 @@ describe("workspace app", () => {
     expect(window.location.hash).toBe("#/administration/users");
     expect(screen.getByRole("heading", { name: "Users" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Users" }).parentElement?.querySelector(".lucide-users")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Active issues" }).parentElement?.className).not.toMatch(/selected/);
+    expect(screen.getByRole("button", { name: "Active issues" }).parentElement?.className).not.toMatch(
+      /treeRowSelected/,
+    );
+    for (const folder of screen.getAllByRole("treeitem").filter((item) => item.hasAttribute("aria-expanded"))) {
+      expect(folder.firstElementChild?.className).not.toMatch(/treeRowSelected|contributionSelected/);
+    }
     expect(await screen.findByRole("columnheader", { name: "Username" })).toBeTruthy();
     expect(screen.getAllByText("Jane Developer")).toHaveLength(2);
     expect(screen.queryByRole("columnheader", { name: "ID" })).toBeNull();
@@ -516,7 +521,9 @@ describe("workspace app", () => {
     window.location.hash = "/administration/users";
     window.dispatchEvent(new HashChangeEvent("hashchange"));
     await waitFor(() => expect(screen.getByRole("heading", { name: "Users" })).toBeTruthy());
-    expect(screen.getByRole("button", { name: "Active issues" }).parentElement?.className).not.toMatch(/selected/);
+    expect(screen.getByRole("button", { name: "Active issues" }).parentElement?.className).not.toMatch(
+      /treeRowSelected/,
+    );
   });
 
   it("opens and autosaves a user beside the users table", async () => {

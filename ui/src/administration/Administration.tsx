@@ -26,7 +26,7 @@ export function Administration(props: {
         {(contribution) => (
           <button
             class={styles.contribution}
-            classList={{ [styles.selected]: props.selectedId === contribution.id }}
+            classList={{ [styles.contributionSelected]: props.selectedId === contribution.id }}
             onClick={() => props.onSelect(contribution)}
           >
             {contribution.icon && <Dynamic component={contribution.icon} size={16} aria-hidden="true" />}

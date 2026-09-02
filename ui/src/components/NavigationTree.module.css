@@ -10,8 +10,8 @@
 .tree, .tree ul { margin: 0; padding: 8px 0 0; list-style: none; }
 .tree ul { padding-top: 0; }
 .treeRow { position: relative; display: flex; min-height: 32px; align-items: center; border-radius: 4px; }
-.treeRow:hover, .selected { background: var(--color-surface-hover); }
-.selected { color: var(--color-primary-dark); font-weight: 650; }
+.treeRow:hover, .treeRow.treeRowSelected { background: var(--color-surface-hover); }
+.treeRow.treeRowSelected { color: var(--color-primary-dark); font-weight: 650; }
 .treeLabel { display: flex; min-width: 0; flex: 1; align-items: center; gap: 6px; padding: 7px 2px; border: 0; background: transparent; font-size: 13px; text-align: left; }
 .treeLabel span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .treeSpacer { width: 14px; }

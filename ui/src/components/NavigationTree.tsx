@@ -27,6 +27,10 @@ function TreeItem(props: { id: NavigationId; level: number }) {
   };
   const label = () => folder()?.name ?? view()?.name ?? "Missing view";
   const expanded = () => controller.expandedFolders().has(props.id);
+  const selected = () => {
+    const id = view()?.id;
+    return id !== undefined && id === controller.navigation.selectedViewId();
+  };
 
   const onKeyDown = (event: KeyboardEvent) => {
     if (folder() && event.key === "ArrowRight" && !expanded()) controller.toggleFolder(props.id);
@@ -56,7 +60,7 @@ function TreeItem(props: { id: NavigationId; level: number }) {
   return (
     <li role="treeitem" aria-expanded={folder() ? expanded() : undefined}>
       <div
-        class={`${styles.treeRow} ${view()?.id === controller.navigation.selectedViewId() ? styles.selected : ""}`}
+        class={`${styles.treeRow} ${selected() ? styles.treeRowSelected : ""}`}
         style={{ "padding-left": `${8 + props.level * 16}px` }}
       >
         <button
