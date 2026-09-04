@@ -1,18 +1,20 @@
 import FolderIcon from "lucide-solid/icons/folder";
-import { createSignal, For, Show } from "solid-js";
+import { For, Show } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import { Administration } from "../administration/Administration";
 import type { AdministrationContribution } from "../administration/contribution";
 import { ticketEntity } from "../entities/ticket-entity";
 import { useWorkspace } from "../workspace/controller";
 import type { NavigationId } from "../workspace/model";
+import { useContextMenu } from "./context-menu/ContextMenuProvider";
+import { contextMenuEntryId, contextMenuGroupId } from "./context-menu/context-menu";
 import { IconButton } from "./IconButton";
 import styles from "./NavigationTree.module.css";
 
 function TreeItem(props: { id: NavigationId; level: number }) {
   const controller = useWorkspace();
+  const contextMenu = useContextMenu();
   const item = () => controller.workspace.navigation[props.id];
-  const [menuOpen, setMenuOpen] = createSignal(false);
   const folder = () => {
     const current = item();
     return current?.type === "folder" ? current : undefined;
@@ -30,6 +32,116 @@ function TreeItem(props: { id: NavigationId; level: number }) {
   const selected = () => {
     const id = view()?.id;
     return id !== undefined && id === controller.navigation.selectedViewId();
+  };
+  const openContextMenu = (event: MouseEvent) => {
+    contextMenu.open({
+      event,
+      createGroups: () => {
+        const currentFolder = folder();
+        const currentView = viewItem();
+        return [
+          {
+            id: contextMenuGroupId("create"),
+            entries: currentFolder
+              ? [
+                  {
+                    id: contextMenuEntryId("new-view"),
+                    label: "New view",
+                    description: `Create a view in ${label()}.`,
+                    icon: () => <span>+</span>,
+                    execute: () => controller.createView(props.id),
+                  },
+                ]
+              : [],
+          },
+          {
+            id: contextMenuGroupId("item"),
+            entries: [
+              {
+                id: contextMenuEntryId("rename"),
+                label: "Rename",
+                description: `Rename ${label()}.`,
+                icon: () => <span>✎</span>,
+                execute: () => controller.renameItem(props.id),
+              },
+              ...(currentView
+                ? [
+                    {
+                      id: contextMenuEntryId("favorite"),
+                      label: controller.workspace.favorites.includes(currentView.viewId)
+                        ? "Remove from favorites"
+                        : "Add to favorites",
+                      description: "Toggle this view in the Favorites section.",
+                      icon: () => <span>★</span>,
+                      execute: () => controller.toggleFavorite(currentView.viewId),
+                    },
+                    {
+                      id: contextMenuEntryId("duplicate"),
+                      label: "Duplicate",
+                      description: `Create a copy of ${label()}.`,
+                      icon: () => <span>□</span>,
+                      execute: () => controller.duplicate(currentView.viewId),
+                    },
+                  ]
+                : []),
+            ],
+          },
+          {
+            id: contextMenuGroupId("ordering"),
+            label: "Order",
+            entries: [
+              {
+                id: contextMenuEntryId("move-up"),
+                label: "Move up",
+                description: "Move this entry one position up.",
+                icon: () => <span>↑</span>,
+                execute: () => controller.move(props.id, -1),
+              },
+              {
+                id: contextMenuEntryId("move-down"),
+                label: "Move down",
+                description: "Move this entry one position down.",
+                icon: () => <span>↓</span>,
+                execute: () => controller.move(props.id, 1),
+              },
+            ],
+          },
+          {
+            id: contextMenuGroupId("move-to"),
+            label: "Move to",
+            entries: [
+              {
+                id: contextMenuEntryId("move-to-root"),
+                label: "Root",
+                description: "Move this entry to the navigation root.",
+                execute: () => controller.moveToFolder(props.id, undefined),
+              },
+              ...Object.values(controller.workspace.navigation)
+                .filter((candidate) => candidate.type === "folder" && candidate.id !== props.id)
+                .map((candidate) => ({
+                  id: contextMenuEntryId(`move-to-${candidate.id}`),
+                  label: candidate.type === "folder" ? candidate.name : "",
+                  description: `Move this entry to ${candidate.type === "folder" ? candidate.name : "the folder"}.`,
+                  icon: () => <FolderIcon size={14} />,
+                  execute: () => controller.moveToFolder(props.id, candidate.id),
+                })),
+            ],
+          },
+          {
+            id: contextMenuGroupId("danger"),
+            entries: [
+              {
+                id: contextMenuEntryId("delete"),
+                label: "Delete",
+                description: `Delete ${label()}.`,
+                icon: () => <span>×</span>,
+                execute: () => controller.remove(props.id),
+              },
+            ],
+          },
+        ];
+      },
+    });
   };
 
   const onKeyDown = (event: KeyboardEvent) => {
@@ -62,6 +174,7 @@ function TreeItem(props: { id: NavigationId; level: number }) {
       <div
         class={`${styles.treeRow} ${selected() ? styles.treeRowSelected : ""}`}
         style={{ "padding-left": `${8 + props.level * 16}px` }}
+        onContextMenu={openContextMenu}
       >
         <button
           class={styles.treeLabel}
@@ -87,77 +200,7 @@ function TreeItem(props: { id: NavigationId; level: number }) {
           </Show>
           <span>{label()}</span>
         </button>
-        <IconButton label={`Commands for ${label()}`} icon="…" onClick={() => setMenuOpen(!menuOpen())} />
-        <Show when={menuOpen()}>
-          <div class={styles.itemMenu}>
-            <Show when={folder()}>
-              <button
-                onClick={() => {
-                  controller.createView(props.id);
-                  setMenuOpen(false);
-                }}
-              >
-                <span aria-hidden="true">+</span> New view
-              </button>
-            </Show>
-            <button
-              onClick={() => {
-                controller.renameItem(props.id);
-                setMenuOpen(false);
-              }}
-            >
-              <span aria-hidden="true">✎</span> Rename
-            </button>
-            <Show when={viewItem()}>
-              {(current) => (
-                <>
-                  <button onClick={() => controller.toggleFavorite(current().viewId)}>
-                    <span aria-hidden="true">★</span> Favorite
-                  </button>
-                  <button onClick={() => controller.duplicate(current().viewId)}>
-                    <span aria-hidden="true">□</span> Duplicate
-                  </button>
-                </>
-              )}
-            </Show>
-            <button onClick={() => controller.move(props.id, -1)}>
-              <span aria-hidden="true">↑</span> Move up
-            </button>
-            <button onClick={() => controller.move(props.id, 1)}>
-              <span aria-hidden="true">↓</span> Move down
-            </button>
-            <label class={styles.moveLabel}>
-              Move to
-              <select
-                aria-label={`Move ${label()} to folder`}
-                onChange={(event) => {
-                  controller.moveToFolder(props.id, event.currentTarget.value || undefined);
-                  setMenuOpen(false);
-                }}
-              >
-                <option value="">Root</option>
-                <For
-                  each={Object.values(controller.workspace.navigation).filter(
-                    (candidate) => candidate.type === "folder" && candidate.id !== props.id,
-                  )}
-                >
-                  {(candidate) => (
-                    <option value={candidate.id}>{candidate.type === "folder" ? candidate.name : ""}</option>
-                  )}
-                </For>
-              </select>
-            </label>
-            <button
-              class={styles.danger}
-              onClick={() => {
-                controller.remove(props.id);
-                setMenuOpen(false);
-              }}
-            >
-              <span aria-hidden="true">×</span> Delete
-            </button>
-          </div>
-        </Show>
+        <IconButton label={`Commands for ${label()}`} icon="…" onClick={openContextMenu} />
       </div>
       <Show when={folder() && expanded()}>
         <ul role="group">

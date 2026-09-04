@@ -498,6 +498,17 @@ describe("workspace app", () => {
   it("navigates administration entries through the URL", async () => {
     render(() => <App />);
 
+    await userEvent.click(await screen.findByRole("button", { name: "Commands for Work" }));
+    expect(screen.getByRole("menuitem", { name: "New view" })).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: "Rename" })).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: "Root" })).toBeTruthy();
+    fireEvent.keyDown(screen.getByRole("menuitem", { name: "Rename" }), { key: "Escape" });
+    await userEvent.click(screen.getByRole("button", { name: "Work" }));
+    await userEvent.click(screen.getByRole("button", { name: "Commands for Active issues" }));
+    expect(screen.getByRole("menuitem", { name: "Duplicate" })).toBeTruthy();
+    fireEvent.keyDown(screen.getByRole("menuitem", { name: "Duplicate" }), { key: "Escape" });
+    await userEvent.click(screen.getByRole("button", { name: "Work" }));
+
     await userEvent.click(await screen.findByRole("button", { name: "Users" }));
     expect(window.location.hash).toBe("#/administration/users");
     expect(screen.getByRole("heading", { name: "Users" })).toBeTruthy();

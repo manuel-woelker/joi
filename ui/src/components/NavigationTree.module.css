@@ -17,12 +17,6 @@
 .treeSpacer { width: 14px; }
 .treeRow > button:last-of-type { width: 28px; height: 28px; opacity: 0; }
 .treeRow:hover > button:last-of-type, .treeRow:focus-within > button:last-of-type { opacity: 1; }
-.itemMenu { position: absolute; z-index: 40; top: 30px; right: 2px; width: 142px; padding: 4px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); box-shadow: 0 8px 24px var(--color-shadow); }
-.itemMenu button { display: flex; width: 100%; align-items: center; gap: 8px; padding: 7px 8px; border: 0; border-radius: 3px; background: transparent; font-size: 12px; text-align: left; }
-.itemMenu button:hover { background: var(--color-surface-hover); }
-.danger { color: var(--color-danger); }
-.moveLabel { display: grid; gap: 4px; padding: 6px 8px; color: var(--color-text-muted); font-size: 10px; text-transform: uppercase; }
-.moveLabel select { min-width: 0; padding: 4px; border: 1px solid var(--color-border); border-radius: 3px; color: var(--color-ink-soft); background: var(--color-surface); font-size: 12px; text-transform: none; }
 .sidebarResizer { position: fixed; z-index: 21; top: 52px; bottom: 0; left: calc(var(--sidebar-width) - 3px); width: 6px; padding: 0; border: 0; background: transparent; cursor: col-resize; }
 .sidebarResizer:hover, .sidebarResizer:focus-visible { background: color-mix(in srgb, var(--color-primary) 34%, transparent); }
 .iconGlyph { display: inline-grid; min-width: 16px; place-items: center; font-size: 17px; line-height: 1; }
