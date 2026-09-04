@@ -1,5 +1,32 @@
 * {
   box-sizing: border-box;
+  scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track);
+}
+
+*::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner {
+  background: var(--color-scrollbar-track);
+}
+
+*::-webkit-scrollbar-thumb {
+  border: 2px solid var(--color-scrollbar-track);
+  border-radius: 6px;
+  background: var(--color-scrollbar-thumb);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--color-scrollbar-thumb-hover);
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+  }
 }
 
 html,

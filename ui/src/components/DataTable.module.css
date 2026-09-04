@@ -50,5 +50,5 @@
 .virtualized .table { display: block; }
 .virtualized thead { display: block; width: calc(100% - var(--data-table-scrollbar-width)); }
 .virtualized tr { display: grid; grid-template-columns: var(--data-table-columns); width: 100%; }
-.virtualized tbody { display: block; overflow-y: auto; scrollbar-gutter: stable; overscroll-behavior: contain; }
+.virtualized tbody { display: block; overflow-y: scroll; scrollbar-gutter: stable; overscroll-behavior: contain; }
 .table .virtualSpacer { height: 0; padding: 0; border: 0; }

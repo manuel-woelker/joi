@@ -20,4 +20,8 @@
   --color-danger: color-mix(in srgb, var(--color-secondary) 62%, black 38%);
   --color-shadow: color-mix(in srgb, var(--color-primary) 18%, transparent);
   --color-backdrop: color-mix(in srgb, var(--color-primary) 34%, transparent);
+  --color-scrollbar-track: var(--color-surface-muted);
+  --color-scrollbar-thumb: color-mix(in srgb, var(--color-ink) 38%, white);
+  --color-scrollbar-thumb-hover: var(--color-primary-dark);
+  --scrollbar-size: 14px;
 }
