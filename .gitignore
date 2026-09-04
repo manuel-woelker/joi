@@ -38,3 +38,5 @@ pnpm-debug.log*
 Thumbs.db
 *.swp
 *.swo
+
+/.tool-tool/v2/cache

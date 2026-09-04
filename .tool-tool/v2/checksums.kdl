@@ -1,0 +1,6 @@
+sha512sums{
+"https://github.com/pnpm/pnpm/releases/download/v10.28.0/pnpm-linux-x64" "0d5ae1fb4da25dcd9ede9ffcfe7eb05b5d31ccf14e45f47061c128067d95467b012ca5f9bb8885ff7abd6814007cd4f2580ccc7ef0a9eb7af99fa378ddc44582"
+"https://github.com/pnpm/pnpm/releases/download/v10.28.0/pnpm-win-x64.exe" "3b9a57ffca2e3b6a8f2448c54e7327b78f197155585683372233ebea8d211ea68f17978ae53ca3fdafd7c8bc71ad199bb742edb2ea5cdbd5f0b22bf35fc2a20d"
+"https://nodejs.org/dist/v26.8.1/node-v26.8.1-linux-x64.tar.gz" f414ad7841f9ead23e956643347604756ea0cae505a6cb313bf821b6a362a6c33976ce67e249831e1870e272f97012b0e0776f8d0aff632a2dc8762066feef3e
+"https://nodejs.org/dist/v26.8.1/node-v26.8.1-win-x64.zip" "87cc33d35104185716e162a594c5726187c4fac244e4cf7a76c9d7ba84b39c78653ea07d084390b7d5654956026917ebcac3d8c7881248bd949a2471c481fedb"
+}
