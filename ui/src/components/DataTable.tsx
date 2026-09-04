@@ -1,6 +1,6 @@
 import { type ColumnDef, createSolidTable, flexRender, getCoreRowModel, type Row } from "@tanstack/solid-table";
 import { createVirtualizer } from "@tanstack/solid-virtual";
-import { createMemo, createSignal, For, type JSX, onCleanup, onMount, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, type JSX, onCleanup, onMount, Show } from "solid-js";
 
 import type { QueryColumnHandle, QueryResult, QueryResultRow, QueryValue } from "../query/query-result";
 import styles from "./DataTable.module.css";
@@ -32,17 +32,21 @@ export interface DataTableProps {
 
 export function DataTable(props: DataTableProps) {
   let scrollElement: HTMLTableSectionElement | undefined;
+  let finishColumnResize: (() => void) | undefined;
   const [focusedRowId, setFocusedRowId] = createSignal<string>();
   const [scrollbarWidth, setScrollbarWidth] = createSignal(0);
+  const [draggedColumnId, setDraggedColumnId] = createSignal<string>();
+  const [resizingColumnId, setResizingColumnId] = createSignal<string>();
   const columns = createMemo<ColumnDef<QueryResultRow>[]>(() =>
     props.columns.map((definition) => ({
       id: definition.column.attribute,
       accessorFn: (row) => row.value(definition.column),
       header: definition.header,
       cell: (context) => <DataTableCell definition={definition} row={context.row.original} />,
+      size: definition.width,
+      minSize: 32,
     })),
   );
-  const columnById = createMemo(() => new Map(props.columns.map((column) => [column.column.attribute, column])));
   const rows = createMemo(() => Array.from(props.rows ?? props.result.rows));
   const table = createSolidTable({
     get data() {
@@ -56,6 +60,8 @@ export function DataTable(props: DataTableProps) {
       return key === undefined ? String(row.index) : String(key);
     },
     getCoreRowModel: getCoreRowModel(),
+    columnResizeMode: "onChange",
+    enableColumnResizing: true,
   });
   const tableRows = () => table.getRowModel().rows;
   const virtualizer = createVirtualizer<HTMLTableSectionElement, HTMLTableRowElement>({
@@ -78,8 +84,61 @@ export function DataTable(props: DataTableProps) {
     const last = virtualItems().at(-1);
     return last ? virtualizer.getTotalSize() - last.end : 0;
   };
-  const virtualColumnTemplate = () =>
-    props.columns.map((column) => (column.width ? `${column.width}px` : "minmax(0, 1fr)")).join(" ");
+  const columnTemplate = () => {
+    const visibleColumns = table.getVisibleLeafColumns();
+    return visibleColumns
+      .map((column, index) =>
+        index === visibleColumns.length - 1 ? `minmax(${column.getSize()}px, 1fr)` : `${column.getSize()}px`,
+      )
+      .join(" ");
+  };
+  const reorderColumn = (sourceId: string, targetId: string) => {
+    if (sourceId === targetId) return;
+    const order = table.getAllLeafColumns().map((column) => column.id);
+    const sourceIndex = order.indexOf(sourceId);
+    const targetIndex = order.indexOf(targetId);
+    if (sourceIndex < 0 || targetIndex < 0) return;
+    order.splice(sourceIndex, 1);
+    order.splice(targetIndex, 0, sourceId);
+    table.setColumnOrder(order);
+  };
+  const moveColumn = (columnId: string, offset: -1 | 1) => {
+    const order = table.getAllLeafColumns().map((column) => column.id);
+    const sourceIndex = order.indexOf(columnId);
+    const targetIndex = sourceIndex + offset;
+    if (sourceIndex < 0 || targetIndex < 0 || targetIndex >= order.length) return;
+    [order[sourceIndex], order[targetIndex]] = [order[targetIndex], order[sourceIndex]];
+    table.setColumnOrder(order);
+  };
+  const beginColumnResize = (
+    columnId: string,
+    event: MouseEvent | TouchEvent,
+    resize: (event: MouseEvent | TouchEvent) => void,
+  ) => {
+    finishColumnResize?.();
+    setResizingColumnId(columnId);
+    const releaseEvent = event instanceof MouseEvent ? "mouseup" : "touchend";
+    const finish = () => {
+      setResizingColumnId(undefined);
+      document.removeEventListener(releaseEvent, finish);
+      finishColumnResize = undefined;
+    };
+    finishColumnResize = finish;
+    document.addEventListener(releaseEvent, finish);
+    resize(event);
+  };
+  onCleanup(() => finishColumnResize?.());
+  createEffect(() => {
+    if (!resizingColumnId() && !draggedColumnId()) return;
+    const previousUserSelect = document.documentElement.style.userSelect;
+    const previousWebkitUserSelect = document.documentElement.style.webkitUserSelect;
+    document.documentElement.style.userSelect = "none";
+    document.documentElement.style.webkitUserSelect = "none";
+    onCleanup(() => {
+      document.documentElement.style.userSelect = previousUserSelect;
+      document.documentElement.style.webkitUserSelect = previousWebkitUserSelect;
+    });
+  });
 
   onMount(() => {
     if (!props.virtualization || !scrollElement) return;
@@ -155,14 +214,11 @@ export function DataTable(props: DataTableProps) {
         aria-label={props.ariaLabel}
         aria-rowcount={props.virtualization ? tableRows().length + 1 : undefined}
         data-density={props.density ?? "comfortable"}
-        style={
-          props.virtualization
-            ? {
-                "--data-table-columns": virtualColumnTemplate(),
-                "--data-table-scrollbar-width": `${scrollbarWidth()}px`,
-              }
-            : undefined
-        }
+        style={{
+          "--data-table-columns": columnTemplate(),
+          "--data-table-content-width": `${table.getTotalSize()}px`,
+          "--data-table-scrollbar-width": `${scrollbarWidth()}px`,
+        }}
       >
         <thead>
           <For each={table.getHeaderGroups()}>
@@ -171,13 +227,81 @@ export function DataTable(props: DataTableProps) {
                 <For each={headerGroup.headers}>
                   {(header) => (
                     <th
-                      style={{
-                        width: columnById().get(header.column.id)?.width
-                          ? `${columnById().get(header.column.id)?.width}px`
-                          : undefined,
+                      aria-label={String(header.column.columnDef.header)}
+                      classList={{ [styles.draggingColumn]: draggedColumnId() === header.column.id }}
+                      draggable={!header.isPlaceholder && !resizingColumnId()}
+                      tabIndex={header.isPlaceholder ? undefined : 0}
+                      onDragStart={(event) => {
+                        if (resizingColumnId()) {
+                          event.preventDefault();
+                          return;
+                        }
+                        setDraggedColumnId(header.column.id);
+                        if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+                      }}
+                      onDragEnd={() => setDraggedColumnId(undefined)}
+                      onDragOver={(event) => {
+                        if (draggedColumnId()) event.preventDefault();
+                      }}
+                      onDrop={(event) => {
+                        event.preventDefault();
+                        const sourceId = draggedColumnId();
+                        if (sourceId) reorderColumn(sourceId, header.column.id);
+                        setDraggedColumnId(undefined);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.altKey && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
+                          event.preventDefault();
+                          moveColumn(header.column.id, event.key === "ArrowLeft" ? -1 : 1);
+                        }
                       }}
                     >
-                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                      <span class={styles.headerLabel}>
+                        {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                      </span>
+                      <Show when={!header.isPlaceholder && header.column.getCanResize()}>
+                        <span
+                          class={styles.resizeHandle}
+                          classList={{ [styles.resizing]: header.column.getIsResizing() }}
+                          role="separator"
+                          aria-label={`Resize ${String(header.column.columnDef.header)} column`}
+                          aria-orientation="vertical"
+                          aria-valuemin={header.column.columnDef.minSize}
+                          aria-valuemax={header.column.columnDef.maxSize}
+                          aria-valuenow={header.column.getSize()}
+                          draggable={false}
+                          tabIndex={0}
+                          onDragStart={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                          }}
+                          onMouseDown={(event) => {
+                            event.stopPropagation();
+                            beginColumnResize(header.column.id, event, header.getResizeHandler());
+                          }}
+                          onTouchStart={(event) => {
+                            event.stopPropagation();
+                            beginColumnResize(header.column.id, event, header.getResizeHandler());
+                          }}
+                          onDblClick={() => header.column.resetSize()}
+                          onKeyDown={(event) => {
+                            if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+                            event.preventDefault();
+                            event.stopPropagation();
+                            const delta = (event.shiftKey ? 32 : 8) * (event.key === "ArrowLeft" ? -1 : 1);
+                            table.setColumnSizing((current) => ({
+                              ...current,
+                              [header.column.id]: Math.max(
+                                header.column.columnDef.minSize ?? 0,
+                                Math.min(
+                                  header.column.columnDef.maxSize ?? Number.POSITIVE_INFINITY,
+                                  header.column.getSize() + delta,
+                                ),
+                              ),
+                            }));
+                          }}
+                        />
+                      </Show>
                     </th>
                   )}
                 </For>

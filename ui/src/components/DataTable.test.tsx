@@ -104,6 +104,51 @@ describe("DataTable", () => {
     expect(activate).toHaveBeenCalledTimes(2);
   });
 
+  it("resizes and reorders columns", () => {
+    const result = createResult("Jane", 34);
+    render(() => (
+      <DataTable
+        ariaLabel="People"
+        result={result}
+        columns={[
+          { column: result.requireColumn("name"), header: "Name" },
+          { column: result.requireColumn("age"), header: "Age" },
+        ]}
+      />
+    ));
+
+    const resizeName = screen.getByRole("separator", { name: "Resize Name column" });
+    expect(resizeName.getAttribute("aria-valuemin")).toBe("32");
+    expect(resizeName.getAttribute("aria-valuenow")).toBe("150");
+    fireEvent.keyDown(resizeName, { key: "ArrowRight" });
+    expect(resizeName.getAttribute("aria-valuenow")).toBe("158");
+    for (let index = 0; index < 20; index += 1) fireEvent.keyDown(resizeName, { key: "ArrowLeft" });
+    expect(resizeName.getAttribute("aria-valuenow")).toBe("32");
+    expect(screen.getByRole("table", { name: "People" }).style.getPropertyValue("--data-table-columns")).toBe(
+      "32px minmax(150px, 1fr)",
+    );
+    expect(screen.getByRole("separator", { name: "Resize Age column" }).getAttribute("aria-valuenow")).toBe("150");
+
+    fireEvent.mouseDown(resizeName, { clientX: 150 });
+    expect(document.documentElement.style.userSelect).toBe("none");
+    fireEvent.dragStart(screen.getByRole("columnheader", { name: "Name" }));
+    fireEvent.drop(screen.getByRole("columnheader", { name: "Age" }));
+    expect(screen.getAllByRole("columnheader").map((header) => header.textContent)).toEqual(["Name", "Age"]);
+    fireEvent.mouseUp(document, { clientX: 158 });
+    expect(document.documentElement.style.userSelect).toBe("");
+
+    fireEvent.dragStart(screen.getByRole("columnheader", { name: "Name" }));
+    expect(document.documentElement.style.userSelect).toBe("none");
+    fireEvent.dragOver(screen.getByRole("columnheader", { name: "Age" }));
+    fireEvent.drop(screen.getByRole("columnheader", { name: "Age" }));
+    expect(document.documentElement.style.userSelect).toBe("");
+    expect(screen.getAllByRole("columnheader").map((header) => header.textContent)).toEqual(["Age", "Name"]);
+    expect(screen.getByRole("row", { name: "34 Jane" })).toBeTruthy();
+
+    fireEvent.keyDown(screen.getByRole("columnheader", { name: "Name" }), { key: "ArrowLeft", altKey: true });
+    expect(screen.getAllByRole("columnheader").map((header) => header.textContent)).toEqual(["Name", "Age"]);
+  });
+
   it("forwards row context menu events without activating the row", () => {
     const result = createResult("Jane", 34);
     const contextMenu = vi.fn();
@@ -188,7 +233,7 @@ describe("DataTable", () => {
 
     const table = screen.getByRole("table", { name: "Large people list" });
     expect(table.getAttribute("aria-rowcount")).toBe("1001");
-    expect(table.style.getPropertyValue("--data-table-columns")).toBe("minmax(0, 1fr)");
+    expect(table.style.getPropertyValue("--data-table-columns")).toBe("minmax(150px, 1fr)");
     expect(table.querySelector("tbody")?.style.maxHeight).toBe("400px");
     expect(table.parentElement?.style.maxHeight).toBe("");
     await waitFor(() => expect(screen.getByText("Person 1")).toBeTruthy());
