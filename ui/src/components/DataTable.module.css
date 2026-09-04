@@ -10,11 +10,14 @@
 
 .table {
   display: block;
-  width: max(100%, calc(var(--data-table-content-width) + var(--data-table-scrollbar-width)));
+  width: 100%;
+  min-width: calc(var(--data-table-content-width) + var(--data-table-scrollbar-width));
   border-collapse: collapse;
   font-size: 13px;
 }
 
+.table thead,
+.table tbody { display: block; width: 100%; }
 .table tr { display: grid; grid-template-columns: var(--data-table-columns); width: 100%; }
 
 .table th {
@@ -66,6 +69,6 @@
 .clickableRow:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
 .table tbody tr[aria-selected="true"] { background: var(--color-primary-soft); }
 .table tbody tr[aria-selected="true"] td:first-child { box-shadow: inset 3px 0 var(--color-primary); }
-.virtualized thead { display: block; width: calc(100% - var(--data-table-scrollbar-width)); }
-.virtualized tbody { display: block; overflow-y: scroll; scrollbar-gutter: stable; overscroll-behavior: contain; }
+.virtualized thead { width: calc(100% - var(--data-table-scrollbar-width)); }
+.virtualized tbody { overflow-y: scroll; scrollbar-gutter: stable; overscroll-behavior: contain; }
 .table .virtualSpacer { height: 0; padding: 0; border: 0; grid-column: 1 / -1; }
