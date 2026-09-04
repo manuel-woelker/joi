@@ -52,6 +52,24 @@ const emptyResult = parseQueryResponse({
   ],
 });
 
+const virtualResult = parseQueryResponse({
+  number_of_hits: 1_000,
+  result_columns: [
+    {
+      attribute: "key",
+      values: { type: "string", values: Array.from({ length: 1_000 }, (_, index) => `TEST-${index + 1}`) },
+    },
+    {
+      attribute: "title",
+      values: { type: "string", values: Array.from({ length: 1_000 }, (_, index) => `Generated issue ${index + 1}`) },
+    },
+    {
+      attribute: "priority",
+      values: { type: "int", values: Array.from({ length: 1_000 }, (_, index) => (index % 5) + 1) },
+    },
+  ],
+});
+
 export default {
   name: "Data Table",
   description: "A generic TanStack-backed table over typed columnar query results.",
@@ -73,6 +91,24 @@ export default {
       name: "Interactive rows",
       description: "Rows support selection, arrow-key navigation, and keyboard activation.",
       render: () => <InteractiveTable />,
+    },
+    {
+      name: "Virtual scrolling",
+      description: "A 1,000-row result renders only the visible rows while scrolling.",
+      render: () => (
+        <DataTable
+          ariaLabel="One thousand tickets"
+          result={virtualResult}
+          density="compact"
+          rowKey={virtualResult.requireColumn("key")}
+          virtualization={{ height: 420, estimatedRowHeight: 33 }}
+          columns={[
+            { column: virtualResult.requireColumn("key"), header: "Key", width: 110 },
+            { column: virtualResult.requireColumn("title"), header: "Title" },
+            { column: virtualResult.requireColumn("priority"), header: "Priority", width: 90 },
+          ]}
+        />
+      ),
     },
   ],
 } satisfies ComponentDemo;

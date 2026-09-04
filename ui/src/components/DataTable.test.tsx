@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@solidjs/testing-library";
+import { cleanup, fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { createSignal } from "solid-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -163,5 +163,37 @@ describe("DataTable", () => {
     fireEvent.keyDown(jane, { key: "ArrowUp" });
     expect(document.activeElement).toBe(jane);
     expect(select).toHaveBeenCalledTimes(selectionCount);
+  });
+
+  it("renders only the visible subset of a virtualized result", async () => {
+    const heights = vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return this.style.maxHeight === "400px" ? 400 : 40;
+    });
+    const names = Array.from({ length: 1_000 }, (_, index) => `Person ${index + 1}`);
+    const result = parseQueryResponse({
+      number_of_hits: names.length,
+      result_columns: [{ attribute: "name", values: { type: "string", values: names } }],
+    });
+
+    render(() => (
+      <DataTable
+        ariaLabel="Large people list"
+        result={result}
+        columns={[{ column: result.requireColumn("name"), header: "Name" }]}
+        virtualization={{ height: 400, estimatedRowHeight: 40 }}
+      />
+    ));
+
+    const table = screen.getByRole("table", { name: "Large people list" });
+    expect(table.getAttribute("aria-rowcount")).toBe("1001");
+    expect(table.style.getPropertyValue("--data-table-columns")).toBe("minmax(0, 1fr)");
+    expect(table.querySelector("tbody")?.style.maxHeight).toBe("400px");
+    expect(table.parentElement?.style.maxHeight).toBe("");
+    await waitFor(() => expect(screen.getByText("Person 1")).toBeTruthy());
+    expect(screen.queryByText("Person 1000")).toBeNull();
+    expect(screen.getAllByRole("row").length).toBeLessThan(30);
+    heights.mockRestore();
   });
 });
