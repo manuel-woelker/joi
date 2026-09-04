@@ -104,7 +104,7 @@ describe("DataTable", () => {
     expect(activate).toHaveBeenCalledTimes(2);
   });
 
-  it("resizes and reorders columns", () => {
+  it("resizes and reorders columns", async () => {
     const result = createResult("Jane", 34);
     render(() => (
       <DataTable
@@ -124,29 +124,53 @@ describe("DataTable", () => {
     expect(resizeName.getAttribute("aria-valuenow")).toBe("158");
     for (let index = 0; index < 20; index += 1) fireEvent.keyDown(resizeName, { key: "ArrowLeft" });
     expect(resizeName.getAttribute("aria-valuenow")).toBe("32");
-    expect(screen.getByRole("table", { name: "People" }).style.getPropertyValue("--data-table-columns")).toBe(
-      "32px minmax(150px, 1fr)",
-    );
+    const table = screen.getByRole("table", { name: "People" });
+    expect(table.style.getPropertyValue("--data-table-columns")).toBe("32px minmax(150px, 1fr)");
+    vi.spyOn(table, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      width: 500,
+      height: 100,
+      top: 0,
+      right: 500,
+      bottom: 100,
+      left: 0,
+      toJSON: () => undefined,
+    });
     expect(screen.getByRole("separator", { name: "Resize Age column" }).getAttribute("aria-valuenow")).toBe("150");
 
+    fireEvent.pointerDown(resizeName, { button: 0, clientX: 150, pointerId: 1 });
     fireEvent.mouseDown(resizeName, { clientX: 150 });
     expect(document.documentElement.style.userSelect).toBe("none");
-    fireEvent.dragStart(screen.getByRole("columnheader", { name: "Name" }));
-    fireEvent.drop(screen.getByRole("columnheader", { name: "Age" }));
+    fireEvent.pointerMove(document, { clientX: 180, pointerId: 1 });
+    expect(screen.queryByTestId("column-drag-preview")).toBeNull();
     expect(screen.getAllByRole("columnheader").map((header) => header.textContent)).toEqual(["Name", "Age"]);
     fireEvent.mouseUp(document, { clientX: 158 });
-    expect(document.documentElement.style.userSelect).toBe("");
 
-    fireEvent.dragStart(screen.getByRole("columnheader", { name: "Name" }));
+    const nameHeader = screen.getByRole("columnheader", { name: "Name" });
+    fireEvent.pointerDown(nameHeader, { button: 0, clientX: 0, pointerId: 2 });
+    fireEvent.pointerMove(nameHeader, { clientX: 100, pointerId: 2 });
     expect(document.documentElement.style.userSelect).toBe("none");
-    fireEvent.dragOver(screen.getByRole("columnheader", { name: "Age" }));
-    fireEvent.drop(screen.getByRole("columnheader", { name: "Age" }));
-    expect(document.documentElement.style.userSelect).toBe("");
+    expect(screen.getByTestId("column-drag-preview").textContent).toBe("Name");
+    expect(screen.getAllByRole("columnheader").map((header) => header.textContent)).toEqual(["Name", "Age"]);
+    fireEvent.pointerMove(document, { clientX: 300, pointerId: 2 });
+    expect(screen.getAllByRole("columnheader").map((header) => header.textContent)).toEqual(["Age", "Name"]);
+    expect(screen.getByRole("row", { name: "34 Jane" })).toBeTruthy();
+    fireEvent.pointerUp(document, { clientX: 20, pointerId: 2 });
+    await waitFor(() => expect(document.documentElement.style.userSelect).toBe(""));
     expect(screen.getAllByRole("columnheader").map((header) => header.textContent)).toEqual(["Age", "Name"]);
     expect(screen.getByRole("row", { name: "34 Jane" })).toBeTruthy();
 
     fireEvent.keyDown(screen.getByRole("columnheader", { name: "Name" }), { key: "ArrowLeft", altKey: true });
     expect(screen.getAllByRole("columnheader").map((header) => header.textContent)).toEqual(["Name", "Age"]);
+
+    const cancellableHeader = screen.getByRole("columnheader", { name: "Name" });
+    fireEvent.pointerDown(cancellableHeader, { button: 0, clientX: 0, pointerId: 3 });
+    fireEvent.pointerMove(cancellableHeader, { clientX: 300, pointerId: 3 });
+    expect(screen.getAllByRole("columnheader").map((header) => header.textContent)).toEqual(["Age", "Name"]);
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.getAllByRole("columnheader").map((header) => header.textContent)).toEqual(["Name", "Age"]);
+    await waitFor(() => expect(document.documentElement.style.userSelect).toBe(""));
   });
 
   it("forwards row context menu events without activating the row", () => {

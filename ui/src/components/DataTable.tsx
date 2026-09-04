@@ -1,6 +1,7 @@
 import { type ColumnDef, createSolidTable, flexRender, getCoreRowModel, type Row } from "@tanstack/solid-table";
 import { createVirtualizer } from "@tanstack/solid-virtual";
 import { createEffect, createMemo, createSignal, For, type JSX, onCleanup, onMount, Show } from "solid-js";
+import { Portal } from "solid-js/web";
 
 import type { QueryColumnHandle, QueryResult, QueryResultRow, QueryValue } from "../query/query-result";
 import styles from "./DataTable.module.css";
@@ -32,10 +33,23 @@ export interface DataTableProps {
 
 export function DataTable(props: DataTableProps) {
   let scrollElement: HTMLTableSectionElement | undefined;
+  let tableElement: HTMLTableElement | undefined;
   let finishColumnResize: (() => void) | undefined;
+  let removeColumnDragListeners: (() => void) | undefined;
+  let pendingColumnDrag:
+    | {
+        columnId: string;
+        label: string;
+        pointerId: number;
+        startX: number;
+        startY: number;
+        originalOrder: string[];
+      }
+    | undefined;
   const [focusedRowId, setFocusedRowId] = createSignal<string>();
   const [scrollbarWidth, setScrollbarWidth] = createSignal(0);
   const [draggedColumnId, setDraggedColumnId] = createSignal<string>();
+  const [columnDragPosition, setColumnDragPosition] = createSignal({ x: 0, y: 0 });
   const [resizingColumnId, setResizingColumnId] = createSignal<string>();
   const columns = createMemo<ColumnDef<QueryResultRow>[]>(() =>
     props.columns.map((definition) => ({
@@ -92,14 +106,12 @@ export function DataTable(props: DataTableProps) {
       )
       .join(" ");
   };
-  const reorderColumn = (sourceId: string, targetId: string) => {
-    if (sourceId === targetId) return;
+  const reorderColumn = (sourceId: string, targetIndex: number) => {
     const order = table.getAllLeafColumns().map((column) => column.id);
     const sourceIndex = order.indexOf(sourceId);
-    const targetIndex = order.indexOf(targetId);
-    if (sourceIndex < 0 || targetIndex < 0) return;
+    if (sourceIndex < 0) return;
     order.splice(sourceIndex, 1);
-    order.splice(targetIndex, 0, sourceId);
+    order.splice(Math.max(0, Math.min(targetIndex, order.length)), 0, sourceId);
     table.setColumnOrder(order);
   };
   const moveColumn = (columnId: string, offset: -1 | 1) => {
@@ -109,6 +121,65 @@ export function DataTable(props: DataTableProps) {
     if (sourceIndex < 0 || targetIndex < 0 || targetIndex >= order.length) return;
     [order[sourceIndex], order[targetIndex]] = [order[targetIndex], order[sourceIndex]];
     table.setColumnOrder(order);
+  };
+  const previewColumnAtPointer = (clientX: number, pending: NonNullable<typeof pendingColumnDrag>) => {
+    const remaining = table
+      .getAllLeafColumns()
+      .map((column) => column.id)
+      .filter((columnId) => columnId !== pending.columnId);
+    const tableBounds = tableElement?.getBoundingClientRect();
+    const headerBounds = tableElement?.tHead?.getBoundingClientRect();
+    const availableWidth = headerBounds?.width || tableBounds?.width || table.getTotalSize();
+    const tableLeft = headerBounds?.left ?? tableBounds?.left ?? 0;
+    const candidates: { index: number; center: number }[] = [];
+    for (let index = 0; index <= remaining.length; index += 1) {
+      const candidateOrder = [...remaining];
+      candidateOrder.splice(index, 0, pending.columnId);
+      const widths = candidateOrder.map((columnId) => table.getColumn(columnId)?.getSize() ?? 0);
+      const fixedWidth = widths.slice(0, -1).reduce((sum, width) => sum + width, 0);
+      widths[widths.length - 1] = Math.max(widths.at(-1) ?? 0, availableWidth - fixedWidth);
+      const columnLeft = tableLeft + widths.slice(0, index).reduce((sum, width) => sum + width, 0);
+      const columnRight = columnLeft + widths[index];
+      if (clientX >= columnLeft && clientX <= columnRight) {
+        candidates.push({ index, center: columnLeft + widths[index] / 2 });
+      }
+    }
+    const destination = candidates.sort(
+      (left, right) => Math.abs(clientX - left.center) - Math.abs(clientX - right.center),
+    )[0];
+    if (destination) reorderColumn(pending.columnId, destination.index);
+  };
+  const finishColumnDrag = (commit: boolean) => {
+    if (!commit && pendingColumnDrag) table.setColumnOrder(pendingColumnDrag.originalOrder);
+    removeColumnDragListeners?.();
+    removeColumnDragListeners = undefined;
+    pendingColumnDrag = undefined;
+    setDraggedColumnId(undefined);
+  };
+  const trackColumnDrag = (pending: NonNullable<typeof pendingColumnDrag>) => {
+    removeColumnDragListeners?.();
+    const move = (event: PointerEvent) => {
+      if (pendingColumnDrag?.pointerId !== event.pointerId) return;
+      if (!draggedColumnId() && Math.hypot(event.clientX - pending.startX, event.clientY - pending.startY) < 6) return;
+      event.preventDefault();
+      if (!draggedColumnId()) setDraggedColumnId(pending.columnId);
+      setColumnDragPosition({ x: event.clientX, y: event.clientY });
+      previewColumnAtPointer(event.clientX, pending);
+    };
+    const release = (event: PointerEvent) => {
+      if (pendingColumnDrag?.pointerId === event.pointerId) finishColumnDrag(true);
+    };
+    const cancel = (event: PointerEvent) => {
+      if (pendingColumnDrag?.pointerId === event.pointerId) finishColumnDrag(false);
+    };
+    document.addEventListener("pointermove", move);
+    document.addEventListener("pointerup", release);
+    document.addEventListener("pointercancel", cancel);
+    removeColumnDragListeners = () => {
+      document.removeEventListener("pointermove", move);
+      document.removeEventListener("pointerup", release);
+      document.removeEventListener("pointercancel", cancel);
+    };
   };
   const beginColumnResize = (
     columnId: string,
@@ -128,6 +199,7 @@ export function DataTable(props: DataTableProps) {
     resize(event);
   };
   onCleanup(() => finishColumnResize?.());
+  onCleanup(() => finishColumnDrag(false));
   createEffect(() => {
     if (!resizingColumnId() && !draggedColumnId()) return;
     const previousUserSelect = document.documentElement.style.userSelect;
@@ -138,6 +210,14 @@ export function DataTable(props: DataTableProps) {
       document.documentElement.style.userSelect = previousUserSelect;
       document.documentElement.style.webkitUserSelect = previousWebkitUserSelect;
     });
+  });
+  createEffect(() => {
+    if (!draggedColumnId()) return;
+    const cancel = (event: KeyboardEvent) => {
+      if (event.key === "Escape") finishColumnDrag(false);
+    };
+    document.addEventListener("keydown", cancel);
+    onCleanup(() => document.removeEventListener("keydown", cancel));
   });
 
   onMount(() => {
@@ -210,6 +290,7 @@ export function DataTable(props: DataTableProps) {
   return (
     <div class={styles.tableScroll} classList={{ [styles.virtualized]: Boolean(props.virtualization) }}>
       <table
+        ref={tableElement}
         class={styles.table}
         aria-label={props.ariaLabel}
         aria-rowcount={props.virtualization ? tableRows().length + 1 : undefined}
@@ -228,26 +309,22 @@ export function DataTable(props: DataTableProps) {
                   {(header) => (
                     <th
                       aria-label={String(header.column.columnDef.header)}
-                      classList={{ [styles.draggingColumn]: draggedColumnId() === header.column.id }}
-                      draggable={!header.isPlaceholder && !resizingColumnId()}
+                      classList={{
+                        [styles.draggingColumn]: draggedColumnId() === header.column.id,
+                      }}
+                      data-column-id={header.column.id}
                       tabIndex={header.isPlaceholder ? undefined : 0}
-                      onDragStart={(event) => {
-                        if (resizingColumnId()) {
-                          event.preventDefault();
-                          return;
-                        }
-                        setDraggedColumnId(header.column.id);
-                        if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
-                      }}
-                      onDragEnd={() => setDraggedColumnId(undefined)}
-                      onDragOver={(event) => {
-                        if (draggedColumnId()) event.preventDefault();
-                      }}
-                      onDrop={(event) => {
-                        event.preventDefault();
-                        const sourceId = draggedColumnId();
-                        if (sourceId) reorderColumn(sourceId, header.column.id);
-                        setDraggedColumnId(undefined);
+                      onPointerDown={(event) => {
+                        if (header.isPlaceholder || resizingColumnId() || event.button !== 0) return;
+                        pendingColumnDrag = {
+                          columnId: header.column.id,
+                          label: String(header.column.columnDef.header),
+                          pointerId: event.pointerId,
+                          startX: event.clientX,
+                          startY: event.clientY,
+                          originalOrder: table.getAllLeafColumns().map((column) => column.id),
+                        };
+                        trackColumnDrag(pendingColumnDrag);
                       }}
                       onKeyDown={(event) => {
                         if (event.altKey && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
@@ -275,6 +352,7 @@ export function DataTable(props: DataTableProps) {
                             event.preventDefault();
                             event.stopPropagation();
                           }}
+                          onPointerDown={(event) => event.stopPropagation()}
                           onMouseDown={(event) => {
                             event.stopPropagation();
                             beginColumnResize(header.column.id, event, header.getResizeHandler());
@@ -338,6 +416,18 @@ export function DataTable(props: DataTableProps) {
           </Show>
         </tbody>
       </table>
+      <Show when={draggedColumnId() && pendingColumnDrag}>
+        <Portal>
+          <div
+            class={styles.columnDragPreview}
+            data-testid="column-drag-preview"
+            aria-hidden="true"
+            style={{ left: `${columnDragPosition().x + 12}px`, top: `${columnDragPosition().y + 12}px` }}
+          >
+            {pendingColumnDrag?.label}
+          </div>
+        </Portal>
+      </Show>
     </div>
   );
 }
