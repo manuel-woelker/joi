@@ -1,8 +1,8 @@
-import { PluginRegistryBuilder, type UiPlugin } from "./plugins/registry";
-import { fetchService, fetchServiceKey } from "./services/fetch-service";
-import { createPluginRegistryService, pluginRegistryServiceKey } from "./plugins/plugin-registry-service";
 import { DataChangeService, dataChangeServiceKey } from "./data-changes/data-change-service";
 import { RecordMutationService, recordMutationServiceKey } from "./data-changes/record-mutation-service";
+import { createPluginRegistryService, pluginRegistryServiceKey } from "./plugins/plugin-registry-service";
+import { PluginRegistryBuilder, type UiPlugin } from "./plugins/registry";
+import { fetchService, fetchServiceKey } from "./services/fetch-service";
 
 interface PluginModule {
   default: UiPlugin;
@@ -11,6 +11,7 @@ interface PluginModule {
 const pluginModules = import.meta.glob<PluginModule>("./**/*.plugin.ts{,x}", { eager: true });
 
 export function createApplication() {
+  const initializationStarted = performance.now();
   const plugins = Object.entries(pluginModules)
     .map(([path, module]) => validatePlugin(path, module.default))
     .sort((left, right) => left.name.localeCompare(right.name));
@@ -27,6 +28,7 @@ export function createApplication() {
   plugins.forEach((candidate) => builder.register(candidate));
   const registry = builder.build();
   pluginRegistry.setRegistry(registry);
+  console.info(`UI plugin system initialized in ${(performance.now() - initializationStarted).toFixed(2)} ms`);
   return { registry, services: { dataChanges, recordMutations } };
 }
 
