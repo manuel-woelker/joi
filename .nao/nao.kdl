@@ -25,7 +25,7 @@ recipe "default" {
   }
 
   task "biome-lint" description="Run Biome linting" {
-    run shell="./t pnpm --dir ui exec biome lint src vite.config.ts ../libs-rust/joi-api/api-docs-ui/src ../libs-rust/joi-api/api-docs-ui/vite.config.ts"
+    run shell="./t node ui/node_modules/@biomejs/biome/bin/biome lint ui/src ui/vite.config.ts libs-rust/joi-api/api-docs-ui/src libs-rust/joi-api/api-docs-ui/vite.config.ts"
   }
 
   task "biome-format" description="Check Biome formatting" {
@@ -34,26 +34,17 @@ recipe "default" {
       before=$(mktemp)
       trap 'rm -f "$before"' EXIT
       git diff --binary -- $paths > "$before"
-      ./t pnpm --dir ui exec biome format --write \
-        src \
-        vite.config.ts \
-        tsconfig.json \
-        package.json \
-        ../libs-rust/joi-api/api-docs-ui/src \
-        ../libs-rust/joi-api/api-docs-ui/vite.config.ts \
-        ../libs-rust/joi-api/api-docs-ui/tsconfig.json \
-        ../libs-rust/joi-api/api-docs-ui/package.json \
-        ../biome.json
+      ./t node ui/node_modules/@biomejs/biome/bin/biome format --write $paths
       git diff --binary -- $paths | cmp -s "$before" -
     """
   }
 
   task "ui-typecheck" description="Run the UI TypeScript typecheck" {
-    run shell="./t pnpm --dir ui check"
+    run shell="./t node ui/node_modules/typescript/bin/tsc --noEmit --project ui/tsconfig.json"
   }
 
   task "ui-test" description="Run the UI tests" {
-    run shell="./t pnpm --dir ui test -- --run"
+    run shell="./t node ui/node_modules/vitest/vitest.mjs run --root ui"
   }
 
   task "check" description="Run all repository checks" {

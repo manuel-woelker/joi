@@ -23,6 +23,9 @@ tools {
 		commands {
 			pnpm "pnpm"
 		}
+		env {
+			PATH "${dir:node}/bin"
+		}
 	}
 	nao "0.1.7" {
 		download {

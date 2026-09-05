@@ -14,7 +14,11 @@ function git(...arguments_: string[]): string {
   throw result.error ?? new Error(`git ${arguments_.join(" ")} failed: ${result.stderr.trim()}`);
 }
 
-const revision = `${git("log", "-1", "--format=%H").slice(0, 8)} ${git("log", "-1", "--format=%cI")}${git("status", "--porcelain") ? "-dev" : ""}`;
+const revision =
+  process.env.JOI_REVISION ??
+  (process.env.VITEST
+    ? "test"
+    : `${git("log", "-1", "--format=%H").slice(0, 8)} ${git("log", "-1", "--format=%cI")}${git("status", "--porcelain") ? "-dev" : ""}`);
 
 export default defineConfig({
   define: {
