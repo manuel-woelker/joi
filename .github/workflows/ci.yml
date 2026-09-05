@@ -19,10 +19,10 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Restore tool and build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .cache
           key: ${{ runner.os }}-cache-${{ hashFiles('t', '.tool-tool/tool-tool.v2.kdl', 'Cargo.lock') }}
@@ -30,7 +30,7 @@ jobs:
             ${{ runner.os }}-cache-
 
       - name: Restore Node dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ui/node_modules
@@ -64,7 +64,7 @@ jobs:
 
       - name: Upload Nao run logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: nao-ci-run
           path: .nao/runs/*-ci/
