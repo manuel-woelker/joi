@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: Repository checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Restore tool and build cache
+        uses: actions/cache@v4
+        with:
+          path: .cache
+          key: ${{ runner.os }}-cache-${{ hashFiles('t', '.tool-tool/tool-tool.v2.kdl', 'Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cache-
+
+      - name: Restore Node dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ui/node_modules
+            libs-rust/joi-api/api-docs-ui/node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('ui/pnpm-lock.yaml', 'libs-rust/joi-api/api-docs-ui/pnpm-lock.yaml') }}
+
+      - name: Install UI dependencies
+        run: |
+          ./t pnpm --dir ui install --frozen-lockfile
+          ./t pnpm --dir libs-rust/joi-api/api-docs-ui install --frozen-lockfile
+
+      - name: Run CI checks
+        run: ./n --ci ci
+
+      - name: Add Nao summary
+        if: always()
+        shell: bash
+        run: |
+          run_directory="$(find .nao/runs -mindepth 1 -maxdepth 1 -type d -name '*-ci' -print -quit 2>/dev/null || true)"
+          {
+            printf '## Nao CI run\n\n'
+            if [[ -n "${run_directory}" && -f "${run_directory}/nao-summary.json" ]]; then
+              printf 'The complete Nao run bundle is available as the `nao-ci-run` artifact.\n\n'
+              printf '```json\n'
+              cat "${run_directory}/nao-summary.json"
+              printf '\n```\n'
+            else
+              printf 'Nao did not produce a run summary. Check the workflow log for startup errors.\n'
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload Nao run logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nao-ci-run
+          path: .nao/runs/*-ci/
+          if-no-files-found: warn
+          retention-days: 14
