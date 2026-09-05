@@ -46,6 +46,7 @@ tools {
 		}
 		commands {
 			cargo "cargo/bin/cargo"
+			clippy "clippy-preview/bin/cargo-clippy"
 			rustc "rustc/bin/rustc"
 		}
 		env {
@@ -54,6 +55,8 @@ tools {
 			AR "${dir:rust}/llvm-tools-preview/lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-ar"
 			CC "${base_path}/scripts/zig-cc"
 			CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER "${base_path}/scripts/zig-cc"
+			RUSTC "${dir:rust}/rustc/bin/rustc"
+			RUSTDOC "${dir:rust}/rustc/bin/rustdoc"
 			RUSTFLAGS "--sysroot ${dir:rust}/rust-std-x86_64-unknown-linux-gnu"
 			ZIG_GLOBAL_CACHE_DIR "${base_path}/.cache/zig/global"
 			ZIG_LOCAL_CACHE_DIR "${base_path}/.cache/zig/local"

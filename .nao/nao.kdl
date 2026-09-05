@@ -21,7 +21,7 @@ recipe "default" {
   }
 
   task "cargo-clippy" description="Run Rust clippy" {
-    run shell="./t cargo clippy --workspace --all-targets -- -D warnings"
+    run shell="./t clippy --workspace --all-targets -- -D warnings"
   }
 
   task "biome-lint" description="Run Biome linting" {
