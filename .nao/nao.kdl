@@ -1,13 +1,12 @@
 recipe "default" {
   task "joix-tickets" description="Run the joix-tickets testbed" direct-output=#true {
-    run shell="cargo run --manifest-path examples/joix-tickets/Cargo.toml"
+    run shell="./t cargo run -p joix-tickets"
   }
 
   task "ui" description="Run the Joi UI development server" {
     run shell="""
       printf 'Task status: http://localhost:5173\n'
-      cd ui
-      exec pnpm dev
+      exec ./t pnpm --dir ui dev
     """
   }
 
@@ -18,49 +17,43 @@ recipe "default" {
   }
 
   task "cargo-fmt" description="Check Rust formatting" {
-    run shell="""
-      cargo fmt --manifest-path libs-rust/joi-base/Cargo.toml -- --check
-      cargo fmt --manifest-path libs-rust/joi-error/Cargo.toml -- --check
-      cargo fmt --manifest-path libs-rust/joi-plugin/Cargo.toml -- --check
-      cargo fmt --manifest-path libs-rust/joi-template/Cargo.toml --all -- --check
-      cargo fmt --manifest-path libs-rust/joi-api/Cargo.toml --all -- --check
-      cargo fmt --manifest-path examples/joix-tickets/Cargo.toml -- --check
-    """
+    run shell="./t cargo fmt --all -- --check"
   }
 
   task "cargo-clippy" description="Run Rust clippy" {
-    run shell="""
-      cargo clippy --manifest-path libs-rust/joi-base/Cargo.toml --all-targets -- -D warnings
-      cargo clippy --manifest-path libs-rust/joi-error/Cargo.toml --all-targets -- -D warnings
-      cargo clippy --manifest-path libs-rust/joi-plugin/Cargo.toml --all-targets -- -D warnings
-      cargo clippy --manifest-path libs-rust/joi-template/Cargo.toml --workspace --all-targets -- -D warnings
-      cargo clippy --manifest-path libs-rust/joi-api/Cargo.toml --workspace --all-targets -- -D warnings
-      cargo clippy --manifest-path examples/joix-tickets/Cargo.toml --all-targets -- -D warnings
-    """
+    run shell="./t cargo clippy --workspace --all-targets -- -D warnings"
   }
 
   task "biome-lint" description="Run Biome linting" {
-    run shell="cd ui && pnpm exec biome lint src vite.config.ts ../libs-rust/joi-api/api-docs-ui/src ../libs-rust/joi-api/api-docs-ui/vite.config.ts"
+    run shell="./t pnpm --dir ui exec biome lint src vite.config.ts ../libs-rust/joi-api/api-docs-ui/src ../libs-rust/joi-api/api-docs-ui/vite.config.ts"
   }
 
   task "biome-format" description="Check Biome formatting" {
     run shell="""
-      cd ui
-      paths="src vite.config.ts tsconfig.json package.json ../libs-rust/joi-api/api-docs-ui/src ../libs-rust/joi-api/api-docs-ui/vite.config.ts ../libs-rust/joi-api/api-docs-ui/tsconfig.json ../libs-rust/joi-api/api-docs-ui/package.json ../biome.json"
+      paths="ui/src ui/vite.config.ts ui/tsconfig.json ui/package.json libs-rust/joi-api/api-docs-ui/src libs-rust/joi-api/api-docs-ui/vite.config.ts libs-rust/joi-api/api-docs-ui/tsconfig.json libs-rust/joi-api/api-docs-ui/package.json biome.json"
       before=$(mktemp)
       trap 'rm -f "$before"' EXIT
       git diff --binary -- $paths > "$before"
-      pnpm exec biome format --write $paths
+      ./t pnpm --dir ui exec biome format --write \
+        src \
+        vite.config.ts \
+        tsconfig.json \
+        package.json \
+        ../libs-rust/joi-api/api-docs-ui/src \
+        ../libs-rust/joi-api/api-docs-ui/vite.config.ts \
+        ../libs-rust/joi-api/api-docs-ui/tsconfig.json \
+        ../libs-rust/joi-api/api-docs-ui/package.json \
+        ../biome.json
       git diff --binary -- $paths | cmp -s "$before" -
     """
   }
 
   task "ui-typecheck" description="Run the UI TypeScript typecheck" {
-    run shell="cd ui && pnpm check"
+    run shell="./t pnpm --dir ui check"
   }
 
   task "ui-test" description="Run the UI tests" {
-    run shell="cd ui && pnpm test -- --run"
+    run shell="./t pnpm --dir ui test -- --run"
   }
 
   task "check" description="Run all repository checks" {
@@ -85,17 +78,16 @@ recipe "default" {
       printf 'Task status: http://localhost:5173\n'
 
       (
-        cd libs-rust/joi-api
-        exec cargo run \
+        exec ./t cargo run \
+          -p joi-api-generator \
           --bin joi-api-docs-server \
           -- \
-          examples/ticket.joi-api
+          libs-rust/joi-api/examples/ticket.joi-api
       ) &
       api_pid=$!
 
       (
-        cd libs-rust/joi-api/api-docs-ui
-        exec pnpm dev
+        exec ./t pnpm --dir libs-rust/joi-api/api-docs-ui dev
       ) &
       ui_pid=$!
 

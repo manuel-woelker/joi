@@ -32,4 +32,16 @@ tools {
 			nao "nao"
 		}
 	}
+	rust "1.98.1" {
+		download {
+			linux "https://static.rust-lang.org/dist/rust-${version}-x86_64-unknown-linux-gnu.tar.gz"
+		}
+		commands {
+			cargo "cargo/bin/cargo"
+			rustc "rustc/bin/rustc"
+		}
+		env {
+			PATH "${dir:rust}"
+		}
+	}
 }

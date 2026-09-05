@@ -1,12 +1,12 @@
 # joi-api
 
-`joi-api` is a Rust workspace for tools that parse abstract API descriptions and generate corresponding source code for multiple target languages.
+`joi-api` is a Rust project for tools that parse abstract API descriptions and generate corresponding source code for multiple target languages.
 
 The intended model is similar to gRPC: an API is described independently of a particular programming language, then generators produce language-specific types and interfaces. Initial target languages are expected to include Rust and TypeScript.
 
 ## What is the current status?
 
-This project is at the infrastructure stage. The workspace and generator crate exist, and the initial [JOI API definition language draft](JOI-API-SPEC.md) documents the intended syntax. The parser, intermediate representation, and code generators have not been implemented yet.
+This project is at the infrastructure stage. The generator crate exists, and the initial [JOI API definition language draft](JOI-API-SPEC.md) documents the intended syntax. The parser, intermediate representation, and code generators have not been implemented yet.
 
 ## How is the workspace organized?
 
@@ -19,8 +19,8 @@ crates/
 ## How do I build and test it?
 
 ```bash
-cargo build --workspace
-cargo test --workspace
+cargo build -p joi-api-generator
+cargo test -p joi-api-generator
 ```
 
 ## How do I parse an API description?
@@ -47,14 +47,13 @@ The Rust generator emits models, nominal ID types, operation inputs and outputs,
 derived partial inputs, and a synchronous transport-neutral service trait:
 
 ```bash
-cargo run --bin joi-api-generate-rust -- examples/ticket.joi-api
-cargo run --bin joi-api-generate-rust -- examples/ticket.joi-api --output ticket.rs
+cargo run -p joi-api-generator --bin joi-api-generate-rust -- libs-rust/joi-api/examples/ticket.joi-api
+cargo run -p joi-api-generator --bin joi-api-generate-rust -- libs-rust/joi-api/examples/ticket.joi-api --output ticket.rs
 ```
 
 The generator validates built-in type arguments, model references, field names,
 and generated Rust name collisions before rendering. It uses the sibling
-`joi-template` library through an explicit path dependency because the workspaces
-are maintained independently.
+`joi-template` library through an explicit path dependency.
 
 ## How do I develop the API documentation UI?
 

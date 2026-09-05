@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:api": "cargo run --manifest-path ../Cargo.toml --bin joi-api-docs-server -- ../examples/ticket.joi-api",
+    "dev:api": "cargo run --manifest-path ../../../Cargo.toml -p joi-api-generator --bin joi-api-docs-server -- ../examples/ticket.joi-api",
     "build": "tsc --noEmit && vite build",
     "check": "tsc --noEmit",
     "preview": "vite preview"

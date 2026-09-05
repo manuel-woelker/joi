@@ -22,7 +22,7 @@ Many template engines give you either dynamic templates or strong typing. The go
 
 The repository currently provides the basic project infrastructure:
 
-- a Rust workspace
+- two Rust crates in the repository workspace
 - a core library crate in `crates/joi-template`
 - a CLI crate in `crates/joi-template-cli`
 - local verification via `nao check`
@@ -44,8 +44,8 @@ docs/                Project and contributor documentation
 ## How do I get started?
 
 ```bash
-cargo build --workspace
-cargo test --workspace --all-targets --all-features
+cargo build -p joi-template -p joi-template-cli
+cargo test -p joi-template -p joi-template-cli --all-targets --all-features
 ```
 
 The current CLI accepts a single inline template string without external data:

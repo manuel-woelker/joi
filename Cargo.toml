@@ -1,0 +1,16 @@
+[workspace]
+members = [
+    "examples/joix-tickets",
+    "libs-rust/joi-api/crates/joi-api-generator",
+    "libs-rust/joi-base",
+    "libs-rust/joi-error",
+    "libs-rust/joi-plugin",
+    "libs-rust/joi-template/crates/joi-template",
+    "libs-rust/joi-template/crates/joi-template-cli",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
