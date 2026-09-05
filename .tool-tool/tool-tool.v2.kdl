@@ -32,6 +32,14 @@ tools {
 			nao "nao"
 		}
 	}
+	zig "0.16.0" {
+		download {
+			linux "https://ziglang.org/download/${version}/zig-x86_64-linux-${version}.tar.xz"
+		}
+		commands {
+			zig "zig"
+		}
+	}
 	rust "1.98.1" {
 		download {
 			linux "https://static.rust-lang.org/dist/rust-${version}-x86_64-unknown-linux-gnu.tar.gz"
@@ -41,7 +49,14 @@ tools {
 			rustc "rustc/bin/rustc"
 		}
 		env {
-			PATH "${dir:rust}"
+			PATH "${dir:rust}/rustc/bin:${dir:rust}/cargo/bin:${dir:rust}/rustfmt-preview/bin:${dir:rust}/clippy-preview/bin:${dir:zig}"
+			LD_LIBRARY_PATH "${dir:rust}/rustc/lib"
+			AR "${dir:rust}/llvm-tools-preview/lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-ar"
+			CC "${base_path}/scripts/zig-cc"
+			CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER "${base_path}/scripts/zig-cc"
+			RUSTFLAGS "--sysroot ${dir:rust}/rust-std-x86_64-unknown-linux-gnu"
+			ZIG_GLOBAL_CACHE_DIR "${base_path}/.cache/zig/global"
+			ZIG_LOCAL_CACHE_DIR "${base_path}/.cache/zig/local"
 		}
 	}
 }

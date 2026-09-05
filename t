@@ -2,8 +2,8 @@
 
 set -euo pipefail
 
-readonly VERSION="0.7.0"
-readonly SHA256="sha256:f610e78b5e79284a278776d1761ca623fba743bfc6941e14e2528d803516ad15"
+readonly VERSION="0.8.0"
+readonly SHA256="sha256:522722fcbdad8df2b6c744efb2f0ffa4d8084981698d76e702be80d458757be9"
 readonly DOWNLOAD_URL="https://github.com/manuel-woelker/tool-tool/releases/download/v${VERSION}/tool-tool"
 readonly REPOSITORY_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 readonly TOOL_DIRECTORY="${REPOSITORY_ROOT}/.cache/tool-tool/${VERSION}"

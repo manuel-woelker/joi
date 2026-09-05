@@ -1,0 +1,13 @@
+#!/bin/bash
+
+arguments=()
+
+for argument in "$@"; do
+	if [[ "${argument}" == "--target=x86_64-unknown-linux-gnu" ]]; then
+		arguments+=("--target=x86_64-linux-gnu")
+	else
+		arguments+=("${argument}")
+	fi
+done
+
+exec zig cc "${arguments[@]}"
