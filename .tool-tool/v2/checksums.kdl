@@ -1,6 +1,9 @@
 sha512sums{
+"https://github.com/manuel-woelker/nao/releases/download/v0.1.7/nao-v0.1.7-x86_64-unknown-linux-musl.tar.gz" "454640c6621615d8ee642b8004b132303144d0595b84e035794c66e1d40a2aa0db04bf3cd84c1e54c1b60ba596b7640eb09dc8bf444b072c5879b4da6055cfbf"
 "https://github.com/pnpm/pnpm/releases/download/v10.28.0/pnpm-linux-x64" "0d5ae1fb4da25dcd9ede9ffcfe7eb05b5d31ccf14e45f47061c128067d95467b012ca5f9bb8885ff7abd6814007cd4f2580ccc7ef0a9eb7af99fa378ddc44582"
 "https://github.com/pnpm/pnpm/releases/download/v10.28.0/pnpm-win-x64.exe" "3b9a57ffca2e3b6a8f2448c54e7327b78f197155585683372233ebea8d211ea68f17978ae53ca3fdafd7c8bc71ad199bb742edb2ea5cdbd5f0b22bf35fc2a20d"
+"https://github.com/pnpm/pnpm/releases/download/v12.2.1/pnpm-linux-x64.tar.gz" "875d655e8189abd16de75df6e50a68e0cb25f841704fb5896e1e403ba75f5e2c7a8f1ed4a604ec91bcc7b698cbb3905417aa4b1408348de4f2449f6470212b65"
+"https://github.com/pnpm/pnpm/releases/download/v12.2.1/pnpm-win32-x64.zip" e2b2fc5c66595f241adab9684d02259648ec832495a4df30534ab0bd5ca000c4bf98a556ba67e5acfced90087a811532b5fe2c6274fa694e0c7032803398cca2
 "https://nodejs.org/dist/v26.8.1/node-v26.8.1-linux-x64.tar.gz" f414ad7841f9ead23e956643347604756ea0cae505a6cb313bf821b6a362a6c33976ce67e249831e1870e272f97012b0e0776f8d0aff632a2dc8762066feef3e
 "https://nodejs.org/dist/v26.8.1/node-v26.8.1-win-x64.zip" "87cc33d35104185716e162a594c5726187c4fac244e4cf7a76c9d7ba84b39c78653ea07d084390b7d5654956026917ebcac3d8c7881248bd949a2471c481fedb"
 }
