@@ -61,6 +61,7 @@ tools {
 			RUSTC "${dir:rust}/rustc/bin/rustc"
 			RUSTDOC "${dir:rust}/rustc/bin/rustdoc"
 			RUSTFLAGS "--sysroot ${dir:rust}/rust-std-x86_64-unknown-linux-gnu"
+			RUSTDOCFLAGS "--sysroot ${dir:rust}/rust-std-x86_64-unknown-linux-gnu"
 			ZIG_GLOBAL_CACHE_DIR "${base_path}/.cache/zig/global"
 			ZIG_LOCAL_CACHE_DIR "${base_path}/.cache/zig/local"
 		}

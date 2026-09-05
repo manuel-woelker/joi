@@ -24,6 +24,10 @@ recipe "default" {
     run shell="./t clippy --workspace --all-targets -- -D warnings"
   }
 
+  task "cargo-test" description="Run Rust tests" {
+    run shell="./t cargo test --workspace"
+  }
+
   task "biome-lint" description="Run Biome linting" {
     run shell="./t node ui/node_modules/@biomejs/biome/bin/biome lint ui/src ui/vite.config.ts libs-rust/joi-api/api-docs-ui/src libs-rust/joi-api/api-docs-ui/vite.config.ts"
   }
@@ -55,6 +59,12 @@ recipe "default" {
     depends-on "ui-typecheck"
     depends-on "ui-test"
     run shell="printf 'Task outcome: repository checks passed\n'"
+  }
+
+  task "ci" description="Run continuous integration checks" {
+    depends-on "check"
+    depends-on "cargo-test"
+    run shell="printf 'Task outcome: continuous integration checks passed\n'"
   }
 
   task "docs-dev" description="Run the API documentation development servers" {
