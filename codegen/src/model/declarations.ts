@@ -4,7 +4,7 @@ interface DeclarationBase {
   readonly [declarationMarker]: true;
 }
 
-export type BuiltinName = "boolean" | "integer" | "string";
+export type BuiltinName = "boolean" | "integer" | "json" | "string";
 
 export interface BuiltinDeclaration extends DeclarationBase {
   readonly kind: "builtin";
@@ -78,6 +78,12 @@ export const integerType: BuiltinDeclaration = Object.freeze({
   [declarationMarker]: true as const,
   kind: "builtin",
   name: "integer",
+});
+
+export const jsonType: BuiltinDeclaration = Object.freeze({
+  [declarationMarker]: true as const,
+  kind: "builtin",
+  name: "json",
 });
 
 export const stringType: BuiltinDeclaration = Object.freeze({

@@ -21,8 +21,8 @@ Do not generate command handlers, transport routing, persistence logic, or UI
 components in the first iteration.
 
 The implementation is complete. The initial `get-ticket` declaration exercises
-every supported type shape, and committed TypeScript and Rust output is checked
-end to end by the codegen test suite and repository checks.
+every supported type shape. Generated TypeScript and Rust output is ignored by
+Git and produced by a shared Nao prerequisite before consumer tasks run.
 
 ## Where should the package live?
 
@@ -269,8 +269,8 @@ to preserve timestamps and avoid unnecessary frontend/backend rebuilds.
 
 Initially write TypeScript under `ui/src/generated/api/` and Rust under
 `examples/joix-tickets/src/generated/`, with small handwritten module boundary
-files if required by each language. Generated files should be committed so the
-frontend and backend can build without first bootstrapping the generator.
+files if required by each language. Generated files are ignored build artifacts;
+frontend and backend tasks depend on `codegen` to bootstrap them before use.
 
 ## Implementation Checklist
 
@@ -346,8 +346,8 @@ frontend and backend can build without first bootstrapping the generator.
 - Rust and TypeScript naming rules differ. The normalized model should preserve
   semantic IDs while each generator owns target naming, escaping, and collision
   diagnostics.
-- Committing generated files improves consumer ergonomics but creates stale-file
-  risk; the mandatory non-mutating CI check is what makes that tradeoff safe.
+- Ignoring generated files avoids source-control churn but makes task dependency
+  wiring mandatory for every consumer.
 - Removing generated files must remain manifest-scoped. Treating an output
   folder as disposable could delete handwritten integration code.
 - The initial backend output location assumes `joix-tickets` is the first
@@ -360,5 +360,5 @@ frontend and backend can build without first bootstrapping the generator.
   `query`, and `mutate` contracts or introduce a smaller isolated example.
 - Confirm whether generated Rust belongs directly in `joix-tickets` or in a new
   reusable library consumed by it.
-- Confirm whether generated files are committed. This plan recommends yes,
-  paired with `codegen-check` in CI.
+- Generated files are not committed; shared Nao task dependencies create them
+  before consumers run.

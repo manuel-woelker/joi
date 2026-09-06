@@ -1,10 +1,10 @@
-import { mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
+import { access, mkdtemp, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import type { GeneratedFile } from "./generated-file.ts";
-import { synchronizeOutput } from "./output-writer.ts";
+import { removeGeneratedOutput, synchronizeOutput } from "./output-writer.ts";
 
 const file: GeneratedFile = { relativePath: "api.ts", contents: "export {};\n", format: "typescript" };
 
@@ -36,5 +36,18 @@ describe("synchronizeOutput", () => {
       /escapes output root/,
     );
     await expect(synchronizeOutput(root, [file, file], "check")).rejects.toThrow(/Duplicate generated output/);
+  });
+
+  it("removes every manifest-owned file without removing unknown files", async () => {
+    const root = await mkdtemp(join(tmpdir(), "joi-codegen-output-"));
+    const nestedFile = { ...file, relativePath: "nested/api.ts" };
+    await synchronizeOutput(root, [file, nestedFile], "generate");
+    await mkdir(join(root, "handwritten"));
+    await writeFile(join(root, "handwritten", "keep.ts"), "keep\n");
+
+    await expect(removeGeneratedOutput(root)).resolves.toEqual(["api.ts", "nested/api.ts"]);
+    await expect(access(join(root, "api.ts"))).rejects.toThrow();
+    await expect(access(join(root, ".joi-codegen-manifest.json"))).rejects.toThrow();
+    await expect(readFile(join(root, "handwritten", "keep.ts"), "utf8")).resolves.toBe("keep\n");
   });
 });

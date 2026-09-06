@@ -8,6 +8,8 @@ target/
 
 # Dependencies
 node_modules/
+/ui/src/generated/
+/examples/joix-tickets/src/generated/
 
 # Local tooling and environments
 /.idea

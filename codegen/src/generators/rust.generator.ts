@@ -2,8 +2,56 @@ import { defineGenerator } from "../generation/generated-file.ts";
 import type { NamedTypeDefinition, TypeDefinition } from "../model/definitions.ts";
 import { assertUniqueNames, pascalCase, snakeCase } from "./naming.ts";
 
+const rustKeywords = new Set([
+  "as",
+  "async",
+  "await",
+  "break",
+  "const",
+  "continue",
+  "crate",
+  "dyn",
+  "else",
+  "enum",
+  "extern",
+  "false",
+  "fn",
+  "for",
+  "if",
+  "impl",
+  "in",
+  "let",
+  "loop",
+  "match",
+  "mod",
+  "move",
+  "mut",
+  "pub",
+  "ref",
+  "return",
+  "self",
+  "Self",
+  "static",
+  "struct",
+  "super",
+  "trait",
+  "true",
+  "type",
+  "union",
+  "unsafe",
+  "use",
+  "where",
+  "while",
+]);
+
+function rustIdentifier(id: string): string {
+  const identifier = snakeCase(id);
+  return rustKeywords.has(identifier) ? `r#${identifier}` : identifier;
+}
+
 function typeName(type: TypeDefinition): string {
-  if (type.kind === "builtin") return { boolean: "bool", integer: "i64", string: "String" }[type.name];
+  if (type.kind === "builtin")
+    return { boolean: "bool", integer: "i64", json: "serde_json::Value", string: "String" }[type.name];
   if (type.kind === "optional") return `Option<${typeName(type.value)}>`;
   if (type.kind === "list") return `Vec<${typeName(type.value)}>`;
   return pascalCase(type.id);
@@ -39,7 +87,7 @@ function renderType(type: NamedTypeDefinition): string {
     snakeCase,
   );
   const fields = type.fields
-    .map((field) => `    ${docs(field.description)}\n    pub ${snakeCase(field.id)}: ${typeName(field.type)},`)
+    .map((field) => `    ${docs(field.description)}\n    pub ${rustIdentifier(field.id)}: ${typeName(field.type)},`)
     .join("\n");
   return `${docs(type.description)}\n#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]\npub struct ${name} {\n${fields}\n}`;
 }

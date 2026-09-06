@@ -1,25 +1,21 @@
-import { parseQueryResponse } from "../query/query-result";
+import { executeUserInfo } from "../generated/api/command-client";
+import type { UserInfo } from "../generated/api/api";
+import { executeDataQuery } from "../query/query-client";
 import type { FetchService } from "../services/fetch-service";
 
-export interface AuthenticatedUser {
-  readonly id: string;
-  readonly username: string;
-  readonly name: string;
-}
+export type AuthenticatedUser = UserInfo;
 
 export async function loadCurrentUser(service: FetchService): Promise<AuthenticatedUser> {
-  return parseUser(await service.get("/api/user-info"));
+  return parseUser(await executeUserInfo(service));
 }
 
 export async function loadLoginUsers(service: FetchService): Promise<readonly AuthenticatedUser[]> {
-  const result = parseQueryResponse(
-    await service.post("/api/query", {
-      table_name: "users",
-      criterion: "match_any",
-      max_results: 100,
-      attributes: ["id", "username", "name"],
-    }),
-  );
+  const result = await executeDataQuery(service, {
+    tableName: "users",
+    criterion: "match_any",
+    maxResults: 100,
+    attributes: ["id", "username", "name"],
+  });
   const id = result.requireColumn("id");
   const username = result.requireColumn("username");
   const name = result.requireColumn("name");

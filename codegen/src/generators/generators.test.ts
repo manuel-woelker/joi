@@ -15,6 +15,8 @@ describe("language generators", () => {
     expect(first[0]?.contents).toContain("export interface CommandRequests");
     expect(first[0]?.contents).toContain('readonly "get-ticket": GetTicketRequest;');
     expect(first[0]?.contents).toContain("readonly assignee: string | null;");
+    expect(first[1]?.contents).toContain("export async function executeGetTicket");
+    expect(first[1]?.contents).toContain('service.post("/api/get-ticket"');
   });
 
   it("generates deterministic Rust serde contracts", () => {

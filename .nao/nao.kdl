@@ -1,9 +1,11 @@
 recipe "default" {
   task "joix-tickets" description="Run the joix-tickets testbed" direct-output=#true {
+    depends-on "codegen"
     run shell="./t cargo run -p joix-tickets"
   }
 
   task "ui" description="Run the Joi UI development server" {
+    depends-on "codegen"
     run shell="""
       printf 'Task status: http://localhost:5173\n'
       exec ./t pnpm --dir ui dev
@@ -17,22 +19,27 @@ recipe "default" {
   }
 
   task "cargo-fmt" description="Check Rust formatting" {
+    depends-on "codegen"
     run shell="./t cargo fmt --all -- --check"
   }
 
   task "cargo-clippy" description="Run Rust clippy" {
+    depends-on "codegen"
     run shell="./t clippy --workspace --all-targets -- -D warnings"
   }
 
   task "cargo-test" description="Run Rust tests" {
+    depends-on "codegen"
     run shell="./t cargo test --workspace"
   }
 
   task "biome-lint" description="Run Biome linting" {
+    depends-on "codegen"
     run shell="./t node ui/node_modules/@biomejs/biome/bin/biome lint codegen/src codegen/package.json codegen/tsconfig.json ui/src ui/vite.config.ts libs-rust/joi-api/api-docs-ui/src libs-rust/joi-api/api-docs-ui/vite.config.ts"
   }
 
   task "biome-format" description="Check Biome formatting" {
+    depends-on "codegen"
     run shell="""
       paths="codegen/src codegen/tsconfig.json codegen/package.json ui/src ui/vite.config.ts ui/tsconfig.json ui/package.json libs-rust/joi-api/api-docs-ui/src libs-rust/joi-api/api-docs-ui/vite.config.ts libs-rust/joi-api/api-docs-ui/tsconfig.json libs-rust/joi-api/api-docs-ui/package.json biome.json"
       before=$(mktemp)
@@ -44,10 +51,12 @@ recipe "default" {
   }
 
   task "ui-typecheck" description="Run the UI TypeScript typecheck" {
+    depends-on "codegen"
     run shell="./t node ui/node_modules/@typescript/native-preview/bin/tsgo --noEmit --project ui/tsconfig.json"
   }
 
   task "ui-test" description="Run the UI tests" {
+    depends-on "codegen"
     run shell="./t node ui/node_modules/vitest/vitest.mjs run --root ui"
   }
 
@@ -56,20 +65,26 @@ recipe "default" {
   }
 
   task "codegen-test" description="Run TypeScript code generator tests" {
+    depends-on "codegen"
     run shell="./t node codegen/node_modules/vitest/vitest.mjs run --root codegen"
   }
 
-  task "codegen-generate" description="Generate shared API source files" {
+  task "codegen" description="Generate shared API source files" {
     depends-on "codegen-typecheck"
     run shell="./t node codegen/src/cli.ts generate"
   }
 
   task "codegen-check" description="Check generated shared API source files" {
-    depends-on "codegen-typecheck"
+    depends-on "codegen"
     run shell="./t node codegen/src/cli.ts check"
   }
 
+  task "codegen-clean" description="Remove manifest-owned generated files" {
+    run shell="./t node codegen/src/cli.ts clean"
+  }
+
   task "check" description="Run all repository checks" {
+    depends-on "codegen"
     depends-on "cargo-fmt"
     depends-on "cargo-clippy"
     depends-on "biome-lint"

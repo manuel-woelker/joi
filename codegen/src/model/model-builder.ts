@@ -21,9 +21,10 @@ export interface SourcedCommandDeclaration {
   readonly sourcePath: string;
 }
 
-const builtins: Readonly<Record<"boolean" | "integer" | "string", BuiltinDefinition>> = Object.freeze({
+const builtins: Readonly<Record<"boolean" | "integer" | "json" | "string", BuiltinDefinition>> = Object.freeze({
   boolean: Object.freeze({ kind: "builtin", name: "boolean" }),
   integer: Object.freeze({ kind: "builtin", name: "integer" }),
+  json: Object.freeze({ kind: "builtin", name: "json" }),
   string: Object.freeze({ kind: "builtin", name: "string" }),
 });
 

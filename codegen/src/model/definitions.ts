@@ -3,7 +3,7 @@ export type FieldId = string & { readonly fieldIdBrand: unique symbol };
 export type CommandId = string & { readonly commandIdBrand: unique symbol };
 export type GeneratorId = string & { readonly generatorIdBrand: unique symbol };
 
-export type BuiltinName = "boolean" | "integer" | "string";
+export type BuiltinName = "boolean" | "integer" | "json" | "string";
 
 export interface BuiltinDefinition {
   readonly kind: "builtin";

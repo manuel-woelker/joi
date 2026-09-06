@@ -13,6 +13,8 @@ tools {
 		}
 		env {
 			PATH "${dir:node}"
+			RUSTFMT "${dir:rust}/rustfmt-preview/bin/rustfmt"
+			LD_LIBRARY_PATH "${dir:rust}/rustc/lib"
 		}
 	}
 	pnpm "12.2.1" {
@@ -24,7 +26,7 @@ tools {
 			pnpm "pnpm"
 		}
 		env {
-			PATH "${dir:node}/bin"
+			PATH "${dir:node}/bin:/usr/bin:/bin"
 		}
 	}
 	nao "0.1.7" {

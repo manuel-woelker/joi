@@ -8,7 +8,7 @@ const codegenRoot = fileURLToPath(new URL("../..", import.meta.url));
 const repositoryRoot = fileURLToPath(new URL("../../..", import.meta.url));
 
 describe("runGeneration", () => {
-  it("matches the committed formatted TypeScript and Rust golden outputs", async () => {
+  it("matches the formatted output created by the codegen task prerequisite", async () => {
     await expect(runGeneration({ codegenRoot, repositoryRoot, mode: "check", targets })).resolves.toEqual([]);
   });
 });

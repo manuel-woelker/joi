@@ -1,3 +1,5 @@
+import { executeQuery } from "../generated/api/command-client";
+import type { QueryRequest as GeneratedQueryRequest } from "../generated/api/api";
 import type { FetchService } from "../services/fetch-service";
 import { parseQueryResponse, type QueryResult } from "./query-result";
 
@@ -6,19 +8,19 @@ export type QueryCriterionRequest =
   | { not: QueryCriterionRequest }
   | { equals: { attribute: string; values: string[] } };
 
-export interface QueryRequest {
-  readonly tableName: string;
+export type QueryRequest = Omit<GeneratedQueryRequest, "criterion"> & {
   readonly criterion: QueryCriterionRequest;
-  readonly maxResults: number;
-  readonly attributes: readonly string[];
-}
+};
 
 export async function executeDataQuery(service: FetchService, request: QueryRequest): Promise<QueryResult> {
-  const payload = await service.post("/api/query", {
-    table_name: request.tableName,
+  const response = await executeQuery(service, {
+    tableName: request.tableName,
     criterion: request.criterion,
-    max_results: request.maxResults,
+    maxResults: request.maxResults,
     attributes: request.attributes,
   });
-  return parseQueryResponse(payload);
+  return parseQueryResponse({
+    number_of_hits: response.numberOfHits,
+    result_columns: response.resultColumns,
+  });
 }

@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, rmdir, stat, unlink, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 
 import type { GeneratedFile } from "./generated-file.ts";
@@ -51,6 +51,20 @@ export async function synchronizeOutput(
   return Object.freeze(issues);
 }
 
+export async function removeGeneratedOutput(outputRoot: string): Promise<readonly string[]> {
+  const manifest = await readManifest(outputRoot);
+  if (manifest.missing) return Object.freeze([]);
+
+  const removed: string[] = [];
+  for (const path of manifest.files) {
+    const absolutePath = validateRelativePath(outputRoot, path);
+    if (await removeOptional(absolutePath)) removed.push(path);
+  }
+  await removeOptional(resolve(outputRoot, manifestName));
+  await removeEmptyDirectories(outputRoot, manifest.files);
+  return Object.freeze(removed.sort());
+}
+
 function validateRelativePath(root: string, path: string): string {
   if (path.length === 0 || isAbsolute(path)) throw new Error(`Generated path must be relative: ${path}`);
   const absoluteRoot = resolve(root);
@@ -88,11 +102,27 @@ async function readOptional(path: string): Promise<string | undefined> {
   }
 }
 
-async function removeOptional(path: string): Promise<void> {
+async function removeOptional(path: string): Promise<boolean> {
   try {
-    if ((await stat(path)).isFile()) await unlink(path);
+    if ((await stat(path)).isFile()) {
+      await unlink(path);
+      return true;
+    }
   } catch (error) {
     if (!isNodeError(error) || error.code !== "ENOENT") throw error;
+  }
+  return false;
+}
+
+async function removeEmptyDirectories(root: string, paths: readonly string[]): Promise<void> {
+  const directories = new Set(paths.map((path) => dirname(resolve(root, path))));
+  directories.add(resolve(root));
+  for (const directory of [...directories].sort((left, right) => right.length - left.length)) {
+    try {
+      await rmdir(directory);
+    } catch (error) {
+      if (!isNodeError(error) || (error.code !== "ENOENT" && error.code !== "ENOTEMPTY")) throw error;
+    }
   }
 }
 
