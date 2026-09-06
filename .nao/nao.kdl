@@ -44,7 +44,7 @@ recipe "default" {
   }
 
   task "ui-typecheck" description="Run the UI TypeScript typecheck" {
-    run shell="./t node ui/node_modules/typescript/bin/tsc --noEmit --project ui/tsconfig.json"
+    run shell="./t node ui/node_modules/@typescript/native-preview/bin/tsgo --noEmit --project ui/tsconfig.json"
   }
 
   task "ui-test" description="Run the UI tests" {
