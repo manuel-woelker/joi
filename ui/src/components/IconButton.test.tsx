@@ -1,3 +1,5 @@
+// @vitest-environment happy-dom
+
 import { cleanup, render, screen } from "@solidjs/testing-library";
 import FolderIcon from "lucide-solid/icons/folder";
 import { afterEach, describe, expect, it } from "vitest";

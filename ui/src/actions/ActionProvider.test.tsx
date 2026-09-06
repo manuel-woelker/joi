@@ -1,3 +1,5 @@
+// @vitest-environment happy-dom
+
 import { cleanup, fireEvent, render, screen } from "@solidjs/testing-library";
 import { Show, createSignal, onCleanup } from "solid-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
