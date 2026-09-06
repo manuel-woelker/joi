@@ -1,0 +1,45 @@
+import { describe, expect, it } from "vitest";
+
+import command from "../declarations/get-ticket.command.ts";
+import { buildModel } from "../model/model-builder.ts";
+import { defineCommand, defineStruct } from "../model/declarations.ts";
+import rustGenerator from "./rust.generator.ts";
+import typescriptGenerator from "./typescript.generator.ts";
+
+const model = buildModel([{ declaration: command, sourcePath: "get-ticket.command.ts" }]);
+
+describe("language generators", () => {
+  it("generates deterministic TypeScript command contracts", () => {
+    const first = typescriptGenerator.generate(model);
+    expect(first).toEqual(typescriptGenerator.generate(model));
+    expect(first[0]?.contents).toContain("export interface CommandRequests");
+    expect(first[0]?.contents).toContain('readonly "get-ticket": GetTicketRequest;');
+    expect(first[0]?.contents).toContain("readonly assignee: string | null;");
+  });
+
+  it("generates deterministic Rust serde contracts", () => {
+    const first = rustGenerator.generate(model);
+    expect(first).toEqual(rustGenerator.generate(model));
+    expect(first[0]?.contents).toContain("pub struct Ticket");
+    expect(first[0]?.contents).toContain("pub assignee: Option<String>");
+    expect(first[0]?.contents).toContain('pub const GET_TICKET_COMMAND: &str = "get-ticket";');
+  });
+
+  it("rejects names that collide after target case conversion", () => {
+    const first = defineStruct({ name: "SomeType", description: "First.", fields: [] });
+    const second = defineStruct({ name: "some-type", description: "Second.", fields: [] });
+    const collidingModel = buildModel([
+      {
+        sourcePath: "collision.command.ts",
+        declaration: defineCommand({
+          id: "collision",
+          description: "A colliding command.",
+          request: first,
+          response: second,
+        }),
+      },
+    ]);
+    expect(() => typescriptGenerator.generate(collidingModel)).toThrow(/both generate the name 'SomeType'/);
+    expect(() => rustGenerator.generate(collidingModel)).toThrow(/both generate the name 'SomeType'/);
+  });
+});

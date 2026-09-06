@@ -6,6 +6,24 @@ settings:
 
 importers:
 
+  codegen:
+    devDependencies:
+      '@types/node':
+        specifier: ^26.4.0
+        version: 26.4.1
+      '@typescript/native-preview':
+        specifier: 7.0.0-dev.20260707.2
+        version: 7.0.0-dev.20260707.2
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vite:
+        specifier: ^8.2.2
+        version: 8.2.2(@types/node@26.4.1)
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.11(@types/node@26.4.1)(happy-dom@20.14.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+
   libs-rust/joi-api/api-docs-ui:
     dependencies:
       solid-js:

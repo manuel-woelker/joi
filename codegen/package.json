@@ -1,0 +1,19 @@
+{
+  "name": "joi-codegen",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "check": "tsgo --noEmit",
+    "generate": "node src/cli.ts generate",
+    "check-generated": "node src/cli.ts check",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.0",
+    "@typescript/native-preview": "7.0.0-dev.20260707.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
+  }
+}

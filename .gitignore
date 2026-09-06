@@ -7,7 +7,7 @@ target/
 /.cache
 
 # Dependencies
-/node_modules
+node_modules/
 
 # Local tooling and environments
 /.idea

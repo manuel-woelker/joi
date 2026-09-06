@@ -1,7 +1,11 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.5.11/schema.json",
   "files": {
-    "includes": ["ui/**/*.{js,jsx,ts,tsx,json,jsonc}", "libs-rust/joi-api/api-docs-ui/**/*.{js,jsx,ts,tsx,json,jsonc}"]
+    "includes": [
+      "codegen/**/*.{js,jsx,ts,tsx,json,jsonc}",
+      "ui/**/*.{js,jsx,ts,tsx,json,jsonc}",
+      "libs-rust/joi-api/api-docs-ui/**/*.{js,jsx,ts,tsx,json,jsonc}"
+    ]
   },
   "formatter": {
     "enabled": true,

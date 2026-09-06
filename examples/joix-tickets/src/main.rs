@@ -32,6 +32,7 @@ pub mod command_registry;
 pub mod command_service;
 pub mod data_mutation_command;
 pub mod data_store;
+pub mod generated;
 pub mod info_command;
 pub mod module;
 pub mod module_registry;

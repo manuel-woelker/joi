@@ -29,12 +29,12 @@ recipe "default" {
   }
 
   task "biome-lint" description="Run Biome linting" {
-    run shell="./t node ui/node_modules/@biomejs/biome/bin/biome lint ui/src ui/vite.config.ts libs-rust/joi-api/api-docs-ui/src libs-rust/joi-api/api-docs-ui/vite.config.ts"
+    run shell="./t node ui/node_modules/@biomejs/biome/bin/biome lint codegen/src codegen/package.json codegen/tsconfig.json ui/src ui/vite.config.ts libs-rust/joi-api/api-docs-ui/src libs-rust/joi-api/api-docs-ui/vite.config.ts"
   }
 
   task "biome-format" description="Check Biome formatting" {
     run shell="""
-      paths="ui/src ui/vite.config.ts ui/tsconfig.json ui/package.json libs-rust/joi-api/api-docs-ui/src libs-rust/joi-api/api-docs-ui/vite.config.ts libs-rust/joi-api/api-docs-ui/tsconfig.json libs-rust/joi-api/api-docs-ui/package.json biome.json"
+      paths="codegen/src codegen/tsconfig.json codegen/package.json ui/src ui/vite.config.ts ui/tsconfig.json ui/package.json libs-rust/joi-api/api-docs-ui/src libs-rust/joi-api/api-docs-ui/vite.config.ts libs-rust/joi-api/api-docs-ui/tsconfig.json libs-rust/joi-api/api-docs-ui/package.json biome.json"
       before=$(mktemp)
       trap 'rm -f "$before"' EXIT
       git diff --binary -- $paths > "$before"
@@ -51,6 +51,24 @@ recipe "default" {
     run shell="./t node ui/node_modules/vitest/vitest.mjs run --root ui"
   }
 
+  task "codegen-typecheck" description="Typecheck the TypeScript code generator" {
+    run shell="./t node codegen/node_modules/@typescript/native-preview/bin/tsgo --noEmit --project codegen/tsconfig.json"
+  }
+
+  task "codegen-test" description="Run TypeScript code generator tests" {
+    run shell="./t node codegen/node_modules/vitest/vitest.mjs run --root codegen"
+  }
+
+  task "codegen-generate" description="Generate shared API source files" {
+    depends-on "codegen-typecheck"
+    run shell="./t node codegen/src/cli.ts generate"
+  }
+
+  task "codegen-check" description="Check generated shared API source files" {
+    depends-on "codegen-typecheck"
+    run shell="./t node codegen/src/cli.ts check"
+  }
+
   task "check" description="Run all repository checks" {
     depends-on "cargo-fmt"
     depends-on "cargo-clippy"
@@ -58,6 +76,8 @@ recipe "default" {
     depends-on "biome-format"
     depends-on "ui-typecheck"
     depends-on "ui-test"
+    depends-on "codegen-test"
+    depends-on "codegen-check"
     run shell="printf 'Task outcome: repository checks passed\n'"
   }
 

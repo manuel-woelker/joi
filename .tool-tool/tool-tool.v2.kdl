@@ -51,6 +51,7 @@ tools {
 			cargo "cargo/bin/cargo"
 			clippy "clippy-preview/bin/cargo-clippy"
 			rustc "rustc/bin/rustc"
+			rustfmt "rustfmt-preview/bin/rustfmt"
 		}
 		env {
 			PATH "${dir:rust}/rustc/bin:${dir:rust}/cargo/bin:${dir:rust}/rustfmt-preview/bin:${dir:rust}/clippy-preview/bin:${dir:zig}"

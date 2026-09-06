@@ -20,6 +20,10 @@ TypeScript declarations for the UI and Rust `serde` data types for the backend.
 Do not generate command handlers, transport routing, persistence logic, or UI
 components in the first iteration.
 
+The implementation is complete. The initial `get-ticket` declaration exercises
+every supported type shape, and committed TypeScript and Rust output is checked
+end to end by the codegen test suite and repository checks.
+
 ## Where should the package live?
 
 Create `codegen/` as an independently understandable private workspace package:
@@ -270,42 +274,42 @@ frontend and backend can build without first bootstrapping the generator.
 
 ## Implementation Checklist
 
-- [ ] Add the private `codegen` package to the pnpm workspace with Node ESM,
+- [x] Add the private `codegen` package to the pnpm workspace with Node ESM,
       native TypeScript checking, Vitest, and package documentation.
-- [ ] Define ergonomic declaration and normalized definition shapes for
+- [x] Define ergonomic declaration and normalized definition shapes for
       built-ins, structs, enums, aliases, fields, commands, and the API model;
       brand identifiers only in definitions.
-- [ ] Add frozen `defineStruct`, `defineEnum`, `defineAlias`, `defineCommand`,
+- [x] Add frozen `defineStruct`, `defineEnum`, `defineAlias`, `defineCommand`,
       optional, and list authoring helpers accepting plain strings and field
       object arrays, plus graph normalization and source-aware diagnostics.
-- [ ] Add one or more representative command declaration modules using the
+- [x] Add one or more representative command declaration modules using the
       `*.command.ts` convention.
-- [ ] Implement deterministic command discovery with `node:fs/promises.glob`,
+- [x] Implement deterministic command discovery with `node:fs/promises.glob`,
       safe file-URL imports, root containment checks, and export validation.
-- [ ] Define the pure generator and generated-file contracts.
-- [ ] Implement deterministic `*.generator.ts` discovery with Node glob and
+- [x] Define the pure generator and generated-file contracts.
+- [x] Implement deterministic `*.generator.ts` discovery with Node glob and
       reject invalid or duplicate generators.
-- [ ] Add an initial TypeScript generator for shared DTO declarations and
+- [x] Add an initial TypeScript generator for shared DTO declarations and
       command request/response mappings.
-- [ ] Add an initial Rust generator for serde DTOs and command-name constants.
-- [ ] Implement configured output roots, path validation, duplicate detection,
+- [x] Add an initial Rust generator for serde DTOs and command-name constants.
+- [x] Implement configured output roots, path validation, duplicate detection,
       atomic changed-only writes, generated manifests, and conservative stale
       file cleanup.
-- [ ] Add `generate` and non-mutating `check` CLI modes with concise diagnostics
+- [x] Add `generate` and non-mutating `check` CLI modes with concise diagnostics
       and non-zero exit codes on invalid models or stale output.
-- [ ] Configure direct TypeScript execution under managed Node with erasable
+- [x] Configure direct TypeScript execution under managed Node with erasable
       syntax and Node-resolvable imports.
-- [ ] Add target formatting stages using repository-managed Biome and rustfmt.
-- [ ] Add Nao build, generate, and generated-output check tasks; include the
+- [x] Add target formatting stages using repository-managed Biome and rustfmt.
+- [x] Add Nao typecheck, test, generate, and generated-output check tasks; include the
       non-mutating check in `nao check` and CI.
-- [ ] Add unit tests for constructors, model validation, discovery ordering,
+- [x] Add unit tests for constructors, model validation, discovery ordering,
       malformed modules, generator selection, output path safety, manifests,
       stale detection, and changed-only writes.
-- [ ] Add golden tests for TypeScript and Rust output and compile/typecheck the
+- [x] Add golden tests for TypeScript and Rust output and compile/typecheck the
       generated fixtures.
-- [ ] Document how to add a command declaration, add a generator, regenerate
+- [x] Document how to add a command declaration, add a generator, regenerate
       outputs, and diagnose stale generated files.
-- [ ] Run `nao check` and restart active development tasks with `nao --restart`.
+- [x] Run `nao check` and restart active development tasks with `nao --restart`.
 
 ## How will we verify it?
 
