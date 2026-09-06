@@ -67,15 +67,16 @@ nao docs-dev
 The underlying processes can also be run in separate terminals:
 
 ```bash
-cd api-docs-ui
-pnpm install
-pnpm dev:api
+./t pnpm install
+./t pnpm --filter joi-api-docs-ui dev:api
 ```
 
 ```bash
-cd api-docs-ui
-pnpm dev
+./t pnpm --filter joi-api-docs-ui dev
 ```
+
+Run these commands from the repository root. Both UI projects share the root
+pnpm workspace lockfile.
 
 Vite serves the UI at `http://localhost:5173` and proxies `/api.json` to the
 `joi-api-docs-server` binary at `127.0.0.1:8787`. The server reparses
