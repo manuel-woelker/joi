@@ -14,8 +14,10 @@ describe("language generators", () => {
     expect(first).toEqual(typescriptGenerator.generate(model));
     expect(first[0]?.contents).toContain("export interface CommandRequests");
     expect(first[0]?.contents).toContain('readonly "query": QueryRequest;');
-    expect(first[1]?.contents).toContain("export async function executeQuery");
-    expect(first[1]?.contents).toContain('service.post("/api/query"');
+    expect(first[1]?.relativePath).toBe("api/command-service.ts");
+    expect(first[1]?.contents).toContain("export class CommandService");
+    expect(first[1]?.contents).toContain("async query(request: QueryRequest)");
+    expect(first[1]?.contents).toContain('this.fetchService.post("/api/query"');
   });
 
   it("generates deterministic Rust serde contracts", () => {

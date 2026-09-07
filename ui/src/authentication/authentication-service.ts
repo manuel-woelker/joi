@@ -1,4 +1,4 @@
-import { executeUserInfo } from "../generated/api/command-client";
+import { CommandService } from "../generated/api/command-service";
 import type { UserInfo } from "../generated/api/api";
 import { executeDataQuery } from "../query/query-client";
 import type { FetchService } from "../services/fetch-service";
@@ -6,7 +6,7 @@ import type { FetchService } from "../services/fetch-service";
 export type AuthenticatedUser = UserInfo;
 
 export async function loadCurrentUser(service: FetchService): Promise<AuthenticatedUser> {
-  return parseUser(await executeUserInfo(service));
+  return parseUser(await new CommandService(service).userInfo({}));
 }
 
 export async function loadLoginUsers(service: FetchService): Promise<readonly AuthenticatedUser[]> {
