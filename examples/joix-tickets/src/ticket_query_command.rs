@@ -2,11 +2,11 @@ use joi_base::JoiString;
 use joi_error::{JoiResult, joi_error};
 use serde::{Deserialize, Serialize};
 
+use crate::command::Command;
 use crate::command_handler::CommandHandler;
 use crate::data_store::{
     AttributeName, DataStoreQuery, QueryCriterion, SharedDataStore, TableName, Values,
 };
-use crate::generated::api::Command;
 
 pub struct QueryCommand {
     data_store: SharedDataStore,

@@ -24,7 +24,7 @@ describe("language generators", () => {
     expect(first[0]?.contents).toContain("impl Command for QueryRequest");
     expect(first[0]?.contents).toContain('const NAME: &\'static str = "query";');
     expect(first[0]?.contents).toContain("type Response = QueryResponse;");
-    expect(first[0]?.contents).toContain("pub const COMMAND_TYPES: &[CommandType]");
+    expect(first[0]?.contents).toContain("pub const COMMAND_DESCRIPTORS: &[CommandDescriptor]");
   });
 
   it("rejects names that collide after target case conversion", () => {

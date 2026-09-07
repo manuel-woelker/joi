@@ -5,8 +5,8 @@ use joi_error::{JoiResult, joi_bail, report};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value;
 
+use crate::command::{Command, CommandDescriptor};
 use crate::command_handler::CommandHandler;
-use crate::generated::api::{Command, CommandType};
 
 const COMMANDS_LIST_NAME: &str = "commands/list";
 
@@ -73,8 +73,8 @@ impl CommandRegistryBuilder {
         Ok(())
     }
 
-    pub fn require_handlers(&self, command_types: &[CommandType]) -> JoiResult<()> {
-        let mut missing = command_types
+    pub fn require_handlers(&self, command_descriptors: &[CommandDescriptor]) -> JoiResult<()> {
+        let mut missing = command_descriptors
             .iter()
             .filter(|command| !self.commands.contains_key(command.name))
             .map(|command| command.name)
@@ -86,7 +86,7 @@ impl CommandRegistryBuilder {
                 missing.join(", ")
             );
         }
-        for command in command_types {
+        for command in command_descriptors {
             if self.commands[command.name].info.description != command.description {
                 joi_bail!(
                     "command `{}` handler description does not match its declaration",
@@ -205,7 +205,7 @@ fn is_valid_command_name(name: &str) -> bool {
 mod tests {
     use serde_json::json;
 
-    use crate::generated::api::COMMAND_TYPES;
+    use crate::generated::api::COMMAND_DESCRIPTORS;
     use crate::info_command::InfoCommand;
 
     use super::CommandRegistryBuilder;
@@ -255,7 +255,7 @@ mod tests {
     fn reports_commands_without_registered_handlers() {
         let builder = CommandRegistryBuilder::new();
 
-        let error = builder.require_handlers(COMMAND_TYPES).unwrap_err();
+        let error = builder.require_handlers(COMMAND_DESCRIPTORS).unwrap_err();
 
         assert_eq!(
             error.to_string(),

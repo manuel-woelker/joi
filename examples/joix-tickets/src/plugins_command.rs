@@ -3,8 +3,8 @@ use joi_error::JoiResult;
 use joi_plugin::PluginRegistry;
 use serde::{Deserialize, Serialize};
 
+use crate::command::Command;
 use crate::command_handler::CommandHandler;
-use crate::generated::api::Command;
 
 pub struct PluginsCommand {
     plugin_registry: PluginRegistry,

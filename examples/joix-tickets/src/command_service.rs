@@ -182,9 +182,9 @@ mod tests {
     use serde_json::Value as JsonValue;
     use tower::ServiceExt;
 
+    use crate::command::Command;
     use crate::command_handler::CommandHandler;
     use crate::command_registry::CommandRegistryBuilder;
-    use crate::generated::api::Command;
     use crate::info_command::{InfoCollector, InfoCommand, InfoProvider};
 
     use super::CommandService;

@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
+use crate::command::Command;
 use crate::command_handler::CommandHandler;
-use crate::generated::api::Command;
 use joi_base::JoiString;
 use joi_error::JoiResult;
 use joi_plugin::PluginRegistry;
@@ -70,8 +70,8 @@ impl CommandHandler for InfoCommand {
 
 #[cfg(test)]
 mod tests {
+    use crate::command::Command;
     use crate::command_handler::CommandHandler;
-    use crate::generated::api::Command;
 
     use super::{InfoCommand, InfoCommandRequest};
 

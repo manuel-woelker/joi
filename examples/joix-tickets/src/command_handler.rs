@@ -1,6 +1,6 @@
 use joi_error::JoiResult;
 
-use crate::generated::api::Command;
+use crate::command::Command;
 
 /// Executes a command described by its [`Command`] implementation.
 pub trait CommandHandler {

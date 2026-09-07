@@ -2,6 +2,7 @@ use joi_base::JoiString;
 use joi_error::{JoiResult, joi_bail, joi_error};
 use serde::{Deserialize, Serialize};
 
+use crate::command::Command;
 use crate::command_handler::CommandHandler;
 use crate::data_store::{
     AttributeColumn, AttributeName, ColumnDataType, ColumnDescription, ColumnReference, DataStore,
@@ -9,7 +10,6 @@ use crate::data_store::{
     DataStoreQuery, DataStoreQueryResult, QueryCriterion, SharedDataStore, TableDescription,
     TableDescriptionProvider, TableName, Values,
 };
-use crate::generated::api::Command;
 
 pub const LOGIN_COMMAND: &str = "login";
 pub const LOGOUT_COMMAND: &str = "logout";

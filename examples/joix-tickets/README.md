@@ -77,10 +77,11 @@ and dependency handling are intentionally not implemented yet.
 
 ## How are commands exposed over HTTP?
 
-Command request types implement the generated `Command` trait, which associates
-the command name, description, and response type. Handwritten `CommandHandler`
-implementations only provide execution behavior and identify their associated
-command type.
+Command request types implement the model-independent `Command` trait, which
+associates the command name, description, and response type. Generated API code
+imports this trait and emits only model-specific implementations and inventory
+entries. Handwritten `CommandHandler` implementations only provide execution
+behavior and identify their associated command type.
 Startup checks the generated command inventory and fails when a declared command
 has no registered handler or its description has drifted.
 

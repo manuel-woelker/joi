@@ -2,13 +2,13 @@ use joi_base::JoiString;
 use joi_error::{JoiResult, joi_error};
 use serde::{Deserialize, Serialize};
 
+use crate::command::Command;
 use crate::command_handler::CommandHandler;
 use crate::data_store::{
     AttributeColumn, AttributeName, DataStoreDeleteMutation, DataStoreInsertMutation,
     DataStoreMutation, DataStoreMutationStep, DataStoreUpdateMutation, SharedDataStore, TableName,
     Values,
 };
-use crate::generated::api::Command;
 
 /// Applies generic data-store mutations supplied through the command registry.
 pub struct MutateCommand {
