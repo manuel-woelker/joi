@@ -2,10 +2,11 @@ use joi_base::JoiString;
 use joi_error::{JoiResult, joi_error};
 use serde::{Deserialize, Serialize};
 
-use crate::command::{Command, CommandDescriptor, CommandRequest};
+use crate::command_handler::CommandHandler;
 use crate::data_store::{
     AttributeName, DataStoreQuery, QueryCriterion, SharedDataStore, TableName, Values,
 };
+use crate::generated::api::Command;
 
 pub struct QueryCommand {
     data_store: SharedDataStore,
@@ -37,7 +38,9 @@ enum QueryRequestCriterion {
     },
 }
 
-impl CommandRequest for QueryRequest {
+impl Command for QueryRequest {
+    const NAME: &'static str = "query";
+    const DESCRIPTION: &'static str = "Query records from a registered data table.";
     type Response = QueryResponse;
 }
 
@@ -60,17 +63,10 @@ pub enum QueryValues {
     Int(Vec<i64>),
 }
 
-impl Command for QueryCommand {
-    type Request = QueryRequest;
+impl CommandHandler for QueryCommand {
+    type Command = QueryRequest;
 
-    fn descriptor() -> CommandDescriptor {
-        CommandDescriptor {
-            name: "query".into(),
-            description: "Queries a table from the data store".into(),
-        }
-    }
-
-    fn execute(&self, request: Self::Request) -> JoiResult<QueryResponse> {
+    fn execute(&self, request: Self::Command) -> JoiResult<QueryResponse> {
         let query = DataStoreQuery {
             table_name: TableName(request.table_name),
             criterion: match request.criterion {
@@ -129,7 +125,7 @@ fn query_criterion(criterion: QueryRequestCriterion) -> QueryCriterion {
 mod tests {
     use std::sync::{Arc, Mutex};
 
-    use crate::command::Command;
+    use crate::command_handler::CommandHandler;
     use crate::data_store::{DataStore, TableDescriptionProvider, TestDataProvider};
     use crate::sqlite_data_store::SqliteDataStore;
     use crate::tickets_module::{

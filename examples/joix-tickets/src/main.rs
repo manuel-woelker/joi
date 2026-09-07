@@ -12,6 +12,7 @@ use crate::command_registry::{CommandRegistry, CommandRegistryBuilder};
 use crate::command_service::CommandService;
 use crate::data_mutation_command::MutateCommand;
 use crate::data_store::{DataStore, SharedDataStore, TableDescriptionProvider, TestDataProvider};
+use crate::generated::api::COMMAND_TYPES;
 use crate::info_command::{InfoCollector, InfoCommand, InfoProvider};
 use crate::module_registry::ModuleRegistry;
 use crate::plugins_command::PluginsCommand;
@@ -27,7 +28,7 @@ use crate::user_session_command::{
 
 const DATA_STORE_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/joix-tickets.sqlite3");
 
-pub mod command;
+pub mod command_handler;
 pub mod command_registry;
 pub mod command_service;
 pub mod data_mutation_command;
@@ -166,6 +167,7 @@ fn build_command_registry(
     builder.register(LoginCommand::new(data_store.clone()))?;
     builder.register(LogoutCommand::new(data_store.clone()))?;
     builder.register(UserInfoCommand::new(data_store))?;
+    builder.require_handlers(COMMAND_TYPES)?;
     Ok(builder.build())
 }
 

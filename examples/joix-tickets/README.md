@@ -77,8 +77,15 @@ and dependency handling are intentionally not implemented yet.
 
 ## How are commands exposed over HTTP?
 
-`CommandRegistryBuilder::register` stores a command independently of any HTTP
-framework. Names consist of `/`-separated path segments containing ASCII
+Command request types implement the generated `Command` trait, which associates
+the command name, description, and response type. Handwritten `CommandHandler`
+implementations only provide execution behavior and identify their associated
+command type.
+Startup checks the generated command inventory and fails when a declared command
+has no registered handler or its description has drifted.
+
+`CommandRegistryBuilder::register` stores a command handler independently of any
+HTTP framework. Names consist of `/`-separated path segments containing ASCII
 letters, digits, `-`, and `_`; invalid or duplicate names are rejected during
 registration with a string error. Building produces an immutable, cheaply
 cloneable `CommandRegistry` and adds the built-in `commands/list` command from a
@@ -111,9 +118,9 @@ This is only a development identity mechanism. Sessions currently have no
 expiry, revocation, or password verification, and other commands are not yet
 authorization-gated.
 
-`Command::execute` returns `JoiResult<Response>`. Failed commands are exposed as a
-JSON `500 Internal Server Error` response whose `error` field contains the
-current error context.
+`CommandHandler::execute` returns `JoiResult<Response>`. Failed commands are
+exposed as a JSON `500 Internal Server Error` response whose `error` field
+contains the current error context.
 
 The executable currently registers `InfoCommand`, `PluginsCommand`,
 `QueryCommand`, `MutateCommand`, `LoginCommand`, and `UserInfoCommand` and

@@ -182,8 +182,9 @@ mod tests {
     use serde_json::Value as JsonValue;
     use tower::ServiceExt;
 
-    use crate::command::{Command, CommandDescriptor, CommandRequest};
+    use crate::command_handler::CommandHandler;
     use crate::command_registry::CommandRegistryBuilder;
+    use crate::generated::api::Command;
     use crate::info_command::{InfoCollector, InfoCommand, InfoProvider};
 
     use super::CommandService;
@@ -198,23 +199,18 @@ mod tests {
         message: JoiString,
     }
 
-    impl CommandRequest for GreetingRequest {
+    impl Command for GreetingRequest {
+        const NAME: &'static str = "greet";
+        const DESCRIPTION: &'static str = "Greets a person";
         type Response = GreetingResponse;
     }
 
     struct GreetingCommand;
 
-    impl Command for GreetingCommand {
-        type Request = GreetingRequest;
+    impl CommandHandler for GreetingCommand {
+        type Command = GreetingRequest;
 
-        fn descriptor() -> CommandDescriptor {
-            CommandDescriptor {
-                name: "greet".into(),
-                description: "Greets a person".into(),
-            }
-        }
-
-        fn execute(&self, request: Self::Request) -> joi_error::JoiResult<GreetingResponse> {
+        fn execute(&self, request: Self::Command) -> joi_error::JoiResult<GreetingResponse> {
             Ok(GreetingResponse {
                 message: format!("Hello, {}!", request.name).into(),
             })
@@ -223,18 +219,22 @@ mod tests {
 
     struct InvalidNameCommand;
 
-    impl Command for InvalidNameCommand {
-        type Request = GreetingRequest;
+    #[derive(Deserialize)]
+    struct InvalidNameRequest {
+        name: JoiString,
+    }
 
-        fn descriptor() -> CommandDescriptor {
-            CommandDescriptor {
-                name: "invalid//name".into(),
-                description: "Has an invalid route name".into(),
-            }
-        }
+    impl Command for InvalidNameRequest {
+        const NAME: &'static str = "invalid//name";
+        const DESCRIPTION: &'static str = "Has an invalid route name";
+        type Response = GreetingResponse;
+    }
 
-        fn execute(&self, request: Self::Request) -> joi_error::JoiResult<GreetingResponse> {
-            GreetingCommand.execute(request)
+    impl CommandHandler for InvalidNameCommand {
+        type Command = InvalidNameRequest;
+
+        fn execute(&self, request: Self::Command) -> joi_error::JoiResult<GreetingResponse> {
+            GreetingCommand.execute(GreetingRequest { name: request.name })
         }
     }
 
@@ -251,27 +251,34 @@ mod tests {
 
     struct FailingCommand;
 
-    impl Command for FailingCommand {
-        type Request = GreetingRequest;
+    #[derive(Deserialize)]
+    struct FailingRequest {
+        name: JoiString,
+    }
 
-        fn descriptor() -> CommandDescriptor {
-            CommandDescriptor {
-                name: "fail".into(),
-                description: "Always fails".into(),
-            }
-        }
+    impl Command for FailingRequest {
+        const NAME: &'static str = "fail";
+        const DESCRIPTION: &'static str = "Always fails";
+        type Response = GreetingResponse;
+    }
 
-        fn execute(&self, _request: Self::Request) -> joi_error::JoiResult<GreetingResponse> {
+    impl CommandHandler for FailingCommand {
+        type Command = FailingRequest;
+
+        fn execute(&self, request: Self::Command) -> joi_error::JoiResult<GreetingResponse> {
+            let _ = request.name;
             Err(joi_error::report(ExampleCommandError))
         }
     }
 
-    fn service_with<A>(command: A) -> CommandService
+    fn service_with<H>(handler: H) -> CommandService
     where
-        A: Command + Send + Sync + 'static,
+        H: CommandHandler + Send + Sync + 'static,
+        H::Command: serde::de::DeserializeOwned + Send + 'static,
+        <H::Command as Command>::Response: Serialize,
     {
         let mut registry = CommandRegistryBuilder::new();
-        registry.register(command).unwrap();
+        registry.register(handler).unwrap();
         CommandService::new(registry.build())
     }
 

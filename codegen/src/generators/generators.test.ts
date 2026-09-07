@@ -1,30 +1,30 @@
 import { describe, expect, it } from "vitest";
 
-import command from "../declarations/get-ticket.command.ts";
+import command from "../declarations/query.command.ts";
 import { buildModel } from "../model/model-builder.ts";
 import { defineCommand, defineStruct } from "../model/declarations.ts";
 import rustGenerator from "./rust.generator.ts";
 import typescriptGenerator from "./typescript.generator.ts";
 
-const model = buildModel([{ declaration: command, sourcePath: "get-ticket.command.ts" }]);
+const model = buildModel([{ declaration: command, sourcePath: "query.command.ts" }]);
 
 describe("language generators", () => {
   it("generates deterministic TypeScript command contracts", () => {
     const first = typescriptGenerator.generate(model);
     expect(first).toEqual(typescriptGenerator.generate(model));
     expect(first[0]?.contents).toContain("export interface CommandRequests");
-    expect(first[0]?.contents).toContain('readonly "get-ticket": GetTicketRequest;');
-    expect(first[0]?.contents).toContain("readonly assignee: string | null;");
-    expect(first[1]?.contents).toContain("export async function executeGetTicket");
-    expect(first[1]?.contents).toContain('service.post("/api/get-ticket"');
+    expect(first[0]?.contents).toContain('readonly "query": QueryRequest;');
+    expect(first[1]?.contents).toContain("export async function executeQuery");
+    expect(first[1]?.contents).toContain('service.post("/api/query"');
   });
 
   it("generates deterministic Rust serde contracts", () => {
     const first = rustGenerator.generate(model);
     expect(first).toEqual(rustGenerator.generate(model));
-    expect(first[0]?.contents).toContain("pub struct Ticket");
-    expect(first[0]?.contents).toContain("pub assignee: Option<String>");
-    expect(first[0]?.contents).toContain('pub const GET_TICKET_COMMAND: &str = "get-ticket";');
+    expect(first[0]?.contents).toContain("impl Command for QueryRequest");
+    expect(first[0]?.contents).toContain('const NAME: &\'static str = "query";');
+    expect(first[0]?.contents).toContain("type Response = QueryResponse;");
+    expect(first[0]?.contents).toContain("pub const COMMAND_TYPES: &[CommandType]");
   });
 
   it("rejects names that collide after target case conversion", () => {

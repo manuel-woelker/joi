@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
-use crate::command::{Command, CommandDescriptor, CommandRequest};
+use crate::command_handler::CommandHandler;
+use crate::generated::api::Command;
 use joi_base::JoiString;
 use joi_error::JoiResult;
 use joi_plugin::PluginRegistry;
@@ -47,21 +48,16 @@ pub struct InfoCommandResponse {
 #[serde(deny_unknown_fields)]
 pub struct InfoCommandRequest {}
 
-impl CommandRequest for InfoCommandRequest {
+impl Command for InfoCommandRequest {
+    const NAME: &'static str = "info";
+    const DESCRIPTION: &'static str = "Retrieves application information";
     type Response = InfoCommandResponse;
 }
 
-impl Command for InfoCommand {
-    type Request = InfoCommandRequest;
+impl CommandHandler for InfoCommand {
+    type Command = InfoCommandRequest;
 
-    fn descriptor() -> CommandDescriptor {
-        CommandDescriptor {
-            name: "info".into(),
-            description: "Retrieves application information".into(),
-        }
-    }
-
-    fn execute(&self, _request: Self::Request) -> JoiResult<InfoCommandResponse> {
+    fn execute(&self, _request: Self::Command) -> JoiResult<InfoCommandResponse> {
         let mut collector = InfoCollector::default();
         for provider in self.plugin_registry.extensions::<dyn InfoProvider>()? {
             provider.collect_info(&mut collector);
@@ -74,16 +70,18 @@ impl Command for InfoCommand {
 
 #[cfg(test)]
 mod tests {
-    use crate::command::Command;
+    use crate::command_handler::CommandHandler;
+    use crate::generated::api::Command;
 
     use super::{InfoCommand, InfoCommandRequest};
 
     #[test]
     fn describes_the_info_command() {
-        let descriptor = InfoCommand::descriptor();
-
-        assert_eq!(descriptor.name, "info");
-        assert_eq!(descriptor.description, "Retrieves application information");
+        assert_eq!(InfoCommandRequest::NAME, "info");
+        assert_eq!(
+            InfoCommandRequest::DESCRIPTION,
+            "Retrieves application information"
+        );
     }
 
     #[test]

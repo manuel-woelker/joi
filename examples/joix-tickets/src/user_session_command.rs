@@ -2,13 +2,14 @@ use joi_base::JoiString;
 use joi_error::{JoiResult, joi_bail, joi_error};
 use serde::{Deserialize, Serialize};
 
-use crate::command::{Command, CommandDescriptor, CommandRequest};
+use crate::command_handler::CommandHandler;
 use crate::data_store::{
     AttributeColumn, AttributeName, ColumnDataType, ColumnDescription, ColumnReference, DataStore,
     DataStoreDeleteMutation, DataStoreInsertMutation, DataStoreMutation, DataStoreMutationStep,
     DataStoreQuery, DataStoreQueryResult, QueryCriterion, SharedDataStore, TableDescription,
     TableDescriptionProvider, TableName, Values,
 };
+use crate::generated::api::Command;
 
 pub const LOGIN_COMMAND: &str = "login";
 pub const LOGOUT_COMMAND: &str = "logout";
@@ -51,7 +52,9 @@ pub struct LoginRequest {
     user_id: JoiString,
 }
 
-impl CommandRequest for LoginRequest {
+impl Command for LoginRequest {
+    const NAME: &'static str = LOGIN_COMMAND;
+    const DESCRIPTION: &'static str = "Creates a session for a selected user";
     type Response = LoginResponse;
 }
 
@@ -71,17 +74,10 @@ impl LoginCommand {
     }
 }
 
-impl Command for LoginCommand {
-    type Request = LoginRequest;
+impl CommandHandler for LoginCommand {
+    type Command = LoginRequest;
 
-    fn descriptor() -> CommandDescriptor {
-        CommandDescriptor {
-            name: LOGIN_COMMAND.into(),
-            description: "Creates a session for a selected user".into(),
-        }
-    }
-
-    fn execute(&self, request: Self::Request) -> JoiResult<LoginResponse> {
+    fn execute(&self, request: Self::Command) -> JoiResult<LoginResponse> {
         let mut data_store = self
             .data_store
             .lock()
@@ -108,7 +104,9 @@ pub struct UserInfoRequest {
     session_id: JoiString,
 }
 
-impl CommandRequest for UserInfoRequest {
+impl Command for UserInfoRequest {
+    const NAME: &'static str = USER_INFO_COMMAND;
+    const DESCRIPTION: &'static str = "Return the user associated with the current session cookie.";
     type Response = UserInfo;
 }
 
@@ -129,7 +127,9 @@ pub struct LogoutRequest {
     session_id: JoiString,
 }
 
-impl CommandRequest for LogoutRequest {
+impl Command for LogoutRequest {
+    const NAME: &'static str = LOGOUT_COMMAND;
+    const DESCRIPTION: &'static str = "Revokes the current user session";
     type Response = LogoutResponse;
 }
 
@@ -146,17 +146,10 @@ impl LogoutCommand {
     }
 }
 
-impl Command for LogoutCommand {
-    type Request = LogoutRequest;
+impl CommandHandler for LogoutCommand {
+    type Command = LogoutRequest;
 
-    fn descriptor() -> CommandDescriptor {
-        CommandDescriptor {
-            name: LOGOUT_COMMAND.into(),
-            description: "Revokes the current user session".into(),
-        }
-    }
-
-    fn execute(&self, request: Self::Request) -> JoiResult<LogoutResponse> {
+    fn execute(&self, request: Self::Command) -> JoiResult<LogoutResponse> {
         self.data_store
             .lock()
             .map_err(|_| joi_error!("data store lock is poisoned"))?
@@ -176,17 +169,10 @@ impl UserInfoCommand {
     }
 }
 
-impl Command for UserInfoCommand {
-    type Request = UserInfoRequest;
+impl CommandHandler for UserInfoCommand {
+    type Command = UserInfoRequest;
 
-    fn descriptor() -> CommandDescriptor {
-        CommandDescriptor {
-            name: USER_INFO_COMMAND.into(),
-            description: "Returns the user associated with the current session".into(),
-        }
-    }
-
-    fn execute(&self, request: Self::Request) -> JoiResult<UserInfo> {
+    fn execute(&self, request: Self::Command) -> JoiResult<UserInfo> {
         let data_store = self
             .data_store
             .lock()
@@ -271,7 +257,7 @@ fn generate_session_id() -> JoiResult<JoiString> {
 mod tests {
     use std::sync::{Arc, Mutex};
 
-    use crate::command::Command;
+    use crate::command_handler::CommandHandler;
     use crate::data_store::{
         DataStore, SharedDataStore, TableDescriptionProvider, TestDataProvider,
     };

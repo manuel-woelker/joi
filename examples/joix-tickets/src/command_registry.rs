@@ -5,15 +5,22 @@ use joi_error::{JoiResult, joi_bail, report};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value;
 
-use crate::command::{Command, CommandDescriptor, CommandRequest};
+use crate::command_handler::CommandHandler;
+use crate::generated::api::{Command, CommandType};
 
 const COMMANDS_LIST_NAME: &str = "commands/list";
 
 type ExecuteCommand = Arc<dyn Fn(Value) -> JoiResult<Value> + Send + Sync>;
 
 struct RegisteredCommand {
-    descriptor: CommandDescriptor,
+    info: CommandInfo,
     execute: ExecuteCommand,
+}
+
+#[derive(Clone)]
+pub struct CommandInfo {
+    pub name: JoiString,
+    pub description: JoiString,
 }
 
 /// Stores typed commands without coupling registration to a transport.
@@ -37,47 +44,76 @@ impl CommandRegistryBuilder {
         Self::default()
     }
 
-    pub fn register<A>(&mut self, command: A) -> JoiResult<()>
+    pub fn register<H>(&mut self, handler: H) -> JoiResult<()>
     where
-        A: Command + Send + Sync + 'static,
+        H: CommandHandler + Send + Sync + 'static,
+        H::Command: DeserializeOwned + Send + 'static,
+        <H::Command as Command>::Response: Serialize,
     {
-        let descriptor = A::descriptor();
-        if !is_valid_command_name(&descriptor.name) {
-            joi_bail!("invalid command name `{}`", descriptor.name);
+        let info = CommandInfo {
+            name: H::Command::NAME.into(),
+            description: H::Command::DESCRIPTION.into(),
+        };
+        if !is_valid_command_name(&info.name) {
+            joi_bail!("invalid command name `{}`", info.name);
         }
-        if descriptor.name == COMMANDS_LIST_NAME || self.commands.contains_key(&descriptor.name) {
-            joi_bail!("command `{}` is already registered", descriptor.name);
+        if info.name == COMMANDS_LIST_NAME || self.commands.contains_key(&info.name) {
+            joi_bail!("command `{}` is already registered", info.name);
         }
 
         self.commands.insert(
-            descriptor.name.clone(),
+            info.name.clone(),
             RegisteredCommand {
-                descriptor,
+                info,
                 execute: Arc::new(move |request| {
-                    execute_typed::<A::Request>(request, |request| command.execute(request))
+                    execute_typed::<H::Command>(request, |request| handler.execute(request))
                 }),
             },
         );
         Ok(())
     }
 
+    pub fn require_handlers(&self, command_types: &[CommandType]) -> JoiResult<()> {
+        let mut missing = command_types
+            .iter()
+            .filter(|command| !self.commands.contains_key(command.name))
+            .map(|command| command.name)
+            .collect::<Vec<_>>();
+        missing.sort_unstable();
+        if !missing.is_empty() {
+            joi_bail!(
+                "commands have no registered handlers: {}",
+                missing.join(", ")
+            );
+        }
+        for command in command_types {
+            if self.commands[command.name].info.description != command.description {
+                joi_bail!(
+                    "command `{}` handler description does not match its declaration",
+                    command.name
+                );
+            }
+        }
+        Ok(())
+    }
+
     pub fn build(mut self) -> CommandRegistry {
-        let descriptor = CommandDescriptor {
+        let info = CommandInfo {
             name: COMMANDS_LIST_NAME.into(),
             description: "Lists all registered commands".into(),
         };
         let mut commands = self
             .commands
             .values()
-            .map(|command| CommandSummary::from(&command.descriptor))
-            .chain(std::iter::once(CommandSummary::from(&descriptor)))
+            .map(|command| CommandSummary::from(&command.info))
+            .chain(std::iter::once(CommandSummary::from(&info)))
             .collect::<Vec<_>>();
         commands.sort_by(|left, right| left.name.cmp(&right.name));
         let commands = Arc::new(commands);
         self.commands.insert(
-            descriptor.name.clone(),
+            info.name.clone(),
             RegisteredCommand {
-                descriptor,
+                info,
                 execute: Arc::new(move |request| {
                     execute_typed::<CommandsListRequest>(request, |_| {
                         Ok(CommandsListResponse {
@@ -97,18 +133,12 @@ impl CommandRegistryBuilder {
 }
 
 impl CommandRegistry {
-    pub fn descriptor(&self, name: &str) -> Option<&CommandDescriptor> {
-        self.inner
-            .commands
-            .get(name)
-            .map(|command| &command.descriptor)
+    pub fn command_info(&self, name: &str) -> Option<&CommandInfo> {
+        self.inner.commands.get(name).map(|command| &command.info)
     }
 
-    pub fn descriptors(&self) -> impl Iterator<Item = &CommandDescriptor> {
-        self.inner
-            .commands
-            .values()
-            .map(|command| &command.descriptor)
+    pub fn commands_info(&self) -> impl Iterator<Item = &CommandInfo> {
+        self.inner.commands.values().map(|command| &command.info)
     }
 
     pub fn execute(&self, name: &str, request: Value) -> Option<JoiResult<Value>> {
@@ -119,14 +149,15 @@ impl CommandRegistry {
     }
 }
 
-fn execute_typed<R>(
+fn execute_typed<C>(
     request: Value,
-    execute: impl FnOnce(R) -> JoiResult<R::Response>,
+    execute: impl FnOnce(C) -> JoiResult<C::Response>,
 ) -> JoiResult<Value>
 where
-    R: CommandRequest + DeserializeOwned,
+    C: Command + DeserializeOwned,
+    C::Response: Serialize,
 {
-    let request = serde_json::from_value::<R>(request).map_err(report)?;
+    let request = serde_json::from_value::<C>(request).map_err(report)?;
     let response = execute(request)?;
     serde_json::to_value(response).map_err(report)
 }
@@ -140,7 +171,9 @@ struct CommandsListResponse {
     commands: Vec<CommandSummary>,
 }
 
-impl CommandRequest for CommandsListRequest {
+impl Command for CommandsListRequest {
+    const NAME: &'static str = COMMANDS_LIST_NAME;
+    const DESCRIPTION: &'static str = "Lists all registered commands";
     type Response = CommandsListResponse;
 }
 
@@ -150,11 +183,11 @@ struct CommandSummary {
     description: JoiString,
 }
 
-impl From<&CommandDescriptor> for CommandSummary {
-    fn from(descriptor: &CommandDescriptor) -> Self {
+impl From<&CommandInfo> for CommandSummary {
+    fn from(info: &CommandInfo) -> Self {
         Self {
-            name: descriptor.name.clone(),
-            description: descriptor.description.clone(),
+            name: info.name.clone(),
+            description: info.description.clone(),
         }
     }
 }
@@ -172,6 +205,7 @@ fn is_valid_command_name(name: &str) -> bool {
 mod tests {
     use serde_json::json;
 
+    use crate::generated::api::COMMAND_TYPES;
     use crate::info_command::InfoCommand;
 
     use super::CommandRegistryBuilder;
@@ -184,9 +218,9 @@ mod tests {
         let original = builder.build();
         let cloned = original.clone();
 
-        assert!(original.descriptor("info").is_some());
-        assert!(original.descriptor("commands/list").is_some());
-        assert!(cloned.descriptor("info").is_some());
+        assert!(original.command_info("info").is_some());
+        assert!(original.command_info("commands/list").is_some());
+        assert!(cloned.command_info("info").is_some());
     }
 
     #[test]
@@ -214,6 +248,18 @@ mod tests {
                     }
                 ]
             })
+        );
+    }
+
+    #[test]
+    fn reports_commands_without_registered_handlers() {
+        let builder = CommandRegistryBuilder::new();
+
+        let error = builder.require_handlers(COMMAND_TYPES).unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "commands have no registered handlers: query, user-info"
         );
     }
 }

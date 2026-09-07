@@ -3,7 +3,8 @@ use joi_error::JoiResult;
 use joi_plugin::PluginRegistry;
 use serde::{Deserialize, Serialize};
 
-use crate::command::{Command, CommandDescriptor, CommandRequest};
+use crate::command_handler::CommandHandler;
+use crate::generated::api::Command;
 
 pub struct PluginsCommand {
     plugin_registry: PluginRegistry,
@@ -19,7 +20,9 @@ impl PluginsCommand {
 #[serde(deny_unknown_fields)]
 pub struct PluginsCommandRequest {}
 
-impl CommandRequest for PluginsCommandRequest {
+impl Command for PluginsCommandRequest {
+    const NAME: &'static str = "plugins";
+    const DESCRIPTION: &'static str = "Lists all registered plugins";
     type Response = PluginsCommandResponse;
 }
 
@@ -51,17 +54,10 @@ pub struct ExtensionSummary {
     pub description: JoiString,
 }
 
-impl Command for PluginsCommand {
-    type Request = PluginsCommandRequest;
+impl CommandHandler for PluginsCommand {
+    type Command = PluginsCommandRequest;
 
-    fn descriptor() -> CommandDescriptor {
-        CommandDescriptor {
-            name: "plugins".into(),
-            description: "Lists all registered plugins".into(),
-        }
-    }
-
-    fn execute(&self, _request: Self::Request) -> JoiResult<PluginsCommandResponse> {
+    fn execute(&self, _request: Self::Command) -> JoiResult<PluginsCommandResponse> {
         Ok(PluginsCommandResponse {
             plugins: self
                 .plugin_registry
@@ -98,7 +94,7 @@ impl Command for PluginsCommand {
 mod tests {
     use joi_plugin::{PluginRegistryBuilder, plugin};
 
-    use crate::command::Command;
+    use crate::command_handler::CommandHandler;
 
     use super::{
         ExtensionPointSummary, ExtensionSummary, PluginSummary, PluginsCommand,

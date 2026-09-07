@@ -2,12 +2,13 @@ use joi_base::JoiString;
 use joi_error::{JoiResult, joi_error};
 use serde::{Deserialize, Serialize};
 
-use crate::command::{Command, CommandDescriptor, CommandRequest};
+use crate::command_handler::CommandHandler;
 use crate::data_store::{
     AttributeColumn, AttributeName, DataStoreDeleteMutation, DataStoreInsertMutation,
     DataStoreMutation, DataStoreMutationStep, DataStoreUpdateMutation, SharedDataStore, TableName,
     Values,
 };
+use crate::generated::api::Command;
 
 /// Applies generic data-store mutations supplied through the command registry.
 pub struct MutateCommand {
@@ -74,21 +75,16 @@ enum MutationValues {
 #[derive(Debug, PartialEq, Serialize)]
 pub struct MutateResponse {}
 
-impl CommandRequest for MutateRequest {
+impl Command for MutateRequest {
+    const NAME: &'static str = "mutate";
+    const DESCRIPTION: &'static str = "Mutates records in data-store tables";
     type Response = MutateResponse;
 }
 
-impl Command for MutateCommand {
-    type Request = MutateRequest;
+impl CommandHandler for MutateCommand {
+    type Command = MutateRequest;
 
-    fn descriptor() -> CommandDescriptor {
-        CommandDescriptor {
-            name: "mutate".into(),
-            description: "Mutates records in data-store tables".into(),
-        }
-    }
-
-    fn execute(&self, request: Self::Request) -> JoiResult<MutateResponse> {
+    fn execute(&self, request: Self::Command) -> JoiResult<MutateResponse> {
         let mutation = DataStoreMutation {
             steps: request.steps.into_iter().map(mutation_step).collect(),
         };
@@ -139,7 +135,7 @@ fn attribute_column(column: MutationColumn) -> AttributeColumn {
 mod tests {
     use std::sync::{Arc, Mutex};
 
-    use crate::command::Command;
+    use crate::command_handler::CommandHandler;
     use crate::data_store::{DataStore, DataStoreQuery, QueryCriterion, TableDescriptionProvider};
     use crate::sqlite_data_store::SqliteDataStore;
     use crate::tickets_module::UserTableDescriptionProvider;
