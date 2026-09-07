@@ -21,6 +21,9 @@ if (mode !== "generate" && mode !== "check" && mode !== "clean") {
       console.log(`Removed ${removed.length} generated files.`);
       process.exit(0);
     }
+    if (mode === "generate") {
+      await Promise.all(targets.map((target) => removeGeneratedOutput(resolve(repositoryRoot, target.outputRoot))));
+    }
     const issues = await runGeneration({ codegenRoot, repositoryRoot, mode: mode as OutputMode, targets });
     if (mode === "check" && issues.length > 0) {
       console.error(issues.join("\n"));

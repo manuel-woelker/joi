@@ -7,5 +7,5 @@ export interface GeneratorTarget {
 
 export const targets: readonly GeneratorTarget[] = Object.freeze([
   { generator: "rust" as GeneratorId, outputRoot: "examples/joix-tickets/src/generated" },
-  { generator: "typescript" as GeneratorId, outputRoot: "ui/src/generated/api" },
+  { generator: "typescript" as GeneratorId, outputRoot: "ui/src/generated" },
 ]);

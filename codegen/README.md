@@ -55,15 +55,16 @@ Run commands from the repository root:
 ./t nao codegen-test
 ```
 
-Generated TypeScript is written to `ui/src/generated/api`. Generated Rust is
-written to `examples/joix-tickets/src/generated`. Both directories contain a
-manifest identifying files owned by the generator.
+Generated TypeScript is written below `ui/src/generated`. Generated Rust is
+written to `examples/joix-tickets/src/generated`. Both generated roots contain
+a manifest identifying files owned by the generator.
 
 Generated output is ignored by Git. Consumer tasks depend on `codegen`, so a
 clean checkout creates the required files before compiling or testing.
-`codegen-check` verifies the current output without modifying it.
-`codegen-clean` removes every manifest-owned file and the manifests themselves;
-it leaves unknown or handwritten files untouched.
+`codegen-check` verifies the current output without modifying it. Every
+generation starts by removing all configured output folders. `codegen-clean`
+performs only that cleanup. For safety, cleanup rejects roots not named
+`generated`; never place handwritten files in these directories.
 
 ## What runtime does it require?
 

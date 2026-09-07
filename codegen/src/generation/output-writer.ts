@@ -1,5 +1,5 @@
-import { mkdir, readFile, rename, rmdir, stat, unlink, writeFile } from "node:fs/promises";
-import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
+import { mkdir, readFile, rename, rm, stat, unlink, writeFile } from "node:fs/promises";
+import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
 
 import type { GeneratedFile } from "./generated-file.ts";
 
@@ -52,17 +52,13 @@ export async function synchronizeOutput(
 }
 
 export async function removeGeneratedOutput(outputRoot: string): Promise<readonly string[]> {
-  const manifest = await readManifest(outputRoot);
-  if (manifest.missing) return Object.freeze([]);
-
-  const removed: string[] = [];
-  for (const path of manifest.files) {
-    const absolutePath = validateRelativePath(outputRoot, path);
-    if (await removeOptional(absolutePath)) removed.push(path);
+  if (basename(resolve(outputRoot)) !== "generated") {
+    throw new Error(`Refusing to clean output root not named 'generated': ${outputRoot}`);
   }
-  await removeOptional(resolve(outputRoot, manifestName));
-  await removeEmptyDirectories(outputRoot, manifest.files);
-  return Object.freeze(removed.sort());
+  const manifest = await readManifest(outputRoot);
+  const identified = manifest.missing ? [] : [...manifest.files];
+  await rm(outputRoot, { recursive: true, force: true });
+  return Object.freeze(identified.sort());
 }
 
 function validateRelativePath(root: string, path: string): string {
@@ -112,18 +108,6 @@ async function removeOptional(path: string): Promise<boolean> {
     if (!isNodeError(error) || error.code !== "ENOENT") throw error;
   }
   return false;
-}
-
-async function removeEmptyDirectories(root: string, paths: readonly string[]): Promise<void> {
-  const directories = new Set(paths.map((path) => dirname(resolve(root, path))));
-  directories.add(resolve(root));
-  for (const directory of [...directories].sort((left, right) => right.length - left.length)) {
-    try {
-      await rmdir(directory);
-    } catch (error) {
-      if (!isNodeError(error) || (error.code !== "ENOENT" && error.code !== "ENOTEMPTY")) throw error;
-    }
-  }
 }
 
 async function atomicWrite(path: string, contents: string): Promise<void> {

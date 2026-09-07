@@ -79,7 +79,7 @@ recipe "default" {
     run shell="./t node codegen/src/cli.ts check"
   }
 
-  task "codegen-clean" description="Remove manifest-owned generated files" {
+  task "codegen-clean" description="Remove all generated output folders" {
     run shell="./t node codegen/src/cli.ts clean"
   }
 

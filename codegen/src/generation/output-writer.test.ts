@@ -8,9 +8,16 @@ import { removeGeneratedOutput, synchronizeOutput } from "./output-writer.ts";
 
 const file: GeneratedFile = { relativePath: "api.ts", contents: "export {};\n", format: "typescript" };
 
+async function outputRoot(): Promise<string> {
+  const parent = await mkdtemp(join(tmpdir(), "joi-codegen-output-"));
+  const root = join(parent, "generated");
+  await mkdir(root);
+  return root;
+}
+
 describe("synchronizeOutput", () => {
   it("writes manifests and preserves unchanged file timestamps", async () => {
-    const root = await mkdtemp(join(tmpdir(), "joi-codegen-output-"));
+    const root = await outputRoot();
     await synchronizeOutput(root, [file], "generate");
     const first = await stat(join(root, "api.ts"));
     await new Promise((resolve) => setTimeout(resolve, 20));
@@ -22,7 +29,7 @@ describe("synchronizeOutput", () => {
   });
 
   it("reports stale and manifest-owned unexpected files without changing them", async () => {
-    const root = await mkdtemp(join(tmpdir(), "joi-codegen-output-"));
+    const root = await outputRoot();
     await synchronizeOutput(root, [file], "generate");
     await writeFile(join(root, "api.ts"), "changed\n");
     const issues = await synchronizeOutput(root, [], "check");
@@ -31,15 +38,15 @@ describe("synchronizeOutput", () => {
   });
 
   it("rejects path traversal and duplicate output", async () => {
-    const root = await mkdtemp(join(tmpdir(), "joi-codegen-output-"));
+    const root = await outputRoot();
     await expect(synchronizeOutput(root, [{ ...file, relativePath: "../escape.ts" }], "check")).rejects.toThrow(
       /escapes output root/,
     );
     await expect(synchronizeOutput(root, [file, file], "check")).rejects.toThrow(/Duplicate generated output/);
   });
 
-  it("removes every manifest-owned file without removing unknown files", async () => {
-    const root = await mkdtemp(join(tmpdir(), "joi-codegen-output-"));
+  it("removes the complete generated folder, including unknown files", async () => {
+    const root = await outputRoot();
     const nestedFile = { ...file, relativePath: "nested/api.ts" };
     await synchronizeOutput(root, [file, nestedFile], "generate");
     await mkdir(join(root, "handwritten"));
@@ -48,6 +55,11 @@ describe("synchronizeOutput", () => {
     await expect(removeGeneratedOutput(root)).resolves.toEqual(["api.ts", "nested/api.ts"]);
     await expect(access(join(root, "api.ts"))).rejects.toThrow();
     await expect(access(join(root, ".joi-codegen-manifest.json"))).rejects.toThrow();
-    await expect(readFile(join(root, "handwritten", "keep.ts"), "utf8")).resolves.toBe("keep\n");
+    await expect(access(join(root, "handwritten", "keep.ts"))).rejects.toThrow();
+  });
+
+  it("refuses to clean a folder not explicitly named generated", async () => {
+    const root = await mkdtemp(join(tmpdir(), "joi-codegen-output-"));
+    await expect(removeGeneratedOutput(root)).rejects.toThrow(/not named 'generated'/);
   });
 });
