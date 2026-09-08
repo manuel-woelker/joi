@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import solidPlugin from "vite-plugin-solid";
 
+import { sourceLocationTransform } from "./source-location-transform.ts";
+
 const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
 
 function git(...arguments_: string[]): string {
@@ -24,7 +26,7 @@ export default defineConfig({
   define: {
     __JOI_REVISION__: JSON.stringify(revision),
   },
-  plugins: [solidPlugin()],
+  plugins: [sourceLocationTransform(repositoryRoot), solidPlugin()],
   server: {
     proxy: {
       "/api": "http://127.0.0.1:3000",

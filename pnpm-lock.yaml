@@ -39,6 +39,9 @@ importers:
         specifier: ^1.9.13
         version: 1.9.15
     devDependencies:
+      '@babel/parser':
+        specifier: ^7.29.8
+        version: 7.29.8
       '@biomejs/biome':
         specifier: ^2.5.11
         version: 2.5.12

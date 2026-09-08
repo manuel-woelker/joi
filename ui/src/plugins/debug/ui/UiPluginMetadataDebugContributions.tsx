@@ -16,14 +16,23 @@ function toDebugMetadata(registry: PluginRegistryAccess): PluginsResponse {
     plugins: metadata.plugins.map((plugin) => ({
       name: plugin.name,
       description: plugin.description,
+      file: plugin.location?.file,
+      line: plugin.location?.line,
       extension_points: [...plugin.extensionPoints],
       extensions: [...plugin.extensions],
     })),
     extension_points: metadata.extensionPoints.map((point) => ({
       id: point.id,
       description: point.description,
+      file: point.location?.file,
+      line: point.location?.line,
       extensions: [...point.extensions],
     })),
-    extensions: metadata.extensions.map((extension) => ({ ...extension })),
+    extensions: metadata.extensions.map((extension) => ({
+      id: extension.id,
+      description: extension.description,
+      file: extension.location?.file,
+      line: extension.location?.line,
+    })),
   };
 }

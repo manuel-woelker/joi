@@ -1,19 +1,27 @@
 import type { InitialService, ResolvedServices, ServiceDefinitions } from "./services";
 
+export interface RegistrationLocation {
+  readonly file: string;
+  readonly line: number;
+}
+
 export interface ExtensionPoint<T> {
   readonly id: string;
   readonly description: string;
   readonly key: symbol;
   readonly validate?: (extensions: readonly T[]) => void;
+  readonly location?: RegistrationLocation;
   readonly __type?: T;
 }
 export interface ExtensionInfo {
   readonly id: string;
   readonly description: string;
+  readonly location?: RegistrationLocation;
 }
 export interface PluginInfo {
   readonly name: string;
   readonly description: string;
+  readonly location?: RegistrationLocation;
   readonly extensionPoints: readonly string[];
   readonly extensions: readonly string[];
 }
@@ -43,10 +51,10 @@ export class ExtensionPointContext<S extends AnyServices = AnyServices> {
     private readonly pointIds: Set<string>,
     readonly services: S,
   ) {}
-  registerExtensionPoint<T>({ point }: { point: ExtensionPoint<T> }): void {
+  registerExtensionPoint<T>({ point, location }: { point: ExtensionPoint<T>; location?: RegistrationLocation }): void {
     if (this.points.has(point.key) || this.pointIds.has(point.id))
       throw new Error(`Extension point '${point.id}' is already registered`);
-    this.points.set(point.key, point as ExtensionPoint<unknown>);
+    this.points.set(point.key, { ...point, location } as ExtensionPoint<unknown>);
     this.pointIds.add(point.id);
   }
 }
@@ -63,15 +71,17 @@ export class ExtensionContext<S extends AnyServices = AnyServices> {
     id,
     description,
     value,
+    location,
   }: {
     point: ExtensionPoint<T>;
     id: string;
     description: string;
     value: T;
+    location?: RegistrationLocation;
   }): void {
     if (!this.points.has(point.key)) throw new Error(`Extension point '${point.id}' is not registered`);
     if (this.extensionIds.has(id)) throw new Error(`Extension '${id}' is already registered`);
-    this.extensions.get(point.key)!.push({ id, description, value });
+    this.extensions.get(point.key)!.push({ id, description, value, location });
     this.extensionIds.add(id);
   }
 }
@@ -79,6 +89,7 @@ export class ExtensionContext<S extends AnyServices = AnyServices> {
 type PluginDefinition<R extends ServiceDefinitions, P extends ServiceDefinitions> = {
   name: string;
   description: string;
+  location?: RegistrationLocation;
   requires?: R;
   provides?: P;
   registerExtensionPoints?(context: ExtensionPointContext<ResolvedServices<R> & ResolvedServices<P>>): void;
@@ -90,6 +101,7 @@ type PluginDefinition<R extends ServiceDefinitions, P extends ServiceDefinitions
 export interface UiPlugin {
   readonly name: string;
   readonly description: string;
+  readonly location?: RegistrationLocation;
   readonly requires: ServiceDefinitions;
   readonly provides: ServiceDefinitions;
   initialize(services: AnyServices): AnyServices;
@@ -105,6 +117,7 @@ export function plugin<const R extends ServiceDefinitions = {}, const P extends 
   return {
     name: definition.name,
     description: definition.description,
+    location: definition.location,
     requires,
     provides,
     initialize: (services) => definition.initialize?.(services as ResolvedServices<R>) ?? {},
@@ -150,6 +163,7 @@ export class PluginRegistryBuilder {
       pluginInfo.push({
         name: candidate.name,
         description: candidate.description,
+        location: candidate.location,
         extensionPoints: added.map((point) => point.id),
         extensions: [],
       });
@@ -252,12 +266,15 @@ export class PluginRegistry implements PluginRegistryAccess {
           Object.freeze({
             id: point.id,
             description: point.description,
+            location: point.location,
             extensions: Object.freeze((extensions.get(key) ?? []).map((extension) => extension.id)),
           }),
         ),
       ),
       extensions: Object.freeze(
-        [...extensions.values()].flat().map(({ id, description }) => Object.freeze({ id, description })),
+        [...extensions.values()]
+          .flat()
+          .map(({ id, description, location }) => Object.freeze({ id, description, location })),
       ),
     });
   }

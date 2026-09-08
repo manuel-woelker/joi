@@ -39,7 +39,16 @@ describe("PluginRegistryBuilder", () => {
       .build();
 
     expect(registry.extensions(commands).map((command) => command())).toEqual(["first", "second"]);
-    expect(registry.metadata()).toEqual({
+    const metadata = registry.metadata();
+    for (const item of [...metadata.plugins, ...metadata.extensionPoints, ...metadata.extensions]) {
+      expect(item.location?.file).toBe("ui/src/plugins/registry.test.ts");
+      expect(item.location?.line).toEqual(expect.any(Number));
+    }
+    expect({
+      plugins: metadata.plugins.map(({ location: _, ...plugin }) => plugin),
+      extensionPoints: metadata.extensionPoints.map(({ location: _, ...point }) => point),
+      extensions: metadata.extensions.map(({ location: _, ...extension }) => extension),
+    }).toEqual({
       plugins: [
         {
           name: "commands",
