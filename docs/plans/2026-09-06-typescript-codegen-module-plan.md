@@ -56,11 +56,8 @@ codegen/
 ```
 
 Add `codegen` to `pnpm-workspace.yaml`. Keep this package independent from the
-browser UI and from the existing Rust `joi-api-generator`; they solve related
-but currently distinct problems. The TypeScript module models application
-contracts authored as TypeScript, while `joi-api-generator` parses the textual
-JOI API language. A future adapter may translate the JOI API AST into this
-shared model after both representations have stable semantics.
+browser UI. This TypeScript pipeline replaces the legacy textual API language
+and Rust generator with application contracts authored directly as TypeScript.
 
 ## What should the shared model contain?
 

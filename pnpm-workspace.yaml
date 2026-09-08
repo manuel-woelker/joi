@@ -1,4 +1,3 @@
 packages:
   - codegen
   - ui
-  - libs-rust/joi-api/api-docs-ui

@@ -35,13 +35,13 @@ recipe "default" {
 
   task "biome-lint" description="Run Biome linting" {
     depends-on "codegen"
-    run shell="./t node ui/node_modules/@biomejs/biome/bin/biome lint codegen/src codegen/package.json codegen/tsconfig.json ui/src ui/vite.config.ts libs-rust/joi-api/api-docs-ui/src libs-rust/joi-api/api-docs-ui/vite.config.ts"
+    run shell="./t node ui/node_modules/@biomejs/biome/bin/biome lint codegen/src codegen/package.json codegen/tsconfig.json ui/src ui/vite.config.ts"
   }
 
   task "biome-format" description="Check Biome formatting" {
     depends-on "codegen"
     run shell="""
-      paths="codegen/src codegen/tsconfig.json codegen/package.json ui/src ui/vite.config.ts ui/tsconfig.json ui/package.json libs-rust/joi-api/api-docs-ui/src libs-rust/joi-api/api-docs-ui/vite.config.ts libs-rust/joi-api/api-docs-ui/tsconfig.json libs-rust/joi-api/api-docs-ui/package.json biome.json"
+      paths="codegen/src codegen/tsconfig.json codegen/package.json ui/src ui/vite.config.ts ui/tsconfig.json ui/package.json biome.json"
       before=$(mktemp)
       trap 'rm -f "$before"' EXIT
       git diff --binary -- $paths > "$before"
@@ -100,44 +100,5 @@ recipe "default" {
     depends-on "check"
     depends-on "cargo-test"
     run shell="printf 'Task outcome: continuous integration checks passed\n'"
-  }
-
-  task "docs-dev" description="Run the API documentation development servers" {
-    run shell="""
-      cleanup() {
-        kill "$api_pid" "$ui_pid" 2>/dev/null || true
-        wait "$api_pid" "$ui_pid" 2>/dev/null || true
-      }
-
-      trap cleanup EXIT HUP INT TERM
-
-      printf 'Task status: http://localhost:5173\n'
-
-      (
-        exec ./t cargo run \
-          -p joi-api-generator \
-          --bin joi-api-docs-server \
-          -- \
-          libs-rust/joi-api/examples/ticket.joi-api
-      ) &
-      api_pid=$!
-
-      (
-        exec ./t pnpm --dir libs-rust/joi-api/api-docs-ui dev
-      ) &
-      ui_pid=$!
-
-      while kill -0 "$api_pid" 2>/dev/null && kill -0 "$ui_pid" 2>/dev/null; do
-        sleep 1
-      done
-
-      status=0
-      if ! kill -0 "$api_pid" 2>/dev/null; then
-        wait "$api_pid" || status=$?
-      else
-        wait "$ui_pid" || status=$?
-      fi
-      exit "$status"
-    """
   }
 }

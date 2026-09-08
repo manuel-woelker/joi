@@ -1,4 +1,0 @@
-{docs}pub trait {name} {{
-    type Error;
-
-{methods}}}

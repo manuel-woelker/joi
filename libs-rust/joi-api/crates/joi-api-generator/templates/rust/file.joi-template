@@ -1,3 +1,0 @@
-{module_docs}use joi_base::JoiString;
-
-{ids}{structs}{service_trait}
