@@ -15,3 +15,4 @@
 .debugNestedExtensions { margin: 9px 0 0; padding: 0 0 0 10px; border-left: 2px solid var(--color-border); list-style: none; }
 .debugNestedExtensions li { display: grid; gap: 2px; padding: 5px 0; }
 .debugNestedExtensions strong, .debugNestedExtensions span { font-size: 11px; }
+.debugSourceLocation { overflow-wrap: anywhere; color: var(--color-text-muted); font-family: monospace; font-size: 10px; }

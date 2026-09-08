@@ -64,6 +64,7 @@ impl PluginRegistryBuilder {
             self.extension_point_info.push(ExtensionPointInfo {
                 id: point.id,
                 description: point.description,
+                location: point.location,
                 extensions: Vec::new(),
             });
         }
@@ -84,6 +85,7 @@ impl PluginRegistryBuilder {
             self.extension_info.push(ExtensionInfo {
                 id: extension.id,
                 description: extension.description,
+                location: extension.location,
             });
         }
         self.registered_plugin_names

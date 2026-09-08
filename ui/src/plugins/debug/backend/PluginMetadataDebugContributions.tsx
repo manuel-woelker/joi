@@ -1,4 +1,4 @@
-import { createResource, For, Match, Switch, type JSX, type Resource } from "solid-js";
+import { createResource, For, Match, Show, Switch, type JSX, type Resource } from "solid-js";
 
 import type { BackendPluginsService, PluginsResponse } from "./plugins-api";
 import styles from "./PluginMetadataDebugContributions.module.css";
@@ -26,6 +26,16 @@ export function PluginsMetadata(props: { metadata: PluginsResponse }) {
               <span>{plugin.description}</span>
             </div>
             <dl>
+              <Show when={sourceLocation(plugin)}>
+                {(location) => (
+                  <>
+                    <dt>Source:</dt>
+                    <dd>
+                      <code class={styles.debugSourceLocation}>{location()}</code>
+                    </dd>
+                  </>
+                )}
+              </Show>
               <dt>Extension points:</dt>
               <dd>{plugin.extension_points.join(", ") || "None"}</dd>
               <dt>Extensions:</dt>
@@ -52,6 +62,7 @@ export function ExtensionPointsMetadata(props: { metadata: PluginsResponse }) {
                   <small>{owner?.name ?? "unknown plugin"}</small>
                 </div>
                 <span>{point.description}</span>
+                <SourceLocation file={point.file} line={point.line} />
               </div>
               <ul class={styles.debugNestedExtensions}>
                 <For each={point.extensions}>
@@ -67,6 +78,7 @@ export function ExtensionPointsMetadata(props: { metadata: PluginsResponse }) {
                           <small>{extensionOwner?.name ?? "unknown plugin"}</small>
                         </div>
                         <span>{extension?.description ?? "No description"}</span>
+                        <SourceLocation file={extension?.file} line={extension?.line} />
                       </li>
                     );
                   }}
@@ -78,6 +90,18 @@ export function ExtensionPointsMetadata(props: { metadata: PluginsResponse }) {
       </For>
     </ul>
   );
+}
+
+function SourceLocation(props: { file?: string; line?: number }) {
+  return (
+    <Show when={sourceLocation(props)}>
+      {(location) => <code class={styles.debugSourceLocation}>{location()}</code>}
+    </Show>
+  );
+}
+
+function sourceLocation(value: { file?: string; line?: number }): string | undefined {
+  return value.file && value.line !== undefined ? `${value.file}:${value.line}` : undefined;
 }
 
 interface PluginMetadataResourceProps {

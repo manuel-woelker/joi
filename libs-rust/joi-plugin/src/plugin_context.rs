@@ -7,6 +7,7 @@ use joi_base::JoiString;
 use joi_error::{JoiResult, joi_error};
 
 use crate::extension_collection::{ErasedExtensionCollection, ExtensionCollection};
+use crate::plugin::RegistrationLocation;
 
 pub(crate) type ExtensionCollections = HashMap<TypeId, Box<dyn ErasedExtensionCollection>>;
 
@@ -14,12 +15,14 @@ pub(crate) struct StagedExtensionPoint {
     pub(crate) type_id: TypeId,
     pub(crate) id: JoiString,
     pub(crate) description: JoiString,
+    pub(crate) location: RegistrationLocation,
 }
 
 pub(crate) struct StagedExtension {
     pub(crate) type_id: TypeId,
     pub(crate) id: JoiString,
     pub(crate) description: JoiString,
+    pub(crate) location: RegistrationLocation,
 }
 
 pub(crate) struct StagedRegistration {
@@ -58,6 +61,7 @@ impl<'a> PluginContext<'a> {
     }
 
     /// Registers the trait `T` as a new extension point with a stable ID.
+    #[track_caller]
     pub fn register_extension_point<T>(
         &mut self,
         id: impl Into<JoiString>,
@@ -92,11 +96,13 @@ impl<'a> PluginContext<'a> {
             type_id,
             id,
             description: description.into(),
+            location: RegistrationLocation::caller(),
         });
         Ok(())
     }
 
     /// Registers an implementation of extension-point trait `T` with a stable ID.
+    #[track_caller]
     pub fn register_extension<T>(
         &mut self,
         id: impl Into<JoiString>,
@@ -136,6 +142,7 @@ impl<'a> PluginContext<'a> {
             type_id,
             id,
             description: description.into(),
+            location: RegistrationLocation::caller(),
         });
         Ok(())
     }

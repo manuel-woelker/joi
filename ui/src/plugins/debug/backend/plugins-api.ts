@@ -4,6 +4,8 @@ import type { FetchService } from "../../../services/fetch-service";
 export interface PluginMetadata {
   name: string;
   description: string;
+  file?: string;
+  line?: number;
   extension_points: string[];
   extensions: string[];
 }
@@ -11,12 +13,16 @@ export interface PluginMetadata {
 export interface ExtensionPointMetadata {
   id: string;
   description: string;
+  file?: string;
+  line?: number;
   extensions: string[];
 }
 
 export interface ExtensionMetadata {
   id: string;
   description: string;
+  file?: string;
+  line?: number;
 }
 
 export interface PluginsResponse {
@@ -53,17 +59,32 @@ function isPlugin(value: unknown): value is PluginMetadata {
     isRecord(value) &&
     hasText(value, "name") &&
     hasText(value, "description") &&
+    hasText(value, "file") &&
+    hasNumber(value, "line") &&
     hasTextArray(value, "extension_points") &&
     hasTextArray(value, "extensions")
   );
 }
 
 function isExtensionPoint(value: unknown): value is ExtensionPointMetadata {
-  return isRecord(value) && hasText(value, "id") && hasText(value, "description") && hasTextArray(value, "extensions");
+  return (
+    isRecord(value) &&
+    hasText(value, "id") &&
+    hasText(value, "description") &&
+    hasText(value, "file") &&
+    hasNumber(value, "line") &&
+    hasTextArray(value, "extensions")
+  );
 }
 
 function isExtension(value: unknown): value is ExtensionMetadata {
-  return isRecord(value) && hasText(value, "id") && hasText(value, "description");
+  return (
+    isRecord(value) &&
+    hasText(value, "id") &&
+    hasText(value, "description") &&
+    hasText(value, "file") &&
+    hasNumber(value, "line")
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -72,6 +93,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function hasText(value: Record<string, unknown>, key: string): boolean {
   return typeof value[key] === "string";
+}
+
+function hasNumber(value: Record<string, unknown>, key: string): boolean {
+  return typeof value[key] === "number";
 }
 
 function hasTextArray(value: Record<string, unknown>, key: string): boolean {

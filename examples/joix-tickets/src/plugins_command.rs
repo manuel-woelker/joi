@@ -37,6 +37,8 @@ pub struct PluginsCommandResponse {
 pub struct PluginSummary {
     pub name: JoiString,
     pub description: JoiString,
+    pub file: JoiString,
+    pub line: u32,
     pub extension_points: Vec<JoiString>,
     pub extensions: Vec<JoiString>,
 }
@@ -45,6 +47,8 @@ pub struct PluginSummary {
 pub struct ExtensionPointSummary {
     pub id: JoiString,
     pub description: JoiString,
+    pub file: JoiString,
+    pub line: u32,
     pub extensions: Vec<JoiString>,
 }
 
@@ -52,6 +56,8 @@ pub struct ExtensionPointSummary {
 pub struct ExtensionSummary {
     pub id: JoiString,
     pub description: JoiString,
+    pub file: JoiString,
+    pub line: u32,
 }
 
 impl CommandHandler for PluginsCommand {
@@ -65,6 +71,8 @@ impl CommandHandler for PluginsCommand {
                 .map(|plugin| PluginSummary {
                     name: plugin.name.clone(),
                     description: plugin.description.clone(),
+                    file: plugin.location.file.clone(),
+                    line: plugin.location.line,
                     extension_points: plugin.extension_points.clone(),
                     extensions: plugin.extensions.clone(),
                 })
@@ -75,6 +83,8 @@ impl CommandHandler for PluginsCommand {
                 .map(|point| ExtensionPointSummary {
                     id: point.id.clone(),
                     description: point.description.clone(),
+                    file: point.location.file.clone(),
+                    line: point.location.line,
                     extensions: point.extensions.clone(),
                 })
                 .collect(),
@@ -84,6 +94,8 @@ impl CommandHandler for PluginsCommand {
                 .map(|extension| ExtensionSummary {
                     id: extension.id.clone(),
                     description: extension.description.clone(),
+                    file: extension.location.file.clone(),
+                    line: extension.location.line,
                 })
                 .collect(),
         })
@@ -133,12 +145,16 @@ mod tests {
                     PluginSummary {
                         name: "infra".into(),
                         description: "Infrastructure services".into(),
+                        file: file!().into(),
+                        line: 124,
                         extension_points: vec!["examples".into()],
                         extensions: vec!["example".into()],
                     },
                     PluginSummary {
                         name: "tickets".into(),
                         description: "Ticket management".into(),
+                        file: file!().into(),
+                        line: 134,
                         extension_points: Vec::new(),
                         extensions: Vec::new(),
                     },
@@ -146,11 +162,15 @@ mod tests {
                 extension_points: vec![ExtensionPointSummary {
                     id: "examples".into(),
                     description: "Example points".into(),
+                    file: file!().into(),
+                    line: 125,
                     extensions: vec!["example".into()],
                 }],
                 extensions: vec![ExtensionSummary {
                     id: "example".into(),
                     description: "Example extension".into(),
+                    file: file!().into(),
+                    line: 126,
                 }],
             }
         );

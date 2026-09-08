@@ -281,6 +281,8 @@ mod tests {
                     {
                         "name": "infra",
                         "description": "Infrastructure services",
+                        "file": "examples/joix-tickets/src/main.rs",
+                        "line": 105,
                         "extension_points": [
                             "info-providers",
                             "table-descriptions",
@@ -291,6 +293,8 @@ mod tests {
                     {
                         "name": "tickets",
                         "description": "Ticket management",
+                        "file": "examples/joix-tickets/src/main.rs",
+                        "line": 129,
                         "extension_points": [],
                         "extensions": ["tickets-table", "users-table", "user-session-table", "user-test-data", "ticket-test-data"]
                     }
@@ -299,27 +303,33 @@ mod tests {
                     {
                         "id": "info-providers",
                         "description": "Contributes application information",
+                        "file": "examples/joix-tickets/src/main.rs",
+                        "line": 106,
                         "extensions": ["package-info", "os-info"]
                     },
                     {
                         "id": "table-descriptions",
                         "description": "Defines data-store tables",
+                        "file": "examples/joix-tickets/src/main.rs",
+                        "line": 110,
                         "extensions": ["tickets-table", "users-table", "user-session-table"]
                     },
                     {
                         "id": "test-data-providers",
                         "description": "Populates tables with development data",
+                        "file": "examples/joix-tickets/src/main.rs",
+                        "line": 114,
                         "extensions": ["user-test-data", "ticket-test-data"]
                     }
                 ],
                 "extensions": [
-                    { "id": "package-info", "description": "Provides package name and version" },
-                    { "id": "os-info", "description": "Provides operating-system information" },
-                    { "id": "tickets-table", "description": "Defines the tickets table" },
-                    { "id": "users-table", "description": "Defines the users table" },
-                    { "id": "user-session-table", "description": "Defines authenticated user sessions" },
-                    { "id": "user-test-data", "description": "Adds representative users for development" },
-                    { "id": "ticket-test-data", "description": "Adds representative tickets for development" }
+                    { "id": "package-info", "description": "Provides package name and version", "file": "examples/joix-tickets/src/main.rs", "line": 118 },
+                    { "id": "os-info", "description": "Provides operating-system information", "file": "examples/joix-tickets/src/main.rs", "line": 123 },
+                    { "id": "tickets-table", "description": "Defines the tickets table", "file": "examples/joix-tickets/src/main.rs", "line": 130 },
+                    { "id": "users-table", "description": "Defines the users table", "file": "examples/joix-tickets/src/main.rs", "line": 135 },
+                    { "id": "user-session-table", "description": "Defines authenticated user sessions", "file": "examples/joix-tickets/src/main.rs", "line": 140 },
+                    { "id": "user-test-data", "description": "Adds representative users for development", "file": "examples/joix-tickets/src/main.rs", "line": 145 },
+                    { "id": "ticket-test-data", "description": "Adds representative tickets for development", "file": "examples/joix-tickets/src/main.rs", "line": 150 }
                 ]
             })
         );

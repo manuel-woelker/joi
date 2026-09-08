@@ -66,7 +66,8 @@ let extensions = registry.extensions_info().collect::<Vec<_>>();
 Plugin metadata lists the points and extensions contributed by that plugin.
 Extension-point metadata lists its registered extensions, including extensions
 contributed by later plugins. Only successfully committed registrations are
-included.
+included. Each metadata record also includes the source file and line of its
+`plugin`, `register_extension_point`, or `register_extension` call.
 
 ## What does it depend on?
 

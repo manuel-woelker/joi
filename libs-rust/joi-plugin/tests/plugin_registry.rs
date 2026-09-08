@@ -261,6 +261,22 @@ fn registering_the_same_concrete_type_for_distinct_traits_stays_typed() {
         .unwrap();
     let registry = builder.build();
 
+    assert!(
+        registry
+            .plugins()
+            .all(|plugin| plugin.location.file.ends_with("plugin_registry.rs"))
+    );
+    assert!(
+        registry
+            .extension_points()
+            .all(|point| point.location.file.ends_with("plugin_registry.rs"))
+    );
+    assert!(
+        registry
+            .extensions_info()
+            .all(|extension| extension.location.file.ends_with("plugin_registry.rs"))
+    );
+
     assert_eq!(
         registry
             .extensions::<dyn AlternateLabel>()

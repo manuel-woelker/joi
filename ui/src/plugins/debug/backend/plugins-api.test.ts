@@ -8,6 +8,8 @@ const pluginMetadata = {
     {
       name: "infra",
       description: "Infrastructure services",
+      file: "src/main.rs",
+      line: 10,
       extension_points: ["info-providers"],
       extensions: ["package-info"],
     },
@@ -16,10 +18,19 @@ const pluginMetadata = {
     {
       id: "info-providers",
       description: "Contributes application information",
+      file: "src/main.rs",
+      line: 11,
       extensions: ["package-info"],
     },
   ],
-  extensions: [{ id: "package-info", description: "Provides package information" }],
+  extensions: [
+    {
+      id: "package-info",
+      description: "Provides package information",
+      file: "src/main.rs",
+      line: 12,
+    },
+  ],
 };
 
 describe("BackendPluginsService", () => {
