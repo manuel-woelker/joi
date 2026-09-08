@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import command from "../declarations/query.command.ts";
-import { buildModel } from "../model/model-builder.ts";
-import { defineCommand, defineStruct } from "../model/declarations.ts";
+import { defineCommand, defineStruct } from "../engine/model/declarations.ts";
+import { buildModel } from "../engine/model/model-builder.ts";
 import rustGenerator from "./rust.generator.ts";
 import typescriptGenerator from "./typescript.generator.ts";
 

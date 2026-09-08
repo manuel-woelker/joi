@@ -1,4 +1,4 @@
-import { defineCommand, defineStruct, stringType } from "../model/declarations.ts";
+import { defineCommand, defineStruct, stringType } from "../engine/model/declarations.ts";
 
 export const UserInfo = defineStruct({
   name: "UserInfo",

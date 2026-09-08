@@ -11,6 +11,17 @@ Author-written **declarations** use concise object literals and direct object
 references. The model builder validates and normalizes them into immutable
 **definitions** consumed by pure language generators.
 
+## How is the package organized?
+
+Author-owned API descriptions live in `src/declarations`, concrete language
+generators live in `src/generators`, and generation targets live in
+`src/codegen.config.ts`.
+
+Reusable codegen infrastructure lives in `src/engine`. This includes the model
+declaration API, normalized definitions, discovery, generator support, source
+formatting, and output synchronization. Keep application-specific commands and
+language-specific rendering outside the engine.
+
 ## How do I add a command?
 
 Add a `*.command.ts` module under `src/declarations` and default-export a

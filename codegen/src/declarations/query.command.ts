@@ -1,4 +1,4 @@
-import { defineCommand, defineStruct, integerType, jsonType, list, stringType } from "../model/declarations.ts";
+import { defineCommand, defineStruct, integerType, jsonType, list, stringType } from "../engine/model/declarations.ts";
 
 export const QueryColumnValues = defineStruct({
   name: "QueryColumnValues",

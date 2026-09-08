@@ -1,7 +1,7 @@
-import { defineGenerator } from "../generation/generated-file.ts";
-import type { NamedTypeDefinition, StructDefinition, TypeDefinition } from "../model/definitions.ts";
-import { assertUniqueNames, camelCase, pascalCase, snakeCase } from "./naming.ts";
-import { source } from "./source-template.ts";
+import { defineGenerator } from "../engine/generation/generated-file.ts";
+import { assertUniqueNames, camelCase, pascalCase, snakeCase } from "../engine/generator/naming.ts";
+import { source } from "../engine/generator/source-template.ts";
+import type { NamedTypeDefinition, StructDefinition, TypeDefinition } from "../engine/model/definitions.ts";
 
 function typeName(type: TypeDefinition): string {
   if (type.kind === "builtin")
