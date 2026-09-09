@@ -67,7 +67,7 @@ Run commands from the repository root:
 ```
 
 Generated TypeScript is written below `ui/src/generated`. Generated Rust is
-written to `examples/joix-tickets/src/generated`. Both generated roots contain
+written to `libs-rust/joi-server/src/generated`. Both generated roots contain
 a manifest identifying files owned by the generator.
 
 Generated output is ignored by Git. Consumer tasks depend on `codegen`, so a

@@ -128,40 +128,33 @@ mod tests {
     use crate::command_handler::CommandHandler;
     use crate::data_store::{DataStore, TableDescriptionProvider, TestDataProvider};
     use crate::sqlite_data_store::SqliteDataStore;
-    use crate::tickets_module::{
-        TicketTableDescriptionProvider, TicketTestDataProvider, UserTableDescriptionProvider,
-        UserTestDataProvider,
-    };
+    use crate::user_session_command::{UserTableDescriptionProvider, UserTestDataProvider};
 
     use super::{QueryCommand, QueryRequest, QueryRequestCriterion, QueryValues};
 
     #[test]
-    fn queries_ticket_columns() {
+    fn queries_columns() {
         let mut store = SqliteDataStore::in_memory().unwrap();
         store
-            .ensure_tables(vec![
-                UserTableDescriptionProvider.table_description(),
-                TicketTableDescriptionProvider.table_description(),
-            ])
+            .ensure_tables(vec![UserTableDescriptionProvider.table_description()])
             .unwrap();
         UserTestDataProvider.insert_test_data(&mut store).unwrap();
-        TicketTestDataProvider.insert_test_data(&mut store).unwrap();
         let command = QueryCommand::new(Arc::new(Mutex::new(Box::new(store))));
 
         let response = command
             .execute(QueryRequest {
-                table_name: "tickets".into(),
+                table_name: "users".into(),
                 criterion: QueryRequestCriterion::MatchAny,
                 max_results: 2,
-                attributes: vec!["key".into(), "status".into()],
+                attributes: vec!["username".into(), "name".into()],
             })
             .unwrap();
 
-        assert_eq!(response.number_of_hits, 3);
+        assert_eq!(response.number_of_hits, 2);
         assert_eq!(response.result_columns.len(), 2);
         assert!(matches!(
             &response.result_columns[0].values,
-            QueryValues::String(values) if values.len() == 2 && values[0] == "TEST-1"
+            QueryValues::String(values) if values.len() == 2 && values[0] == "jane.developer"
         ));
     }
 }

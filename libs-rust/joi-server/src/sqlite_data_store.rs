@@ -605,16 +605,16 @@ mod tests {
     #[test]
     fn creates_inserts_and_queries_typed_columns() {
         let mut store = SqliteDataStore::in_memory().unwrap();
-        store.ensure_tables(vec![ticket_table()]).unwrap();
+        store.ensure_tables(vec![record_table()]).unwrap();
         store
             .mutate(DataStoreMutation {
-                steps: vec![insert_tickets(&[("T-1", 2), ("T-2", 5)])],
+                steps: vec![insert_records(&[("T-1", 2), ("T-2", 5)])],
             })
             .unwrap();
 
         let result = store
             .query(DataStoreQuery {
-                table_name: table("tickets"),
+                table_name: table("records"),
                 criterion: QueryCriterion::MatchAny,
                 max_results: 1,
                 attributes: vec![attribute("id"), attribute("priority")],
@@ -634,7 +634,7 @@ mod tests {
 
         let all = store
             .query(DataStoreQuery {
-                table_name: table("tickets"),
+                table_name: table("records"),
                 criterion: QueryCriterion::MatchAny,
                 max_results: 1,
                 attributes: vec![attribute("*")],
@@ -650,7 +650,7 @@ mod tests {
 
         let matching = store
             .query(DataStoreQuery {
-                table_name: table("tickets"),
+                table_name: table("records"),
                 criterion: QueryCriterion::Equals {
                     attribute: attribute("priority"),
                     values: vec!["2".into(), "5".into()],
@@ -663,7 +663,7 @@ mod tests {
 
         let excluded = store
             .query(DataStoreQuery {
-                table_name: table("tickets"),
+                table_name: table("records"),
                 criterion: QueryCriterion::Not(Box::new(QueryCriterion::Equals {
                     attribute: attribute("priority"),
                     values: vec!["2".into()],
@@ -680,16 +680,16 @@ mod tests {
         let mut store = SqliteDataStore::in_memory().unwrap();
         store
             .ensure_tables(vec![TableDescription {
-                name: table("tickets"),
+                name: table("records"),
                 columns: vec![string_column("id")],
             }])
             .unwrap();
 
-        store.ensure_tables(vec![ticket_table()]).unwrap();
+        store.ensure_tables(vec![record_table()]).unwrap();
 
         let result = store
             .query(DataStoreQuery {
-                table_name: table("tickets"),
+                table_name: table("records"),
                 criterion: QueryCriterion::MatchAny,
                 max_results: 0,
                 attributes: vec![attribute("priority")],
@@ -723,18 +723,18 @@ mod tests {
         assignee.optional = true;
         store
             .ensure_tables(vec![TableDescription {
-                name: table("tickets"),
+                name: table("records"),
                 columns: vec![string_column("id"), assignee],
             }])
             .unwrap();
         store
             .mutate(DataStoreMutation {
                 steps: vec![DataStoreMutationStep::Insert(DataStoreInsertMutation {
-                    table_name: table("tickets"),
+                    table_name: table("records"),
                     columns: vec![
                         AttributeColumn {
                             attribute: attribute("id"),
-                            values: Values::String(vec!["ticket-1".into()]),
+                            values: Values::String(vec!["record-1".into()]),
                         },
                         AttributeColumn {
                             attribute: attribute("assignee"),
@@ -747,7 +747,7 @@ mod tests {
 
         let result = store
             .query(DataStoreQuery {
-                table_name: table("tickets"),
+                table_name: table("records"),
                 criterion: QueryCriterion::MatchAny,
                 max_results: 1,
                 attributes: vec![attribute("assignee")],
@@ -761,17 +761,17 @@ mod tests {
     #[test]
     fn updates_rows_by_primary_key() {
         let mut store = SqliteDataStore::in_memory().unwrap();
-        store.ensure_tables(vec![ticket_table()]).unwrap();
+        store.ensure_tables(vec![record_table()]).unwrap();
         store
             .mutate(DataStoreMutation {
-                steps: vec![insert_tickets(&[("T-1", 2), ("T-2", 5)])],
+                steps: vec![insert_records(&[("T-1", 2), ("T-2", 5)])],
             })
             .unwrap();
 
         store
             .mutate(DataStoreMutation {
                 steps: vec![DataStoreMutationStep::Update(DataStoreUpdateMutation {
-                    table_name: table("tickets"),
+                    table_name: table("records"),
                     ids: vec!["T-1".into(), "T-2".into()],
                     columns: vec![AttributeColumn {
                         attribute: attribute("priority"),
@@ -783,7 +783,7 @@ mod tests {
 
         let result = store
             .query(DataStoreQuery {
-                table_name: table("tickets"),
+                table_name: table("records"),
                 criterion: QueryCriterion::MatchAny,
                 max_results: 10,
                 attributes: vec![attribute("priority")],
@@ -797,11 +797,11 @@ mod tests {
     #[test]
     fn rolls_back_all_mutation_steps_when_one_fails() {
         let mut store = SqliteDataStore::in_memory().unwrap();
-        store.ensure_tables(vec![ticket_table()]).unwrap();
+        store.ensure_tables(vec![record_table()]).unwrap();
 
         let error = store
             .mutate(DataStoreMutation {
-                steps: vec![insert_tickets(&[("T-1", 1)]), insert_tickets(&[("T-1", 2)])],
+                steps: vec![insert_records(&[("T-1", 1)]), insert_records(&[("T-1", 2)])],
             })
             .err()
             .expect("duplicate primary key should fail");
@@ -809,7 +809,7 @@ mod tests {
         assert!(error.to_string().contains("UNIQUE constraint failed"));
         let result = store
             .query(DataStoreQuery {
-                table_name: table("tickets"),
+                table_name: table("records"),
                 criterion: QueryCriterion::MatchAny,
                 max_results: 10,
                 attributes: vec![attribute("id")],
@@ -818,14 +818,14 @@ mod tests {
         assert_eq!(result.number_of_hits, 0);
     }
 
-    fn ticket_table() -> TableDescription {
+    fn record_table() -> TableDescription {
         TableDescription {
-            name: table("tickets"),
+            name: table("records"),
             columns: vec![
                 string_column("id"),
                 ColumnDescription {
                     name: attribute("priority"),
-                    description: "Ticket priority".into(),
+                    description: "Record priority".into(),
                     data_type: ColumnDataType::Int,
                     optional: false,
                     references: None,
@@ -844,9 +844,9 @@ mod tests {
         }
     }
 
-    fn insert_tickets(rows: &[(&str, i64)]) -> DataStoreMutationStep {
+    fn insert_records(rows: &[(&str, i64)]) -> DataStoreMutationStep {
         DataStoreMutationStep::Insert(DataStoreInsertMutation {
-            table_name: table("tickets"),
+            table_name: table("records"),
             columns: vec![
                 AttributeColumn {
                     attribute: attribute("id"),

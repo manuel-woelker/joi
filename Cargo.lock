@@ -379,7 +379,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "joix-tickets"
+name = "joi-server"
 version = "0.1.0"
 dependencies = [
  "axum",
@@ -394,6 +394,17 @@ dependencies = [
  "tokio",
  "tower",
  "yaml_serde",
+]
+
+[[package]]
+name = "joix-tickets"
+version = "0.1.0"
+dependencies = [
+ "joi-base",
+ "joi-error",
+ "joi-plugin",
+ "joi-server",
+ "ksuid",
 ]
 
 [[package]]

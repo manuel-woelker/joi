@@ -9,7 +9,7 @@ target/
 # Dependencies
 node_modules/
 /ui/src/generated/
-/examples/joix-tickets/src/generated/
+/libs-rust/joi-server/src/generated/
 
 # Local tooling and environments
 /.idea

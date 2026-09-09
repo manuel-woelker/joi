@@ -131,7 +131,7 @@ mod tests {
             }))
             .unwrap();
         builder
-            .register(plugin("tickets", "Ticket management", |_| Ok(())))
+            .register(plugin("sample", "Sample application", |_| Ok(())))
             .unwrap();
 
         let response = PluginsCommand::new(builder.build())
@@ -151,8 +151,8 @@ mod tests {
                         extensions: vec!["example".into()],
                     },
                     PluginSummary {
-                        name: "tickets".into(),
-                        description: "Ticket management".into(),
+                        name: "sample".into(),
+                        description: "Sample application".into(),
                         file: file!().into(),
                         line: 134,
                         extension_points: Vec::new(),

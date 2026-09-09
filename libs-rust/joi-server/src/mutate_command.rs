@@ -138,7 +138,7 @@ mod tests {
     use crate::command_handler::CommandHandler;
     use crate::data_store::{DataStore, DataStoreQuery, QueryCriterion, TableDescriptionProvider};
     use crate::sqlite_data_store::SqliteDataStore;
-    use crate::tickets_module::UserTableDescriptionProvider;
+    use crate::user_session_command::UserTableDescriptionProvider;
 
     use super::{
         DeleteRequest, InsertRequest, MutateCommand, MutateRequest, MutateRequestStep,

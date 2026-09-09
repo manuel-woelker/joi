@@ -4,6 +4,7 @@ members = [
     "libs-rust/joi-base",
     "libs-rust/joi-error",
     "libs-rust/joi-plugin",
+    "libs-rust/joi-server",
 ]
 resolver = "2"
 

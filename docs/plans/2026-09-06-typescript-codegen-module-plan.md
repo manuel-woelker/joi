@@ -265,7 +265,7 @@ exclusively for codegen and removes those directories wholesale before every
 generation. Cleanup rejects any output root not named `generated`.
 
 Initially write TypeScript under `ui/src/generated/api/` and Rust under
-`examples/joix-tickets/src/generated/`, with small handwritten module boundary
+`libs-rust/joi-server/src/generated/`, with small handwritten module boundary
 files if required by each language. Generated files are ignored build artifacts;
 frontend and backend tasks depend on `codegen` to bootstrap them before use.
 

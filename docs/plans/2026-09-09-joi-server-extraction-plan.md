@@ -31,8 +31,6 @@ libs-rust/joi-server/src/
   plugins_command.rs
   user_session_command.rs
   server.rs
-  module.rs
-  module_registry.rs
   generated/
   lib.rs
 
@@ -61,7 +59,6 @@ Move code whose behavior belongs to the reusable server:
   cookie handling, and authentication-related HTTP behavior;
 - generated request/response types, command implementations, and the runtime
   command inventory;
-- the current module abstraction and registry, if it remains in use.
 
 Keep only application and ticket-domain code in `joix-tickets`:
 
@@ -120,61 +117,62 @@ ticket-domain code.
 
 ## Implementation Checklist
 
-- [ ] Add `libs-rust/joi-server` with a focused manifest, `README.md`, public
+- [x] Add `libs-rust/joi-server` with a focused manifest, `README.md`, public
       `lib.rs`, workspace membership, and only the dependencies required by
       extracted infrastructure.
-- [ ] Move the command traits and registry into `joi-server`; preserve command
+- [x] Move the command traits and registry into `joi-server`; preserve command
       name validation, descriptor checks, immutable snapshots, and the built-in
       `commands/list` behavior.
-- [ ] Move `CommandService` and every HTTP concern into `joi-server`, including
+- [x] Move `CommandService` and every HTTP concern into `joi-server`, including
       session-cookie behavior, response and error mapping, request logging, and
       listener startup.
-- [ ] Move datastore contracts and `SqliteDataStore` into `joi-server`, keeping
+- [x] Move datastore contracts and `SqliteDataStore` into `joi-server`, keeping
       schema upgrades, nullable columns, foreign keys, query semantics, and
       atomic mutations unchanged.
-- [ ] Move generic query, mutation, info, plugin-inspection, and module support;
-      update internal imports and expose only APIs needed by consumers.
-- [ ] Move the user table, user test data, login/logout/user-info commands,
+- [x] Move generic query, mutation, info, and plugin-inspection support; update
+      internal imports and expose only APIs needed by consumers. Remove the
+      unused module abstraction instead of publishing it.
+- [x] Move the user table, user test data, login/logout/user-info commands,
       secure session ID generation, and `user_sessions` table into focused
       server-owned identity/session modules.
-- [ ] Add the high-level server configuration and startup API. Move datastore
+- [x] Add the high-level server configuration and startup API. Move datastore
       initialization, built-in plugin and handler registration, generated
       inventory checks, CLI dispatch, and HTTP execution behind it.
-- [ ] Update `joix-tickets` to depend on `joi-server`, delete moved source
+- [x] Update `joix-tickets` to depend on `joi-server`, delete moved source
       files, and leave `main.rs` responsible only for constructing server
       configuration, contributing ticket-owned providers, and invoking the
       server entry point.
-- [ ] Change Rust code generation to write generated API code under
+- [x] Change Rust code generation to write generated API code under
       `libs-rust/joi-server/src/generated/`. Generated Rust should import
       server runtime traits through stable crate-local paths.
-- [ ] Update generated-file cleanup and Nao dependencies so server code is
+- [x] Update generated-file cleanup and Nao dependencies so server code is
       always regenerated before Rust checks, tests, and execution.
-- [ ] Move infrastructure unit tests with their implementations. Replace tests
+- [x] Move infrastructure unit tests with their implementations. Replace tests
       that depend on ticket tables with small test-local schemas so
       `joi-server` never depends on `joix-tickets`.
-- [ ] Keep generic end-to-end tests in `joi-server` for login cookies, CLI
+- [x] Keep generic end-to-end tests in `joi-server` for login cookies, CLI
       execution, startup composition, and generated handler completeness. Keep
       `joix-tickets` integration tests focused on ticket contributions and
       ticket queries through public server APIs.
-- [ ] Update the root README, the new crate README, and the example README to
+- [x] Update the root README, the new crate README, and the example README to
       explain the library/application boundary and standard commands.
-- [ ] Wire the crate into shared formatting, Clippy, test, documentation, and
+- [x] Wire the crate into shared formatting, Clippy, test, documentation, and
       CI tasks where existing workspace-wide tasks do not include it
       automatically.
 
 ## Verification
 
-- [ ] Search `libs-rust/joi-server` for ticket-specific terms and ticket table
+- [x] Search `libs-rust/joi-server` for ticket-specific terms and ticket table
       fields; any occurrence must be justified test fixture text or removed.
       User and session terminology is expected.
-- [ ] Run focused `joi-server` tests covering registry errors, GET `{}`
+- [x] Run focused `joi-server` tests covering registry errors, GET `{}`
       handling, login/logout cookies, SQLite schema/query/mutation behavior,
       startup modes, and transport error mapping.
-- [ ] Run `joix-tickets` tests and exercise ticket querying, mutation, login,
+- [x] Run `joix-tickets` tests and exercise ticket querying, mutation, login,
       logout, info, plugins, and CLI command execution through the extracted
       server.
-- [ ] Run `./t nao check`.
-- [ ] Restart active development tasks with `./t nao --restart`.
+- [x] Run `./t nao check`.
+- [x] Restart active development tasks with `./t nao --restart`.
 
 ## Risks and Assumptions
 
@@ -193,15 +191,21 @@ ticket-domain code.
   it still has an active consumer; otherwise remove it in a separately reviewed
   cleanup instead of publishing dead infrastructure.
 
-## Open Questions
+## Decisions
 
-- Should callers provide a completed `PluginRegistry`, a list of plugins, or a
-  registration callback in `ServerConfig`? Prefer a callback if the server must
-  define built-in extension points before application plugins contribute
-  extensions, and document registration order explicitly.
-- Which built-in command handlers should always be enabled? The plan assumes
-  command listing, info, plugins, query, mutation, login, logout, and user info
-  are part of the initial server contract.
-- Should development user fixtures be enabled independently from application
-  fixtures? Defaulting either one on in a reusable server crate is unsafe; the
-  plan assumes startup configuration makes both choices explicit.
+- Callers supply an ordered `Vec<Plugin>` in `ServerConfig`. The server first
+  registers its infrastructure plugin and extension points, then application
+  plugins in the supplied order.
+- Command listing, info, plugins, query, mutation, login, logout, and user info
+  are always enabled as the initial server contract.
+- One explicit `insert_test_data` configuration flag controls all registered
+  fixture providers. It defaults only where the embedding application chooses;
+  the reusable crate has no implicit default.
+
+## Implementation Result
+
+Implemented on 2026-09-09. `joix-tickets/main.rs` now only constructs
+`ServerConfig`, contributes the ticket plugin, and delegates process startup to
+`joi-server::application_main`. The extracted crate has no ticket-domain
+references in production code. The obsolete module registry was removed after
+confirming it had no active consumer.

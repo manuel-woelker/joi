@@ -8,7 +8,7 @@ use crate::data_store::{
     AttributeColumn, AttributeName, ColumnDataType, ColumnDescription, ColumnReference, DataStore,
     DataStoreDeleteMutation, DataStoreInsertMutation, DataStoreMutation, DataStoreMutationStep,
     DataStoreQuery, DataStoreQueryResult, QueryCriterion, SharedDataStore, TableDescription,
-    TableDescriptionProvider, TableName, Values,
+    TableDescriptionProvider, TableName, TestDataProvider, Values,
 };
 
 pub const LOGIN_COMMAND: &str = "login";
@@ -253,21 +253,90 @@ fn generate_session_id() -> JoiResult<JoiString> {
     Ok(encoded.into())
 }
 
+/// Defines the users available to the server identity system.
+pub struct UserTableDescriptionProvider;
+
+impl TableDescriptionProvider for UserTableDescriptionProvider {
+    fn table_description(&self) -> TableDescription {
+        TableDescription {
+            name: TableName("users".into()),
+            columns: vec![
+                user_column("id", "Immutable KSUID user identifier"),
+                user_column("username", "Unique user login name"),
+                user_column("name", "User display name"),
+            ],
+        }
+    }
+}
+
+fn user_column(name: &'static str, description: &'static str) -> ColumnDescription {
+    ColumnDescription {
+        name: AttributeName(name.into()),
+        description: description.into(),
+        data_type: ColumnDataType::String,
+        optional: false,
+        references: None,
+    }
+}
+
+/// Inserts representative users when development fixtures are enabled.
+pub struct UserTestDataProvider;
+
+impl TestDataProvider for UserTestDataProvider {
+    fn insert_test_data(&self, data_store: &mut dyn DataStore) -> JoiResult<()> {
+        let existing = data_store.query(DataStoreQuery {
+            table_name: TableName("users".into()),
+            criterion: QueryCriterion::MatchAny,
+            max_results: 0,
+            attributes: Vec::new(),
+        })?;
+        if existing.number_of_hits > 0 {
+            return Ok(());
+        }
+
+        data_store.mutate(DataStoreMutation {
+            steps: vec![DataStoreMutationStep::Insert(DataStoreInsertMutation {
+                table_name: TableName("users".into()),
+                columns: vec![
+                    string_values_column(
+                        "id",
+                        [
+                            ksuid::Ksuid::generate().to_base62(),
+                            ksuid::Ksuid::generate().to_base62(),
+                        ],
+                    ),
+                    string_values_column("username", ["jane.developer", "joe.tester"]),
+                    string_values_column("name", ["Jane Developer", "Joe Tester"]),
+                ],
+            })],
+        })?;
+        Ok(())
+    }
+}
+
+fn string_values_column<T: Into<JoiString>, const N: usize>(
+    attribute: &'static str,
+    values: [T; N],
+) -> AttributeColumn {
+    AttributeColumn {
+        attribute: AttributeName(attribute.into()),
+        values: Values::String(values.into_iter().map(Into::into).collect()),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::{Arc, Mutex};
 
+    use super::{
+        LoginCommand, LoginRequest, UserInfoCommand, UserInfoRequest,
+        UserSessionTableDescriptionProvider, UserTableDescriptionProvider, UserTestDataProvider,
+    };
     use crate::command_handler::CommandHandler;
     use crate::data_store::{
         DataStore, SharedDataStore, TableDescriptionProvider, TestDataProvider,
     };
     use crate::sqlite_data_store::SqliteDataStore;
-    use crate::tickets_module::{UserTableDescriptionProvider, UserTestDataProvider};
-
-    use super::{
-        LoginCommand, LoginRequest, UserInfoCommand, UserInfoRequest,
-        UserSessionTableDescriptionProvider,
-    };
 
     #[test]
     fn creates_a_session_and_resolves_its_user() {
