@@ -1,4 +1,4 @@
-import type { ComponentDemo } from "../playground/demo";
+import type { ComponentDemo } from "../plugins/core/playground/demo";
 import { Badge } from "./Badge";
 
 export default {

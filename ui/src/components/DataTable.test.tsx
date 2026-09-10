@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@solidjs/testing-li
 import { createSignal } from "solid-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { parseQueryResponse } from "../query/query-result";
+import { parseQueryResponse } from "../plugins/core/query/query-result";
 import { DataTable, type DataTableColumn } from "./DataTable";
 
 afterEach(cleanup);

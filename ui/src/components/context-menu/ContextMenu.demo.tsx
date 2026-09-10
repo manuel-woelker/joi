@@ -1,6 +1,6 @@
 import { createSignal } from "solid-js";
 
-import type { ComponentDemo } from "../../playground/demo";
+import type { ComponentDemo } from "../../plugins/core/playground/demo";
 import { ContextMenuProvider, useContextMenu } from "./ContextMenuProvider";
 import { contextMenuEntryId, contextMenuGroupId } from "./context-menu";
 

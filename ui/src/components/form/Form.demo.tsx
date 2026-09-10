@@ -1,6 +1,6 @@
 import { Show, createSignal, createUniqueId } from "solid-js";
 
-import type { ComponentDemo } from "../../playground/demo";
+import type { ComponentDemo } from "../../plugins/core/playground/demo";
 import { matches, notEmpty } from "../../validation/validation-functions";
 import { Form, useFormField, useFormState, type FormField } from "./Form";
 import styles from "./Form.demo.module.css";

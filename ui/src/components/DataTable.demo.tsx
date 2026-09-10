@@ -1,7 +1,7 @@
 import { createSignal } from "solid-js";
 
-import type { ComponentDemo } from "../playground/demo";
-import { parseQueryResponse } from "../query/query-result";
+import type { ComponentDemo } from "../plugins/core/playground/demo";
+import { parseQueryResponse } from "../plugins/core/query/query-result";
 import { Badge } from "./Badge";
 import { DataTable } from "./DataTable";
 

@@ -3,7 +3,7 @@ import { createVirtualizer } from "@tanstack/solid-virtual";
 import { createEffect, createMemo, createSignal, For, type JSX, onCleanup, onMount, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 
-import type { QueryColumnHandle, QueryResult, QueryResultRow, QueryValue } from "../query/query-result";
+import type { QueryColumnHandle, QueryResult, QueryResultRow, QueryValue } from "../plugins/core/query/query-result";
 import styles from "./DataTable.module.css";
 
 export interface DataTableColumn {

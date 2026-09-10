@@ -42,8 +42,10 @@ an entity description to a query result resolves response-local column handles
 and rejects missing or mismatched attributes. Saved presentations still choose
 ticket column order, density, widths, and intentional label overrides.
 
-Entity descriptions live under `src/entities` and use `defineEntity` to retain
-literal attribute IDs and typed string or integer validators. Attribute
+Reusable entity infrastructure lives under `src/plugins/core/entities`, while
+domain descriptions stay with their owning plugin, such as
+`src/plugins/ticket/entities/ticket-entity.ts`. Entity descriptions use
+`defineEntity` to retain literal attribute IDs and typed string or integer validators. Attribute
 validation uses `ValidationFunction<T>` with the domain value type. The editor
 adapter parses input text before invoking integer validators and combines
 edited values with the current row for typed multi-attribute validation. These
@@ -89,11 +91,12 @@ sharing, and workspace synchronization are not yet implemented.
 
 UI capabilities can be added through the typed plugin registry during startup.
 Plugin modules use the `*.plugin.ts` or `*.plugin.tsx` suffix and default-export
-a plugin. Each plugin lives in its own directory under `src/plugins`; related
-plugin families may be grouped one level deeper, as with `src/plugins/debug`.
-Registrations, components, API clients, and tests stay in the owning plugin's
-directory, while shared registry infrastructure remains in `src/plugins`. The application
-bootstrap discovers plugin modules with Vite's eager
+a plugin. Generic plugin and service registration infrastructure lives in
+`src/base`. Reusable application capabilities are grouped by plugin under
+`src/plugins/core`, while the ticket domain is isolated in `src/plugins/ticket`.
+Registrations, components, API clients, and tests stay in their owning plugin
+directory. The application bootstrap discovers plugin modules below
+`src/plugins` with Vite's eager
 `import.meta.glob` support, then orders them by name; no central plugin import
 list is maintained. Registry construction first invokes every plugin's
 `registerExtensionPoints` callback, then invokes every `registerExtensions`

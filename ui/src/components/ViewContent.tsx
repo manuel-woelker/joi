@@ -1,6 +1,6 @@
 import { Show } from "solid-js";
 import { Dynamic } from "solid-js/web";
-import { ActionCommands } from "../actions/ActionCommands";
+import { ActionCommands } from "../plugins/core/actions/ActionCommands";
 import type { ApplicationView } from "../views/view";
 import styles from "./ViewContent.module.css";
 

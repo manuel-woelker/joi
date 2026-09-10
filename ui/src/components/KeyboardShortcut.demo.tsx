@@ -1,4 +1,4 @@
-import type { ComponentDemo } from "../playground/demo";
+import type { ComponentDemo } from "../plugins/core/playground/demo";
 import { KeyboardShortcut } from "./KeyboardShortcut";
 
 const rowStyle = { display: "flex", "align-items": "center", "justify-content": "space-between", gap: "24px" };

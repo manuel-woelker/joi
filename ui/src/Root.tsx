@@ -1,8 +1,8 @@
 import { Show, createSignal, onCleanup } from "solid-js";
 
 import App from "./App";
-import { PlaygroundApp } from "./playground/PlaygroundApp";
-import { isPlaygroundHash } from "./playground/playground-route";
+import { PlaygroundApp } from "./plugins/core/playground/PlaygroundApp";
+import { isPlaygroundHash } from "./plugins/core/playground/playground-route";
 
 export function Root() {
   const [hash, setHash] = createSignal(window.location.hash);
