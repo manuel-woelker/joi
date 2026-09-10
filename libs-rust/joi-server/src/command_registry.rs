@@ -18,8 +18,11 @@ struct RegisteredCommand {
 }
 
 #[derive(Clone)]
+/// Metadata exposed for a registered command.
 pub struct CommandInfo {
+    /// Stable command name used for dispatch.
     pub name: JoiString,
+    /// Human-readable command description.
     pub description: JoiString,
 }
 
@@ -40,10 +43,15 @@ pub struct CommandRegistryBuilder {
 }
 
 impl CommandRegistryBuilder {
+    /// Creates an empty command registry builder.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Registers a typed handler.
+    ///
+    /// Command names must consist of non-empty slash-separated segments containing
+    /// ASCII letters, digits, hyphens, or underscores. Duplicate names are rejected.
     pub fn register<H>(&mut self, handler: H) -> JoiResult<()>
     where
         H: CommandHandler + Send + Sync + 'static,
@@ -73,6 +81,7 @@ impl CommandRegistryBuilder {
         Ok(())
     }
 
+    /// Verifies that generated declarations have matching registered handlers.
     pub fn require_handlers(&self, command_descriptors: &[CommandDescriptor]) -> JoiResult<()> {
         let mut missing = command_descriptors
             .iter()
@@ -97,6 +106,9 @@ impl CommandRegistryBuilder {
         Ok(())
     }
 
+    /// Produces an immutable, cheaply cloneable registry.
+    ///
+    /// The built registry also contains the built-in `commands/list` command.
     pub fn build(mut self) -> CommandRegistry {
         let info = CommandInfo {
             name: COMMANDS_LIST_NAME.into(),
@@ -133,14 +145,20 @@ impl CommandRegistryBuilder {
 }
 
 impl CommandRegistry {
+    /// Returns metadata for a command with the given name.
     pub fn command_info(&self, name: &str) -> Option<&CommandInfo> {
         self.inner.commands.get(name).map(|command| &command.info)
     }
 
+    /// Iterates over all command metadata in unspecified order.
     pub fn commands_info(&self) -> impl Iterator<Item = &CommandInfo> {
         self.inner.commands.values().map(|command| &command.info)
     }
 
+    /// Executes a command with a JSON request.
+    ///
+    /// Returns [`None`] when the command is not registered. The inner result reports
+    /// request deserialization, handler, or response serialization failures.
     pub fn execute(&self, name: &str, request: Value) -> Option<JoiResult<Value>> {
         self.inner
             .commands

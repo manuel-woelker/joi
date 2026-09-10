@@ -8,11 +8,13 @@ use crate::data_store::{
     AttributeName, DataStoreQuery, QueryCriterion, SharedDataStore, TableName, Values,
 };
 
+/// Executes generic table queries against a shared data store.
 pub struct QueryCommand {
     data_store: SharedDataStore,
 }
 
 impl QueryCommand {
+    /// Creates a query command using the shared data store.
     pub fn new(data_store: SharedDataStore) -> Self {
         Self { data_store }
     }
@@ -20,6 +22,7 @@ impl QueryCommand {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+/// JSON-facing description of a generic table query.
 pub struct QueryRequest {
     table_name: JoiString,
     criterion: QueryRequestCriterion,
@@ -45,12 +48,14 @@ impl Command for QueryRequest {
 }
 
 #[derive(Debug, PartialEq, Serialize)]
+/// Columnar result returned by the `query` command.
 pub struct QueryResponse {
     number_of_hits: usize,
     result_columns: Vec<QueryResultColumn>,
 }
 
 #[derive(Debug, PartialEq, Serialize)]
+/// Values returned for one requested attribute.
 pub struct QueryResultColumn {
     attribute: JoiString,
     values: QueryValues,
@@ -58,8 +63,11 @@ pub struct QueryResultColumn {
 
 #[derive(Debug, PartialEq, Serialize)]
 #[serde(tag = "type", content = "values", rename_all = "snake_case")]
+/// A homogeneous sequence of query result values.
 pub enum QueryValues {
+    /// String values.
     String(Vec<JoiString>),
+    /// Signed integer values.
     Int(Vec<i64>),
 }
 

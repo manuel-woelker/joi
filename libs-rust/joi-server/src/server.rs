@@ -27,11 +27,17 @@ use crate::{
 
 /// Configuration supplied by an application embedding the server runtime.
 pub struct ServerConfig {
+    /// Application name reported by the `info` command.
     pub application_name: JoiString,
+    /// Application version reported by the `info` command.
     pub application_version: JoiString,
+    /// Socket address used by the HTTP listener, such as `127.0.0.1:3000`.
     pub listen_address: JoiString,
+    /// Path of the SQLite database opened or created at startup.
     pub data_store_path: PathBuf,
+    /// Whether registered test-data providers run during startup.
     pub insert_test_data: bool,
+    /// Application plugins appended after the built-in server plugin.
     pub plugins: Vec<Plugin>,
 }
 

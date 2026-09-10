@@ -16,6 +16,7 @@ pub struct MutateCommand {
 }
 
 impl MutateCommand {
+    /// Creates a mutation command using the shared data store.
     pub fn new(data_store: SharedDataStore) -> Self {
         Self { data_store }
     }
@@ -23,6 +24,7 @@ impl MutateCommand {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+/// Request containing mutation steps applied as one operation.
 pub struct MutateRequest {
     steps: Vec<MutateRequestStep>,
 }
@@ -73,6 +75,7 @@ enum MutationValues {
 }
 
 #[derive(Debug, PartialEq, Serialize)]
+/// Empty response indicating that every requested mutation succeeded.
 pub struct MutateResponse {}
 
 impl Command for MutateRequest {

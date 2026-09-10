@@ -22,6 +22,10 @@ pub struct CommandService {
 }
 
 impl CommandService {
+    /// Creates an HTTP service backed by an immutable command registry.
+    ///
+    /// Commands are available at `/api/<command-name>` via `POST` with a JSON body,
+    /// or via `GET` with an implicit empty JSON object request.
     pub fn new(registry: CommandRegistry) -> Self {
         Self {
             router: Router::new()
@@ -33,6 +37,7 @@ impl CommandService {
         }
     }
 
+    /// Converts the service into an Axum router for nesting or serving.
     pub fn into_router(self) -> Router {
         self.router
     }

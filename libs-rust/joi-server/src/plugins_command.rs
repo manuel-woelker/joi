@@ -6,11 +6,13 @@ use serde::{Deserialize, Serialize};
 use crate::command::Command;
 use crate::command_handler::CommandHandler;
 
+/// Handles inspection of the server's plugin registry.
 pub struct PluginsCommand {
     plugin_registry: PluginRegistry,
 }
 
 impl PluginsCommand {
+    /// Creates a plugin inventory command backed by `plugin_registry`.
     pub fn new(plugin_registry: PluginRegistry) -> Self {
         Self { plugin_registry }
     }
@@ -18,6 +20,7 @@ impl PluginsCommand {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
+/// Empty request for the `plugins` command.
 pub struct PluginsCommandRequest {}
 
 impl Command for PluginsCommandRequest {
@@ -27,36 +30,58 @@ impl Command for PluginsCommandRequest {
 }
 
 #[derive(Debug, PartialEq, Serialize)]
+/// Complete flat inventory of plugins, extension points, and extensions.
 pub struct PluginsCommandResponse {
+    /// Registered plugins in registration order.
     pub plugins: Vec<PluginSummary>,
+    /// Registered extension points in registration order.
     pub extension_points: Vec<ExtensionPointSummary>,
+    /// Registered extensions in registration order.
     pub extensions: Vec<ExtensionSummary>,
 }
 
 #[derive(Debug, PartialEq, Serialize)]
+/// Serializable metadata for one registered plugin.
 pub struct PluginSummary {
+    /// Plugin name.
     pub name: JoiString,
+    /// Human-readable plugin description.
     pub description: JoiString,
+    /// Source file that registered the plugin.
     pub file: JoiString,
+    /// Source line that registered the plugin.
     pub line: u32,
+    /// IDs of extension points declared by the plugin.
     pub extension_points: Vec<JoiString>,
+    /// IDs of extensions contributed by the plugin.
     pub extensions: Vec<JoiString>,
 }
 
 #[derive(Debug, PartialEq, Serialize)]
+/// Serializable metadata for one registered extension point.
 pub struct ExtensionPointSummary {
+    /// Stable extension point ID.
     pub id: JoiString,
+    /// Human-readable extension point description.
     pub description: JoiString,
+    /// Source file that registered the extension point.
     pub file: JoiString,
+    /// Source line that registered the extension point.
     pub line: u32,
+    /// IDs of extensions contributed to the extension point.
     pub extensions: Vec<JoiString>,
 }
 
 #[derive(Debug, PartialEq, Serialize)]
+/// Serializable metadata for one registered extension.
 pub struct ExtensionSummary {
+    /// Stable extension ID.
     pub id: JoiString,
+    /// Human-readable extension description.
     pub description: JoiString,
+    /// Source file that registered the extension.
     pub file: JoiString,
+    /// Source line that registered the extension.
     pub line: u32,
 }
 
@@ -134,9 +159,28 @@ mod tests {
             .register(plugin("sample", "Sample application", |_| Ok(())))
             .unwrap();
 
-        let response = PluginsCommand::new(builder.build())
+        let mut response = PluginsCommand::new(builder.build())
             .execute(PluginsCommandRequest {})
             .unwrap();
+
+        for plugin in &mut response.plugins {
+            assert_eq!(plugin.file, file!());
+            assert!(plugin.line > 0);
+            plugin.file = "<source>".into();
+            plugin.line = 0;
+        }
+        for extension_point in &mut response.extension_points {
+            assert_eq!(extension_point.file, file!());
+            assert!(extension_point.line > 0);
+            extension_point.file = "<source>".into();
+            extension_point.line = 0;
+        }
+        for extension in &mut response.extensions {
+            assert_eq!(extension.file, file!());
+            assert!(extension.line > 0);
+            extension.file = "<source>".into();
+            extension.line = 0;
+        }
 
         assert_eq!(
             response,
@@ -145,16 +189,16 @@ mod tests {
                     PluginSummary {
                         name: "infra".into(),
                         description: "Infrastructure services".into(),
-                        file: file!().into(),
-                        line: 124,
+                        file: "<source>".into(),
+                        line: 0,
                         extension_points: vec!["examples".into()],
                         extensions: vec!["example".into()],
                     },
                     PluginSummary {
                         name: "sample".into(),
                         description: "Sample application".into(),
-                        file: file!().into(),
-                        line: 134,
+                        file: "<source>".into(),
+                        line: 0,
                         extension_points: Vec::new(),
                         extensions: Vec::new(),
                     },
@@ -162,15 +206,15 @@ mod tests {
                 extension_points: vec![ExtensionPointSummary {
                     id: "examples".into(),
                     description: "Example points".into(),
-                    file: file!().into(),
-                    line: 125,
+                    file: "<source>".into(),
+                    line: 0,
                     extensions: vec!["example".into()],
                 }],
                 extensions: vec![ExtensionSummary {
                     id: "example".into(),
                     description: "Example extension".into(),
-                    file: file!().into(),
-                    line: 126,
+                    file: "<source>".into(),
+                    line: 0,
                 }],
             }
         );

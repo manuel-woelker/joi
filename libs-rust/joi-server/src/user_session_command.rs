@@ -11,9 +11,13 @@ use crate::data_store::{
     TableDescriptionProvider, TableName, TestDataProvider, Values,
 };
 
+/// Registered name of the login command.
 pub const LOGIN_COMMAND: &str = "login";
+/// Registered name of the logout command.
 pub const LOGOUT_COMMAND: &str = "logout";
+/// Registered name of the current-user command.
 pub const USER_INFO_COMMAND: &str = "user-info";
+/// Name of the HTTP cookie carrying the authenticated session ID.
 pub const SESSION_COOKIE: &str = "joix_session";
 
 /// Defines persisted login sessions and their owning users.
@@ -48,6 +52,7 @@ impl TableDescriptionProvider for UserSessionTableDescriptionProvider {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+/// Request to create a session for an existing user.
 pub struct LoginRequest {
     user_id: JoiString,
 }
@@ -59,16 +64,21 @@ impl Command for LoginRequest {
 }
 
 #[derive(Serialize)]
+/// Newly created session and its associated user.
 pub struct LoginResponse {
+    /// Cryptographically secure session identifier.
     pub session_id: JoiString,
+    /// User authenticated by the session.
     pub user: UserInfo,
 }
 
+/// Creates authenticated sessions in the shared data store.
 pub struct LoginCommand {
     data_store: SharedDataStore,
 }
 
 impl LoginCommand {
+    /// Creates a login command using the shared data store.
     pub fn new(data_store: SharedDataStore) -> Self {
         Self { data_store }
     }
@@ -100,6 +110,7 @@ impl CommandHandler for LoginCommand {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+/// Request to retrieve the user associated with a session.
 pub struct UserInfoRequest {
     session_id: JoiString,
 }
@@ -111,18 +122,24 @@ impl Command for UserInfoRequest {
 }
 
 #[derive(Debug, PartialEq, Serialize)]
+/// Public identity information for an authenticated user.
 pub struct UserInfo {
+    /// Stable user ID.
     pub id: JoiString,
+    /// Unique login name.
     pub username: JoiString,
+    /// Human-readable display name.
     pub name: JoiString,
 }
 
+/// Resolves authenticated sessions to users.
 pub struct UserInfoCommand {
     data_store: SharedDataStore,
 }
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+/// Request to revoke an authenticated session.
 pub struct LogoutRequest {
     session_id: JoiString,
 }
@@ -134,13 +151,16 @@ impl Command for LogoutRequest {
 }
 
 #[derive(Debug, PartialEq, Serialize)]
+/// Empty response indicating that the session was revoked.
 pub struct LogoutResponse {}
 
+/// Revokes authenticated sessions in the shared data store.
 pub struct LogoutCommand {
     data_store: SharedDataStore,
 }
 
 impl LogoutCommand {
+    /// Creates a logout command using the shared data store.
     pub fn new(data_store: SharedDataStore) -> Self {
         Self { data_store }
     }
@@ -164,6 +184,7 @@ impl CommandHandler for LogoutCommand {
 }
 
 impl UserInfoCommand {
+    /// Creates a user information command using the shared data store.
     pub fn new(data_store: SharedDataStore) -> Self {
         Self { data_store }
     }
