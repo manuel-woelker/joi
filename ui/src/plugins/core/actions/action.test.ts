@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { entityId } from "../entities/entity-description";
 
 import { actionId, isActionAvailable, normalizeHotkey, validateActions, type UiAction } from "./action";
 
@@ -21,7 +22,7 @@ describe("UI actions", () => {
   });
 
   it("applies compatible entity types before dynamic availability", () => {
-    const candidate = action({ compatibleEntityTypes: ["tickets"] });
+    const candidate = action({ compatibleEntityTypes: [entityId("tickets")] });
     const currentUser = { id: "user-1", username: "jane", name: "Jane" };
     expect(isActionAvailable(candidate, { currentUser })).toBe(false);
     expect(
@@ -29,7 +30,7 @@ describe("UI actions", () => {
         currentUser,
         target: {
           type: "entity-record",
-          entityId: "users",
+          entityId: entityId("users"),
           recordId: "user-1",
           values: {},
           update: async () => undefined,
@@ -40,6 +41,8 @@ describe("UI actions", () => {
 
   it("rejects invalid compatible entity lists", () => {
     expect(() => validateActions([action({ compatibleEntityTypes: [] })])).toThrow("empty compatible");
-    expect(() => validateActions([action({ compatibleEntityTypes: ["tickets", "tickets"] })])).toThrow("repeats");
+    expect(() =>
+      validateActions([action({ compatibleEntityTypes: [entityId("tickets"), entityId("tickets")] })]),
+    ).toThrow("repeats");
   });
 });

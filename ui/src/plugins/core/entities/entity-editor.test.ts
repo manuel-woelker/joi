@@ -2,13 +2,13 @@ import { describe, expect, it } from "vitest";
 import type { IconComponent } from "../../../icons/icon-component";
 import { parseQueryResponse } from "../query/query-result";
 import { validate } from "../../../validation/validation";
-import { defineEntity } from "./entity-description";
+import { defineEntity, entityId } from "./entity-description";
 import { createEntityEditorDefinition } from "./entity-editor";
 
 const TestIcon = (() => null) as IconComponent;
 
 const rangedEntity = defineEntity({
-  id: "ranges",
+  id: entityId("ranges"),
   tableName: "ranges",
   label: "Range",
   pluralLabel: "Ranges",

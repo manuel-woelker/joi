@@ -1,5 +1,6 @@
 import { actionId, type EntityRecordActionTarget } from "../../core/actions/action";
 import { actionContributions } from "../../core/actions/contribution";
+import { entityId } from "../../core/entities/entity-description";
 import { plugin } from "../../../base/plugin-registry";
 
 export const assignToMeActionId = actionId("tickets.assign-to-me");
@@ -18,7 +19,7 @@ export default plugin({
         label: "Assign to me",
         description: "Assign the selected ticket to the current user.",
         hotkey: "i",
-        compatibleEntityTypes: ["tickets"],
+        compatibleEntityTypes: [entityId("tickets")],
         isAvailable: ({ target }) => target?.type === "entity-record",
         execute: async ({ currentUser, target }) => {
           await (target as EntityRecordActionTarget).update({ assignee: currentUser.id });
@@ -34,7 +35,7 @@ export default plugin({
         label: "Unassign",
         description: "Remove the assignee from the selected ticket.",
         hotkey: "u",
-        compatibleEntityTypes: ["tickets"],
+        compatibleEntityTypes: [entityId("tickets")],
         isAvailable: ({ target }) =>
           target?.type === "entity-record" &&
           typeof target.values.assignee === "string" &&

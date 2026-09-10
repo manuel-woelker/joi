@@ -5,6 +5,7 @@ import { validate } from "../../../validation/validation";
 import { bindEntity, createEntityTableColumns } from "./bound-entity";
 import {
   defineEntity,
+  entityId,
   type EntityDescription,
   requireEntityAttribute,
   validateEntityDescription,
@@ -15,7 +16,7 @@ import { userEntity } from "../administration/users/user-entity";
 const TestIcon = (() => null) as IconComponent;
 
 const entity = defineEntity({
-  id: "things",
+  id: entityId("things"),
   tableName: "things",
   label: "Thing",
   pluralLabel: "Things",
@@ -66,7 +67,7 @@ describe("entity descriptions", () => {
   it("rejects invalid descriptions and query bindings", () => {
     expect(() =>
       validateEntityDescription({
-        id: "broken",
+        id: entityId("broken"),
         tableName: "broken",
         label: "Broken",
         pluralLabel: "Broken",
@@ -77,7 +78,7 @@ describe("entity descriptions", () => {
     ).toThrow("identity attribute 'missing' is not defined");
     expect(() =>
       validateEntityDescription({
-        id: "duplicates",
+        id: entityId("duplicates"),
         tableName: "duplicates",
         label: "Duplicate",
         pluralLabel: "Duplicates",
@@ -128,7 +129,7 @@ describe("entity descriptions", () => {
   it("rejects partial create definitions", () => {
     expect(() =>
       defineEntity({
-        id: "partial",
+        id: entityId("partial"),
         tableName: "partial",
         label: "Partial",
         pluralLabel: "Partials",

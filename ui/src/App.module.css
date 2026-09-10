@@ -7,15 +7,18 @@
 .currentView { overflow: hidden; color: var(--color-text-muted); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
 .topCommands { gap: 6px; }
 .startupStatus { display: grid; min-height: 100vh; place-items: center; color: var(--color-text-muted); }
-.textButton { display: flex; gap: 6px; align-items: center; padding: 6px 9px; border: 0; border-radius: 4px; color: var(--color-primary-dark); background: transparent; font-weight: 650; }
 .workspaceLayout { min-height: 100vh; padding-top: 52px; }
+.navigationPanel { position: fixed; z-index: 20; top: 52px; bottom: 0; left: 0; width: var(--sidebar-width); overflow: auto; border-right: 1px solid var(--color-border); background: var(--color-surface-muted); padding: 14px 10px; }
+.sidebarResizer { position: fixed; z-index: 21; top: 52px; bottom: 0; left: calc(var(--sidebar-width) - 3px); width: 6px; padding: 0; border: 0; background: transparent; cursor: col-resize; }
+.sidebarResizer:hover, .sidebarResizer:focus-visible { background: color-mix(in srgb, var(--color-primary) 34%, transparent); }
 .navigationBackdrop { position: fixed; z-index: 50; inset: 0; border: 0; background: var(--color-backdrop); }
 .navigationBackdrop { z-index: 15; }
-.warningBanner { position: fixed; z-index: 70; right: 18px; bottom: 18px; max-width: 420px; padding: 11px 14px; border: 1px solid var(--color-secondary-border); border-radius: 5px; color: var(--color-secondary-dark); background: var(--color-secondary-soft); font-size: 13px; }
-.srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; margin: -1px; padding: 0; clip: rect(0, 0, 0, 0); border: 0; }
 .mobileNavigationButton { display: none; }
 
 @media (max-width: 760px) {
   .mobileNavigationButton { display: grid; }
   .topDivider { display: none; }
+  .navigationPanel { width: min(288px, 88vw); transform: translateX(-100%); transition: transform 160ms ease; }
+  .navigationPanel.navigationPanelOpen { transform: translateX(0); }
+  .sidebarResizer { display: none; }
 }

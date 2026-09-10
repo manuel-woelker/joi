@@ -1,27 +1,28 @@
-import type { WorkspaceDocument } from "./model";
+import { entityId } from "../../core/entities/entity-description";
+import type { WorkspaceDocument } from "../../core/saved-views/model";
 
-export function createSeedWorkspace(): WorkspaceDocument {
+export function createTicketDefaultWorkspace(): WorkspaceDocument {
   return {
-    version: 2,
+    version: 3,
     queries: {
       "query-open": {
         id: "query-open",
         name: "Active issues",
-        source: "tickets",
+        entityId: entityId("tickets"),
         filters: [{ field: "status", operator: "in", value: ["open", "in-progress"] }],
         sorting: [{ field: "id", direction: "ascending" }],
       },
       "query-all": {
         id: "query-all",
         name: "All issues",
-        source: "tickets",
+        entityId: entityId("tickets"),
         filters: [],
         sorting: [{ field: "id", direction: "ascending" }],
       },
       "query-closed": {
         id: "query-closed",
         name: "Closed issues",
-        source: "tickets",
+        entityId: entityId("tickets"),
         filters: [{ field: "status", operator: "equals", value: "closed" }],
         sorting: [{ field: "id", direction: "ascending" }],
       },
@@ -30,7 +31,7 @@ export function createSeedWorkspace(): WorkspaceDocument {
       "presentation-table": {
         id: "presentation-table",
         name: "Issue table",
-        source: "tickets",
+        entityId: entityId("tickets"),
         layout: "table",
         density: "compact",
         fields: [
@@ -44,7 +45,7 @@ export function createSeedWorkspace(): WorkspaceDocument {
       "presentation-list": {
         id: "presentation-list",
         name: "Issue list",
-        source: "tickets",
+        entityId: entityId("tickets"),
         layout: "list",
         density: "comfortable",
         fields: [{ field: "title", label: "Issue" }, { field: "status" }, { field: "description" }],

@@ -1,4 +1,5 @@
 import type { AuthenticatedUser } from "../authentication/authentication-service";
+import type { EntityId } from "../entities/entity-description";
 import type { QueryValue } from "../query/query-result";
 
 declare const actionIdBrand: unique symbol;
@@ -11,7 +12,7 @@ export function actionId(value: string): ActionId {
 
 export interface EntityRecordActionTarget {
   readonly type: "entity-record";
-  readonly entityId: string;
+  readonly entityId: EntityId;
   readonly recordId: string;
   readonly values: Readonly<Record<string, QueryValue>>;
   update(changes: Readonly<Record<string, QueryValue>>): Promise<void>;
@@ -31,7 +32,7 @@ export interface UiAction {
   readonly description: string;
   readonly hotkey?: string;
   readonly showInActionBar?: boolean;
-  readonly compatibleEntityTypes?: readonly string[];
+  readonly compatibleEntityTypes?: readonly EntityId[];
   isAvailable(context: ActionContext): boolean;
   execute(context: ActionContext): void | Promise<void>;
 }

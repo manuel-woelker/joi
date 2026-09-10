@@ -1,17 +1,17 @@
 import { For } from "solid-js";
 import { Dynamic } from "solid-js/web";
-import type { PluginRegistry } from "../../../base/plugin-registry";
+import type { PluginRegistryAccess } from "../../../base/plugin-registry";
 import styles from "./Administration.module.css";
 import { type AdministrationContribution, administrationContributions } from "./contribution";
 
-export function administrationEntries(registry: PluginRegistry): AdministrationContribution[] {
+export function administrationEntries(registry: PluginRegistryAccess): AdministrationContribution[] {
   return [...registry.extensions(administrationContributions)].sort((left, right) =>
     left.name.localeCompare(right.name),
   );
 }
 
 export function Administration(props: {
-  registry: PluginRegistry;
+  registry: PluginRegistryAccess;
   selectedId?: string;
   onSelect: (contribution: AdministrationContribution) => void;
 }) {

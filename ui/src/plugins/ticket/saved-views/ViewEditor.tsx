@@ -1,10 +1,11 @@
 import { For, Show, createEffect, createMemo, createSignal } from "solid-js";
 
 import { IconButton } from "../../../components/IconButton";
-import { useWorkspace } from "../workspace/controller";
-import type { PresentationDefinition, QueryDefinition, TicketStatus } from "../workspace/model";
-import { cloneValue } from "../workspace/operations";
-import { validatePresentation } from "../workspace/query";
+import { useWorkspace } from "../../core/saved-views/controller";
+import type { PresentationDefinition, QueryDefinition } from "../../core/saved-views/model";
+import { cloneValue } from "../../core/saved-views/operations";
+import { validatePresentation } from "../../core/saved-views/query";
+import { ticketEntity } from "../entities/ticket-entity";
 import styles from "./ViewEditor.module.css";
 
 export function ViewEditor() {
@@ -39,7 +40,9 @@ export function ViewEditor() {
       : 0,
   );
   const error = () =>
-    query() && presentation() ? validatePresentation(query()!, presentation()!) : "Choose a query and presentation.";
+    query() && presentation()
+      ? validatePresentation(query()!, presentation()!, ticketEntity)
+      : "Choose a query and presentation.";
   const activeStatuses = () => {
     const filter = query()?.filters.find((item) => item.field === "status" && item.operator === "in");
     return new Set(Array.isArray(filter?.value) ? filter.value : []);
@@ -217,3 +220,5 @@ export function ViewEditor() {
     </Show>
   );
 }
+
+type TicketStatus = "open" | "in-progress" | "closed";

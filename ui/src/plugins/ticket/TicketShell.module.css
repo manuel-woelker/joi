@@ -1,0 +1,3 @@
+.undoButton { display: flex; gap: 6px; align-items: center; padding: 6px 9px; border: 0; border-radius: 4px; color: var(--color-primary-dark); background: transparent; font-weight: 650; }
+.warningBanner { position: fixed; z-index: 70; right: 18px; bottom: 18px; max-width: 420px; padding: 11px 14px; border: 1px solid var(--color-secondary-border); border-radius: 5px; color: var(--color-secondary-dark); background: var(--color-secondary-soft); font-size: 13px; }
+.srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; margin: -1px; padding: 0; clip: rect(0, 0, 0, 0); border: 0; }

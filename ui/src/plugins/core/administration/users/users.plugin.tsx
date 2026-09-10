@@ -1,4 +1,5 @@
 import { userEntity } from "./user-entity";
+import { entityDescriptions } from "../../entities/entity-registry";
 import { plugin } from "../../../../base/plugin-registry";
 import { fetchServiceKey } from "../../../../base/services/fetch-service";
 import { administrationContributions } from "../contribution";
@@ -9,6 +10,12 @@ export default plugin({
   description: "User administration",
   requires: { fetchService: fetchServiceKey },
   registerExtensions(context) {
+    context.registerExtension({
+      point: entityDescriptions,
+      id: "user-entity",
+      description: "Defines user records",
+      value: userEntity,
+    });
     context.registerExtension({
       point: administrationContributions,
       id: "users",

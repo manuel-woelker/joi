@@ -4,17 +4,18 @@ import { DataTable } from "../../../../components/DataTable";
 import { IconButton } from "../../../../components/IconButton";
 import { bindEntity, createEntityTableColumns } from "../../entities/bound-entity";
 import { createEntityEditorDefinition } from "../../entities/entity-editor";
-import { userEntity } from "./user-entity";
+import { entityId } from "../../entities/entity-description";
+import { useEntityRegistry } from "../../entities/entity-registry";
 import { MasterDetailView } from "../../master-detail/MasterDetailView";
 import { useNavigation } from "../../../../base/navigation";
 import type { FetchService } from "../../../../base/services/fetch-service";
 import { loadUsers } from "./users-api";
 import styles from "./Users.module.css";
 
-const userEditor = createEntityEditorDefinition(userEntity);
-
 export function Users(props: { fetchService: FetchService }) {
   const navigation = useNavigation();
+  const userEntity = useEntityRegistry().require(entityId("users"));
+  const userEditor = createEntityEditorDefinition(userEntity);
   const [users, { refetch }] = createResource(() => loadUsers(props.fetchService));
 
   return (

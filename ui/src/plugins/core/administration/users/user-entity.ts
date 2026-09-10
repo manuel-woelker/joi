@@ -1,11 +1,11 @@
 import UsersIcon from "lucide-solid/icons/users";
 import { matches } from "../../../../validation/validation-functions";
-import { defineEntity } from "../../entities/entity-description";
+import { defineEntity, entityId } from "../../entities/entity-description";
 import { generateKsuid } from "../../entities/ksuid";
 
 /** Canonical UI description of user records. */
 export const userEntity = defineEntity({
-  id: "users",
+  id: entityId("users"),
   tableName: "users",
   label: "User",
   pluralLabel: "Users",

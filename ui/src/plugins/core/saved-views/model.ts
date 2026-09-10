@@ -4,13 +4,12 @@ export type PresentationId = string;
 export type NavigationId = string;
 export type AttributeName = string;
 
-export type TicketStatus = "open" | "in-progress" | "closed";
 export type FilterOperator = "equals" | "not-equals" | "in" | "contains";
 
 export interface FilterDefinition {
   field: AttributeName;
   operator: FilterOperator;
-  value: string | string[];
+  value: QueryValue | QueryValue[];
 }
 
 export interface SortDefinition {
@@ -21,7 +20,7 @@ export interface SortDefinition {
 export interface QueryDefinition {
   id: QueryId;
   name: string;
-  source: "tickets";
+  entityId: EntityId;
   filters: FilterDefinition[];
   sorting: SortDefinition[];
 }
@@ -35,7 +34,7 @@ export interface PresentationField {
 export interface PresentationDefinition {
   id: PresentationId;
   name: string;
-  source: "tickets";
+  entityId: EntityId;
   layout: "table" | "list";
   density: "compact" | "comfortable";
   fields: PresentationField[];
@@ -65,7 +64,7 @@ export interface ViewNavigationItem {
 export type NavigationItem = FolderNavigationItem | ViewNavigationItem;
 
 export interface WorkspaceDocument {
-  version: 2;
+  version: 3;
   queries: Record<QueryId, QueryDefinition>;
   presentations: Record<PresentationId, PresentationDefinition>;
   views: Record<ViewId, SavedView>;
@@ -73,3 +72,5 @@ export interface WorkspaceDocument {
   rootItems: NavigationId[];
   favorites: ViewId[];
 }
+import type { EntityId } from "../entities/entity-description";
+import type { QueryValue } from "../query/query-result";

@@ -3,6 +3,17 @@ import type { LookupId } from "../lookups/lookup";
 import type { QueryValue, QueryValueType } from "../query/query-result";
 import type { ValidationFunction } from "../../../validation/validation";
 
+declare const entityIdBrand: unique symbol;
+
+/** Stable identity of an entity description contributed by a plugin. */
+export type EntityId = string & { readonly [entityIdBrand]: true };
+
+/** Brands a stable entity ID. */
+export function entityId(value: string): EntityId {
+  if (!value.trim()) throw new Error("Entity IDs must not be empty");
+  return value as EntityId;
+}
+
 /** Input control used to edit an entity attribute. */
 export type EntityEditControl = "text" | "textarea" | "integer" | "lookup";
 
@@ -70,7 +81,7 @@ export type EntityValues<TAttributes extends readonly AnyEntityAttribute[]> = {
 
 /** Canonical UI description of one entity kind. */
 export interface EntityDescription<TAttributes extends readonly AnyEntityAttribute[] = readonly AnyEntityAttribute[]> {
-  readonly id: string;
+  readonly id: EntityId;
   readonly tableName: string;
   readonly label: string;
   readonly pluralLabel: string;

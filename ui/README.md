@@ -20,8 +20,11 @@ The left navigation supports folders, favorites, reordering, moving,
 duplication, deletion with undo, and keyboard navigation. View URLs use the
 `#/views/<id>` hash format.
 
-Workspace definitions are currently stored in browser `localStorage`. The
-included reset command restores the example ticket workspace. Records are
+Workspace definitions are currently stored in browser `localStorage`. Domain
+plugins contribute namespaced default queries, presentations, views, and
+navigation entries. The v3 workspace schema identifies record sources with a
+branded entity ID; existing v2 workspaces are migrated without replacing user
+definitions. The included reset command restores the contributed defaults. Records are
 loaded from the backend's `POST /api/query` command into a shared, validated,
 columnar query-result model. Response-local branded row and column indexes
 provide direct value access without converting flexible results into fixed
@@ -101,6 +104,32 @@ directory. The application bootstrap discovers plugin modules below
 list is maintained. Registry construction first invokes every plugin's
 `registerExtensionPoints` callback, then invokes every `registerExtensions`
 callback, so extensions do not depend on plugin discovery order.
+
+The authenticated shell is domain-neutral. Core extension points compose its
+ordered providers, navigation sections, URL-backed view resolvers, top-bar
+items, and overlays. Entity descriptions and saved-view defaults are separate
+extension points, allowing a domain plugin to add a complete record domain
+without editing `App.tsx`, `Root.tsx`, or core modules. For example:
+
+```tsx
+context.registerExtension({
+  point: entityDescriptions,
+  id: "inventory-product-entity",
+  description: "Defines products",
+  value: productEntity,
+});
+
+context.registerExtension({
+  point: navigationSections,
+  id: "inventory-navigation",
+  description: "Adds inventory navigation",
+  value: { id: shellContributionId("inventory-navigation"), order: 100, component: InventoryNavigation },
+});
+```
+
+This is build-time discovery, not post-deployment installation: Vite expands
+the eager glob into the production bundle. Runtime-loaded third-party code
+would require a separate versioning, integrity, dependency, and trust model.
 
 Plugins contribute user-triggered UI actions through the `ui.actions`
 extension point. An action declares a branded ID, label, description, optional

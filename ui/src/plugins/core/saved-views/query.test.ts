@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { parseQueryResponse } from "../../core/query/query-result";
+import { parseQueryResponse } from "../query/query-result";
 import { executeQuery, validatePresentation } from "./query";
-import { createSeedWorkspace } from "./seed";
+import { createTestWorkspace, testEntity } from "./test-fixtures";
 
 const tickets = parseQueryResponse({
   number_of_hits: 3,
@@ -28,14 +28,14 @@ const values = (attribute: string, rows = tickets.rows) => {
 
 describe("executeQuery", () => {
   it("filters with membership and supports transient text search", () => {
-    const query = createSeedWorkspace().queries["query-open"];
+    const query = createTestWorkspace().queries["query-open"];
     expect(values("key", executeQuery(tickets, query))).toEqual(["TEST-1", "TEST-2"]);
     expect(values("key", executeQuery(tickets, query, "filters"))).toEqual(["TEST-2"]);
   });
 
   it("preserves source order when sort values are equal", () => {
     const query = {
-      ...createSeedWorkspace().queries["query-all"],
+      ...createTestWorkspace().queries["query-all"],
       sorting: [{ field: "status" as const, direction: "ascending" as const }],
     };
     const duplicateStatus = parseQueryResponse({
@@ -53,28 +53,34 @@ describe("executeQuery", () => {
 
 describe("validatePresentation", () => {
   it("rejects an empty presentation", () => {
-    const workspace = createSeedWorkspace();
+    const workspace = createTestWorkspace();
     expect(
-      validatePresentation(workspace.queries["query-all"], {
-        ...workspace.presentations["presentation-table"],
-        fields: [],
-      }),
+      validatePresentation(
+        workspace.queries["query-all"],
+        {
+          ...workspace.presentations["presentation-table"],
+          fields: [],
+        },
+        testEntity,
+      ),
     ).toContain("at least one field");
   });
 
   it("rejects unknown query and presentation attributes", () => {
-    const workspace = createSeedWorkspace();
+    const workspace = createTestWorkspace();
     expect(
       validatePresentation(
         { ...workspace.queries["query-all"], sorting: [{ field: "missing", direction: "ascending" }] },
         workspace.presentations["presentation-table"],
+        testEntity,
       ),
     ).toContain("does not define attribute 'missing'");
     expect(
-      validatePresentation(workspace.queries["query-all"], {
-        ...workspace.presentations["presentation-table"],
-        fields: [{ field: "missing" }],
-      }),
+      validatePresentation(
+        workspace.queries["query-all"],
+        { ...workspace.presentations["presentation-table"], fields: [{ field: "missing" }] },
+        testEntity,
+      ),
     ).toContain("does not define attribute 'missing'");
   });
 });

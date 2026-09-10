@@ -1,19 +1,18 @@
 import FolderIcon from "lucide-solid/icons/folder";
 import { For, Show } from "solid-js";
 import { Dynamic } from "solid-js/web";
-import { Administration } from "../../core/administration/Administration";
-import type { AdministrationContribution } from "../../core/administration/contribution";
-import { ticketEntity } from "../entities/ticket-entity";
-import { useWorkspace } from "../workspace/controller";
-import type { NavigationId } from "../workspace/model";
+import { useEntityRegistry } from "../entities/entity-registry";
+import { useWorkspace } from "./controller";
+import type { NavigationId } from "./model";
 import { useContextMenu } from "../../../components/context-menu/ContextMenuProvider";
 import { contextMenuEntryId, contextMenuGroupId } from "../../../components/context-menu/context-menu";
 import { IconButton } from "../../../components/IconButton";
-import styles from "./NavigationTree.module.css";
+import styles from "./SavedViewNavigation.module.css";
 
 function TreeItem(props: { id: NavigationId; level: number }) {
   const controller = useWorkspace();
   const contextMenu = useContextMenu();
+  const entities = useEntityRegistry();
   const item = () => controller.workspace.navigation[props.id];
   const folder = () => {
     const current = item();
@@ -26,6 +25,11 @@ function TreeItem(props: { id: NavigationId; level: number }) {
   const view = () => {
     const current = viewItem();
     return current ? controller.workspace.views[current.viewId] : undefined;
+  };
+  const entity = () => {
+    const current = view();
+    const query = current ? controller.workspace.queries[current.queryId] : undefined;
+    return query ? entities.require(query.entityId) : undefined;
   };
   const label = () => folder()?.name ?? view()?.name ?? "Missing view";
   const expanded = () => controller.expandedFolders().has(props.id);
@@ -195,8 +199,10 @@ function TreeItem(props: { id: NavigationId; level: number }) {
           <Show when={folder()}>
             <FolderIcon class={styles.entityIcon} size={16} aria-hidden="true" />
           </Show>
-          <Show when={viewItem()}>
-            <Dynamic component={ticketEntity.icon} class={styles.entityIcon} size={16} aria-hidden="true" />
+          <Show when={entity()}>
+            {(description) => (
+              <Dynamic component={description().icon} class={styles.entityIcon} size={16} aria-hidden="true" />
+            )}
           </Show>
           <span>{label()}</span>
         </button>
@@ -211,24 +217,16 @@ function TreeItem(props: { id: NavigationId; level: number }) {
   );
 }
 
-export function NavigationTree(props: { registry: import("../../../base/plugin-registry").PluginRegistry }) {
+export function SavedViewNavigation() {
   const controller = useWorkspace();
-  const startResize = (event: PointerEvent) => {
-    const origin = event.clientX;
-    const width = controller.sidebarWidth();
-    const move = (moveEvent: PointerEvent) => controller.setSidebarWidth(width + moveEvent.clientX - origin);
-    const stop = () => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", stop);
-    };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", stop);
+  const entities = useEntityRegistry();
+  const entityForView = (id: string) => {
+    const view = controller.workspace.views[id];
+    const query = view ? controller.workspace.queries[view.queryId] : undefined;
+    return query ? entities.require(query.entityId) : undefined;
   };
   return (
-    <aside
-      class={`${styles.navigationPanel} ${controller.navigationOpen() ? styles.open : ""}`}
-      aria-label="Workspace navigation"
-    >
+    <section aria-label="Saved views">
       <div class={styles.panelHeading}>
         <h2>Views</h2>
         <div class={styles.headingCommands}>
@@ -242,7 +240,11 @@ export function NavigationTree(props: { registry: import("../../../base/plugin-r
           <For each={controller.workspace.favorites}>
             {(id) => (
               <button class={styles.favoriteLink} onClick={() => controller.selectView(id)}>
-                <Dynamic component={ticketEntity.icon} class={styles.entityIcon} size={16} aria-hidden="true" />
+                <Show when={entityForView(id)}>
+                  {(entity) => (
+                    <Dynamic component={entity().icon} class={styles.entityIcon} size={16} aria-hidden="true" />
+                  )}
+                </Show>
                 {controller.workspace.views[id]?.name}
               </button>
             )}
@@ -252,17 +254,6 @@ export function NavigationTree(props: { registry: import("../../../base/plugin-r
       <ul class={styles.tree} role="tree" aria-label="Saved views">
         <For each={controller.workspace.rootItems}>{(id) => <TreeItem id={id} level={0} />}</For>
       </ul>
-      <Administration
-        registry={props.registry}
-        selectedId={controller.navigation.selectedAdministrationId()}
-        onSelect={(contribution: AdministrationContribution) => controller.selectAdministration(contribution.id)}
-      />
-      <button
-        class={styles.sidebarResizer}
-        aria-label="Resize navigation"
-        aria-orientation="vertical"
-        onPointerDown={startResize}
-      />
-    </aside>
+    </section>
   );
 }

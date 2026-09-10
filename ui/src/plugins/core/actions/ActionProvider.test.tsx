@@ -5,6 +5,7 @@ import { Show, createSignal, onCleanup } from "solid-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PluginRegistryBuilder, plugin } from "../../../base/plugin-registry";
+import { entityId } from "../entities/entity-description";
 import { ActionCommands } from "./ActionCommands";
 import { ActionProvider, useActions } from "./ActionProvider";
 import { actionId, type ActionTarget, type UiAction } from "./action";
@@ -54,14 +55,14 @@ describe("ActionProvider", () => {
       label: "Run test",
       description: "Runs the test action.",
       hotkey: "x",
-      compatibleEntityTypes: ["tickets"],
+      compatibleEntityTypes: [entityId("tickets")],
       isAvailable: () => true,
       execute,
     };
     const [targetVisible, setTargetVisible] = createSignal(true);
     const target: ActionTarget = {
       type: "entity-record",
-      entityId: "tickets",
+      entityId: entityId("tickets"),
       recordId: "ticket-1",
       values: {},
       update: async () => undefined,

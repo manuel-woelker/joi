@@ -148,50 +148,50 @@ services, never through ticket state.
 
 ## Implementation Checklist
 
-- [ ] Add branded IDs and typed contribution contracts for application
+- [x] Add branded IDs and typed contribution contracts for application
       providers, navigation sections, view resolvers, shell overlays, top-bar
       entries, entity descriptions, and default saved views.
-- [ ] Add focused core plugins that register these extension points and
+- [x] Add focused core plugins that register these extension points and
       validate contribution IDs, ordering, entity references, and resolver
       ambiguity.
-- [ ] Move hash observation and route construction into the base navigation
+- [x] Move hash observation and route construction into the base navigation
       service; add tests for decoding, unknown routes, record/create routes,
       history replacement, and cleanup.
-- [ ] Refactor the authenticated app shell to compose providers and render
+- [x] Refactor the authenticated app shell to compose providers and render
       navigation, current view, top-bar entries, and overlays exclusively from
       core extension points. Remove every ticket import from `App.tsx` and
       `Root.tsx`.
-- [ ] Split the current navigation tree into a generic sidebar frame plus
+- [x] Split the current navigation tree into a generic sidebar frame plus
       independent administration and saved-view navigation contributions.
-- [ ] Add `EntityRegistryService`; move entity discovery to extensions and
+- [x] Add `EntityRegistryService`; move entity discovery to extensions and
       update generic tables, editors, mutations, lookups, and administration
       to resolve entities through it.
-- [ ] Promote workspace/saved-view infrastructure to
+- [x] Promote workspace/saved-view infrastructure to
       `plugins/core/saved-views`; replace ticket source and status types with
       entity IDs, typed attributes, and generic filter values.
-- [ ] Replace `loadTickets` and ticket-specific saved-view rendering with a
+- [x] Replace `loadTickets` and ticket-specific saved-view rendering with a
       generic entity query/view component driven by entity descriptions.
-- [ ] Convert current ticket behavior into ordinary contributions from
+- [x] Convert current ticket behavior into ordinary contributions from
       `plugins/ticket`, including its entity, actions, initial views,
       presentation defaults, and any ticket-specific editor controls.
-- [ ] Convert administration and user behavior to the same navigation, view,
+- [x] Convert administration and user behavior to the same navigation, view,
       and entity contribution mechanisms so it exercises the public contracts
       rather than a privileged shell path.
-- [ ] Add a persisted-workspace migration with fixture tests for current v2
+- [x] Add a persisted-workspace migration with fixture tests for current v2
       data, malformed data, unknown domain entities, and preserving user-owned
       definitions.
-- [ ] Add an import-boundary check that rejects base/core imports from
+- [x] Add an import-boundary check that rejects base/core imports from
       `plugins/ticket` or any future domain directory and rejects cross-domain
       imports.
-- [ ] Update UI architecture documentation with contribution examples and the
+- [x] Update UI architecture documentation with contribution examples and the
       distinction between build-time discovery and runtime installation.
 
 ## Verification
 
-- [ ] Add a minimal test-only second domain plugin with a distinct entity,
+- [x] Add a minimal test-only second domain plugin with a distinct entity,
       navigation section, default view, and editor. Verify it appears and works
       without modifying the app shell or core code.
-- [ ] Disable the ticket plugin in a test build and verify login,
+- [x] Disable the ticket plugin in a test build and verify login,
       administration, debug tools, status bar, playground, and unknown-route
       handling still render without ticket assumptions.
 - [ ] Verify ticket and user list/detail/create/edit flows, action hotkeys,
@@ -200,9 +200,9 @@ services, never through ticket state.
 - [ ] Verify duplicate entity/contribution IDs, unresolved entity references,
       and ambiguous view resolvers fail during registry construction with
       actionable source locations.
-- [ ] Run UI unit tests, TypeScript type checking, and a production Vite build.
-- [ ] Run `./t nao check`.
-- [ ] Restart active development tasks with `./t nao --restart`.
+- [x] Run UI unit tests, TypeScript type checking, and a production Vite build.
+- [x] Run `./t nao check`.
+- [x] Restart active development tasks with `./t nao --restart`.
 
 ## Risks and Assumptions
 

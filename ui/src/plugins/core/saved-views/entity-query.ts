@@ -1,12 +1,16 @@
-import { executeDataQuery, type QueryCriterionRequest } from "../../core/query/query-client";
-import type { QueryResult } from "../../core/query/query-result";
+import { executeDataQuery, type QueryCriterionRequest } from "../query/query-client";
+import type { QueryResult } from "../query/query-result";
 import { fetchService, type FetchService } from "../../../base/services/fetch-service";
-import { ticketEntity } from "../entities/ticket-entity";
+import type { EntityDescription } from "../entities/entity-description";
 import type { QueryDefinition } from "./model";
 
-export function loadTickets(service: FetchService = fetchService, query?: QueryDefinition): Promise<QueryResult> {
+export function loadEntityRecords(
+  entity: EntityDescription,
+  service: FetchService = fetchService,
+  query?: QueryDefinition,
+): Promise<QueryResult> {
   return executeDataQuery(service, {
-    tableName: ticketEntity.tableName,
+    tableName: entity.tableName,
     criterion: queryCriterion(query),
     maxResults: 100,
     attributes: ["*"],
@@ -16,7 +20,7 @@ export function loadTickets(service: FetchService = fetchService, query?: QueryD
 function queryCriterion(query: QueryDefinition | undefined): QueryCriterionRequest {
   const filter = query?.filters.length === 1 ? query.filters[0] : undefined;
   if (!filter || filter.operator === "contains") return "match_any";
-  const values = Array.isArray(filter.value) ? filter.value : [filter.value];
+  const values = (Array.isArray(filter.value) ? filter.value : [filter.value]).map(String);
   const equals = { equals: { attribute: filter.field, values } } as const;
   return filter.operator === "not-equals" ? { not: equals } : equals;
 }

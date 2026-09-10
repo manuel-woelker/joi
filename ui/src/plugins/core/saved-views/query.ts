@@ -1,12 +1,12 @@
-import type { QueryColumnHandle, QueryResult, QueryResultRow } from "../../core/query/query-result";
-import { requireEntityAttribute } from "../../core/entities/entity-description";
-import { ticketEntity } from "../entities/ticket-entity";
+import type { EntityDescription } from "../entities/entity-description";
+import { requireEntityAttribute } from "../entities/entity-description";
+import type { QueryColumnHandle, QueryResult, QueryResultRow } from "../query/query-result";
 import type { FilterDefinition, PresentationDefinition, QueryDefinition } from "./model";
 
 function matchesFilter(row: QueryResultRow, column: QueryColumnHandle, filter: FilterDefinition): boolean {
   const actual = String(row.value(column) ?? "").toLocaleLowerCase();
   const values = (Array.isArray(filter.value) ? filter.value : [filter.value]).map((value) =>
-    value.toLocaleLowerCase(),
+    String(value).toLocaleLowerCase(),
   );
 
   switch (filter.operator) {
@@ -48,13 +48,18 @@ export function executeQuery(result: QueryResult, query: QueryDefinition, text =
     .map(({ row }) => row);
 }
 
-export function validatePresentation(query: QueryDefinition, presentation: PresentationDefinition): string | undefined {
-  if (query.source !== presentation.source) return "The query and presentation use different data sources.";
+export function validatePresentation(
+  query: QueryDefinition,
+  presentation: PresentationDefinition,
+  entity: EntityDescription,
+): string | undefined {
+  if (query.entityId !== presentation.entityId) return "The query and presentation use different entities.";
+  if (query.entityId !== entity.id) return `Entity '${query.entityId}' is not available for this view.`;
   if (presentation.fields.length === 0) return "The presentation must include at least one field.";
   try {
-    for (const filter of query.filters) requireEntityAttribute(ticketEntity, filter.field);
-    for (const sort of query.sorting) requireEntityAttribute(ticketEntity, sort.field);
-    for (const field of presentation.fields) requireEntityAttribute(ticketEntity, field.field);
+    for (const filter of query.filters) requireEntityAttribute(entity, filter.field);
+    for (const sort of query.sorting) requireEntityAttribute(entity, sort.field);
+    for (const field of presentation.fields) requireEntityAttribute(entity, field.field);
   } catch (error) {
     return error instanceof Error ? error.message : "View configuration references an unknown attribute.";
   }

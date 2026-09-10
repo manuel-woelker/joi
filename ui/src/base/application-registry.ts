@@ -10,11 +10,15 @@ interface PluginModule {
 
 const pluginModules = import.meta.glob<PluginModule>("../plugins/**/*.plugin.ts{,x}", { eager: true });
 
-export function createApplication() {
-  const initializationStarted = performance.now();
-  const plugins = Object.entries(pluginModules)
+export function discoveredApplicationPlugins(): readonly UiPlugin[] {
+  return Object.entries(pluginModules)
     .map(([path, module]) => validatePlugin(path, module.default))
     .sort((left, right) => left.name.localeCompare(right.name));
+}
+
+export function createApplication(options: { plugins?: readonly UiPlugin[] } = {}) {
+  const initializationStarted = performance.now();
+  const plugins = options.plugins ?? discoveredApplicationPlugins();
 
   const pluginRegistry = createPluginRegistryService();
   const dataChanges = new DataChangeService();

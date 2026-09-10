@@ -1,8 +1,10 @@
-import { createContext, createMemo, createSignal, useContext, type ParentProps } from "solid-js";
+import { createContext, createEffect, createMemo, createSignal, useContext, type ParentProps } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 
-import { NavigationProvider, type NavigationController } from "../../../base/navigation";
-import { createNavigationController } from "../navigation/controller";
+import { type NavigationController, useNavigation } from "../../../base/navigation";
+import { usePluginRegistry } from "../../../base/plugin-registry-context";
+import { savedViewDefaults } from "./contribution";
+import { useEntityRegistry } from "../entities/entity-registry";
 import type { NavigationId, PresentationDefinition, QueryDefinition, ViewId, WorkspaceDocument } from "./model";
 import {
   addFolder,
@@ -15,7 +17,12 @@ import {
   moveItemToFolder,
   saveDefinitions,
 } from "./operations";
-import { LocalWorkspaceRepository, type WorkspaceRepository } from "./repository";
+import {
+  LocalWorkspaceRepository,
+  mergeSavedViewDefaults,
+  validateWorkspace,
+  type WorkspaceRepository,
+} from "./repository";
 
 export interface WorkspaceController {
   workspace: WorkspaceDocument;
@@ -24,12 +31,9 @@ export interface WorkspaceController {
   warning: () => string | undefined;
   announcement: () => string;
   editorOpen: () => boolean;
-  navigationOpen: () => boolean;
   search: () => string;
-  sidebarWidth: () => number;
   expandedFolders: () => ReadonlySet<NavigationId>;
   setSearch(value: string): void;
-  setSidebarWidth(value: number): void;
   toggleFolder(id: NavigationId): void;
   selectView(id: ViewId): void;
   selectAdministration(id: string): void;
@@ -39,7 +43,6 @@ export interface WorkspaceController {
   announce(message: string): void;
   closeRecord(): void;
   setEditorOpen(open: boolean): void;
-  setNavigationOpen(open: boolean): void;
   toggleFavorite(id: ViewId): void;
   createFolder(): void;
   createView(parentId?: NavigationId): void;
@@ -71,18 +74,26 @@ function loadExpandedFolders(): NavigationId[] {
 }
 
 export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRepository }>) {
-  const repository = props.repository ?? new LocalWorkspaceRepository();
+  const pluginRegistry = usePluginRegistry();
+  const entities = useEntityRegistry();
+  const defaults = mergeSavedViewDefaults(pluginRegistry.extensions(savedViewDefaults));
+  validateWorkspace(defaults, entities);
+  const repository = props.repository ?? new LocalWorkspaceRepository(defaults);
   const loaded = repository.load();
   const [workspace, setWorkspace] = createStore(loaded.workspace);
-  const navigation = createNavigationController(workspace);
+  const navigation = useNavigation();
   const [warning, setWarning] = createSignal(loaded.warning);
   const [announcement, setAnnouncement] = createSignal("");
   const [editorOpen, setEditorOpen] = createSignal(false);
-  const [navigationOpen, setNavigationOpen] = createSignal(false);
   const [search, setSearch] = createSignal("");
-  const [sidebarWidth, setSidebarWidthSignal] = createSignal(Number(localStorage.getItem("joi.sidebar.width")) || 244);
   const [expandedFolderIds, setExpandedFolderIds] = createSignal<NavigationId[]>(loadExpandedFolders());
   const [undoSnapshot, setUndoSnapshot] = createSignal<WorkspaceDocument>();
+
+  createEffect(() => {
+    if (navigation.selection().type !== "none") return;
+    const id = workspace.favorites.find((candidate) => workspace.views[candidate]) ?? Object.keys(workspace.views)[0];
+    if (id) navigation.selectView(id);
+  });
 
   const selectedView = createMemo(() => {
     const id = navigation.selectedViewId();
@@ -99,13 +110,11 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
   const selectView = (id: ViewId) => {
     if (!workspace.views[id]) return;
     navigation.selectView(id);
-    setNavigationOpen(false);
     setSearch("");
   };
 
   const selectAdministration = (id: string) => {
     navigation.selectAdministration(id);
-    setNavigationOpen(false);
     setSearch("");
   };
 
@@ -116,16 +125,9 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
     warning,
     announcement,
     editorOpen,
-    navigationOpen,
     search,
-    sidebarWidth,
     expandedFolders: () => new Set(expandedFolderIds()),
     setSearch,
-    setSidebarWidth(value) {
-      const width = Math.min(380, Math.max(200, value));
-      setSidebarWidthSignal(width);
-      localStorage.setItem("joi.sidebar.width", String(width));
-    },
     toggleFolder(id) {
       const next = expandedFolderIds().includes(id)
         ? expandedFolderIds().filter((folderId) => folderId !== id)
@@ -137,12 +139,10 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
     selectAdministration,
     selectRecord(id) {
       navigation.selectRecord(id);
-      setNavigationOpen(false);
       setSearch("");
     },
     createRecord() {
       navigation.createRecord();
-      setNavigationOpen(false);
       setSearch("");
     },
     finishCreatingRecord(id) {
@@ -155,7 +155,6 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
       navigation.closeRecord();
     },
     setEditorOpen,
-    setNavigationOpen,
     toggleFavorite(id) {
       commit((draft) => {
         draft.favorites = draft.favorites.includes(id)
@@ -262,11 +261,7 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
     },
   };
 
-  return (
-    <NavigationProvider controller={navigation}>
-      <WorkspaceContext.Provider value={controller}>{props.children}</WorkspaceContext.Provider>
-    </NavigationProvider>
-  );
+  return <WorkspaceContext.Provider value={controller}>{props.children}</WorkspaceContext.Provider>;
 }
 
 export function useWorkspace(): WorkspaceController {
