@@ -133,36 +133,36 @@ roving focus target.
 
 ## Implementation Checklist
 
-- [ ] Add branded tree node/kind IDs and a concrete immutable normalized model
+- [x] Add branded tree node/kind IDs and a concrete immutable normalized model
       under `ui/src/components/tree/`.
-- [ ] Add pure model validation for missing references, duplicate placement,
+- [x] Add pure model validation for missing references, duplicate placement,
       self-reference, cycles, unreachable nodes, and invalid child ownership.
-- [ ] Add a renderer-registry builder with duplicate-registration errors and
+- [x] Add a renderer-registry builder with duplicate-registration errors and
       useful missing-renderer diagnostics.
-- [ ] Add the built-in folder kind and default folder renderer while allowing a
+- [x] Add the built-in folder kind and default folder renderer while allowing a
       tree definition to override its visual content.
-- [ ] Implement visible-node flattening with level and parent metadata, based
+- [x] Implement visible-node flattening with level and parent metadata, based
       only on the model and expanded folder IDs.
-- [ ] Implement controlled and uncontrolled expansion without mutating the
+- [x] Implement controlled and uncontrolled expansion without mutating the
       logical model.
-- [ ] Implement scoped roving focus, click activation, folder disclosure, and
+- [x] Implement scoped roving focus, click activation, folder disclosure, and
       Arrow/Home/End/Enter/Space keyboard behavior.
-- [ ] Add `tree`, `treeitem`, and `group` semantics, `aria-expanded`, selected
+- [x] Add `tree`, `treeitem`, and `group` semantics, `aria-expanded`, selected
       state, accessible disclosure labels, and appropriate icon decoration.
-- [ ] Add a CSS module using application color tokens, compact spacing, stable
+- [x] Add a CSS module using application color tokens, compact spacing, stable
       indentation, ellipsis for long labels, and visible hover/focus/selection
       states.
-- [ ] Add tests for model validation, renderer dispatch, declaration order,
+- [x] Add tests for model validation, renderer dispatch, declaration order,
       nested folder expansion, controlled state, visible traversal, focus after
       collapse, activation, context menus, and missing renderers.
-- [ ] Add a colocated `Tree.demo.tsx` with scenarios for mixed custom kinds,
+- [x] Add a colocated `Tree.demo.tsx` with scenarios for mixed custom kinds,
       nested open/closed folders, controlled expansion, custom row rendering,
       selection, long labels, and an empty tree.
-- [ ] Adapt `SavedViewNavigation` to the generic tree while retaining its
+- [x] Adapt `SavedViewNavigation` to the reusable tree while retaining its
       current icons, selection, context menus, folder persistence, and commands.
-- [ ] Document the model/definition split, renderer registration, expansion
+- [x] Document the model/definition split, renderer registration, expansion
       modes, and accessibility behavior in `ui/README.md`.
-- [ ] Run focused UI tests, type checking, and production build, then run
+- [x] Run focused UI tests, type checking, and production build, then run
       `nao check` and restart active development tasks with `nao --restart`.
 
 ## How will we verify it?
@@ -196,3 +196,16 @@ roving focus target.
   first render and include the missing kind in errors.
 - Migrating saved views increases the initial scope but prevents two subtly
   different tree interaction implementations from remaining in production.
+
+## Implementation Record
+
+Implemented on 2026-09-11. The focused tree suite passes 18 tests across three
+files. Repository checks pass with 177 UI tests across 48 files, and the Vite
+production build succeeds after transforming 162 modules. Active development
+tasks were restart-requested with `nao --restart`.
+
+The saved-view navigation now adapts its normalized workspace into `TreeModel`
+and persists controlled expansion through `WorkspaceController`. Automated
+tests cover interaction and structural behavior. The playground includes
+mixed-kind, controlled-expansion, context-menu, and empty-tree scenarios; a
+separate manual viewport inspection was not available in this environment.

@@ -34,7 +34,7 @@ export interface WorkspaceController {
   search: () => string;
   expandedFolders: () => ReadonlySet<NavigationId>;
   setSearch(value: string): void;
-  toggleFolder(id: NavigationId): void;
+  setExpandedFolders(ids: ReadonlySet<NavigationId>): void;
   selectView(id: ViewId): void;
   selectAdministration(id: string): void;
   selectRecord(id: string): void;
@@ -128,10 +128,8 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
     search,
     expandedFolders: () => new Set(expandedFolderIds()),
     setSearch,
-    toggleFolder(id) {
-      const next = expandedFolderIds().includes(id)
-        ? expandedFolderIds().filter((folderId) => folderId !== id)
-        : [...expandedFolderIds(), id];
+    setExpandedFolders(ids) {
+      const next = [...ids];
       setExpandedFolderIds(next);
       localStorage.setItem("joi.expanded-folders", JSON.stringify(next));
     },

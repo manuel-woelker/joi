@@ -1,0 +1,184 @@
+import { createEffect, createMemo, createSignal, For, type JSX, Show } from "solid-js";
+
+import styles from "./Tree.module.css";
+import type { TreeDefinition, TreeNodeRenderer } from "./tree-definition";
+import { folderTreeNodeKind, type TreeModel, type TreeNode, type TreeNodeId, validateTreeModel } from "./tree-model";
+import { visibleTreeNodes } from "./visible-tree";
+
+export interface TreeProps {
+  readonly ariaLabel: string;
+  readonly model: TreeModel;
+  readonly definition: TreeDefinition;
+  readonly expanded?: ReadonlySet<TreeNodeId>;
+  readonly defaultExpanded?: ReadonlySet<TreeNodeId>;
+  readonly onExpandedChange?: (expanded: ReadonlySet<TreeNodeId>) => void;
+  readonly class?: string;
+}
+
+/** Renders a normalized logical tree using kind-specific row renderers. */
+export function Tree(props: TreeProps) {
+  const [localExpanded, setLocalExpanded] = createSignal<ReadonlySet<TreeNodeId>>(new Set(props.defaultExpanded));
+  const [focusedId, setFocusedId] = createSignal<TreeNodeId>();
+  const rowElements = new Map<TreeNodeId, HTMLElement>();
+  const expanded = () => props.expanded ?? localExpanded();
+  const validatedModel = createMemo(() => {
+    validateTreeModel(props.model);
+    for (const node of props.model.nodes.values()) {
+      if (!props.definition.renderers.has(node.kind)) {
+        throw new Error(`Tree renderer for kind "${node.kind}" is not registered`);
+      }
+    }
+    return props.model;
+  });
+  const visible = createMemo(() => visibleTreeNodes(validatedModel(), expanded()));
+
+  createEffect(() => {
+    const rows = visible();
+    const current = focusedId();
+    if (!rows.length) {
+      if (current !== undefined) setFocusedId(undefined);
+      return;
+    }
+    if (current === undefined || !rows.some((entry) => entry.node.id === current)) setFocusedId(rows[0].node.id);
+  });
+
+  const focus = (id: TreeNodeId) => {
+    setFocusedId(id);
+    queueMicrotask(() => rowElements.get(id)?.focus());
+  };
+
+  const updateExpanded = (next: ReadonlySet<TreeNodeId>) => {
+    const snapshot = new Set(next);
+    if (props.expanded === undefined) setLocalExpanded(snapshot);
+    props.onExpandedChange?.(snapshot);
+  };
+
+  const toggle = (node: TreeNode) => {
+    if (node.kind !== folderTreeNodeKind) return;
+    const next = new Set(expanded());
+    if (next.has(node.id)) {
+      next.delete(node.id);
+      const current = focusedId();
+      if (current && current !== node.id && isDescendant(props.model, node.id, current)) focus(node.id);
+    } else {
+      next.add(node.id);
+    }
+    updateExpanded(next);
+  };
+
+  const activate = (node: TreeNode) => {
+    if (node.kind === folderTreeNodeKind) toggle(node);
+    else props.definition.onActivate?.(node);
+  };
+
+  const onKeyDown = (event: KeyboardEvent, node: TreeNode) => {
+    const rows = visible();
+    const index = rows.findIndex((entry) => entry.node.id === node.id);
+    const current = rows[index];
+    let destination: TreeNodeId | undefined;
+
+    switch (event.key) {
+      case "ArrowDown":
+        destination = rows[index + 1]?.node.id;
+        break;
+      case "ArrowUp":
+        destination = rows[index - 1]?.node.id;
+        break;
+      case "Home":
+        destination = rows[0]?.node.id;
+        break;
+      case "End":
+        destination = rows.at(-1)?.node.id;
+        break;
+      case "ArrowRight":
+        if (node.kind === folderTreeNodeKind && !expanded().has(node.id)) toggle(node);
+        else if (node.kind === folderTreeNodeKind) destination = node.children?.[0];
+        break;
+      case "ArrowLeft":
+        if (node.kind === folderTreeNodeKind && expanded().has(node.id)) toggle(node);
+        else destination = current?.parentId;
+        break;
+      case "Enter":
+        activate(node);
+        break;
+      case " ":
+        activate(node);
+        break;
+      default:
+        return;
+    }
+
+    event.preventDefault();
+    if (destination) focus(destination);
+  };
+
+  const renderBranch = (ids: readonly TreeNodeId[], level: number): JSX.Element => (
+    <For each={ids}>
+      {(id) => {
+        const node = () => props.model.nodes.get(id) as TreeNode;
+        const isFolder = () => node().kind === folderTreeNodeKind;
+        const isExpanded = () => isFolder() && expanded().has(id);
+        const isSelected = () => props.definition.isSelected?.(node()) ?? false;
+        const renderer = () => props.definition.renderers.get(node().kind) as TreeNodeRenderer;
+        return (
+          <li role="none">
+            <div
+              role="treeitem"
+              aria-expanded={isFolder() ? isExpanded() : undefined}
+              aria-selected={isSelected() || undefined}
+              ref={(element) => rowElements.set(id, element)}
+              class={styles.row}
+              classList={{ [styles.selected]: isSelected() }}
+              style={{ "--tree-level": level }}
+              tabindex={focusedId() === id ? 0 : -1}
+              onFocus={() => setFocusedId(id)}
+              onClick={(event) => {
+                if ((event.target as Element).closest("button, a, input, select, textarea")) return;
+                focus(id);
+                activate(node());
+              }}
+              onKeyDown={(event) => onKeyDown(event, node())}
+              onContextMenu={(event) => props.definition.onContextMenu?.(event, node())}
+            >
+              <Show when={isFolder()} fallback={<span class={styles.disclosureSpacer} />}>
+                <button
+                  type="button"
+                  class={styles.disclosure}
+                  aria-label={`${isExpanded() ? "Close" : "Open"} folder`}
+                  onClick={() => {
+                    focus(id);
+                    toggle(node());
+                  }}
+                >
+                  <span aria-hidden="true">{isExpanded() ? "⌄" : "›"}</span>
+                </button>
+              </Show>
+              <div class={styles.content}>
+                {renderer()(node(), { level, expanded: isExpanded(), selected: isSelected() })}
+              </div>
+            </div>
+            <Show when={isFolder() && isExpanded() && node().children?.length}>
+              <ul role="group">{renderBranch(node().children ?? [], level + 1)}</ul>
+            </Show>
+          </li>
+        );
+      }}
+    </For>
+  );
+
+  return (
+    <ul class={`${styles.tree}${props.class ? ` ${props.class}` : ""}`} role="tree" aria-label={props.ariaLabel}>
+      {renderBranch(props.model.roots, 0)}
+    </ul>
+  );
+}
+
+function isDescendant(model: TreeModel, ancestorId: TreeNodeId, candidateId: TreeNodeId): boolean {
+  const pending = [...(model.nodes.get(ancestorId)?.children ?? [])];
+  while (pending.length) {
+    const id = pending.pop();
+    if (id === candidateId) return true;
+    if (id) pending.push(...(model.nodes.get(id)?.children ?? []));
+  }
+  return false;
+}

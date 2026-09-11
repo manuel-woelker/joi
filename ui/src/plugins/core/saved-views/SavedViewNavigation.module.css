@@ -6,18 +6,11 @@
 .favorites h3 { margin: 0 0 8px; color: var(--color-text-muted); font-size: 11px; text-transform: uppercase; }
 .favoriteLink { display: flex; width: 100%; align-items: center; gap: 7px; padding: 6px 5px; border: 0; border-radius: 4px; color: var(--color-ink-soft); background: transparent; font-size: 13px; text-align: left; }
 .favoriteLink svg { color: var(--color-secondary); }
-.tree, .tree ul { margin: 0; padding: 8px 0 0; list-style: none; }
-.tree ul { padding-top: 0; }
-.treeRow { position: relative; display: flex; min-height: 32px; align-items: center; border-radius: 4px; }
-.treeRow:hover, .treeRow.treeRowSelected { background: var(--color-surface-hover); }
-.treeRow.treeRowSelected { color: var(--color-primary-dark); font-weight: 650; }
-.treeLabel { display: flex; min-width: 0; flex: 1; align-items: center; gap: 6px; padding: 7px 2px; border: 0; background: transparent; font-size: 13px; text-align: left; }
-.treeLabel span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.treeSpacer { width: 14px; }
-.treeRow > button:last-of-type { width: 28px; height: 28px; opacity: 0; }
-.treeRow:hover > button:last-of-type, .treeRow:focus-within > button:last-of-type { opacity: 1; }
-.iconGlyph { display: inline-grid; min-width: 16px; place-items: center; font-size: 17px; line-height: 1; }
+.savedViewTree { padding-top: 8px; }
+.savedViewTree button[aria-label^="Commands for"] { width: 28px; height: 28px; margin-left: auto; opacity: 0; }
+.savedViewTree li:hover > div > div > button[aria-label^="Commands for"],
+.savedViewTree li:focus-within > div > div > button[aria-label^="Commands for"] { opacity: 1; }
 .entityIcon { flex: none; color: var(--color-text-muted); }
 @media (max-width: 760px) {
-  .treeRow > button:last-of-type { opacity: 1; }
+  .savedViewTree button[aria-label^="Commands for"] { opacity: 1; }
 }

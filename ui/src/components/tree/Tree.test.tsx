@@ -1,0 +1,157 @@
+// @vitest-environment happy-dom
+
+import { cleanup, fireEvent, render, screen } from "@solidjs/testing-library";
+import userEvent from "@testing-library/user-event";
+import { createSignal } from "solid-js";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { Tree } from "./Tree";
+import { createTreeRendererRegistry } from "./tree-definition";
+import { folderTreeNodeKind, type TreeModel, treeNodeId, treeNodeKind } from "./tree-model";
+
+const documentKind = treeNodeKind("document");
+const folderId = treeNodeId("folder");
+const documentId = treeNodeId("document");
+
+function model(): TreeModel {
+  return {
+    roots: [folderId],
+    nodes: new Map([
+      [folderId, { id: folderId, kind: folderTreeNodeKind, data: { label: "Guides" }, children: [documentId] }],
+      [documentId, { id: documentId, kind: documentKind, data: { label: "Getting started" } }],
+    ]),
+  };
+}
+
+function label(node: { data: Readonly<Record<string, unknown>> }): string {
+  return String(node.data.label);
+}
+
+afterEach(cleanup);
+
+describe("Tree", () => {
+  it("dispatches renderers and opens and closes folders", async () => {
+    const renderers = createTreeRendererRegistry(label)
+      .register(documentKind, (node) => <span>Document: {label(node)}</span>)
+      .build();
+    render(() => <Tree ariaLabel="Documentation" model={model()} definition={{ renderers }} />);
+
+    expect(screen.getAllByRole("treeitem")).toHaveLength(1);
+    await userEvent.click(screen.getByRole("button", { name: "Open folder" }));
+    expect(screen.getByText("Document: Getting started")).toBeTruthy();
+    expect(screen.getAllByRole("treeitem")).toHaveLength(2);
+    await userEvent.click(screen.getByRole("button", { name: "Close folder" }));
+    expect(screen.queryByText("Document: Getting started")).toBeNull();
+  });
+
+  it("supports controlled expansion without mutating caller state", async () => {
+    const renderers = createTreeRendererRegistry(label)
+      .register(documentKind, () => <span>Document</span>)
+      .build();
+    const changes = vi.fn();
+    const initial = new Set([folderId]);
+    render(() => (
+      <Tree
+        ariaLabel="Controlled"
+        model={model()}
+        definition={{ renderers }}
+        expanded={initial}
+        onExpandedChange={changes}
+      />
+    ));
+
+    await userEvent.click(screen.getByRole("button", { name: "Close folder" }));
+    expect(changes).toHaveBeenCalledOnce();
+    expect(changes.mock.calls[0][0].has(folderId)).toBe(false);
+    expect(initial.has(folderId)).toBe(true);
+    expect(screen.getByText("Document")).toBeTruthy();
+  });
+
+  it("navigates visible rows and activates leaf nodes", async () => {
+    const onActivate = vi.fn();
+    const renderers = createTreeRendererRegistry(label)
+      .register(documentKind, (node) => <span>{label(node)}</span>)
+      .build();
+    render(() => (
+      <Tree
+        ariaLabel="Keyboard tree"
+        model={model()}
+        definition={{ renderers, onActivate }}
+        defaultExpanded={new Set([folderId])}
+      />
+    ));
+
+    const [folder, document] = screen.getAllByRole("treeitem");
+    folder.focus();
+    await userEvent.keyboard("{ArrowDown}{Enter}");
+    expect(globalThis.document.activeElement).toBe(document);
+    expect(onActivate).toHaveBeenCalledWith(expect.objectContaining({ id: documentId }));
+
+    await userEvent.keyboard("{ArrowLeft}");
+    expect(globalThis.document.activeElement).toBe(folder);
+  });
+
+  it("moves focus to a folder when its focused descendant is collapsed", async () => {
+    const renderers = createTreeRendererRegistry(label)
+      .register(documentKind, (node) => <span>{label(node)}</span>)
+      .build();
+    render(() => (
+      <Tree ariaLabel="Focus tree" model={model()} definition={{ renderers }} defaultExpanded={new Set([folderId])} />
+    ));
+
+    const [folder, document] = screen.getAllByRole("treeitem");
+    document.focus();
+    await userEvent.keyboard("{ArrowLeft}");
+    expect(globalThis.document.activeElement).toBe(folder);
+    await userEvent.keyboard("{ArrowLeft}");
+    expect(screen.getAllByRole("treeitem")).toHaveLength(1);
+    expect(globalThis.document.activeElement).toBe(folder);
+  });
+
+  it("delegates selection and context menus", () => {
+    const onContextMenu = vi.fn();
+    const renderers = createTreeRendererRegistry(label)
+      .register(documentKind, (node) => <span>{label(node)}</span>)
+      .build();
+    render(() => (
+      <Tree
+        ariaLabel="Selected tree"
+        model={model()}
+        definition={{ renderers, isSelected: (node) => node.id === folderId, onContextMenu }}
+      />
+    ));
+
+    const folder = screen.getByRole("treeitem");
+    expect(folder.getAttribute("aria-selected")).toBe("true");
+    fireEvent.contextMenu(folder.firstElementChild as HTMLElement);
+    expect(onContextMenu).toHaveBeenCalledWith(expect.any(MouseEvent), expect.objectContaining({ id: folderId }));
+  });
+
+  it("reacts to controlled expansion updates", async () => {
+    const renderers = createTreeRendererRegistry(label)
+      .register(documentKind, () => <span>Document</span>)
+      .build();
+    function Scenario() {
+      const [expanded, setExpanded] = createSignal<ReadonlySet<typeof folderId>>(new Set());
+      return (
+        <Tree
+          ariaLabel="Reactive tree"
+          model={model()}
+          definition={{ renderers }}
+          expanded={expanded()}
+          onExpandedChange={setExpanded}
+        />
+      );
+    }
+    render(() => <Scenario />);
+    await userEvent.click(screen.getByRole("button", { name: "Open folder" }));
+    expect(screen.getByText("Document")).toBeTruthy();
+  });
+
+  it("reports missing renderers with the kind", () => {
+    const renderers = createTreeRendererRegistry(label).build();
+    expect(() => render(() => <Tree ariaLabel="Invalid" model={model()} definition={{ renderers }} />)).toThrow(
+      /document.*not registered/,
+    );
+  });
+});

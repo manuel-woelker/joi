@@ -214,6 +214,42 @@ From the repository root, `nao ui` starts the same development server at
 `http://localhost:5173`.
 ## How do UI components work?
 
+### How are logical trees rendered?
+
+`Tree` keeps hierarchy separate from presentation. A `TreeModel` stores nodes
+in a `ReadonlyMap<TreeNodeId, TreeNode>` and represents roots and folder
+children as ID lists. A `TreeDefinition` registers one renderer for each node
+kind and delegates selection, activation, and context-menu behavior back to the
+owning feature.
+
+The normalized model makes node lookup direct, keeps focus and expansion tied
+to stable IDs, and lets callers move nodes by changing small ID lists instead
+of rebuilding nested objects. It also allows validation to report missing
+references, duplicate placement, cycles, and unreachable nodes before
+rendering. The saved-view navigation adapts its existing normalized workspace
+directly into this shape.
+
+Register the built-in folder renderer and application kinds separately:
+
+```tsx
+const reportKind = treeNodeKind("report");
+const renderers = createTreeRendererRegistry((node) => String(node.data.label))
+  .register(reportKind, (node) => <span>{String(node.data.label)}</span>)
+  .build();
+
+<Tree
+  ariaLabel="Reports"
+  model={model}
+  definition={{ renderers, onActivate: openReport }}
+  defaultExpanded={new Set([reportsFolderId])}
+/>
+```
+
+Use `expanded` with `onExpandedChange` when expansion must be persisted, or
+`defaultExpanded` for local component-owned state. The component owns folder
+disclosure, visible-row derivation, ARIA semantics, and Arrow/Home/End/Enter/
+Space keyboard interaction. Renderers should provide row content only.
+
 ### How are context menus opened?
 
 Mount one `ContextMenuProvider` around the application surface and call the
