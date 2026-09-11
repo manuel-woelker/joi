@@ -1,10 +1,12 @@
 import type { InitialService, ResolvedServices, ServiceDefinitions } from "./service-registry";
 
+/** Source location captured for a plugin registration by the Vite transform. */
 export interface RegistrationLocation {
   readonly file: string;
   readonly line: number;
 }
 
+/** A typed slot to which plugins can contribute values. */
 export interface ExtensionPoint<T> {
   readonly id: string;
   readonly description: string;
@@ -13,11 +15,13 @@ export interface ExtensionPoint<T> {
   readonly location?: RegistrationLocation;
   readonly __type?: T;
 }
+/** Diagnostic metadata shared by extension points and extensions. */
 export interface ExtensionInfo {
   readonly id: string;
   readonly description: string;
   readonly location?: RegistrationLocation;
 }
+/** Diagnostic metadata for a registered plugin and its contributions. */
 export interface PluginInfo {
   readonly name: string;
   readonly description: string;
@@ -25,14 +29,17 @@ export interface PluginInfo {
   readonly extensionPoints: readonly string[];
   readonly extensions: readonly string[];
 }
+/** Diagnostic metadata for an extension point and its extension IDs. */
 export interface ExtensionPointInfo extends ExtensionInfo {
   readonly extensions: readonly string[];
 }
+/** Immutable diagnostic snapshot of a completed plugin registry. */
 export interface PluginRegistryMetadata {
   readonly plugins: readonly PluginInfo[];
   readonly extensionPoints: readonly ExtensionPointInfo[];
   readonly extensions: readonly ExtensionInfo[];
 }
+/** Read-only operations available from a completed plugin registry. */
 export interface PluginRegistryAccess {
   extensions<T>(point: ExtensionPoint<T>): readonly T[];
   metadata(): PluginRegistryMetadata;
@@ -45,12 +52,14 @@ interface RegisteredExtension<T = unknown> extends ExtensionInfo {
 }
 type RegisteredExtensions = Map<symbol, RegisteredExtension[]>;
 
+/** Registration API available during the extension-point phase. */
 export class ExtensionPointContext<S extends AnyServices = AnyServices> {
   constructor(
     private readonly points: ExtensionPoints,
     private readonly pointIds: Set<string>,
     readonly services: S,
   ) {}
+  /** Registers one globally unique extension point. */
   registerExtensionPoint<T>({ point, location }: { point: ExtensionPoint<T>; location?: RegistrationLocation }): void {
     if (this.points.has(point.key) || this.pointIds.has(point.id))
       throw new Error(`Extension point '${point.id}' is already registered`);
@@ -59,6 +68,7 @@ export class ExtensionPointContext<S extends AnyServices = AnyServices> {
   }
 }
 
+/** Registration API available after every extension point has been declared. */
 export class ExtensionContext<S extends AnyServices = AnyServices> {
   constructor(
     private readonly points: ExtensionPoints,
@@ -66,6 +76,7 @@ export class ExtensionContext<S extends AnyServices = AnyServices> {
     private readonly extensions: RegisteredExtensions,
     readonly services: S,
   ) {}
+  /** Registers one globally unique extension against an existing point. */
   registerExtension<T>({
     point,
     id,
@@ -98,6 +109,7 @@ type PluginDefinition<R extends ServiceDefinitions, P extends ServiceDefinitions
   ? { initialize?(services: ResolvedServices<R>): ResolvedServices<P> }
   : { initialize(services: ResolvedServices<R>): ResolvedServices<P> });
 
+/** Runtime plugin shape consumed by {@link PluginRegistryBuilder}. */
 export interface UiPlugin {
   readonly name: string;
   readonly description: string;
@@ -109,6 +121,10 @@ export interface UiPlugin {
   registerExtensions?(context: ExtensionContext): void;
 }
 
+/**
+ * Defines a plugin while preserving the exact types of its required and
+ * provided services in initialization and registration callbacks.
+ */
 export function plugin<const R extends ServiceDefinitions = {}, const P extends ServiceDefinitions = {}>(
   definition: PluginDefinition<R, P>,
 ): UiPlugin {
@@ -126,6 +142,7 @@ export function plugin<const R extends ServiceDefinitions = {}, const P extends 
   };
 }
 
+/** Creates a typed extension point with an optional final-set validator. */
 export function extensionPoint<T>(
   id: string,
   description: string,
@@ -134,11 +151,19 @@ export function extensionPoint<T>(
   return { id, description, key: Symbol(id), validate };
 }
 
+/**
+ * Builds an immutable registry from plugins and initial services.
+ *
+ * Services are initialized in dependency order. Extension points are then
+ * registered for every plugin before any extensions are registered. A failed
+ * plugin registration is staged and does not partially update the registry.
+ */
 export class PluginRegistryBuilder {
   private readonly pluginNames = new Set<string>();
   private readonly plugins: UiPlugin[] = [];
   constructor(private readonly initialServices: readonly InitialService<unknown>[] = []) {}
 
+  /** Adds a plugin, rejecting duplicate plugin names. */
   register(candidate: UiPlugin): this {
     if (this.pluginNames.has(candidate.name)) throw new Error(`Plugin '${candidate.name}' is already registered`);
     this.pluginNames.add(candidate.name);
@@ -146,6 +171,7 @@ export class PluginRegistryBuilder {
     return this;
   }
 
+  /** Resolves services, performs both registration phases, and freezes the result. */
   build(): PluginRegistry {
     const { orderedPlugins, serviceValues } = initializeServices(this.plugins, this.initialServices);
     const points: ExtensionPoints = new Map();
@@ -246,6 +272,7 @@ function resolve(definitions: ServiceDefinitions, values: Map<symbol, unknown>):
   return Object.fromEntries(Object.entries(definitions).map(([alias, key]) => [alias, values.get(key.token)]));
 }
 
+/** Immutable collection of extension values and registration metadata. */
 export class PluginRegistry implements PluginRegistryAccess {
   private readonly extensionsByPoint: ReadonlyMap<symbol, readonly RegisteredExtension[]>;
   private readonly registryMetadata: PluginRegistryMetadata;
@@ -278,9 +305,11 @@ export class PluginRegistry implements PluginRegistryAccess {
       ),
     });
   }
+  /** Returns contributed values for an extension point in registration order. */
   extensions<T>(point: ExtensionPoint<T>): readonly T[] {
     return (this.extensionsByPoint.get(point.key) ?? []).map((extension) => extension.value as T);
   }
+  /** Returns the immutable metadata snapshot created during registry construction. */
   metadata(): PluginRegistryMetadata {
     return this.registryMetadata;
   }

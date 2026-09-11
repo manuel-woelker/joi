@@ -10,12 +10,19 @@ interface PluginModule {
 
 const pluginModules = import.meta.glob<PluginModule>("../plugins/**/*.plugin.ts{,x}", { eager: true });
 
+/** Returns all statically discovered UI plugins in deterministic name order. */
 export function discoveredApplicationPlugins(): readonly UiPlugin[] {
   return Object.entries(pluginModules)
     .map(([path, module]) => validatePlugin(path, module.default))
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 
+/**
+ * Builds the application registry and its shared runtime services.
+ *
+ * Passing plugins explicitly bypasses discovery, which is useful for tests and
+ * alternate application compositions.
+ */
 export function createApplication(options: { plugins?: readonly UiPlugin[] } = {}) {
   const initializationStarted = performance.now();
   const plugins = options.plugins ?? discoveredApplicationPlugins();
@@ -36,6 +43,7 @@ export function createApplication(options: { plugins?: readonly UiPlugin[] } = {
   return { registry, services: { dataChanges, recordMutations } };
 }
 
+/** Builds and returns the registry for the statically discovered application. */
 export function createApplicationPluginRegistry() {
   return createApplication().registry;
 }

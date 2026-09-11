@@ -1,7 +1,9 @@
 import { createContext, createMemo, createSignal, onCleanup, useContext, type ParentProps } from "solid-js";
 
+/** Route owner to which a record or creation route belongs. */
 export type NavigationOwner = { type: "view" | "administration"; id: string };
 
+/** Parsed, URL-backed selection represented by the application hash. */
 export type NavigationSelection =
   | { type: "none" }
   | { type: "unknown"; hash: string }
@@ -9,6 +11,7 @@ export type NavigationSelection =
   | { type: "record"; owner: NavigationOwner; recordId: string }
   | { type: "create"; owner: NavigationOwner };
 
+/** Reads and changes the current application route. */
 export interface NavigationController {
   selection: () => NavigationSelection;
   selectedViewId: () => string | undefined;
@@ -63,6 +66,10 @@ function selectionFromHash(): NavigationSelection {
     : { type: "unknown", hash: window.location.hash };
 }
 
+/**
+ * Creates a reactive hash navigation controller for the current window.
+ * The controller removes its hash listener with its owning Solid root.
+ */
 export function createNavigationController(): NavigationController {
   const [selection, setSelection] = createSignal(selectionFromHash());
   const selectedViewId = createMemo(() => {
@@ -135,10 +142,12 @@ export function createNavigationController(): NavigationController {
   };
 }
 
+/** Makes a navigation controller available to descendant components. */
 export function NavigationProvider(props: ParentProps<{ controller: NavigationController }>) {
   return <NavigationContext.Provider value={props.controller}>{props.children}</NavigationContext.Provider>;
 }
 
+/** Returns the current navigation controller or throws outside its provider. */
 export function useNavigation(): NavigationController {
   const navigation = useContext(NavigationContext);
   if (!navigation) throw new Error("NavigationProvider is missing");
