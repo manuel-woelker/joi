@@ -8,45 +8,43 @@ import { contextMenuEntryId, contextMenuGroupId } from "../context-menu/context-
 import { ContextMenuProvider, useContextMenu } from "../context-menu/ContextMenuProvider";
 import { Tree } from "./Tree";
 import { createTreeRendererRegistry } from "./tree-definition";
-import { folderTreeNodeKind, type TreeModel, type TreeNode, treeNodeId, treeNodeKind } from "./tree-model";
+import {
+  defineTreeFolder,
+  defineTreeModel,
+  defineTreeNode,
+  folderTreeNodeKind,
+  type TreeNode,
+  treeNodeId,
+  treeNodeKind,
+} from "./tree-model";
 
 const documentKind = treeNodeKind("document");
 const linkKind = treeNodeKind("link");
 const guidesId = treeNodeId("guides");
 const advancedId = treeNodeId("advanced");
 
-const model: TreeModel = {
-  roots: [guidesId, treeNodeId("website")],
-  nodes: new Map([
-    [
-      guidesId,
-      {
-        id: guidesId,
-        kind: folderTreeNodeKind,
-        data: { label: "Guides and reference material with a deliberately long name" },
-        children: [treeNodeId("getting-started"), advancedId],
-      },
-    ],
-    [
-      treeNodeId("getting-started"),
-      { id: treeNodeId("getting-started"), kind: documentKind, data: { label: "Getting started", status: "New" } },
-    ],
-    [
-      advancedId,
-      {
-        id: advancedId,
-        kind: folderTreeNodeKind,
-        data: { label: "Advanced" },
-        children: [treeNodeId("renderer-api")],
-      },
-    ],
-    [
-      treeNodeId("renderer-api"),
-      { id: treeNodeId("renderer-api"), kind: documentKind, data: { label: "Renderer API", status: "Draft" } },
-    ],
-    [treeNodeId("website"), { id: treeNodeId("website"), kind: linkKind, data: { label: "Project website" } }],
-  ]),
-};
+const model = defineTreeModel({
+  roots: [guidesId, "website"],
+  nodes: [
+    defineTreeFolder({
+      id: guidesId,
+      data: { label: "Guides and reference material with a deliberately long name" },
+      children: ["getting-started", advancedId],
+    }),
+    defineTreeNode({
+      id: "getting-started",
+      kind: documentKind,
+      data: { label: "Getting started", status: "New" },
+    }),
+    defineTreeFolder({ id: advancedId, data: { label: "Advanced" }, children: ["renderer-api"] }),
+    defineTreeNode({
+      id: "renderer-api",
+      kind: documentKind,
+      data: { label: "Renderer API", status: "Draft" },
+    }),
+    defineTreeNode({ id: "website", kind: linkKind, data: { label: "Project website" } }),
+  ],
+});
 
 const label = (node: TreeNode) => String(node.data.label ?? node.id);
 const renderers = createTreeRendererRegistry(label)

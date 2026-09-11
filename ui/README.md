@@ -233,6 +233,17 @@ Register the built-in folder renderer and application kinds separately:
 
 ```tsx
 const reportKind = treeNodeKind("report");
+const model = defineTreeModel({
+  roots: ["reports"],
+  nodes: [
+    defineTreeFolder({ id: "reports", children: ["weekly"] }),
+    defineTreeNode({
+      id: "weekly",
+      kind: reportKind,
+      data: { label: "Weekly report" },
+    }),
+  ],
+});
 const renderers = createTreeRendererRegistry((node) => String(node.data.label))
   .register(reportKind, (node) => <span>{String(node.data.label)}</span>)
   .build();

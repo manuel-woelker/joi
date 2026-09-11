@@ -9,6 +9,9 @@ import { IconButton } from "../../../components/IconButton";
 import { Tree } from "../../../components/tree/Tree";
 import { createTreeRendererRegistry, type TreeDefinition } from "../../../components/tree/tree-definition";
 import {
+  defineTreeFolder,
+  defineTreeModel,
+  defineTreeNode,
   folderTreeNodeKind,
   type TreeModel,
   type TreeNode,
@@ -26,17 +29,16 @@ export function SavedViewNavigation() {
   const controller = useWorkspace();
   const contextMenu = useContextMenu();
   const entities = useEntityRegistry();
-  const model = createMemo<TreeModel>(() => ({
-    roots: controller.workspace.rootItems.map(treeNodeId),
-    nodes: new Map(
-      Object.values(controller.workspace.navigation).map((item) => [
-        treeNodeId(item.id),
+  const model = createMemo<TreeModel>(() =>
+    defineTreeModel({
+      roots: controller.workspace.rootItems,
+      nodes: Object.values(controller.workspace.navigation).map((item) =>
         item.type === "folder"
-          ? { id: treeNodeId(item.id), kind: folderTreeNodeKind, data: {}, children: item.children.map(treeNodeId) }
-          : { id: treeNodeId(item.id), kind: savedViewNodeKind, data: {} },
-      ]),
-    ),
-  }));
+          ? defineTreeFolder({ id: item.id, children: item.children })
+          : defineTreeNode({ id: item.id, kind: savedViewNodeKind }),
+      ),
+    }),
+  );
   const navigationItem = (node: TreeNode) => controller.workspace.navigation[node.id as NavigationId];
   const viewFor = (node: TreeNode) => {
     const item = navigationItem(node);

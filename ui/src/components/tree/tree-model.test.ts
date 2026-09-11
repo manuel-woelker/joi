@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { folderTreeNodeKind, type TreeModel, treeNodeId, treeNodeKind, validateTreeModel } from "./tree-model";
+import {
+  defineTreeFolder,
+  defineTreeModel,
+  defineTreeNode,
+  folderTreeNodeKind,
+  type TreeModel,
+  treeNodeId,
+  treeNodeKind,
+  validateTreeModel,
+} from "./tree-model";
 import { visibleTreeNodes } from "./visible-tree";
 
 const itemKind = treeNodeKind("item");
@@ -18,6 +27,29 @@ function validModel(): TreeModel {
 }
 
 describe("tree model", () => {
+  it("builds a normalized model from concise node definitions", () => {
+    const model = defineTreeModel({
+      roots: ["root"],
+      nodes: [
+        defineTreeFolder({ id: "root", children: ["child"], data: { label: "Root" } }),
+        defineTreeNode({ id: "child", kind: itemKind }),
+      ],
+    });
+
+    expect(model.roots).toEqual([root]);
+    expect(model.nodes.get(root)).toMatchObject({ kind: folderTreeNodeKind, children: [child] });
+    expect(model.nodes.get(child)?.data).toEqual({});
+  });
+
+  it("rejects duplicate node definitions while building a model", () => {
+    const node = defineTreeNode({ id: "child", kind: itemKind });
+    expect(() => defineTreeModel({ roots: ["child"], nodes: [node, node] })).toThrow(/defined more than once/);
+  });
+
+  it("requires the dedicated folder helper for the built-in kind", () => {
+    expect(() => defineTreeNode({ id: "folder", kind: folderTreeNodeKind })).toThrow(/defineTreeFolder/);
+  });
+
   it("validates a normalized tree and flattens only expanded branches", () => {
     const model = validModel();
     expect(() => validateTreeModel(model)).not.toThrow();

@@ -36,6 +36,60 @@ export interface TreeModel {
   readonly nodes: ReadonlyMap<TreeNodeId, TreeNode>;
 }
 
+export interface DefineTreeNodeOptions {
+  readonly id: string;
+  readonly kind: TreeNodeKind;
+  readonly data?: Readonly<Record<string, unknown>>;
+}
+
+export interface DefineTreeFolderOptions {
+  readonly id: string;
+  readonly children?: readonly string[];
+  readonly data?: Readonly<Record<string, unknown>>;
+}
+
+export interface DefineTreeModelOptions {
+  readonly roots: readonly string[];
+  readonly nodes: readonly TreeNode[];
+}
+
+/** Defines a non-folder node while applying ID branding and data defaults. */
+export function defineTreeNode(options: DefineTreeNodeOptions): TreeNode {
+  if (options.kind === folderTreeNodeKind) {
+    throw new Error("Use defineTreeFolder to define folder nodes");
+  }
+  return {
+    id: treeNodeId(options.id),
+    kind: options.kind,
+    data: options.data ?? {},
+  };
+}
+
+/** Defines a built-in folder node with branded child references. */
+export function defineTreeFolder(options: DefineTreeFolderOptions): TreeNode {
+  return {
+    id: treeNodeId(options.id),
+    kind: folderTreeNodeKind,
+    data: options.data ?? {},
+    children: (options.children ?? []).map(treeNodeId),
+  };
+}
+
+/** Builds and validates a normalized tree model from an ordered node list. */
+export function defineTreeModel(options: DefineTreeModelOptions): TreeModel {
+  const nodes = new Map<TreeNodeId, TreeNode>();
+  for (const node of options.nodes) {
+    if (nodes.has(node.id)) throw new Error(`Tree node "${node.id}" is defined more than once`);
+    nodes.set(node.id, node);
+  }
+  const model: TreeModel = {
+    roots: options.roots.map(treeNodeId),
+    nodes,
+  };
+  validateTreeModel(model);
+  return model;
+}
+
 /** Validates ownership and references in a normalized tree model. */
 export function validateTreeModel(model: TreeModel): void {
   const rootPlacement = Symbol("root-placement");
