@@ -58,4 +58,16 @@ describe("LookupService", () => {
     await expect(service.entries(lookupId("people"))).resolves.toEqual([]);
     expect(load).toHaveBeenCalledTimes(2);
   });
+
+  it("reloads entries after explicit invalidation", async () => {
+    const load = vi
+      .fn<() => Promise<readonly LookupEntry[]>>()
+      .mockResolvedValueOnce([{ id: lookupEntryId("first"), label: "First" }])
+      .mockResolvedValueOnce([{ id: lookupEntryId("second"), label: "Second" }]);
+    const service = new LookupService(registryWithLookup(load));
+
+    await expect(service.entries(lookupId("people"))).resolves.toMatchObject([{ label: "First" }]);
+    service.invalidate(lookupId("people"));
+    await expect(service.entries(lookupId("people"))).resolves.toMatchObject([{ label: "Second" }]);
+  });
 });

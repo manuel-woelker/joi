@@ -6,9 +6,10 @@ items rather than user-support requests.
 
 ## What does the application own?
 
-The application is intentionally thin. It defines the ticket table, provides
-representative ticket data, registers those contributions as a plugin, and
-supplies `joi-server` with application metadata and runtime configuration.
+The application is intentionally thin. It defines the project and ticket
+tables, provides representative data, registers those contributions as a
+plugin, and supplies `joi-server` with application metadata and runtime
+configuration.
 
 The reusable [`joi-server`](../../libs-rust/joi-server/README.md) crate owns
 application startup, HTTP and CLI command execution, generated command
@@ -16,9 +17,17 @@ contracts, SQLite persistence, users, login sessions, and built-in commands.
 This keeps transport and infrastructure behavior independent of the ticket
 domain.
 
+Projects contain an immutable KSUID `id`, name, description, and uppercase key
+prefix. The default development projects are `Test` (`TEST`) and `Demo`
+(`DEMO`).
+
 The ticket table contains an immutable KSUID `id`, a human-readable
-`<PROJECT>-<INTEGER>` key, title, description, status, and an optional assignee
-referencing a server-managed user. Development fixtures use the `TEST` project.
+`<PROJECT>-<INTEGER>` key, a `project_id` referencing its project, title,
+description, status, and an optional assignee referencing a server-managed
+user. Fixture keys use the prefix of their associated default project. The
+physical `project_id` column is nullable so existing development databases can
+receive it through additive schema upgrades; fixture initialization associates
+legacy unassigned rows by key prefix.
 
 ## How do I run it?
 

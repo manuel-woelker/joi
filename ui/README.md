@@ -79,6 +79,14 @@ currently entered explicitly. Automatic `<PROJECT>-<INTEGER>` allocation must
 be implemented transactionally by the backend rather than inferred from a
 client query.
 
+The ticket domain contributes Projects to the Administration section. Projects
+can be created and edited through the shared entity administration view and
+provide names and prefixes through the project lookup. Ticket forms require a
+project, and ticket tables display its lookup label instead of the stored
+project KSUID. Prefix uniqueness and automatic ticket-key allocation are not
+yet enforced by the generic mutation command; key allocation belongs in a
+transactional domain command when it is introduced.
+
 The initial editor intentionally supports only string and integer fields. It
 does not yet provide optimistic updates, conflict detection, custom controls,
 or a normalized entity cache.

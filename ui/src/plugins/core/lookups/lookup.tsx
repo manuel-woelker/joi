@@ -70,6 +70,12 @@ export class LookupService {
     return load;
   }
 
+  /** Removes cached entries so the next lookup observes current source data. */
+  invalidate(id: LookupId): void {
+    if (!this.definitions.has(id)) throw new Error(`Lookup '${id}' is not registered`);
+    this.loads.delete(id);
+  }
+
   async label(id: LookupId, value: LookupEntryId): Promise<string> {
     return (await this.entries(id)).find((entry) => entry.id === value)?.label ?? value;
   }

@@ -36,6 +36,7 @@ export function createTicketDefaultWorkspace(): WorkspaceDocument {
         density: "compact",
         fields: [
           { field: "key", width: 100 },
+          { field: "project_id", width: 180 },
           { field: "title", label: "Issue" },
           { field: "status", width: 120 },
           { field: "assignee", width: 160 },

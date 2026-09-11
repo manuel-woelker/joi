@@ -26,6 +26,15 @@ export const ticketEntity = defineEntity({
       },
     },
     {
+      id: "project_id",
+      label: "Project",
+      valueType: "string",
+      lookup: lookupId("projects"),
+      table: { visibleByDefault: true, width: 180 },
+      edit: { control: "lookup", required: true },
+      create: { control: "lookup", required: true },
+    },
+    {
       id: "title",
       label: "Title",
       valueType: "string",
