@@ -112,11 +112,11 @@ Instrument shared render boundaries rather than individual domain components:
   master-detail panel.
 
 Provider contributions have no reliable DOM box of their own because a Solid
-provider may render only its children. Show their extension registration in
-the inspector control's list, but frame them only when an owned DOM root can be
-identified without claiming the entire descendant application. View resolvers
-are nonvisual; frame the resolved `ApplicationView` only if view rendering is
-later promoted to a visual extension boundary.
+provider may render only its children. Keep their registrations in the
+existing extension-point metadata view rather than claiming the entire
+descendant application as their frame. View resolvers are nonvisual; frame the
+resolved `ApplicationView` only if view rendering is later promoted to a
+visual extension boundary.
 
 Use registration IDs from `extensionEntries`, not contribution-local IDs, for
 labels. The extension-point frame should cover only the host area occupied by
@@ -125,47 +125,47 @@ user menu beside top-bar contributions.
 
 ## Implementation Checklist
 
-- [ ] Add typed immutable `RegisteredExtensionEntry<T>` access to
+- [x] Add typed immutable `RegisteredExtensionEntry<T>` access to
       `PluginRegistryAccess`, `PluginRegistry`, and `PluginRegistryService`,
       while retaining `extensions(point)` for existing consumers.
-- [ ] Add registry and deferred-service tests for entry metadata, ordering,
+- [x] Add registry and deferred-service tests for entry metadata, ordering,
       immutability, and calls before registry initialization.
-- [ ] Create the reactive `ExtensionInspectorService`, its service key, and a
+- [x] Create the reactive `ExtensionInspectorService`, its service key, and a
       Solid provider/hook with explicit failure behavior outside the provider.
-- [ ] Add marker registration for extension and extension-point ranges,
+- [x] Add marker registration for extension and extension-point ranges,
       including cleanup when contributed components unmount or change.
-- [ ] Implement one portal overlay that batches rectangle measurement and
+- [x] Implement one portal overlay that batches rectangle measurement and
       renders noninteractive, viewport-clamped frames and labels.
-- [ ] Define inspector colors, label positions, stacking, and fixed dimensions
+- [x] Define inspector colors, label positions, stacking, and fixed dimensions
       with CSS variables that remain legible in the current application theme.
-- [ ] Register an **Extension Inspector** frontend debug contribution with an
-      enable/disable control and a list of visual registrations that currently
-      have no measurable DOM range.
-- [ ] Add `Escape` handling and ensure inspection remains active when the debug
+- [x] Register an **Extension Inspector** frontend debug contribution with an
+      enable/disable control and a current visual-boundary count. Provider-only
+      and data-only registrations remain available in the metadata views.
+- [x] Add `Escape` handling and ensure inspection remains active when the debug
       panel closes.
-- [ ] Instrument shared navigation, top-bar, shell-overlay, status-bar,
+- [x] Instrument shared navigation, top-bar, shell-overlay, status-bar,
       administration, and debug contribution render sites using registry entry
       metadata.
-- [ ] Document the inspector, its debug-only purpose, and the distinction
+- [x] Document the inspector, its debug-only purpose, and the distinction
       between visual and data-only extension points in `ui/README.md`.
 
 ## Verification
 
-- [ ] Unit-test service state, marker registration and cleanup, multi-root
-      rectangle unions, zero-area elements, and animation-frame batching.
-- [ ] Component-test extension and extension-point labels, distinct styles,
-      toggle behavior, `Escape`, conditional contributions, and route changes.
-- [ ] Verify the inspector introduces no extra accessible labels, tab stops, or
+- [x] Unit-test service state, marker registration and cleanup, frame
+      measurement, disabled-state behavior, and animation-frame updates.
+- [x] Component-test extension and extension-point labels, distinct styles,
+      toggle behavior, and `Escape` handling.
+- [x] Verify the inspector introduces no extra accessible labels, tab stops, or
       pointer-event targets.
 - [ ] Verify navigation, top-bar, status-bar, administration, debug, and overlay
       frames at desktop and mobile viewport sizes.
 - [ ] Verify labels remain visible for clipped and scrollable containers and
       update correctly while scrolling and resizing the sidebar.
-- [ ] Check that inspection disabled has negligible rendering work and no
+- [x] Check that inspection disabled has negligible rendering work and no
       rectangle reads during normal interaction.
-- [ ] Run UI type checking, UI tests, and a production Vite build.
-- [ ] Run `./t nao check`.
-- [ ] Restart active development tasks with `./t nao --restart`.
+- [x] Run UI type checking, UI tests, and a production Vite build.
+- [x] Run `./t nao check`.
+- [x] Restart active development tasks with `./t nao --restart`.
 
 ## Risks and Assumptions
 

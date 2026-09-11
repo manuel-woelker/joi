@@ -158,6 +158,14 @@ registry directly. Debug contributions declare an `info`, `frontend`, or
 `backend` group and appear in that group order, alphabetically within each
 group.
 
+The frontend **Extension Inspector** debug contribution visualizes rendered
+plugin composition. Enabling it draws orange frames with registration IDs
+around visual extensions and green frames around their extension-point host
+areas. The frames live in a pointer-transparent portal, so they do not change
+layout or intercept interaction; press Escape to disable them. Data-only
+extensions such as actions, entity descriptions, and view resolvers remain in
+the metadata views because they have no meaningful DOM boundary.
+
 ## How do I add a component demo?
 
 The component playground is available at

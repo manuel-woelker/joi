@@ -1,0 +1,52 @@
+.anchor {
+  display: contents;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  pointer-events: none;
+  overflow: hidden;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 10px;
+  line-height: 16px;
+}
+
+.frame {
+  position: fixed;
+  box-sizing: border-box;
+  border: 1px solid;
+}
+
+.extension {
+  border-color: var(--color-primary-dark);
+  color: #ffffff;
+}
+
+.extensionPoint {
+  border-color: var(--color-secondary-dark);
+  color: #ffffff;
+}
+
+.label {
+  position: absolute;
+  display: block;
+  max-width: min(280px, 80vw);
+  padding: 0 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: var(--color-primary-dark);
+}
+
+.extension .label {
+  top: 0;
+  left: 0;
+}
+
+.extensionPoint .label {
+  right: 0;
+  bottom: 0;
+  background: var(--color-secondary-dark);
+}

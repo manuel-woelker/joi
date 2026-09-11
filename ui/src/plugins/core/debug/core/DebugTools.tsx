@@ -1,7 +1,9 @@
 import { For, Show, createSignal } from "solid-js";
 import { Dynamic } from "solid-js/web";
 
+import type { RegisteredExtensionEntry } from "../../../../base/plugin-registry";
 import type { PluginRegistryService } from "../../../../base/plugin-registry-service";
+import { InspectableExtension, InspectableExtensionPoint } from "../inspector/extension-inspector";
 import { debugContributions, type DebugContribution } from "./contribution";
 import styles from "./DebugTools.module.css";
 
@@ -11,12 +13,12 @@ export interface DebugToolsProps {
 
 export function DebugTools(props: DebugToolsProps) {
   const groupOrder = ["info", "frontend", "backend"] as const;
-  const contributions = [...props.registry.extensions(debugContributions)].sort((left, right) => {
-    const groupDifference = groupOrder.indexOf(left.group) - groupOrder.indexOf(right.group);
-    return groupDifference || left.name.localeCompare(right.name);
+  const contributions = [...props.registry.extensionEntries(debugContributions)].sort((left, right) => {
+    const groupDifference = groupOrder.indexOf(left.value.group) - groupOrder.indexOf(right.value.group);
+    return groupDifference || left.value.name.localeCompare(right.value.name);
   });
   const [open, setOpen] = createSignal(false);
-  const [active, setActive] = createSignal<DebugContribution>(contributions[0]);
+  const [active, setActive] = createSignal<RegisteredExtensionEntry<DebugContribution>>(contributions[0]);
 
   const toggle = () => {
     setOpen((current) => !current);
@@ -42,7 +44,7 @@ export function DebugTools(props: DebugToolsProps) {
                     aria-current={active()?.id === contribution.id ? "page" : undefined}
                     onClick={() => setActive(() => contribution)}
                   >
-                    {contribution.name}
+                    {contribution.value.name}
                   </button>
                 )}
               </For>
@@ -50,9 +52,13 @@ export function DebugTools(props: DebugToolsProps) {
             <Show when={active()}>
               {(contribution) => (
                 <section class={styles.debugDetail} aria-labelledby="debug-detail-heading">
-                  <h3 id="debug-detail-heading">{contribution().name}</h3>
+                  <h3 id="debug-detail-heading">{contribution().value.name}</h3>
                   <div class={styles.debugPanelContent}>
-                    <Dynamic component={contribution().content} />
+                    <InspectableExtensionPoint id={debugContributions.id}>
+                      <InspectableExtension id={contribution().id}>
+                        <Dynamic component={contribution().value.content} />
+                      </InspectableExtension>
+                    </InspectableExtensionPoint>
                   </div>
                 </section>
               )}

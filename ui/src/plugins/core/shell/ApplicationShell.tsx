@@ -16,6 +16,7 @@ import type { AuthenticatedUser } from "../authentication/authentication-service
 import { UserMenu } from "../authentication/UserMenu";
 import { LookupProvider } from "../lookups/lookup";
 import { EntityRegistryProvider } from "../entities/entity-registry";
+import { InspectableExtension, InspectableExtensionPoint } from "../debug/inspector/extension-inspector";
 import { StatusBar } from "../status-bar/StatusBar";
 import {
   applicationProviders,
@@ -44,10 +45,12 @@ export function resolveApplicationView(
 }
 
 function ProviderChain(props: { registry: PluginRegistry; children: JSX.Element }) {
-  const providers = ordered(props.registry.extensions(applicationProviders));
+  const providers = [...props.registry.extensionEntries(applicationProviders)].sort(
+    (left, right) => left.value.order - right.value.order,
+  );
   const render = (index: number): JSX.Element => {
     const provider = providers[index];
-    return provider ? <Dynamic component={provider.component}>{render(index + 1)}</Dynamic> : props.children;
+    return provider ? <Dynamic component={provider.value.component}>{render(index + 1)}</Dynamic> : props.children;
   };
   return render(0);
 }
@@ -56,9 +59,15 @@ function ShellContent(props: { registry: PluginRegistry; user: AuthenticatedUser
   const navigation = useNavigation();
   const [navigationOpen, setNavigationOpen] = createSignal(false);
   const [sidebarWidth, setSidebarWidth] = createSignal(Number(localStorage.getItem("joi.sidebar.width")) || 244);
-  const sections = ordered(props.registry.extensions(navigationSections));
-  const overlays = ordered(props.registry.extensions(shellOverlays));
-  const topBar = ordered(props.registry.extensions(topBarContributions));
+  const sections = [...props.registry.extensionEntries(navigationSections)].sort(
+    (left, right) => left.value.order - right.value.order,
+  );
+  const overlays = [...props.registry.extensionEntries(shellOverlays)].sort(
+    (left, right) => left.value.order - right.value.order,
+  );
+  const topBar = [...props.registry.extensionEntries(topBarContributions)].sort(
+    (left, right) => left.value.order - right.value.order,
+  );
   const selectedView = createMemo(() => resolveApplicationView(props.registry, navigation.selection()));
   const startResize = (event: PointerEvent) => {
     const origin = event.clientX;
@@ -93,7 +102,15 @@ function ShellContent(props: { registry: PluginRegistry; user: AuthenticatedUser
           <span class={styles.currentView}>{selectedView()?.name ?? "Workspace"}</span>
         </div>
         <div class={styles.topCommands}>
-          <For each={topBar}>{(contribution) => <Dynamic component={contribution.component} />}</For>
+          <InspectableExtensionPoint id={topBarContributions.id}>
+            <For each={topBar}>
+              {(entry) => (
+                <InspectableExtension id={entry.id}>
+                  <Dynamic component={entry.value.component} />
+                </InspectableExtension>
+              )}
+            </For>
+          </InspectableExtensionPoint>
           <UserMenu user={props.user} onLogout={props.onLogout} />
         </div>
       </header>
@@ -109,7 +126,15 @@ function ShellContent(props: { registry: PluginRegistry; user: AuthenticatedUser
           class={`${styles.navigationPanel} ${navigationOpen() ? styles.navigationPanelOpen : ""}`}
           aria-label="Workspace navigation"
         >
-          <For each={sections}>{(section) => <Dynamic component={section.component} />}</For>
+          <InspectableExtensionPoint id={navigationSections.id}>
+            <For each={sections}>
+              {(entry) => (
+                <InspectableExtension id={entry.id}>
+                  <Dynamic component={entry.value.component} />
+                </InspectableExtension>
+              )}
+            </For>
+          </InspectableExtensionPoint>
           <button
             class={styles.sidebarResizer}
             aria-label="Resize navigation"
@@ -120,7 +145,15 @@ function ShellContent(props: { registry: PluginRegistry; user: AuthenticatedUser
         <ViewContent view={selectedView()} />
       </div>
       <StatusBar registry={props.registry} />
-      <For each={overlays}>{(overlay) => <Dynamic component={overlay.component} />}</For>
+      <InspectableExtensionPoint id={shellOverlays.id}>
+        <For each={overlays}>
+          {(entry) => (
+            <InspectableExtension id={entry.id}>
+              <Dynamic component={entry.value.component} />
+            </InspectableExtension>
+          )}
+        </For>
+      </InspectableExtensionPoint>
     </div>
   );
 }

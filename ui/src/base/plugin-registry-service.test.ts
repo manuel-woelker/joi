@@ -8,12 +8,14 @@ describe("PluginRegistryService", () => {
     const service = createPluginRegistryService().service;
 
     expect(() => service.metadata()).toThrow("Plugin registry is not initialized");
+    expect(() => service.extensionEntries({} as never)).toThrow("Plugin registry is not initialized");
   });
 
   it("delegates after initialization", () => {
     const controller = createPluginRegistryService();
     const registry = {
       extensions: vi.fn().mockReturnValue(["extension"]),
+      extensionEntries: vi.fn().mockReturnValue([{ id: "extension", value: "extension" }]),
       metadata: vi.fn().mockReturnValue({ plugins: [], extensionPoints: [], extensions: [] }),
     } as unknown as PluginRegistry;
 
@@ -21,8 +23,10 @@ describe("PluginRegistryService", () => {
 
     expect(controller.service.metadata()).toEqual({ plugins: [], extensionPoints: [], extensions: [] });
     expect(controller.service.extensions({} as never)).toEqual(["extension"]);
+    expect(controller.service.extensionEntries({} as never)).toEqual([{ id: "extension", value: "extension" }]);
     expect(registry.metadata).toHaveBeenCalledOnce();
     expect(registry.extensions).toHaveBeenCalledOnce();
+    expect(registry.extensionEntries).toHaveBeenCalledOnce();
   });
 
   it("rejects replacing the initialized registry", () => {

@@ -42,14 +42,17 @@ export interface PluginRegistryMetadata {
 /** Read-only operations available from a completed plugin registry. */
 export interface PluginRegistryAccess {
   extensions<T>(point: ExtensionPoint<T>): readonly T[];
+  extensionEntries<T>(point: ExtensionPoint<T>): readonly RegisteredExtensionEntry<T>[];
   metadata(): PluginRegistryMetadata;
 }
 
 type AnyServices = Record<string, unknown>;
 type ExtensionPoints = Map<symbol, ExtensionPoint<unknown>>;
-interface RegisteredExtension<T = unknown> extends ExtensionInfo {
+/** An immutable extension registration paired with its contributed value. */
+export interface RegisteredExtensionEntry<T> extends ExtensionInfo {
   readonly value: T;
 }
+type RegisteredExtension<T = unknown> = RegisteredExtensionEntry<T>;
 type RegisteredExtensions = Map<symbol, RegisteredExtension[]>;
 
 /** Registration API available during the extension-point phase. */
@@ -277,7 +280,12 @@ export class PluginRegistry implements PluginRegistryAccess {
   private readonly extensionsByPoint: ReadonlyMap<symbol, readonly RegisteredExtension[]>;
   private readonly registryMetadata: PluginRegistryMetadata;
   constructor(plugins: readonly PluginInfo[], points: ExtensionPoints, extensions: RegisteredExtensions) {
-    this.extensionsByPoint = new Map([...extensions].map(([key, values]) => [key, Object.freeze([...values])]));
+    this.extensionsByPoint = new Map(
+      [...extensions].map(([key, values]) => [
+        key,
+        Object.freeze(values.map((extension) => Object.freeze({ ...extension }))),
+      ]),
+    );
     this.registryMetadata = Object.freeze({
       plugins: Object.freeze(
         plugins.map((candidate) =>
@@ -307,7 +315,11 @@ export class PluginRegistry implements PluginRegistryAccess {
   }
   /** Returns contributed values for an extension point in registration order. */
   extensions<T>(point: ExtensionPoint<T>): readonly T[] {
-    return (this.extensionsByPoint.get(point.key) ?? []).map((extension) => extension.value as T);
+    return this.extensionEntries(point).map((extension) => extension.value);
+  }
+  /** Returns immutable registrations for an extension point in registration order. */
+  extensionEntries<T>(point: ExtensionPoint<T>): readonly RegisteredExtensionEntry<T>[] {
+    return (this.extensionsByPoint.get(point.key) ?? []) as readonly RegisteredExtensionEntry<T>[];
   }
   /** Returns the immutable metadata snapshot created during registry construction. */
   metadata(): PluginRegistryMetadata {

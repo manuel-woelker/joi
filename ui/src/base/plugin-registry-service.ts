@@ -32,6 +32,9 @@ export function createPluginRegistryService(): PluginRegistryServiceController {
       extensions<T>(point: ExtensionPoint<T>) {
         return requireRegistry().extensions(point);
       },
+      extensionEntries<T>(point: ExtensionPoint<T>) {
+        return requireRegistry().extensionEntries(point);
+      },
       metadata() {
         return requireRegistry().metadata();
       },

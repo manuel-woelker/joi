@@ -39,6 +39,12 @@ describe("PluginRegistryBuilder", () => {
       .build();
 
     expect(registry.extensions(commands).map((command) => command())).toEqual(["first", "second"]);
+    const entries = registry.extensionEntries(commands);
+    expect(entries.map(({ id, description, value }) => ({ id, description, result: value() }))).toEqual([
+      { id: "first", description: "First command", result: "first" },
+      { id: "second", description: "Second command", result: "second" },
+    ]);
+    expect(Object.isFrozen(entries[0])).toBe(true);
     const metadata = registry.metadata();
     for (const item of [...metadata.plugins, ...metadata.extensionPoints, ...metadata.extensions]) {
       expect(item.location?.file).toBe("ui/src/base/plugin-registry.test.ts");

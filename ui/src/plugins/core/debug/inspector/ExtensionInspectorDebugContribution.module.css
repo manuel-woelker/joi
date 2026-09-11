@@ -1,0 +1,15 @@
+.content {
+  display: grid;
+  gap: 8px;
+}
+
+.content p {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.toggle {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
