@@ -1,4 +1,4 @@
-import { createMemo, For, Show } from "solid-js";
+import { createMemo, createUniqueId, For, Show } from "solid-js";
 
 import { Select } from "../Select";
 import { Tree } from "../tree/Tree";
@@ -116,13 +116,7 @@ export function FilterDefinitionEditor(props: FilterDefinitionEditorProps) {
               + Group
             </button>
             <Show when={filter.id !== props.value.id}>
-              <button
-                type="button"
-                aria-label="Delete filter"
-                onClick={() => props.onChange(removeFilter(props.value, filter.id))}
-              >
-                ×
-              </button>
+              <DeleteFilterButton onClick={() => props.onChange(removeFilter(props.value, filter.id))} />
             </Show>
           </div>
         );
@@ -251,11 +245,27 @@ function CriterionRow(props: {
         )}
       </Show>
       <Show when={props.onDelete}>
-        <button type="button" aria-label="Delete filter" onClick={props.onDelete}>
-          ×
-        </button>
+        <DeleteFilterButton onClick={props.onDelete!} />
       </Show>
     </div>
+  );
+}
+
+function DeleteFilterButton(props: { readonly onClick: () => void }) {
+  const tooltipId = `delete-filter-${createUniqueId()}`;
+  return (
+    <button
+      type="button"
+      class={styles.deleteButton}
+      aria-label="Delete filter"
+      aria-describedby={tooltipId}
+      onClick={props.onClick}
+    >
+      <span aria-hidden="true">×</span>
+      <span id={tooltipId} role="tooltip" class={styles.deleteTooltip}>
+        Delete filter
+      </span>
+    </button>
   );
 }
 

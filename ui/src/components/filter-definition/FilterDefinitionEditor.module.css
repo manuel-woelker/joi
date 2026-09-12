@@ -1,4 +1,4 @@
-.editor { min-width: 0; }
+.editor { --filter-nesting-offset: 17px; min-width: 0; }
 .editor :global(.tree-row) { overflow: visible; }
 .filterTree :global([role="treeitem"]) { min-height: 26px; padding-left: 0; }
 .filterTree :global([role="treeitem"] > div:last-child) { padding-block: 2px; }
@@ -18,13 +18,45 @@
 .one { --filter-color: var(--color-filter-one); --filter-surface: var(--color-filter-one-soft); }
 .none { --filter-color: var(--color-filter-none); --filter-surface: var(--color-filter-none-soft); }
 .criterion {
+  --criterion-indent: max(0px, calc((var(--tree-level) - 1) * var(--filter-nesting-offset)));
   display: grid;
-  grid-template-columns: 20px minmax(120px, 1.2fr) minmax(100px, 0.8fr) minmax(180px, 2fr) 28px;
+  grid-template-columns: 20px minmax(80px, calc(200px - var(--criterion-indent))) 110px minmax(180px, 1fr) 28px;
   padding-left: 5px;
 }
 .criterion select, .criterion > input:not([type="checkbox"]) { min-width: 0; }
 .criterion > input:not([type="checkbox"]) { grid-column: 4; }
-.criterion > button:last-child { grid-column: 5; width: 28px; padding-inline: 0; }
+.criterion > button:last-child { grid-column: 5; justify-self: center; }
+.deleteButton {
+  position: relative;
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 17px;
+  line-height: 1;
+}
+.deleteButton:hover { color: var(--color-danger); background: transparent; }
+.deleteTooltip {
+  position: absolute;
+  z-index: 100;
+  right: 0;
+  bottom: calc(100% + 5px);
+  display: none;
+  width: max-content;
+  padding: 5px 7px;
+  border-radius: 4px;
+  background: var(--color-ink);
+  color: var(--color-surface);
+  font-size: 12px;
+  font-weight: 400;
+  pointer-events: none;
+}
+.deleteButton:hover .deleteTooltip,
+.deleteButton:focus-visible .deleteTooltip { display: block; }
 .criterion :global(.root) { min-width: 0; grid-column: 4; }
 .range { display: grid; min-width: 0; grid-column: 4; grid-template-columns: minmax(60px, 1fr) auto minmax(60px, 1fr); align-items: center; gap: 4px; }
 .range input { min-width: 0; }
@@ -36,5 +68,7 @@
 @media (max-width: 700px) {
   .group { flex-wrap: wrap; }
   .group select { min-width: 150px; }
-  .criterion { grid-template-columns: 20px minmax(100px, 1fr) minmax(90px, 0.8fr) minmax(120px, 1.4fr) 28px; }
+  .criterion {
+    grid-template-columns: 20px minmax(72px, calc(160px - var(--criterion-indent))) 90px minmax(120px, 1fr) 28px;
+  }
 }
