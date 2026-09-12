@@ -8,7 +8,7 @@
 .topCommands { gap: 6px; }
 .startupStatus { display: grid; min-height: 100vh; place-items: center; color: var(--color-text-muted); }
 .workspaceLayout { min-height: 100vh; padding-top: 52px; }
-.navigationPanel { position: fixed; z-index: 20; top: 52px; bottom: 0; left: 0; width: var(--sidebar-width); overflow: auto; border-right: 1px solid var(--color-border); background: var(--color-surface-muted); padding: 14px 10px; }
+.navigationPanel { position: fixed; z-index: 20; top: 52px; bottom: 0; left: 0; width: var(--sidebar-width); overflow: auto; border-right: 1px solid var(--color-border); background: var(--color-surface-muted); }
 .sidebarResizer { position: fixed; z-index: 21; top: 52px; bottom: 0; left: calc(var(--sidebar-width) - 3px); width: 6px; padding: 0; border: 0; background: transparent; cursor: col-resize; }
 .sidebarResizer:hover, .sidebarResizer:focus-visible { background: color-mix(in srgb, var(--color-primary) 34%, transparent); }
 .navigationBackdrop { position: fixed; z-index: 50; inset: 0; border: 0; background: var(--color-backdrop); }

@@ -11,6 +11,7 @@
   --color-surface-hover: color-mix(in srgb, var(--color-primary) 14%, white);
   --color-surface-selected: color-mix(in srgb, var(--color-primary) 22%, white);
   --color-border: color-mix(in srgb, var(--color-ink) 24%, white);
+  --color-border-strong: color-mix(in srgb, var(--color-ink) 36%, white);
   --color-border-soft: color-mix(in srgb, var(--color-ink) 15%, white);
   --color-primary-dark: color-mix(in srgb, var(--color-primary) 72%, black);
   --color-primary-soft: color-mix(in srgb, var(--color-primary) 14%, white);

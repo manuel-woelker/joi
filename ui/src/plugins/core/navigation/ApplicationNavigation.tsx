@@ -111,7 +111,6 @@ export function ApplicationNavigation(props: { registry: PluginRegistry; userId:
     <nav class={styles.navigation} aria-label="Application navigation">
       <section class={styles.section}>
         <div class={styles.heading}>
-          <ChevronDownIcon size={15} aria-hidden="true" />
           <span class={styles.headingLabel}>My workspace</span>
           <span class={styles.commands}>
             <IconButton
