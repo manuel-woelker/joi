@@ -9,7 +9,8 @@
 .editorContent section:last-of-type { border-bottom: 0; }
 .editorContent h3 { margin: 0 0 8px; color: var(--color-text-muted); font-size: 11px; text-transform: uppercase; }
 .editorContent label { display: grid; gap: 5px; margin-top: 11px; color: var(--color-ink-soft); font-size: 12px; font-weight: 650; }
-.editorContent input:not([type]), .editorContent input[type="text"], .editorContent textarea, .editorContent select { width: 100%; padding: 8px 9px; border: 1px solid var(--color-border); border-radius: 4px; color: var(--color-ink); background: var(--color-surface); font-weight: 400; }
+.editorContent input:not([type]), .editorContent input[type="text"], .editorContent select { width: 100%; height: var(--control-height); padding: 2px 7px; border: 1px solid var(--color-border); border-radius: 4px; color: var(--color-ink); background: var(--color-surface); font-weight: 400; }
+.editorContent textarea { width: 100%; padding: 8px 9px; border: 1px solid var(--color-border); border-radius: 4px; color: var(--color-ink); background: var(--color-surface); font-weight: 400; }
 .editorContent textarea { resize: vertical; }
 .sectionHeading { justify-content: space-between; }
 .sectionHeading h3 { margin: 0; }

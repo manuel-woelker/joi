@@ -19,7 +19,8 @@
 
 .field input {
   width: 100%;
-  padding: 9px 10px;
+  height: var(--control-height);
+  padding: 2px 7px;
   border: 1px solid var(--color-border);
   border-radius: 4px;
   background: var(--color-surface);

@@ -44,6 +44,50 @@ textarea {
   font: inherit;
 }
 
+:where(button, input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  border: 1px solid var(--color-control-border);
+  border-radius: 4px;
+  color: var(--color-ink);
+  background-color: var(--color-control-background);
+}
+
+button {
+  padding: 5px 9px;
+  background-color: var(--color-control-button-background);
+}
+
+:where(input:not([type="checkbox"]):not([type="radio"]), select) {
+  height: var(--control-height);
+  padding: 2px 7px;
+}
+
+textarea {
+  padding: 6px 8px;
+}
+
+:where(
+  button:hover:not(:disabled),
+  input:not([type="checkbox"]):not([type="radio"]):hover:not(:disabled),
+  select:hover:not(:disabled),
+  textarea:hover:not(:disabled)
+) {
+  border-color: var(--color-control-border-hover);
+  background-color: var(--color-control-background-hover);
+}
+
+:where(input[type="checkbox"], input[type="radio"]) {
+  accent-color: var(--color-primary-dark);
+}
+
+:where(button:disabled, input:disabled, select:disabled, textarea:disabled) {
+  cursor: default;
+  opacity: 0.58;
+}
+
+:where(input, textarea)::placeholder {
+  color: var(--color-text-muted);
+}
+
 button,
 a {
   color: inherit;
@@ -53,10 +97,8 @@ button {
   cursor: pointer;
 }
 
-button:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible {
+:where(button, input, select, textarea):focus-visible {
+  border-color: var(--color-primary);
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
