@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  LEGACY_WORKSPACE_STORAGE_KEY,
+  LEGACY_WORKSPACE_STORAGE_KEYS,
   LocalWorkspaceRepository,
   WORKSPACE_STORAGE_KEY,
   validateWorkspace,
@@ -23,7 +23,7 @@ describe("LocalWorkspaceRepository", () => {
     localStorage.setItem(WORKSPACE_STORAGE_KEY, "not json");
     const loaded = new LocalWorkspaceRepository(createTestWorkspace(), localStorage).load();
     expect(loaded.warning).toContain("could not be loaded");
-    expect(loaded.workspace.version).toBe(3);
+    expect(loaded.workspace.version).toBe(4);
   });
 
   it("rejects unsupported versions", () => {
@@ -40,13 +40,26 @@ describe("LocalWorkspaceRepository", () => {
         delete definition.entityId;
       }
     }
-    localStorage.setItem(LEGACY_WORKSPACE_STORAGE_KEY, JSON.stringify(legacy));
+    localStorage.setItem(LEGACY_WORKSPACE_STORAGE_KEYS[1], JSON.stringify(legacy));
 
     const loaded = new LocalWorkspaceRepository(createTestWorkspace(), localStorage).load();
 
-    expect(loaded.workspace.version).toBe(3);
+    expect(loaded.workspace.version).toBe(4);
     expect(loaded.workspace.queries["query-open"].entityId).toBe("things");
     expect(localStorage.getItem(WORKSPACE_STORAGE_KEY)).toBeTruthy();
+  });
+
+  it("migrates version 3 workspaces without losing navigation", () => {
+    const legacy = structuredClone(createTestWorkspace()) as unknown as Record<string, unknown>;
+    legacy.version = 3;
+    legacy.favorites = ["view-active"];
+    localStorage.setItem(LEGACY_WORKSPACE_STORAGE_KEYS[0], JSON.stringify(legacy));
+
+    const loaded = new LocalWorkspaceRepository(createTestWorkspace(), localStorage).load();
+
+    expect(loaded.workspace.version).toBe(4);
+    expect(loaded.workspace.rootItems).toEqual(createTestWorkspace().rootItems);
+    expect("favorites" in loaded.workspace).toBe(false);
   });
 
   it("rejects defaults that reference an unknown entity", () => {

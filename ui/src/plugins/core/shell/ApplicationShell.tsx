@@ -18,13 +18,8 @@ import { LookupProvider } from "../lookups/lookup";
 import { EntityRegistryProvider } from "../entities/entity-registry";
 import { InspectableExtension, InspectableExtensionPoint } from "../debug/inspector/extension-inspector";
 import { StatusBar } from "../status-bar/StatusBar";
-import {
-  applicationProviders,
-  navigationSections,
-  shellOverlays,
-  topBarContributions,
-  viewResolvers,
-} from "./contribution";
+import { ApplicationNavigation } from "../navigation/ApplicationNavigation";
+import { applicationProviders, shellOverlays, topBarContributions, viewResolvers } from "./contribution";
 import type { ApplicationView } from "../../../views/view";
 
 function ordered<T extends { readonly order: number }>(values: readonly T[]): T[] {
@@ -59,9 +54,6 @@ function ShellContent(props: { registry: PluginRegistry; user: AuthenticatedUser
   const navigation = useNavigation();
   const [navigationOpen, setNavigationOpen] = createSignal(false);
   const [sidebarWidth, setSidebarWidth] = createSignal(Number(localStorage.getItem("joi.sidebar.width")) || 244);
-  const sections = [...props.registry.extensionEntries(navigationSections)].sort(
-    (left, right) => left.value.order - right.value.order,
-  );
   const overlays = [...props.registry.extensionEntries(shellOverlays)].sort(
     (left, right) => left.value.order - right.value.order,
   );
@@ -126,15 +118,7 @@ function ShellContent(props: { registry: PluginRegistry; user: AuthenticatedUser
           class={`${styles.navigationPanel} ${navigationOpen() ? styles.navigationPanelOpen : ""}`}
           aria-label="Workspace navigation"
         >
-          <InspectableExtensionPoint id={navigationSections.id}>
-            <For each={sections}>
-              {(entry) => (
-                <InspectableExtension id={entry.id}>
-                  <Dynamic component={entry.value.component} />
-                </InspectableExtension>
-              )}
-            </For>
-          </InspectableExtensionPoint>
+          <ApplicationNavigation registry={props.registry} userId={props.user.id} />
           <button
             class={styles.sidebarResizer}
             aria-label="Resize navigation"

@@ -1,6 +1,6 @@
 import FolderIcon from "lucide-solid/icons/folder";
 import FolderOpenIcon from "lucide-solid/icons/folder-open";
-import { createMemo, For, Show } from "solid-js";
+import { createMemo, Show } from "solid-js";
 import { Dynamic } from "solid-js/web";
 
 import { contextMenuEntryId, contextMenuGroupId } from "../../../components/context-menu/context-menu";
@@ -25,7 +25,7 @@ import styles from "./SavedViewNavigation.module.css";
 
 const savedViewNodeKind = treeNodeKind("saved-view");
 
-export function SavedViewNavigation() {
+export function SavedViewNavigation(props: { embedded?: boolean } = {}) {
   const controller = useWorkspace();
   const contextMenu = useContextMenu();
   const entities = useEntityRegistry();
@@ -87,15 +87,6 @@ export function SavedViewNavigation() {
             },
             ...(viewItem
               ? [
-                  {
-                    id: contextMenuEntryId("favorite"),
-                    label: controller.workspace.favorites.includes(viewItem.viewId)
-                      ? "Remove from favorites"
-                      : "Add to favorites",
-                    description: "Toggle this view in the Favorites section.",
-                    icon: () => <span>★</span>,
-                    execute: () => controller.toggleFavorite(viewItem.viewId),
-                  },
                   {
                     id: contextMenuEntryId("duplicate"),
                     label: "Duplicate",
@@ -189,44 +180,46 @@ export function SavedViewNavigation() {
     .build();
   const definition: TreeDefinition = {
     renderers,
-    isSelected: (node) => viewFor(node)?.id === controller.navigation.selectedViewId(),
+    isSelected: (node) => {
+      const view = viewFor(node);
+      const route = controller.navigation.activeRoute();
+      return Boolean(view && route?.source === "workspace" && route.id === view.id);
+    },
     onActivate: (node) => {
       const view = viewFor(node);
       if (view) controller.selectView(view.id);
     },
     onContextMenu: openContextMenu,
+    move: {
+      canMove: () => true,
+      canMoveTo: (node, target) => {
+        if (target.parentId === node.id) return false;
+        const pending = [...(node.children ?? [])];
+        while (pending.length) {
+          const child = pending.pop();
+          if (child === target.parentId) return false;
+          if (child) pending.push(...(model().nodes.get(child)?.children ?? []));
+        }
+        return true;
+      },
+      move: (node, target) =>
+        controller.moveToPosition(node.id as NavigationId, target.parentId as NavigationId | undefined, target.index),
+    },
   };
-  const entityForView = (id: string) => {
-    const view = controller.workspace.views[id];
-    const query = view ? controller.workspace.queries[view.queryId] : undefined;
-    return query ? entities.require(query.entityId) : undefined;
-  };
-
   return (
-    <section aria-label="Saved views">
-      <div class={styles.panelHeading}>
-        <h2>Views</h2>
-        <div class={styles.headingCommands}>
-          <IconButton label="Create folder" icon={<FolderIcon size={17} />} onClick={() => controller.createFolder()} />
-          <IconButton label="Create view" icon="+" onClick={() => controller.createView()} />
+    <section aria-label="My workspace">
+      <Show when={!props.embedded}>
+        <div class={styles.panelHeading}>
+          <h2>My workspace</h2>
+          <div class={styles.headingCommands}>
+            <IconButton
+              label="Create folder"
+              icon={<FolderIcon size={17} />}
+              onClick={() => controller.createFolder()}
+            />
+            <IconButton label="Create view" icon="+" onClick={() => controller.createView()} />
+          </div>
         </div>
-      </div>
-      <Show when={controller.workspace.favorites.length}>
-        <section class={styles.favorites} aria-labelledby="favorites-heading">
-          <h3 id="favorites-heading">Favorites</h3>
-          <For each={controller.workspace.favorites}>
-            {(id) => (
-              <button class={styles.favoriteLink} onClick={() => controller.selectView(id)}>
-                <Show when={entityForView(id)}>
-                  {(entity) => (
-                    <Dynamic component={entity().icon} class={styles.entityIcon} size={16} aria-hidden="true" />
-                  )}
-                </Show>
-                {controller.workspace.views[id]?.name}
-              </button>
-            )}
-          </For>
-        </section>
       </Show>
       <Tree
         class={styles.savedViewTree}

@@ -6,6 +6,7 @@ import {
   deleteNavigationItem,
   duplicateView,
   moveItemToFolder,
+  moveItemToPosition,
   saveDefinitions,
 } from "./operations";
 import { createTestWorkspace } from "./test-fixtures";
@@ -13,6 +14,7 @@ import { createTestWorkspace } from "./test-fixtures";
 beforeEach(() =>
   vi.stubGlobal("crypto", {
     randomUUID: vi.fn().mockReturnValueOnce("one").mockReturnValueOnce("two").mockReturnValue("three"),
+    getRandomValues: vi.fn((bytes: Uint8Array) => bytes.fill(1)),
   }),
 );
 
@@ -26,6 +28,22 @@ describe("workspace operations", () => {
     )!;
     moveItemToFolder(workspace, navigation.id, folderId);
     expect(workspace.navigation[folderId]).toMatchObject({ type: "folder", children: [navigation.id] });
+  });
+
+  it("moves entries to an exact normalized tree position", () => {
+    const workspace = createTestWorkspace();
+    moveItemToPosition(workspace, "nav-all", "folder-work", 1);
+    expect(workspace.navigation["folder-work"]).toMatchObject({
+      type: "folder",
+      children: ["nav-active", "nav-all"],
+    });
+    expect(workspace.rootItems).not.toContain("nav-all");
+  });
+
+  it("rejects moving a folder into its own descendant", () => {
+    const workspace = createTestWorkspace();
+    moveItemToPosition(workspace, "folder-work", "folder-work", 0);
+    expect(workspace.rootItems).toContain("folder-work");
   });
 
   it("duplicates a view while reusing its definitions", () => {

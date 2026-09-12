@@ -1,8 +1,8 @@
 import { plugin } from "../../../base/plugin-registry";
-import { useNavigation } from "../../../base/navigation";
 import { pluginRegistryServiceKey } from "../../../base/plugin-registry-service";
-import { navigationSections, shellContributionId, viewResolvers } from "../shell/contribution";
-import { Administration, administrationEntries } from "./Administration";
+import { shellContributionId, viewResolvers } from "../shell/contribution";
+import { navigationEntryId, navigationSection, navigationSectionId } from "../navigation/contribution";
+import { administrationEntries } from "./Administration";
 import { administrationContributions } from "./contribution";
 
 export default plugin({
@@ -15,22 +15,22 @@ export default plugin({
   registerExtensions(context) {
     const registry = context.services.pluginRegistry;
     context.registerExtension({
-      point: navigationSections,
+      point: navigationSection,
       id: "administration-navigation",
       description: "Displays administration navigation entries",
       value: {
-        id: shellContributionId("administration-navigation"),
+        id: navigationSectionId("administration"),
+        label: "Administration",
         order: 100,
-        component: () => {
-          const navigation = useNavigation();
-          return (
-            <Administration
-              registry={registry}
-              selectedId={navigation.selectedAdministrationId()}
-              onSelect={(contribution) => navigation.selectAdministration(contribution.id)}
-            />
-          );
-        },
+        roots: () =>
+          administrationEntries(registry).map((entry) => ({
+            id: navigationEntryId(entry.id),
+            type: "leaf" as const,
+            label: entry.name,
+            description: entry.description,
+            icon: entry.icon,
+            selection: { type: "administration" as const, id: entry.id },
+          })),
       },
     });
     context.registerExtension({

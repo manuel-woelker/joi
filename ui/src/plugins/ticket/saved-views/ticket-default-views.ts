@@ -3,7 +3,7 @@ import type { WorkspaceDocument } from "../../core/saved-views/model";
 
 export function createTicketDefaultWorkspace(): WorkspaceDocument {
   return {
-    version: 3,
+    version: 4,
     queries: {
       "query-open": {
         id: "query-open",
@@ -75,14 +75,7 @@ export function createTicketDefaultWorkspace(): WorkspaceDocument {
         presentationId: "presentation-list",
       },
     },
-    navigation: {
-      "folder-work": { id: "folder-work", type: "folder", name: "Work", children: ["nav-active", "nav-closed"] },
-      "folder-archive": { id: "folder-archive", type: "folder", name: "Reference", children: ["nav-all"] },
-      "nav-active": { id: "nav-active", type: "view", viewId: "view-active" },
-      "nav-closed": { id: "nav-closed", type: "view", viewId: "view-closed" },
-      "nav-all": { id: "nav-all", type: "view", viewId: "view-all" },
-    },
-    rootItems: ["folder-work", "folder-archive"],
-    favorites: ["view-active"],
+    navigation: {},
+    rootItems: [],
   };
 }

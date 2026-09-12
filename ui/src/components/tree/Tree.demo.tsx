@@ -171,6 +171,43 @@ function ContextMenuTree() {
   );
 }
 
+function MovableTree() {
+  const [roots, setRoots] = createSignal(["website", "getting-started", "renderer-api"]);
+  const movableModel = () =>
+    defineTreeModel({
+      roots: roots(),
+      nodes: [
+        defineTreeNode({ id: "website", kind: linkKind, data: { label: "Project website" } }),
+        defineTreeNode({
+          id: "getting-started",
+          kind: documentKind,
+          data: { label: "Getting started", status: "New" },
+        }),
+        defineTreeNode({ id: "renderer-api", kind: documentKind, data: { label: "Renderer API", status: "Draft" } }),
+      ],
+    });
+  return (
+    <div style={{ width: "360px", "max-width": "100%" }}>
+      <Tree
+        ariaLabel="Movable documentation"
+        model={movableModel()}
+        definition={{
+          renderers,
+          move: {
+            canMove: () => true,
+            canMoveTo: (_node, target) => target.parentId === undefined,
+            move: (node, target) => {
+              const next = roots().filter((id) => id !== node.id);
+              next.splice(Math.min(target.index, next.length), 0, node.id);
+              setRoots(next);
+            },
+          },
+        }}
+      />
+    </div>
+  );
+}
+
 export default {
   name: "Tree",
   description: "Normalized hierarchical data rendered through definitions for each node kind.",
@@ -189,6 +226,11 @@ export default {
       name: "Context menus",
       description: "Right-click a node to create commands for its current kind and data.",
       render: ContextMenuTree,
+    },
+    {
+      name: "Drag reordering",
+      description: "Drag rows to reorder an immutable model through normalized move targets.",
+      render: MovableTree,
     },
     {
       name: "Empty tree",

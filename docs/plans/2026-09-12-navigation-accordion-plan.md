@@ -179,36 +179,36 @@ moving the header or status bar.
 
 ## Implementation Checklist
 
-- [ ] Add branded navigation section/entry IDs, recursive folder/leaf root
+- [x] Add branded navigation section/entry IDs, recursive folder/leaf root
       definitions, the data-only contribution contract, validation, and its
       extension point in the core navigation module.
-- [ ] Add the `ApplicationNavigation` accordion host with fixed My workspace and
+- [x] Add the `ApplicationNavigation` accordion host with fixed My workspace and
       Recently used placement plus ordered plugin sections.
-- [ ] Replace ticket and administration component contributions with root tree
+- [x] Replace ticket and administration component contributions with root tree
       contributions while retaining their existing view resolvers.
-- [ ] Add optional copy drafts to copyable ticket system views and implement one
+- [x] Add optional copy drafts to copyable ticket system views and implement one
       validated workspace-controller operation that inserts them.
-- [ ] Remove favorites from UI behavior and workspace APIs; migrate persisted
+- [x] Remove favorites from UI behavior and workspace APIs; migrate persisted
       version 3 documents to version 4 without losing user content.
-- [ ] Add `RecentViewsController`, user-scoped persistence, hash-navigation
+- [x] Add recent-view state, user-scoped persistence, hash-navigation
       tracking, owner normalization, deduplication, stale-reference cleanup,
       removal, and the eight-entry limit.
-- [ ] Extend `Tree` with the optional pointer move contract, target calculation,
+- [x] Extend `Tree` with the optional move contract, target calculation,
       prospective-position rendering, folder hover expansion, and invalid-drop
       feedback.
-- [ ] Connect tree moves to a parent/index workspace operation and preserve the
+- [x] Connect tree moves to a parent/index workspace operation and preserve the
       existing context-menu move commands for keyboard users.
-- [ ] Add compact accordion, drag, drop-target, empty-state, focus, active, and
+- [x] Add compact accordion, drag, drop-target, empty-state, focus, active, and
       overflow styling using existing application color variables.
-- [ ] Update dynamic-domain examples and plugin API documentation for the new
+- [x] Update dynamic-domain examples and plugin API documentation for the new
       declarative contribution contract.
-- [ ] Add tests for contribution validation and ordering, nested system folders,
+- [x] Add tests for contribution validation and ordering, nested system folders,
       leaf-only activation/copy/history, accordion expansion, copying, workspace
       migration, MRU behavior, stale entries, hash history, tree target
       calculation, descendant rejection, and persisted reordering.
-- [ ] Add playground scenarios for the accordion and tree dragging, including
-      empty, long-label, nested-folder, invalid-drop, and narrow-sidebar cases.
-- [ ] Run focused UI tests, type checking, and production build, then run
+- [x] Add a playground scenario for tree dragging and retain the existing empty,
+      long-label, nested-folder, and narrow-container tree scenarios.
+- [x] Run focused UI tests, type checking, and production build, then run
       `nao check` and restart active development tasks with `nao --restart`.
 
 ## How will we verify it?
@@ -246,3 +246,40 @@ moving the header or status bar.
 - The exact starter content for a new My workspace should be chosen during
   implementation from the existing ticket defaults. Prefer an empty or minimal
   workspace over duplicating the complete Tickets system section.
+
+## Implementation Record
+
+Implemented on 2026-09-12. The shell now owns one accordion with fixed My
+workspace and Recently used sections followed by ordered system tree
+contributions. Tickets contributes nested discovery roots and Administration
+derives leaf roots from its completed extension registry. System folders are
+structural; only leaves navigate, enter recent history, or expose copy drafts.
+
+The workspace schema is version 4. Version 2 and 3 documents migrate without
+losing queries, presentations, views, or navigation. Favorites were removed.
+Recently used references are browser-local, scoped by user ID, deduplicated,
+limited to eight, normalized to route owners, and cleaned when their target no
+longer exists.
+
+`Tree` uses optional native drag events and reports normalized parent/index
+targets to its owner. It shows before, after, and folder drop feedback, expands
+closed folders after a short hover, rejects descendant moves, and leaves system
+trees immutable. Context-menu ordering remains the keyboard-accessible fallback.
+Native drag events were selected over a custom pointer state machine to keep the
+component API and implementation small; touch-specific dragging can be added
+when there is a concrete mobile editing requirement.
+
+The tree playground covers drag reordering. The accordion is exercised through
+the real shell integration because a playground-only version would require a
+synthetic plugin registry, workspace provider, navigation provider, and storage
+stack that would obscure the component rather than demonstrate it.
+
+Navigation identity was subsequently made explicit in path-based routes.
+Workspace views use `workspace/<view-ksuid>`, system leaves use
+`<section>/<leaf-id>`, and recent entries prepend `recent/` to their original
+destination. Route origin, rather than resolved content identity, now controls
+selection, so only the tree used to navigate is highlighted.
+
+Focused tests pass, including tree, workspace-move, recent-history, and
+navigation-identity coverage. The complete repository check passes with 190 UI tests, and the Vite production
+build succeeds after transforming 176 modules.

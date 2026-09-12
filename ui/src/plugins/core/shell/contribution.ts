@@ -21,10 +21,6 @@ export interface ApplicationProviderContribution extends OrderedContribution {
   readonly component: ParentComponent;
 }
 
-export interface NavigationSectionContribution extends OrderedContribution {
-  readonly component: Component;
-}
-
 export interface ViewResolverContribution extends OrderedContribution {
   resolve(selection: NavigationSelection): ApplicationView | undefined;
 }
@@ -50,11 +46,6 @@ const validateOrdered = <T extends OrderedContribution>(values: readonly T[]) =>
 export const applicationProviders = extensionPoint<ApplicationProviderContribution>(
   "application-providers",
   "Wraps the authenticated application with contributed Solid contexts",
-  validateOrdered,
-);
-export const navigationSections = extensionPoint<NavigationSectionContribution>(
-  "navigation-sections",
-  "Adds sections to the application navigation",
   validateOrdered,
 );
 export const viewResolvers = extensionPoint<ViewResolverContribution>(

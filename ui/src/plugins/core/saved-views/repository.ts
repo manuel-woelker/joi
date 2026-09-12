@@ -10,18 +10,17 @@ export interface WorkspaceRepository {
   reset(): WorkspaceDocument;
 }
 
-export const WORKSPACE_STORAGE_KEY = "joi.workspace.v3";
-export const LEGACY_WORKSPACE_STORAGE_KEY = "joi.workspace.v2";
+export const WORKSPACE_STORAGE_KEY = "joi.workspace.v4";
+export const LEGACY_WORKSPACE_STORAGE_KEYS = ["joi.workspace.v3", "joi.workspace.v2"] as const;
 
 export function mergeSavedViewDefaults(contributions: readonly SavedViewDefaultsContribution[]): WorkspaceDocument {
   const workspace: WorkspaceDocument = {
-    version: 3,
+    version: 4,
     queries: {},
     presentations: {},
     views: {},
     navigation: {},
     rootItems: [],
-    favorites: [],
   };
   for (const contribution of contributions) {
     mergeRecord(workspace.queries, contribution.workspace.queries, contribution.id, "query");
@@ -29,7 +28,6 @@ export function mergeSavedViewDefaults(contributions: readonly SavedViewDefaults
     mergeRecord(workspace.views, contribution.workspace.views, contribution.id, "view");
     mergeRecord(workspace.navigation, contribution.workspace.navigation, contribution.id, "navigation item");
     workspace.rootItems.push(...contribution.workspace.rootItems);
-    workspace.favorites.push(...contribution.workspace.favorites);
   }
   return workspace;
 }
@@ -66,9 +64,6 @@ export function validateWorkspace(workspace: WorkspaceDocument, entities: Entity
   for (const root of workspace.rootItems) {
     if (!workspace.navigation[root]) throw new Error(`Workspace root references unknown item '${root}'`);
   }
-  for (const favorite of workspace.favorites) {
-    if (!workspace.views[favorite]) throw new Error(`Workspace favorites reference unknown view '${favorite}'`);
-  }
 }
 
 function mergeRecord<T>(target: Record<string, T>, source: Record<string, T>, contribution: string, kind: string) {
@@ -82,31 +77,33 @@ export function isWorkspaceDocument(value: unknown): value is WorkspaceDocument 
   if (!value || typeof value !== "object") return false;
   const document = value as Partial<WorkspaceDocument>;
   return (
-    document.version === 3 &&
+    document.version === 4 &&
     !!document.queries &&
     !!document.presentations &&
     !!document.views &&
     !!document.navigation &&
-    Array.isArray(document.rootItems) &&
-    Array.isArray(document.favorites)
+    Array.isArray(document.rootItems)
   );
 }
 
 function migrateLegacyWorkspace(value: unknown): WorkspaceDocument | undefined {
   if (!value || typeof value !== "object") return undefined;
   const legacy = value as Record<string, unknown>;
-  if (legacy.version !== 2 || !legacy.queries || !legacy.presentations) return undefined;
+  if ((legacy.version !== 2 && legacy.version !== 3) || !legacy.queries || !legacy.presentations) return undefined;
   const migrated = structuredClone(legacy) as Record<string, unknown>;
-  migrated.version = 3;
-  for (const definitions of [migrated.queries, migrated.presentations]) {
-    if (!definitions || typeof definitions !== "object") return undefined;
-    for (const definition of Object.values(definitions)) {
-      if (!definition || typeof definition !== "object") return undefined;
-      const record = definition as Record<string, unknown>;
-      record.entityId = entityId(String(record.source));
-      delete record.source;
+  if (legacy.version === 2) {
+    for (const definitions of [migrated.queries, migrated.presentations]) {
+      if (!definitions || typeof definitions !== "object") return undefined;
+      for (const definition of Object.values(definitions)) {
+        if (!definition || typeof definition !== "object") return undefined;
+        const record = definition as Record<string, unknown>;
+        record.entityId = entityId(String(record.source));
+        delete record.source;
+      }
     }
   }
+  migrated.version = 4;
+  delete migrated.favorites;
   return isWorkspaceDocument(migrated) ? migrated : undefined;
 }
 
@@ -131,8 +128,9 @@ export class LocalWorkspaceRepository implements WorkspaceRepository {
       };
     }
 
-    const legacy = this.storage.getItem(LEGACY_WORKSPACE_STORAGE_KEY);
-    if (legacy) {
+    for (const legacyKey of LEGACY_WORKSPACE_STORAGE_KEYS) {
+      const legacy = this.storage.getItem(legacyKey);
+      if (!legacy) continue;
       try {
         const workspace = migrateLegacyWorkspace(JSON.parse(legacy));
         if (workspace) {

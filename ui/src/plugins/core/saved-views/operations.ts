@@ -1,4 +1,12 @@
-import type { NavigationId, QueryDefinition, PresentationDefinition, ViewId, WorkspaceDocument } from "./model";
+import type {
+  NavigationId,
+  QueryDefinition,
+  PresentationDefinition,
+  ViewId,
+  WorkspaceDocument,
+  WorkspaceViewDraft,
+} from "./model";
+import { generateKsuid } from "../entities/ksuid";
 
 const nextId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
@@ -32,13 +40,24 @@ export function addView(
   presentationId: string,
   parentId?: NavigationId,
 ): ViewId {
-  const viewId = nextId("view");
+  const viewId = generateKsuid();
   const navigationId = nextId("nav");
   workspace.views[viewId] = { id: viewId, name, queryId, presentationId };
   workspace.navigation[navigationId] = { id: navigationId, type: "view", viewId };
   const parent = parentId ? workspace.navigation[parentId] : undefined;
   if (parent?.type === "folder") parent.children.push(navigationId);
   else workspace.rootItems.push(navigationId);
+  return viewId;
+}
+
+export function addViewFromDraft(workspace: WorkspaceDocument, draft: WorkspaceViewDraft): ViewId {
+  const queryId = nextId("query");
+  const presentationId = nextId("presentation");
+  workspace.queries[queryId] = { ...cloneValue(draft.query), id: queryId };
+  workspace.presentations[presentationId] = { ...cloneValue(draft.presentation), id: presentationId };
+  const viewId = addView(workspace, draft.name, queryId, presentationId);
+  workspace.views[viewId].description = draft.description;
+  workspace.views[viewId].sourceNavigationEntryId = draft.sourceNavigationEntryId;
   return viewId;
 }
 
@@ -67,7 +86,6 @@ export function deleteNavigationItem(workspace: WorkspaceDocument, itemId: Navig
   delete workspace.navigation[itemId];
   if (item.type === "view") {
     delete workspace.views[item.viewId];
-    workspace.favorites = workspace.favorites.filter((id) => id !== item.viewId);
     return item.viewId;
   }
   return undefined;
@@ -89,6 +107,33 @@ export function moveItemToFolder(workspace: WorkspaceDocument, itemId: Navigatio
   source.splice(source.indexOf(itemId), 1);
   if (target?.type === "folder") target.children.push(itemId);
   else workspace.rootItems.push(itemId);
+}
+
+export function moveItemToPosition(
+  workspace: WorkspaceDocument,
+  itemId: NavigationId,
+  parentId: NavigationId | undefined,
+  index: number,
+) {
+  const source = containerFor(workspace, itemId);
+  const parent = parentId ? workspace.navigation[parentId] : undefined;
+  if (!source || (parent && parent.type !== "folder") || parentId === itemId) return;
+  const descendants = new Set<NavigationId>();
+  const collect = (id: NavigationId) => {
+    const item = workspace.navigation[id];
+    if (item?.type !== "folder") return;
+    for (const child of item.children) {
+      descendants.add(child);
+      collect(child);
+    }
+  };
+  collect(itemId);
+  if (parentId && descendants.has(parentId)) return;
+  const sourceIndex = source.indexOf(itemId);
+  source.splice(sourceIndex, 1);
+  const target = parent?.type === "folder" ? parent.children : workspace.rootItems;
+  const adjustedIndex = source === target && sourceIndex < index ? index - 1 : index;
+  target.splice(Math.max(0, Math.min(adjustedIndex, target.length)), 0, itemId);
 }
 
 export function saveDefinitions(

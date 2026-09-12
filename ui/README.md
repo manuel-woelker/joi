@@ -16,15 +16,21 @@ select and sort records; presentations define table or list layout, fields, and
 density. The same definition can be shared by multiple views, or copied when a
 view needs private customization.
 
-The left navigation supports folders, favorites, reordering, moving,
-duplication, deletion with undo, and keyboard navigation. View URLs use the
-`#/views/<id>` hash format.
+The left navigation is an accordion with an editable **My workspace** tree, a
+flat list of the eight most recently used views, and plugin-contributed system
+trees. Workspace folders and views support drag reordering, context-menu moves,
+duplication, deletion with undo, and keyboard navigation. Only system-tree
+leaves navigate or copy into My workspace. Routes encode their navigation
+origin directly: `#/workspace/<view-ksuid>` for editable views,
+`#/<system-section>/<leaf-id>` for system views, and
+`#/recent/<section>/<leaf-id>` when opened from Recently used. This keeps
+selection state independent even when routes resolve to the same content.
 
 Workspace definitions are currently stored in browser `localStorage`. Domain
 plugins contribute namespaced default queries, presentations, views, and
-navigation entries. The v3 workspace schema identifies record sources with a
-branded entity ID; existing v2 workspaces are migrated without replacing user
-definitions. The included reset command restores the contributed defaults. Records are
+navigation entries. The v4 workspace schema removes favorites and retains
+branded entity IDs; existing v2 and v3 workspaces are migrated without replacing
+user definitions. The included reset command restores the contributed defaults. Records are
 loaded from the backend's `POST /api/query` command into a shared, validated,
 columnar query-result model. Response-local branded row and column indexes
 provide direct value access without converting flexible results into fixed
@@ -114,7 +120,7 @@ list is maintained. Registry construction first invokes every plugin's
 callback, so extensions do not depend on plugin discovery order.
 
 The authenticated shell is domain-neutral. Core extension points compose its
-ordered providers, navigation sections, URL-backed view resolvers, top-bar
+ordered providers, URL-backed view resolvers, top-bar
 items, and overlays. Entity descriptions and saved-view defaults are separate
 extension points, allowing a domain plugin to add a complete record domain
 without editing `App.tsx`, `Root.tsx`, or core modules. For example:
@@ -128,12 +134,27 @@ context.registerExtension({
 });
 
 context.registerExtension({
-  point: navigationSections,
+  point: navigationSection,
   id: "inventory-navigation",
   description: "Adds inventory navigation",
-  value: { id: shellContributionId("inventory-navigation"), order: 100, component: InventoryNavigation },
+  value: {
+    id: navigationSectionId("inventory"),
+    label: "Inventory",
+    order: 100,
+    roots: () => [{
+      id: navigationEntryId("inventory-products"),
+      type: "leaf",
+      label: "Products",
+      selection: { type: "view", id: "inventory-products" },
+    }],
+  },
 });
 ```
+
+System navigation contributions add complete root subtrees. They may nest
+folders, but cannot inject children into roots owned by another contribution.
+Folders are structural; only leaves can navigate, appear in Recently used, or
+provide a copy draft for My workspace.
 
 This is build-time discovery, not post-deployment installation: Vite expands
 the eager glob into the production bundle. Runtime-loaded third-party code

@@ -22,7 +22,7 @@ export const testEntity = defineEntity({
 
 export function createTestWorkspace(): WorkspaceDocument {
   return {
-    version: 3,
+    version: 4,
     queries: {
       "query-open": {
         id: "query-open",
@@ -69,6 +69,5 @@ export function createTestWorkspace(): WorkspaceDocument {
       "nav-all": { id: "nav-all", type: "view", viewId: "view-all" },
     },
     rootItems: ["folder-work", "nav-all"],
-    favorites: ["view-active"],
   };
 }

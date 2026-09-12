@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { cleanup, render, screen } from "@solidjs/testing-library";
+import { cleanup, fireEvent, render, screen } from "@solidjs/testing-library";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createApplication, discoveredApplicationPlugins } from "../../../base/application-registry";
@@ -10,9 +10,11 @@ import { defineEntity, entityId } from "../entities/entity-description";
 import entitiesPlugin from "../entities/entities.plugin";
 import { savedViewDefaults, savedViewDefaultsContributionId } from "../saved-views/contribution";
 import savedViewsPlugin from "../saved-views/saved-views.plugin";
+import navigationPlugin from "../navigation/navigation.plugin";
+import { navigationEntryId, navigationSection, navigationSectionId } from "../navigation/contribution";
 import { createTestWorkspace } from "../saved-views/test-fixtures";
 import shellPlugin from "./shell.plugin";
-import { navigationSections, shellContributionId, shellOverlays, viewResolvers } from "./contribution";
+import { shellContributionId, shellOverlays, viewResolvers } from "./contribution";
 import { resolveApplicationView } from "./ApplicationShell";
 import { ApplicationShell } from "./ApplicationShell";
 
@@ -42,13 +44,21 @@ describe("dynamic domain plugins", () => {
           value: milestones,
         });
         context.registerExtension({
-          point: navigationSections,
+          point: navigationSection,
           id: "test-milestone-navigation",
           description: "Adds milestone navigation",
           value: {
-            id: shellContributionId("test-milestone-navigation"),
+            id: navigationSectionId("test-milestone-navigation"),
+            label: "Milestones",
             order: 50,
-            component: () => <span>Milestones</span>,
+            roots: () => [
+              {
+                id: navigationEntryId("test-milestones"),
+                type: "leaf" as const,
+                label: "Milestones",
+                selection: { type: "view" as const, id: "test.milestones" },
+              },
+            ],
           },
         });
         context.registerExtension({
@@ -95,11 +105,12 @@ describe("dynamic domain plugins", () => {
       .register(shellPlugin)
       .register(entitiesPlugin)
       .register(savedViewsPlugin)
+      .register(navigationPlugin)
       .register(domain)
       .build();
 
     expect(registry.extensions(entityDescriptions)).toEqual([milestones]);
-    expect(registry.extensions(navigationSections)[0]?.id).toBe("test-milestone-navigation");
+    expect(registry.extensions(navigationSection)[0]?.id).toBe("test-milestone-navigation");
     expect(registry.extensions(savedViewDefaults)[0]?.id).toBe("test-milestone-defaults");
     expect(registry.extensions(shellOverlays)[0]?.id).toBe("test-milestone-editor");
     expect(resolveApplicationView(registry, { type: "view", id: "test.milestones" })?.name).toBe("Milestones");
@@ -127,6 +138,7 @@ describe("dynamic domain plugins", () => {
       />
     ));
     expect(screen.getByRole("complementary", { name: "Workspace navigation" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Administration" }));
     expect(screen.getByText("Users")).toBeTruthy();
     expect(screen.getByText("No view selected")).toBeTruthy();
   });

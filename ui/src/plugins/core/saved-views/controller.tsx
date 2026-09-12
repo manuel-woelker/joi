@@ -5,16 +5,25 @@ import { type NavigationController, useNavigation } from "../../../base/navigati
 import { usePluginRegistry } from "../../../base/plugin-registry-context";
 import { savedViewDefaults } from "./contribution";
 import { useEntityRegistry } from "../entities/entity-registry";
-import type { NavigationId, PresentationDefinition, QueryDefinition, ViewId, WorkspaceDocument } from "./model";
+import type {
+  NavigationId,
+  PresentationDefinition,
+  QueryDefinition,
+  ViewId,
+  WorkspaceDocument,
+  WorkspaceViewDraft,
+} from "./model";
 import {
   addFolder,
   addView,
+  addViewFromDraft,
   cloneValue,
   cloneWorkspace,
   deleteNavigationItem,
   duplicateView,
   moveItem,
   moveItemToFolder,
+  moveItemToPosition,
   saveDefinitions,
 } from "./operations";
 import {
@@ -43,7 +52,6 @@ export interface WorkspaceController {
   announce(message: string): void;
   closeRecord(): void;
   setEditorOpen(open: boolean): void;
-  toggleFavorite(id: ViewId): void;
   createFolder(): void;
   createView(parentId?: NavigationId): void;
   renameItem(id: NavigationId): void;
@@ -52,6 +60,8 @@ export interface WorkspaceController {
   undo(): void;
   move(id: NavigationId, direction: -1 | 1): void;
   moveToFolder(id: NavigationId, folderId?: NavigationId): void;
+  moveToPosition(id: NavigationId, parentId: NavigationId | undefined, index: number): void;
+  copyView(draft: WorkspaceViewDraft): ViewId;
   saveView(
     name: string,
     description: string,
@@ -91,7 +101,7 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
 
   createEffect(() => {
     if (navigation.selection().type !== "none") return;
-    const id = workspace.favorites.find((candidate) => workspace.views[candidate]) ?? Object.keys(workspace.views)[0];
+    const id = Object.values(workspace.navigation).find((item) => item.type === "view")?.viewId;
     if (id) navigation.selectView(id);
   });
 
@@ -153,14 +163,6 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
       navigation.closeRecord();
     },
     setEditorOpen,
-    toggleFavorite(id) {
-      commit((draft) => {
-        draft.favorites = draft.favorites.includes(id)
-          ? draft.favorites.filter((favorite) => favorite !== id)
-          : [...draft.favorites, id];
-      });
-      setAnnouncement("Favorites updated.");
-    },
     createFolder() {
       const name = window.prompt("Folder name", "New folder")?.trim();
       if (!name) return;
@@ -237,6 +239,29 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
       commit((draft) => moveItemToFolder(draft, id, folderId));
       setAnnouncement("Item moved.");
     },
+    moveToPosition(id, parentId, index) {
+      commit((draft) => moveItemToPosition(draft, id, parentId, index));
+      setAnnouncement("Navigation item moved.");
+    },
+    copyView(viewDraft) {
+      const existing = viewDraft.sourceNavigationEntryId
+        ? Object.values(workspace.views).find(
+            (view) => view.sourceNavigationEntryId === viewDraft.sourceNavigationEntryId,
+          )
+        : undefined;
+      if (existing) {
+        selectView(existing.id);
+        setAnnouncement("View is already in My workspace.");
+        return existing.id;
+      }
+      let id = "";
+      commit((draft) => {
+        id = addViewFromDraft(draft, viewDraft);
+      });
+      selectView(id);
+      setAnnouncement(`Added ${viewDraft.name} to My workspace.`);
+      return id;
+    },
     saveView(name, description, query, presentation, mode) {
       const id = navigation.selectedViewId();
       if (!id) return;
@@ -254,7 +279,10 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
       setWarning(undefined);
       const id = navigation.selectedViewId();
       if (id && reset.views[id]) selectView(id);
-      else selectView(Object.keys(reset.views)[0]);
+      else {
+        const first = Object.values(reset.navigation).find((item) => item.type === "view");
+        if (first?.type === "view") selectView(first.viewId);
+      }
       setAnnouncement("Workspace reset.");
     },
   };

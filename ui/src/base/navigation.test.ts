@@ -7,17 +7,25 @@ import { createNavigationController } from "./navigation";
 
 describe("NavigationController", () => {
   it("decodes record routes and preserves their owner when closing", () => {
-    window.location.hash = "#/views/planning/records/item%2F1";
+    window.location.hash = "#/workspace/planning/records/item%2F1";
     createRoot((dispose) => {
       const navigation = createNavigationController();
       expect(navigation.selection()).toEqual({
         type: "record",
-        owner: { type: "view", id: "planning" },
+        owner: {
+          type: "view",
+          id: "planning",
+          route: { source: "workspace", section: "workspace", id: "planning" },
+        },
         recordId: "item/1",
       });
 
       navigation.closeRecord();
-      expect(navigation.selection()).toEqual({ type: "view", id: "planning" });
+      expect(navigation.selection()).toEqual({
+        type: "view",
+        id: "planning",
+        route: { source: "workspace", section: "workspace", id: "planning" },
+      });
       dispose();
     });
   });
@@ -31,12 +39,32 @@ describe("NavigationController", () => {
   });
 
   it("encodes record IDs and replaces create routes after creation", () => {
-    window.location.hash = "#/views/planning/new";
+    window.location.hash = "#/workspace/planning/new";
     const replaceState = vi.spyOn(window.history, "replaceState");
     createRoot((dispose) => {
       const navigation = createNavigationController();
       navigation.finishCreatingRecord("item/1");
-      expect(replaceState).toHaveBeenCalledWith(undefined, "", "#/views/planning/records/item%2F1");
+      expect(replaceState).toHaveBeenCalledWith(undefined, "", "#/workspace/planning/records/item%2F1");
+      dispose();
+    });
+  });
+
+  it("preserves the selected route independently from resolved content", () => {
+    window.location.hash = "";
+    createRoot((dispose) => {
+      const navigation = createNavigationController();
+      navigation.selectView("planning", { source: "system", section: "tickets", id: "planning" });
+      expect(navigation.activeRoute()).toEqual({ source: "system", section: "tickets", id: "planning" });
+      expect(window.location.hash).toBe("#/tickets/planning");
+
+      navigation.selectRecord("item-1");
+      expect(navigation.activeRoute()).toEqual({ source: "system", section: "tickets", id: "planning" });
+      navigation.closeRecord();
+      expect(navigation.selection()).toEqual({
+        type: "view",
+        id: "planning",
+        route: { source: "system", section: "tickets", id: "planning" },
+      });
       dispose();
     });
   });

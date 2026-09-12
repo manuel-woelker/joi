@@ -1,7 +1,7 @@
-import { createEffect, createMemo, createSignal, For, type JSX, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, type JSX, onCleanup, Show } from "solid-js";
 
 import styles from "./Tree.module.css";
-import type { TreeDefinition, TreeNodeRenderer } from "./tree-definition";
+import type { TreeDefinition, TreeMoveTarget, TreeNodeRenderer } from "./tree-definition";
 import { folderTreeNodeKind, type TreeModel, type TreeNode, type TreeNodeId, validateTreeModel } from "./tree-model";
 import { visibleTreeNodes } from "./visible-tree";
 
@@ -19,6 +19,12 @@ export interface TreeProps {
 export function Tree(props: TreeProps) {
   const [localExpanded, setLocalExpanded] = createSignal<ReadonlySet<TreeNodeId>>(new Set(props.defaultExpanded));
   const [focusedId, setFocusedId] = createSignal<TreeNodeId>();
+  const [draggedId, setDraggedId] = createSignal<TreeNodeId>();
+  const [dropTarget, setDropTarget] = createSignal<TreeMoveTarget>();
+  const [dropOverId, setDropOverId] = createSignal<TreeNodeId>();
+  let expandTimer: ReturnType<typeof setTimeout> | undefined;
+  let expandTarget: TreeNodeId | undefined;
+  onCleanup(() => clearTimeout(expandTimer));
   const rowElements = new Map<TreeNodeId, HTMLElement>();
   const expanded = () => props.expanded ?? localExpanded();
   const validatedModel = createMemo(() => {
@@ -120,6 +126,20 @@ export function Tree(props: TreeProps) {
         const isExpanded = () => isFolder() && expanded().has(id);
         const isSelected = () => props.definition.isSelected?.(node()) ?? false;
         const renderer = () => props.definition.renderers.get(node().kind) as TreeNodeRenderer;
+        const parentId = () => parentFor(props.model, id);
+        const siblings = () => (parentId() ? (props.model.nodes.get(parentId()!)?.children ?? []) : props.model.roots);
+        const rowIndex = () => siblings().indexOf(id);
+        const targetForEvent = (event: DragEvent): TreeMoveTarget => {
+          const parentId = parentFor(props.model, id);
+          const bounds =
+            event.currentTarget instanceof HTMLElement ? event.currentTarget.getBoundingClientRect() : undefined;
+          if (isFolder() && bounds && event.clientX > bounds.left + 28 + level * 16) {
+            return { parentId: id, index: node().children?.length ?? 0 };
+          }
+          const siblings = parentId ? (props.model.nodes.get(parentId)?.children ?? []) : props.model.roots;
+          const index = siblings.indexOf(id) + (bounds && event.clientY > bounds.top + bounds.height / 2 ? 1 : 0);
+          return { parentId, index };
+        };
         return (
           <li role="none">
             <div
@@ -128,7 +148,15 @@ export function Tree(props: TreeProps) {
               aria-selected={isSelected() || undefined}
               ref={(element) => rowElements.set(id, element)}
               class={styles.row}
-              classList={{ [styles.selected]: isSelected() }}
+              classList={{
+                [styles.selected]: isSelected(),
+                [styles.dragging]: draggedId() === id,
+                [styles.dropTarget]: dropOverId() === id && dropTarget()?.parentId === id,
+                [styles.dropBefore]:
+                  dropOverId() === id && dropTarget()?.parentId !== id && dropTarget()?.index === rowIndex(),
+                [styles.dropAfter]:
+                  dropOverId() === id && dropTarget()?.parentId !== id && dropTarget()?.index === rowIndex() + 1,
+              }}
               style={{ "--tree-level": level }}
               tabindex={focusedId() === id ? 0 : -1}
               onFocus={() => setFocusedId(id)}
@@ -139,6 +167,59 @@ export function Tree(props: TreeProps) {
               }}
               onKeyDown={(event) => onKeyDown(event, node())}
               onContextMenu={(event) => props.definition.onContextMenu?.(event, node())}
+              draggable={props.definition.move?.canMove(node()) || undefined}
+              onDragStart={(event) => {
+                if (!props.definition.move?.canMove(node())) {
+                  event.preventDefault();
+                  return;
+                }
+                setDraggedId(id);
+                event.dataTransfer?.setData("text/plain", id);
+                if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+              }}
+              onDragOver={(event) => {
+                const dragged = draggedId();
+                if (!dragged || dragged === id || !props.definition.move) return;
+                const draggedNode = props.model.nodes.get(dragged);
+                const target = targetForEvent(event);
+                if (!draggedNode || !props.definition.move.canMoveTo(draggedNode, target)) {
+                  setDropTarget(undefined);
+                  setDropOverId(undefined);
+                  return;
+                }
+                event.preventDefault();
+                setDropTarget(target);
+                setDropOverId(id);
+                if (target.parentId === id && isFolder() && !isExpanded() && expandTarget !== id) {
+                  clearTimeout(expandTimer);
+                  expandTarget = id;
+                  expandTimer = setTimeout(() => toggle(node()), 500);
+                } else if (target.parentId !== id) {
+                  clearTimeout(expandTimer);
+                  expandTarget = undefined;
+                }
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                const dragged = draggedId();
+                const target = dropTarget();
+                const draggedNode = dragged ? props.model.nodes.get(dragged) : undefined;
+                if (draggedNode && target && props.definition.move?.canMoveTo(draggedNode, target)) {
+                  props.definition.move.move(draggedNode, target);
+                }
+                setDraggedId(undefined);
+                setDropTarget(undefined);
+                setDropOverId(undefined);
+                clearTimeout(expandTimer);
+                expandTarget = undefined;
+              }}
+              onDragEnd={() => {
+                setDraggedId(undefined);
+                setDropTarget(undefined);
+                setDropOverId(undefined);
+                clearTimeout(expandTimer);
+                expandTarget = undefined;
+              }}
             >
               <Show when={isFolder()} fallback={<span class={styles.disclosureSpacer} />}>
                 <button
@@ -181,4 +262,11 @@ function isDescendant(model: TreeModel, ancestorId: TreeNodeId, candidateId: Tre
     if (id) pending.push(...(model.nodes.get(id)?.children ?? []));
   }
   return false;
+}
+
+function parentFor(model: TreeModel, candidateId: TreeNodeId): TreeNodeId | undefined {
+  for (const node of model.nodes.values()) {
+    if (node.children?.includes(candidateId)) return node.id;
+  }
+  return undefined;
 }

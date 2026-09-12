@@ -2,22 +2,15 @@ import { Show } from "solid-js";
 
 import { plugin } from "../../base/plugin-registry";
 import { IconButton } from "../../components/IconButton";
-import {
-  applicationProviders,
-  navigationSections,
-  shellOverlays,
-  topBarContributions,
-  viewResolvers,
-  shellContributionId,
-} from "../core/shell/contribution";
+import { shellOverlays, topBarContributions, viewResolvers, shellContributionId } from "../core/shell/contribution";
 import { SavedViewCommands, SavedViewContent } from "../core/saved-views/SavedViewContent";
-import { SavedViewNavigation } from "../core/saved-views/SavedViewNavigation";
 import { ViewEditor } from "./saved-views/ViewEditor";
 import { ticketEntity } from "./entities/ticket-entity";
 import { entityDescriptions } from "../core/entities/entity-registry";
 import { savedViewDefaults, savedViewDefaultsContributionId } from "../core/saved-views/contribution";
-import { useWorkspace, WorkspaceProvider } from "../core/saved-views/controller";
+import { useWorkspace } from "../core/saved-views/controller";
 import { createTicketDefaultWorkspace } from "./saved-views/ticket-default-views";
+import { navigationEntryId, navigationSection, navigationSectionId } from "../core/navigation/contribution";
 import styles from "./TicketShell.module.css";
 
 function TicketTopBarCommands() {
@@ -68,16 +61,57 @@ export default plugin({
       value: { id: savedViewDefaultsContributionId("ticket-default-views"), workspace: createTicketDefaultWorkspace() },
     });
     context.registerExtension({
-      point: applicationProviders,
-      id: "ticket-workspace-provider",
-      description: "Provides ticket workspace state",
-      value: { id: shellContributionId("ticket-workspace-provider"), order: 0, component: WorkspaceProvider },
-    });
-    context.registerExtension({
-      point: navigationSections,
+      point: navigationSection,
       id: "ticket-navigation",
       description: "Displays saved ticket views",
-      value: { id: shellContributionId("ticket-navigation"), order: 0, component: SavedViewNavigation },
+      value: {
+        id: navigationSectionId("tickets"),
+        label: "Tickets",
+        order: 0,
+        roots: () => {
+          const defaults = createTicketDefaultWorkspace();
+          const leaf = (entryId: string, viewId: string) => {
+            const view = defaults.views[viewId];
+            const query = defaults.queries[view.queryId];
+            const presentation = defaults.presentations[view.presentationId];
+            return {
+              id: navigationEntryId(entryId),
+              type: "leaf" as const,
+              label: view.name,
+              description: view.description,
+              icon: ticketEntity.icon,
+              selection: { type: "view" as const, id: viewId },
+              copyToWorkspace: () => ({
+                name: view.name,
+                description: view.description,
+                query: { name: query.name, entityId: query.entityId, filters: query.filters, sorting: query.sorting },
+                presentation: {
+                  name: presentation.name,
+                  entityId: presentation.entityId,
+                  layout: presentation.layout,
+                  density: presentation.density,
+                  fields: presentation.fields,
+                },
+                sourceNavigationEntryId: `tickets/${entryId}`,
+              }),
+            };
+          };
+          return [
+            {
+              id: navigationEntryId("ticket-work"),
+              type: "folder" as const,
+              label: "Work",
+              children: [leaf("view-active", "view-active"), leaf("view-closed", "view-closed")],
+            },
+            {
+              id: navigationEntryId("ticket-reference"),
+              type: "folder" as const,
+              label: "Reference",
+              children: [leaf("view-all", "view-all")],
+            },
+          ];
+        },
+      },
     });
     context.registerExtension({
       point: viewResolvers,

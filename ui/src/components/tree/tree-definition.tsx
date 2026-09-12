@@ -17,12 +17,26 @@ export type TreeNodeRenderer = (node: TreeNode, context: TreeNodeRenderContext) 
 /** Immutable renderer lookup keyed by node kind. */
 export type TreeRendererRegistry = ReadonlyMap<TreeNodeKind, TreeNodeRenderer>;
 
+/** A normalized insertion position within a tree model. */
+export interface TreeMoveTarget {
+  readonly parentId?: import("./tree-model").TreeNodeId;
+  readonly index: number;
+}
+
+/** Optional mutable behavior supplied by an owning tree model. */
+export interface TreeMoveDefinition {
+  canMove(node: TreeNode): boolean;
+  canMoveTo(node: TreeNode, target: TreeMoveTarget): boolean;
+  move(node: TreeNode, target: TreeMoveTarget): void;
+}
+
 /** Visual and behavioral definition applied to a logical tree model. */
 export interface TreeDefinition {
   readonly renderers: TreeRendererRegistry;
   readonly isSelected?: (node: TreeNode) => boolean;
   readonly onActivate?: (node: TreeNode) => void;
   readonly onContextMenu?: (event: MouseEvent, node: TreeNode) => void;
+  readonly move?: TreeMoveDefinition;
 }
 
 /** Incrementally creates an immutable renderer registry. */

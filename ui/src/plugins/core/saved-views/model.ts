@@ -46,6 +46,15 @@ export interface SavedView {
   description?: string;
   queryId: QueryId;
   presentationId: PresentationId;
+  sourceNavigationEntryId?: string;
+}
+
+export interface WorkspaceViewDraft {
+  readonly name: string;
+  readonly description?: string;
+  readonly query: Omit<QueryDefinition, "id">;
+  readonly presentation: Omit<PresentationDefinition, "id">;
+  readonly sourceNavigationEntryId?: string;
 }
 
 export interface FolderNavigationItem {
@@ -64,13 +73,12 @@ export interface ViewNavigationItem {
 export type NavigationItem = FolderNavigationItem | ViewNavigationItem;
 
 export interface WorkspaceDocument {
-  version: 3;
+  version: 4;
   queries: Record<QueryId, QueryDefinition>;
   presentations: Record<PresentationId, PresentationDefinition>;
   views: Record<ViewId, SavedView>;
   navigation: Record<NavigationId, NavigationItem>;
   rootItems: NavigationId[];
-  favorites: ViewId[];
 }
 import type { EntityId } from "../entities/entity-description";
 import type { QueryValue } from "../query/query-result";
