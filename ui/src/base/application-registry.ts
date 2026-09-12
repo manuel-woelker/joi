@@ -40,7 +40,7 @@ export function createApplication(options: { plugins?: readonly UiPlugin[] } = {
   const registry = builder.build();
   pluginRegistry.setRegistry(registry);
   console.info(`UI plugin system initialized in ${(performance.now() - initializationStarted).toFixed(2)} ms`);
-  return { registry, services: { dataChanges, recordMutations } };
+  return { registry, services: { dataChanges, fetchService, recordMutations } };
 }
 
 /** Builds and returns the registry for the statically discovered application. */

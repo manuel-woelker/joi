@@ -1,14 +1,12 @@
 import { userEntity } from "./user-entity";
 import { entityDescriptions } from "../../entities/entity-registry";
 import { plugin } from "../../../../base/plugin-registry";
-import { fetchServiceKey } from "../../../../base/services/fetch-service";
 import { administrationContributions } from "../contribution";
-import { Users } from "./Users";
+import { EntityMasterDetailView } from "../../master-detail/EntityMasterDetailView";
 
 export default plugin({
   name: "users-administration",
   description: "User administration",
-  requires: { fetchService: fetchServiceKey },
   registerExtensions(context) {
     context.registerExtension({
       point: entityDescriptions,
@@ -25,7 +23,7 @@ export default plugin({
         name: "Users",
         section: "Administration",
         icon: userEntity.icon,
-        content: () => <Users fetchService={context.services.fetchService} />,
+        content: () => <EntityMasterDetailView entityId={userEntity.id} />,
       },
     });
   },

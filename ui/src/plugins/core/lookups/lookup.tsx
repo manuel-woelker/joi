@@ -34,6 +34,7 @@ export interface LookupEntry {
 export interface LookupDefinition {
   readonly id: LookupId;
   readonly label: string;
+  readonly sourceTableName?: string;
   load(): Promise<readonly LookupEntry[]>;
 }
 
@@ -74,6 +75,13 @@ export class LookupService {
   invalidate(id: LookupId): void {
     if (!this.definitions.has(id)) throw new Error(`Lookup '${id}' is not registered`);
     this.loads.delete(id);
+  }
+
+  /** Invalidates every lookup backed by the changed table. */
+  invalidateSource(tableName: string): void {
+    for (const definition of this.definitions.values()) {
+      if (definition.sourceTableName === tableName) this.loads.delete(definition.id);
+    }
   }
 
   async label(id: LookupId, value: LookupEntryId): Promise<string> {

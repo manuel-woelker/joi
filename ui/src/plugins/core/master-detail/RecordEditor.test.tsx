@@ -134,7 +134,7 @@ describe("RecordEditor", () => {
     });
     render(() => (
       <ApplicationServicesProvider
-        services={{ dataChanges, recordMutations: new RecordMutationService(fetchService, dataChanges) }}
+        services={{ dataChanges, fetchService, recordMutations: new RecordMutationService(fetchService, dataChanges) }}
       >
         <RecordEditor
           definition={{

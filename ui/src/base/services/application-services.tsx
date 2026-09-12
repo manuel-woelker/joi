@@ -2,10 +2,12 @@ import { createContext, useContext, type ParentProps } from "solid-js";
 
 import type { DataChangeService } from "../../plugins/core/data-changes/data-change-service";
 import type { RecordMutationService } from "../../plugins/core/data-changes/record-mutation-service";
+import type { FetchService } from "./fetch-service";
 
 /** Shared stateful services exposed to components below the application shell. */
 export interface ApplicationServices {
   readonly dataChanges: DataChangeService;
+  readonly fetchService: FetchService;
   readonly recordMutations: RecordMutationService;
 }
 

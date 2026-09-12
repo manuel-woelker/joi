@@ -15,6 +15,7 @@ export default plugin({
       value: {
         id: lookupId("users"),
         label: "User",
+        sourceTableName: "users",
         async load() {
           const result = await loadUsers(context.services.fetchService);
           const id = result.requireColumn("id");

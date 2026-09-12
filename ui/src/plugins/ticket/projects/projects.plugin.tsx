@@ -3,10 +3,10 @@ import { fetchServiceKey } from "../../../base/services/fetch-service";
 import { administrationContributions } from "../../core/administration/contribution";
 import { entityDescriptions } from "../../core/entities/entity-registry";
 import { lookupDefinitions, lookupEntryId } from "../../core/lookups/lookup";
+import { EntityMasterDetailView } from "../../core/master-detail/EntityMasterDetailView";
 import { loadEntityRecords } from "../../core/saved-views/entity-query";
 import { projectEntity } from "./project-entity";
 import { projectLookupId } from "./project-lookup";
-import { Projects } from "./Projects";
 
 export default plugin({
   name: "ticket-projects",
@@ -26,6 +26,7 @@ export default plugin({
       value: {
         id: projectLookupId,
         label: "Project",
+        sourceTableName: projectEntity.tableName,
         async load() {
           const result = await loadEntityRecords(projectEntity, context.services.fetchService);
           const id = result.requireColumn("id");
@@ -47,7 +48,7 @@ export default plugin({
         name: "Projects",
         section: "Administration",
         icon: projectEntity.icon,
-        content: () => <Projects fetchService={context.services.fetchService} />,
+        content: () => <EntityMasterDetailView entityId={projectEntity.id} />,
       },
     });
   },

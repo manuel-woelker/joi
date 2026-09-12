@@ -1,30 +1,29 @@
 import { createResource, Match, onCleanup, Switch } from "solid-js";
 
 import { useNavigation } from "../../../base/navigation";
-import { useApplicationServices } from "../../../base/services/application-services";
-import type { FetchService } from "../../../base/services/fetch-service";
 import { DataTable } from "../../../components/DataTable";
 import { IconButton } from "../../../components/IconButton";
 import { bindEntity, createEntityTableColumns } from "../entities/bound-entity";
 import { createEntityEditorDefinition } from "../entities/entity-editor";
 import type { EntityId } from "../entities/entity-description";
 import { useEntityRegistry } from "../entities/entity-registry";
-import { MasterDetailView } from "../master-detail/MasterDetailView";
+import { useLookupService } from "../lookups/lookup";
 import { loadEntityRecords } from "../saved-views/entity-query";
-import styles from "./EntityAdministrationView.module.css";
+import { useApplicationServices } from "../../../base/services/application-services";
+import { MasterDetailView } from "./MasterDetailView";
+import styles from "./EntityMasterDetailView.module.css";
 
-/** Generic create, list, and edit view for an administrable entity. */
-export function EntityAdministrationView(props: {
-  entityId: EntityId;
-  fetchService: FetchService;
-  onChanged?: () => void;
-}) {
+/** Generic create, list, and edit view driven by one entity description. */
+export function EntityMasterDetailView(props: { entityId: EntityId }) {
   const navigation = useNavigation();
-  const { dataChanges } = useApplicationServices();
+  const { dataChanges, fetchService } = useApplicationServices();
+  const lookups = useLookupService();
   const description = useEntityRegistry().require(props.entityId);
   const editor = createEntityEditorDefinition(description);
-  const [records, { refetch }] = createResource(() => loadEntityRecords(description, props.fetchService));
-  const unsubscribe = dataChanges.subscribe({ tableName: description.tableName }, () => props.onChanged?.());
+  const [records, { refetch }] = createResource(() => loadEntityRecords(description, fetchService));
+  const unsubscribe = dataChanges.subscribe({ tableName: description.tableName }, () => {
+    lookups.invalidateSource(description.tableName);
+  });
   onCleanup(unsubscribe);
 
   return (
@@ -65,13 +64,12 @@ export function EntityAdministrationView(props: {
                 </>
               }
               definition={editor}
-              fetchService={props.fetchService}
+              fetchService={fetchService}
               result={result()}
               selectedRecordId={navigation.selectedRecordId()}
               creating={navigation.creatingRecord()}
               onCreated={async (id) => {
                 const refreshed = await refetch();
-                props.onChanged?.();
                 const identity = refreshed?.column(description.identityAttribute);
                 if (identity && refreshed?.rows.some((row) => row.value(identity) === id)) {
                   navigation.finishCreatingRecord(id);

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { PluginRegistryBuilder, plugin } from "../../../base/plugin-registry";
 import { LookupService, lookupDefinitions, lookupEntryId, lookupId, type LookupEntry } from "./lookup";
 
-function registryWithLookup(load: () => Promise<readonly LookupEntry[]>) {
+function registryWithLookup(load: () => Promise<readonly LookupEntry[]>, sourceTableName?: string) {
   return new PluginRegistryBuilder()
     .register(
       plugin({
@@ -23,7 +23,7 @@ function registryWithLookup(load: () => Promise<readonly LookupEntry[]>) {
             point: lookupDefinitions,
             id: "people-lookup",
             description: "Test people",
-            value: { id: lookupId("people"), label: "Person", load },
+            value: { id: lookupId("people"), label: "Person", sourceTableName, load },
           });
         },
       }),
@@ -69,5 +69,19 @@ describe("LookupService", () => {
     await expect(service.entries(lookupId("people"))).resolves.toMatchObject([{ label: "First" }]);
     service.invalidate(lookupId("people"));
     await expect(service.entries(lookupId("people"))).resolves.toMatchObject([{ label: "Second" }]);
+  });
+
+  it("invalidates lookups backed by a changed table", async () => {
+    const load = vi.fn(async () => [{ id: lookupEntryId("user-1"), label: "Jane" }]);
+    const service = new LookupService(registryWithLookup(load, "users"));
+
+    await service.entries(lookupId("people"));
+    service.invalidateSource("tickets");
+    await service.entries(lookupId("people"));
+    expect(load).toHaveBeenCalledOnce();
+
+    service.invalidateSource("users");
+    await service.entries(lookupId("people"));
+    expect(load).toHaveBeenCalledTimes(2);
   });
 });
