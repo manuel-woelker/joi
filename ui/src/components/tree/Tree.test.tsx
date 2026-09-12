@@ -163,6 +163,90 @@ describe("Tree", () => {
     expect(move).toHaveBeenCalledWith(expect.objectContaining({ id: documentId }), { parentId: folderId, index: 1 });
   });
 
+  it("applies the last accepted target when the browser ends a drag without dropping", () => {
+    const move = vi.fn();
+    const renderers = createTreeRendererRegistry(label)
+      .register(documentKind, (node) => <span>{label(node)}</span>)
+      .build();
+    render(() => (
+      <Tree
+        ariaLabel="Dragend fallback tree"
+        model={model()}
+        definition={{ renderers, move: { canMove: () => true, canMoveTo: () => true, move } }}
+        defaultExpanded={new Set([folderId])}
+      />
+    ));
+
+    const [folder, document] = screen.getAllByRole("treeitem");
+    vi.spyOn(folder, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: 200,
+      bottom: 32,
+      width: 200,
+      height: 32,
+      toJSON: () => undefined,
+    });
+    fireEvent.dragStart(document);
+    fireEvent(folder, new MouseEvent("dragover", { bubbles: true, clientX: 60, clientY: 16 }));
+    fireEvent.dragOver(globalThis.document.body);
+    fireEvent.dragEnd(document);
+
+    expect(move).toHaveBeenCalledWith(expect.objectContaining({ id: documentId }), { parentId: folderId, index: 1 });
+  });
+
+  it("starts moves only from configured drag handles", () => {
+    const move = vi.fn();
+    const renderers = createTreeRendererRegistry(label)
+      .register(documentKind, (node) => (
+        <span>
+          <span data-tree-drag-handle draggable="true">
+            Drag {label(node)}
+          </span>
+          <input aria-label="Document name" />
+        </span>
+      ))
+      .build();
+    render(() => (
+      <Tree
+        ariaLabel="Handle movable tree"
+        model={model()}
+        definition={{
+          renderers,
+          dragHandleSelector: "[data-tree-drag-handle]",
+          move: { canMove: (node) => node.kind === documentKind, canMoveTo: () => true, move },
+        }}
+        defaultExpanded={new Set([folderId])}
+      />
+    ));
+
+    const [folder, document] = screen.getAllByRole("treeitem");
+    vi.spyOn(folder, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: 200,
+      bottom: 32,
+      width: 200,
+      height: 32,
+      toJSON: () => undefined,
+    });
+
+    expect(document.getAttribute("draggable")).toBe("true");
+    fireEvent.dragStart(screen.getByLabelText("Document name"));
+    fireEvent.dragOver(folder);
+    fireEvent.drop(folder);
+    expect(move).not.toHaveBeenCalled();
+
+    fireEvent.dragStart(screen.getByText("Drag Getting started"));
+    fireEvent(folder, new MouseEvent("dragover", { bubbles: true, clientX: 60, clientY: 16 }));
+    fireEvent(folder, new MouseEvent("drop", { bubbles: true, clientX: 60, clientY: 16 }));
+    expect(move).toHaveBeenCalledOnce();
+  });
+
   it("copies with a modifier drag when copying is available", () => {
     const move = vi.fn();
     const copy = vi.fn();

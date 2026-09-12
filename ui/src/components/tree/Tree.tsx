@@ -24,6 +24,10 @@ export function Tree(props: TreeProps) {
   const [dropOverId, setDropOverId] = createSignal<TreeNodeId>();
   let expandTimer: ReturnType<typeof setTimeout> | undefined;
   let expandTarget: TreeNodeId | undefined;
+  let lastRejectedDropSignature: string | undefined;
+  let lastDropCandidate: { readonly over: TreeNodeId; readonly target: TreeMoveTarget } | undefined;
+  let lastAcceptedDropTarget: TreeMoveTarget | undefined;
+  let dropCompleted = false;
   onCleanup(() => clearTimeout(expandTimer));
   const rowElements = new Map<TreeNodeId, HTMLElement>();
   const expanded = () => props.expanded ?? localExpanded();
@@ -139,6 +143,15 @@ export function Tree(props: TreeProps) {
         const parentId = () => parentFor(props.model, id);
         const siblings = () => (parentId() ? (props.model.nodes.get(parentId()!)?.children ?? []) : props.model.roots);
         const rowIndex = () => siblings().indexOf(id);
+        const canDragNode = () =>
+          Boolean(
+            props.definition.move?.canMove(node()) ||
+              (props.definition.onDragStart && (props.definition.canDrag?.(node()) ?? true)),
+          );
+        const isValidDragOrigin = (event: DragEvent) => {
+          const selector = props.definition.dragHandleSelector;
+          return !selector || (event.target instanceof Element && event.target.closest(selector) !== null);
+        };
         const targetForEvent = (event: DragEvent): TreeMoveTarget => {
           const parentId = parentFor(props.model, id);
           const bounds =
@@ -149,6 +162,75 @@ export function Tree(props: TreeProps) {
           const siblings = parentId ? (props.model.nodes.get(parentId)?.children ?? []) : props.model.roots;
           const index = siblings.indexOf(id) + (bounds && event.clientY > bounds.top + bounds.height / 2 ? 1 : 0);
           return { parentId, index };
+        };
+        const updateDropTarget = (event: DragEvent, target: TreeMoveTarget, overId: TreeNodeId) => {
+          const dragged = draggedId();
+          const draggedNode = dragged ? props.model.nodes.get(dragged) : undefined;
+          const acceptsMove = Boolean(draggedNode && props.definition.move?.canMoveTo(draggedNode, target));
+          const acceptsExternal = !dragged && Boolean(props.definition.externalDrop?.canDrop(event, target));
+          lastDropCandidate = { over: overId, target };
+          if (!acceptsMove && !acceptsExternal) {
+            lastAcceptedDropTarget = undefined;
+            const rejectionSignature = `${dragged ?? "external"}:${overId}:${target.parentId ?? "root"}:${target.index}`;
+            if (lastRejectedDropSignature !== rejectionSignature) {
+              console.info("[Tree] drop target rejected", {
+                dragged: draggedNode ? { id: draggedNode.id, kind: draggedNode.kind } : undefined,
+                over: overId,
+                target,
+                acceptsMove,
+                acceptsExternal,
+              });
+              lastRejectedDropSignature = rejectionSignature;
+            }
+            setDropTarget(undefined);
+            setDropOverId(undefined);
+            return false;
+          }
+          lastRejectedDropSignature = undefined;
+          lastAcceptedDropTarget = target;
+          event.preventDefault();
+          if (event.dataTransfer)
+            event.dataTransfer.dropEffect =
+              (event.ctrlKey || event.altKey) && props.definition.move?.copy ? "copy" : "move";
+          setDropTarget(target);
+          setDropOverId(overId);
+          return true;
+        };
+        const finishDrop = (event: DragEvent) => {
+          dropCompleted = true;
+          const dragged = draggedId();
+          const target = dropTarget();
+          const draggedNode = dragged ? props.model.nodes.get(dragged) : undefined;
+          const acceptsMove = Boolean(draggedNode && target && props.definition.move?.canMoveTo(draggedNode, target));
+          const acceptsExternal = Boolean(target && props.definition.externalDrop?.canDrop(event, target));
+          const copyRequested = Boolean(event.ctrlKey || event.altKey);
+          console.info("[Tree] drop", {
+            dragged: draggedNode ? { id: draggedNode.id, kind: draggedNode.kind } : undefined,
+            over: dropOverId(),
+            target,
+            acceptsMove,
+            acceptsExternal,
+            copyRequested,
+            canCopy: Boolean(props.definition.move?.copy),
+          });
+          if (draggedNode && target && acceptsMove) {
+            event.preventDefault();
+            event.stopPropagation();
+            if (copyRequested && props.definition.move?.copy) {
+              props.definition.move.copy(draggedNode, target);
+            } else props.definition.move?.move(draggedNode, target);
+          } else if (target && acceptsExternal) {
+            event.preventDefault();
+            props.definition.externalDrop?.drop(event, target);
+          }
+          clearDragState();
+        };
+        const clearDragState = () => {
+          setDraggedId(undefined);
+          setDropTarget(undefined);
+          setDropOverId(undefined);
+          clearTimeout(expandTimer);
+          expandTarget = undefined;
         };
         return (
           <li role="none" class={props.definition.classForNode?.(node())} style={{ "--tree-level": level }}>
@@ -177,44 +259,28 @@ export function Tree(props: TreeProps) {
               }}
               onKeyDown={(event) => onKeyDown(event, node())}
               onContextMenu={(event) => props.definition.onContextMenu?.(event, node())}
-              draggable={
-                props.definition.move?.canMove(node()) ||
-                (Boolean(props.definition.onDragStart) && (props.definition.canDrag?.(node()) ?? true)) ||
-                undefined
-              }
+              draggable={canDragNode() || undefined}
               onDragStart={(event) => {
-                if (props.definition.onDragStart && (props.definition.canDrag?.(node()) ?? true)) {
-                  props.definition.onDragStart(event, node());
+                if (!canDragNode() || !isValidDragOrigin(event)) {
+                  event.preventDefault();
                   return;
                 }
-                if (!props.definition.move?.canMove(node())) {
-                  event.preventDefault();
+                dropCompleted = false;
+                lastDropCandidate = undefined;
+                lastAcceptedDropTarget = undefined;
+                lastRejectedDropSignature = undefined;
+                if (props.definition.onDragStart && (props.definition.canDrag?.(node()) ?? true)) {
+                  props.definition.onDragStart(event, node());
                   return;
                 }
                 setDraggedId(id);
                 event.dataTransfer?.setData("text/plain", id);
                 if (event.dataTransfer)
-                  event.dataTransfer.effectAllowed = props.definition.move.copy ? "copyMove" : "move";
+                  event.dataTransfer.effectAllowed = props.definition.move?.copy ? "copyMove" : "move";
               }}
               onDragOver={(event) => {
-                const dragged = draggedId();
                 const target = targetForEvent(event);
-                const draggedNode = dragged ? props.model.nodes.get(dragged) : undefined;
-                const acceptsMove = Boolean(
-                  draggedNode && dragged !== id && props.definition.move?.canMoveTo(draggedNode, target),
-                );
-                const acceptsExternal = !dragged && Boolean(props.definition.externalDrop?.canDrop(event, target));
-                if (!acceptsMove && !acceptsExternal) {
-                  setDropTarget(undefined);
-                  setDropOverId(undefined);
-                  return;
-                }
-                event.preventDefault();
-                if (event.dataTransfer)
-                  event.dataTransfer.dropEffect =
-                    (event.ctrlKey || event.altKey) && props.definition.move?.copy ? "copy" : "move";
-                setDropTarget(target);
-                setDropOverId(id);
+                if (!updateDropTarget(event, target, id)) return;
                 if (target.parentId === id && isFolder() && !isExpanded() && expandTarget !== id) {
                   clearTimeout(expandTimer);
                   expandTarget = id;
@@ -224,32 +290,32 @@ export function Tree(props: TreeProps) {
                   expandTarget = undefined;
                 }
               }}
-              onDrop={(event) => {
-                const dragged = draggedId();
-                const target = dropTarget();
-                const draggedNode = dragged ? props.model.nodes.get(dragged) : undefined;
-                if (draggedNode && target && props.definition.move?.canMoveTo(draggedNode, target)) {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  if ((event.ctrlKey || event.altKey) && props.definition.move.copy) {
-                    props.definition.move.copy(draggedNode, target);
-                  } else props.definition.move.move(draggedNode, target);
-                } else if (target && props.definition.externalDrop?.canDrop(event, target)) {
-                  event.preventDefault();
-                  props.definition.externalDrop.drop(event, target);
+              onDrop={finishDrop}
+              onDragEnd={(event) => {
+                if (!dropCompleted) {
+                  console.info("[Tree] drag ended without an accepted drop", {
+                    dragged: draggedId(),
+                    candidate: lastDropCandidate,
+                  });
+                  const dragged = draggedId();
+                  const draggedNode = dragged ? props.model.nodes.get(dragged) : undefined;
+                  const target = lastAcceptedDropTarget;
+                  if (draggedNode && target && props.definition.move?.canMoveTo(draggedNode, target)) {
+                    const copyRequested = Boolean(event.ctrlKey || event.altKey);
+                    console.info("[Tree] applying accepted target from dragend", {
+                      dragged: { id: draggedNode.id, kind: draggedNode.kind },
+                      target,
+                      copyRequested,
+                    });
+                    if (copyRequested && props.definition.move.copy) props.definition.move.copy(draggedNode, target);
+                    else props.definition.move.move(draggedNode, target);
+                  }
                 }
-                setDraggedId(undefined);
-                setDropTarget(undefined);
-                setDropOverId(undefined);
-                clearTimeout(expandTimer);
-                expandTarget = undefined;
-              }}
-              onDragEnd={() => {
-                setDraggedId(undefined);
-                setDropTarget(undefined);
-                setDropOverId(undefined);
-                clearTimeout(expandTimer);
-                expandTarget = undefined;
+                dropCompleted = false;
+                lastDropCandidate = undefined;
+                lastAcceptedDropTarget = undefined;
+                lastRejectedDropSignature = undefined;
+                clearDragState();
               }}
             >
               <Show

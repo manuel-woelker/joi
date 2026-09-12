@@ -2,7 +2,7 @@
 
 import { fireEvent, render, screen } from "@solidjs/testing-library";
 import { createSignal } from "solid-js";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup } from "@solidjs/testing-library";
 
 import { FilterDefinitionEditor } from "./FilterDefinitionEditor";
@@ -78,5 +78,46 @@ describe("FilterDefinitionEditor", () => {
 
     expect(await screen.findByText("Current workflow state.")).toBeTruthy();
     expect(screen.getByText("string")).toBeTruthy();
+  });
+
+  it("reorders criteria when dragging their handles", () => {
+    const first = createFilterCriterion(
+      filterAttributeId("status"),
+      inSetFilterOperator,
+      { type: "set", values: ["open"] },
+      filterNodeId("first"),
+    );
+    const second = createFilterCriterion(
+      filterAttributeId("status"),
+      inSetFilterOperator,
+      { type: "set", values: ["closed"] },
+      filterNodeId("second"),
+    );
+    const value = createCompositeFilter("all", [first, second], filterNodeId("root"));
+    const onChange = vi.fn();
+    render(() => <FilterDefinitionEditor attributes={attributes} value={value} onChange={onChange} />);
+
+    const rows = screen.getAllByRole("treeitem");
+    const firstHandle = rows[1].querySelector<HTMLElement>("[data-tree-drag-handle]")!;
+    vi.spyOn(rows[2], "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 40,
+      left: 0,
+      top: 40,
+      right: 600,
+      bottom: 72,
+      width: 600,
+      height: 32,
+      toJSON: () => undefined,
+    });
+
+    fireEvent.dragStart(firstHandle);
+    fireEvent(rows[2], new MouseEvent("dragover", { bubbles: true, clientX: 100, clientY: 70 }));
+    fireEvent(rows[2], new MouseEvent("drop", { bubbles: true, clientX: 100, clientY: 70 }));
+
+    const reordered = onChange.mock.lastCall?.[0] as FilterDefinition;
+    expect(reordered.type).toBe("composite");
+    if (reordered.type === "composite")
+      expect(reordered.children.map((child) => child.id)).toEqual([second.id, first.id]);
   });
 });

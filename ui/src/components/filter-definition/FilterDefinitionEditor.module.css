@@ -12,6 +12,19 @@
 }
 .group, .criterion { min-width: 0; flex: 1; align-items: center; gap: 6px; }
 .group { display: flex; padding: 3px 5px; border-radius: 3px; background: var(--filter-surface); }
+.dragHandle {
+  display: grid;
+  width: 14px;
+  height: 20px;
+  flex: none;
+  place-items: center;
+  color: var(--color-text-muted);
+  cursor: grab;
+  user-select: none;
+}
+.dragHandle:hover { color: var(--color-text); }
+.dragHandle:active { cursor: grabbing; }
+.dragHandleSpacer { visibility: hidden; cursor: default; }
 .group select { min-width: 190px; flex: 1; font-weight: 600; }
 .group button, .criterion button { flex: none; padding: 3px 7px; }
 .all { --filter-color: var(--color-filter-all); --filter-surface: var(--color-filter-all-soft); }
@@ -20,12 +33,12 @@
 .criterion {
   --criterion-indent: max(0px, calc((var(--tree-level) - 1) * var(--filter-nesting-offset)));
   display: grid;
-  grid-template-columns: 20px minmax(80px, calc(200px - var(--criterion-indent))) 110px minmax(180px, 1fr) 28px;
+  grid-template-columns: 14px 20px minmax(80px, calc(200px - var(--criterion-indent))) 110px minmax(180px, 1fr) 28px;
   padding-left: 5px;
 }
 .criterion select, .criterion > input:not([type="checkbox"]) { min-width: 0; }
-.criterion > input:not([type="checkbox"]) { grid-column: 4; }
-.criterion > button:last-child { grid-column: 5; justify-self: center; }
+.criterion > input:not([type="checkbox"]) { grid-column: 5; }
+.criterion > button:last-child { grid-column: 6; justify-self: center; }
 .deleteButton {
   position: relative;
   display: grid;
@@ -57,16 +70,16 @@
 }
 .deleteButton:hover .deleteTooltip,
 .deleteButton:focus-visible .deleteTooltip { display: block; }
-.criterion :global(.root) { min-width: 0; grid-column: 4; }
-.criterion > :global(.root):first-of-type { grid-column: 2; }
+.criterion :global(.root) { min-width: 0; grid-column: 5; }
+.criterion > :global(.root):first-of-type { grid-column: 3; }
 .attributeEntry { display: grid; min-width: 0; gap: 2px; }
 .attributeEntry > div { display: flex; min-width: 0; align-items: baseline; justify-content: space-between; gap: 12px; }
 .attributeEntry strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .attributeEntry code { color: var(--color-text-muted); font-size: 11px; white-space: nowrap; }
 .attributeEntry > span { color: var(--color-text-muted); font-size: 12px; line-height: 1.25; }
-.range { display: grid; min-width: 0; grid-column: 4; grid-template-columns: minmax(60px, 1fr) auto minmax(60px, 1fr); align-items: center; gap: 4px; }
+.range { display: grid; min-width: 0; grid-column: 5; grid-template-columns: minmax(60px, 1fr) auto minmax(60px, 1fr); align-items: center; gap: 4px; }
 .range input { min-width: 0; }
-.choices { display: flex; min-width: 0; grid-column: 4; flex-wrap: wrap; gap: 4px 10px; }
+.choices { display: flex; min-width: 0; grid-column: 5; flex-wrap: wrap; gap: 4px 10px; }
 .choices label { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .disabled { opacity: 0.55; }
 .error { margin: 4px 24px; color: var(--color-danger); font-size: 12px; }
@@ -75,6 +88,6 @@
   .group { flex-wrap: wrap; }
   .group select { min-width: 150px; }
   .criterion {
-    grid-template-columns: 20px minmax(72px, calc(160px - var(--criterion-indent))) 90px minmax(120px, 1fr) 28px;
+    grid-template-columns: 14px 20px minmax(72px, calc(160px - var(--criterion-indent))) 90px minmax(120px, 1fr) 28px;
   }
 }

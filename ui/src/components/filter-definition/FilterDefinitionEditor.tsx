@@ -1,4 +1,5 @@
 import { createMemo, createUniqueId, For, Show } from "solid-js";
+import GripVerticalIcon from "lucide-solid/icons/grip-vertical";
 
 import { Select } from "../Select";
 import { Tree } from "../tree/Tree";
@@ -90,8 +91,10 @@ export function FilterDefinitionEditor(props: FilterDefinitionEditorProps) {
     createTreeRendererRegistry((node) => String(node.id))
       .replace(folderTreeNodeKind, (node) => {
         const filter = node.data.filter as CompositeFilterDefinition;
+        const movable = filter.id !== props.value.id;
         return (
           <div class={`${styles.group} ${styles[filter.kind]}`} classList={{ [styles.disabled]: !!filter.disabled }}>
+            <FilterDragHandle movable={movable} />
             <input
               type="checkbox"
               aria-label={`Enable ${filter.kind} group`}
@@ -126,6 +129,7 @@ export function FilterDefinitionEditor(props: FilterDefinitionEditorProps) {
           filter={node.data.filter as FilterCriterionDefinition}
           attributes={props.attributes}
           operators={operators()}
+          movable={String(node.id) !== props.value.id}
           onChange={(filter) => replace(filter.id, filter)}
           onDelete={
             String(node.id) === props.value.id
@@ -161,6 +165,7 @@ export function FilterDefinitionEditor(props: FilterDefinitionEditorProps) {
             renderers: renderers(),
             isCollapsible: () => false,
             reserveDisclosureSpace: false,
+            dragHandleSelector: "[data-tree-drag-handle]",
             classForNode: (node) => {
               const filter = node.data.filter as FilterDefinition;
               return filter.type === "composite"
@@ -188,6 +193,7 @@ function CriterionRow(props: {
   filter: FilterCriterionDefinition;
   attributes: readonly FilterableAttribute[];
   operators: readonly FilterOperatorDefinition[];
+  movable: boolean;
   onChange: (filter: FilterCriterionDefinition) => void;
   onDelete?: () => void;
 }) {
@@ -211,6 +217,7 @@ function CriterionRow(props: {
   };
   return (
     <div class={styles.criterion} classList={{ [styles.disabled]: !!props.filter.disabled }}>
+      <FilterDragHandle movable={props.movable} />
       <input
         type="checkbox"
         aria-label="Enable criterion"
@@ -263,6 +270,20 @@ function CriterionRow(props: {
         <DeleteFilterButton onClick={props.onDelete!} />
       </Show>
     </div>
+  );
+}
+
+function FilterDragHandle(props: { readonly movable: boolean }) {
+  return (
+    <span
+      class={styles.dragHandle}
+      classList={{ [styles.dragHandleSpacer]: !props.movable }}
+      data-tree-drag-handle={props.movable ? "" : undefined}
+      draggable={props.movable || undefined}
+      aria-hidden="true"
+    >
+      <GripVerticalIcon size={14} />
+    </span>
   );
 }
 

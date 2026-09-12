@@ -48,6 +48,8 @@ export interface TreeDefinition {
   readonly onActivate?: (node: TreeNode) => void;
   readonly onContextMenu?: (event: MouseEvent, node: TreeNode) => void;
   readonly canDrag?: (node: TreeNode) => boolean;
+  /** Restricts drag initiation to descendants matching this selector. */
+  readonly dragHandleSelector?: string;
   readonly onDragStart?: (event: DragEvent, node: TreeNode) => void;
   readonly move?: TreeMoveDefinition;
   readonly externalDrop?: TreeExternalDropDefinition;
