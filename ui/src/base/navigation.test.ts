@@ -69,6 +69,18 @@ describe("NavigationController", () => {
     });
   });
 
+  it("treats administration routes as ordinary system views", () => {
+    window.location.hash = "#/administration/users";
+    createRoot((dispose) => {
+      expect(createNavigationController().selection()).toEqual({
+        type: "view",
+        id: "users",
+        route: { source: "system", section: "administration", id: "users" },
+      });
+      dispose();
+    });
+  });
+
   it("removes its hash listener on cleanup", () => {
     const remove = vi.spyOn(window, "removeEventListener");
     createRoot((dispose) => {

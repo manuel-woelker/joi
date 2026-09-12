@@ -17,7 +17,7 @@ export function selectionOwner(selection: NavigationSelection): NavigationSelect
 export function sameSelection(left: NavigationSelection, right: NavigationSelection): boolean {
   const a = selectionOwner(left);
   const b = selectionOwner(right);
-  return (a.type === "view" || a.type === "administration") && a.type === b.type && "id" in b && a.id === b.id;
+  return a.type === "view" && b.type === "view" && a.id === b.id;
 }
 
 export function referenceForSelection(
@@ -26,7 +26,7 @@ export function referenceForSelection(
   workspace: WorkspaceDocument,
 ): RecentViewReference | undefined {
   const owner = selectionOwner(selection);
-  if (owner.type !== "view" && owner.type !== "administration") return undefined;
+  if (owner.type !== "view") return undefined;
   if ((!owner.route || owner.route.section === "workspace") && owner.type === "view" && workspace.views[owner.id]) {
     return { type: "workspace", viewId: owner.id };
   }

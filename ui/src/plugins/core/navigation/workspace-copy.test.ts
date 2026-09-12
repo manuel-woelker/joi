@@ -12,7 +12,7 @@ describe("workspace navigation copies", () => {
         id: navigationEntryId("users"),
         type: "leaf",
         label: "Users",
-        selection: { type: "administration", id: "users" },
+        selection: { type: "view", id: "users" },
       },
       "administration",
     );
@@ -22,7 +22,7 @@ describe("workspace navigation copies", () => {
       shortcut: {
         name: "Users",
         description: undefined,
-        selection: { type: "administration", id: "users" },
+        selection: { type: "view", id: "users" },
         sourceNavigationEntryId: "administration/users",
       },
     });
@@ -43,7 +43,7 @@ describe("workspace navigation copies", () => {
       id: navigationEntryId("users"),
       type: "leaf" as const,
       label: "Users",
-      selection: { type: "administration" as const, id: "users" },
+      selection: { type: "view" as const, id: "users" },
     };
     const sections = [
       {

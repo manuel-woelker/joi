@@ -29,13 +29,13 @@ export default plugin({
             label: entry.name,
             description: entry.description,
             icon: entry.icon,
-            selection: { type: "administration" as const, id: entry.id },
+            selection: { type: "view" as const, id: entry.id },
             copyToWorkspace: () => ({
               type: "shortcut" as const,
               shortcut: {
                 name: entry.name,
                 description: entry.description,
-                selection: { type: "administration" as const, id: entry.id },
+                selection: { type: "view" as const, id: entry.id },
                 sourceNavigationEntryId: `administration/${entry.id}`,
               },
             }),
@@ -51,10 +51,9 @@ export default plugin({
         order: 100,
         resolve(selection) {
           const id =
-            selection.type === "administration"
+            selection.type === "view"
               ? selection.id
-              : (selection.type === "record" || selection.type === "create") &&
-                  selection.owner.type === "administration"
+              : selection.type === "record" || selection.type === "create"
                 ? selection.owner.id
                 : undefined;
           return id ? administrationEntries(registry).find((entry) => entry.id === id) : undefined;

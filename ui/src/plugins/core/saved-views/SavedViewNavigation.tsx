@@ -211,7 +211,6 @@ export function SavedViewNavigation(props: { embedded?: boolean } = {}) {
         const selection =
           item.selection.type === "record" || item.selection.type === "create" ? item.selection.owner : item.selection;
         if (selection.type === "view") controller.navigation.selectView(selection.id, route);
-        if (selection.type === "administration") controller.navigation.selectAdministration(selection.id, route);
       }
     },
     onContextMenu: openContextMenu,

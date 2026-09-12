@@ -89,7 +89,6 @@ export function ApplicationNavigation(props: { registry: PluginRegistry; userId:
   const navigate = (selection: NavigationSelection, route: NavigationRoute) => {
     const owner = selection.type === "record" || selection.type === "create" ? selection.owner : selection;
     if (owner.type === "view") workspace.navigation.selectView(owner.id, route);
-    if (owner.type === "administration") workspace.navigation.selectAdministration(owner.id, route);
   };
   const setSystemOpen = (id: string | undefined) => {
     setOpenSystem(id);

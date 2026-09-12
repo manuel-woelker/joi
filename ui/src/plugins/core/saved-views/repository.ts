@@ -86,6 +86,19 @@ export function isWorkspaceDocument(value: unknown): value is WorkspaceDocument 
   );
 }
 
+function normalizeLegacyNavigationSelections(workspace: WorkspaceDocument): WorkspaceDocument {
+  for (const item of Object.values(workspace.navigation)) {
+    if (item.type !== "shortcut") continue;
+    const selection = item.selection as unknown as Record<string, unknown>;
+    if (selection.type === "administration") selection.type = "view";
+    const owner = selection.owner;
+    if (owner && typeof owner === "object" && (owner as Record<string, unknown>).type === "administration") {
+      (owner as Record<string, unknown>).type = "view";
+    }
+  }
+  return workspace;
+}
+
 function migrateLegacyWorkspace(value: unknown): WorkspaceDocument | undefined {
   if (!value || typeof value !== "object") return undefined;
   const legacy = value as Record<string, unknown>;
@@ -118,7 +131,7 @@ export class LocalWorkspaceRepository implements WorkspaceRepository {
     if (stored) {
       try {
         const parsed: unknown = JSON.parse(stored);
-        if (isWorkspaceDocument(parsed)) return { workspace: parsed };
+        if (isWorkspaceDocument(parsed)) return { workspace: normalizeLegacyNavigationSelections(parsed) };
       } catch {
         // Fall through to a recoverable default workspace.
       }

@@ -40,7 +40,7 @@ describe("workspace operations", () => {
     const workspace = createTestWorkspace();
     const id = addShortcutFromDraft(workspace, {
       name: "Users",
-      selection: { type: "administration", id: "users" },
+      selection: { type: "view", id: "users" },
       sourceNavigationEntryId: "administration/users",
     });
 
@@ -49,7 +49,7 @@ describe("workspace operations", () => {
       id,
       type: "shortcut",
       name: "Users",
-      selection: { type: "administration", id: "users" },
+      selection: { type: "view", id: "users" },
     });
   });
 
@@ -60,7 +60,7 @@ describe("workspace operations", () => {
     const workspace = createTestWorkspace();
     const source = {
       name: "Users",
-      selection: { type: "administration" as const, id: "users" },
+      selection: { type: "view" as const, id: "users" },
       sourceNavigationEntryId: "administration/users",
     };
 

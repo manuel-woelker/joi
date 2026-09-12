@@ -19,6 +19,23 @@ describe("LocalWorkspaceRepository", () => {
     expect(repository.load().workspace.views["view-active"].name).toBe("Changed");
   });
 
+  it("normalizes legacy administration shortcuts to regular views", () => {
+    const workspace = createTestWorkspace();
+    workspace.navigation.shortcut = {
+      id: "shortcut",
+      type: "shortcut",
+      name: "Users",
+      selection: { type: "administration", id: "users" } as never,
+      sourceNavigationEntryId: "administration/users",
+    };
+    workspace.rootItems.push("shortcut");
+    localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(workspace));
+
+    const loaded = new LocalWorkspaceRepository(createTestWorkspace(), localStorage).load();
+
+    expect(loaded.workspace.navigation.shortcut).toMatchObject({ selection: { type: "view", id: "users" } });
+  });
+
   it("recovers safely from malformed data", () => {
     localStorage.setItem(WORKSPACE_STORAGE_KEY, "not json");
     const loaded = new LocalWorkspaceRepository(createTestWorkspace(), localStorage).load();

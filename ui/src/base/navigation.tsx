@@ -6,7 +6,7 @@ export interface NavigationRoute {
   readonly id: string;
 }
 
-export type NavigationOwner = { type: "view" | "administration"; id: string; route?: NavigationRoute };
+export type NavigationOwner = { type: "view"; id: string; route?: NavigationRoute };
 
 export type NavigationSelection =
   | { type: "none" }
@@ -18,12 +18,10 @@ export type NavigationSelection =
 export interface NavigationController {
   selection: () => NavigationSelection;
   selectedViewId: () => string | undefined;
-  selectedAdministrationId: () => string | undefined;
   selectedRecordId: () => string | undefined;
   creatingRecord: () => boolean;
   activeRoute: () => NavigationRoute | undefined;
   selectView(id: string, route?: NavigationRoute): void;
-  selectAdministration(id: string, route?: NavigationRoute): void;
   selectRecord(id: string): void;
   createRecord(): void;
   finishCreatingRecord(id: string): void;
@@ -45,7 +43,7 @@ function selectionFromHash(): NavigationSelection {
     section,
     id,
   };
-  const owner: NavigationOwner = { type: section === "administration" ? "administration" : "view", id, route };
+  const owner: NavigationOwner = { type: "view", id, route };
   const suffix = parts.slice(offset + 2);
   if (suffix[0] === "new" && suffix.length === 1) return { type: "create", owner };
   if (suffix[0] === "records" && suffix[1] && suffix.length === 2) {
@@ -65,14 +63,6 @@ export function createNavigationController(): NavigationController {
         ? current.owner.id
         : undefined;
   });
-  const selectedAdministrationId = createMemo(() => {
-    const current = selection();
-    return current.type === "administration"
-      ? current.id
-      : (current.type === "record" || current.type === "create") && current.owner.type === "administration"
-        ? current.owner.id
-        : undefined;
-  });
   const onHashChange = () => setSelection(selectionFromHash());
   window.addEventListener("hashchange", onHashChange);
   onCleanup(() => window.removeEventListener("hashchange", onHashChange));
@@ -80,7 +70,6 @@ export function createNavigationController(): NavigationController {
   return {
     selection,
     selectedViewId,
-    selectedAdministrationId,
     selectedRecordId: createMemo(() => {
       const current = selection();
       return current.type === "record" ? current.recordId : undefined;
@@ -90,16 +79,12 @@ export function createNavigationController(): NavigationController {
       const current = selection();
       return current.type === "record" || current.type === "create"
         ? current.owner.route
-        : current.type === "view" || current.type === "administration"
+        : current.type === "view"
           ? current.route
           : undefined;
     }),
     selectView(id, route = { source: "workspace", section: "workspace", id }) {
       setSelection({ type: "view", id, route });
-      window.location.hash = routeHash(route);
-    },
-    selectAdministration(id, route = { source: "system", section: "administration", id }) {
-      setSelection({ type: "administration", id, route });
       window.location.hash = routeHash(route);
     },
     selectRecord(recordId) {
@@ -140,8 +125,8 @@ function routeHash(route: NavigationRoute): string {
 function ownerRoute(owner: NavigationOwner): NavigationRoute {
   return (
     owner.route ?? {
-      source: owner.type === "view" ? "workspace" : "system",
-      section: owner.type === "view" ? "workspace" : "administration",
+      source: "workspace",
+      section: "workspace",
       id: owner.id,
     }
   );

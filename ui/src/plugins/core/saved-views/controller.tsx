@@ -46,7 +46,6 @@ export interface WorkspaceController {
   setSearch(value: string): void;
   setExpandedFolders(ids: ReadonlySet<NavigationId>): void;
   selectView(id: ViewId): void;
-  selectAdministration(id: string): void;
   selectRecord(id: string): void;
   createRecord(): void;
   finishCreatingRecord(id: string): void;
@@ -108,9 +107,7 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
     if (item?.type !== "shortcut") return;
     const target =
       item.selection.type === "record" || item.selection.type === "create" ? item.selection.owner : item.selection;
-    if (target.type === "administration" && current.type !== "administration") {
-      navigation.selectAdministration(target.id, route);
-    } else if (target.type === "view" && (current.type !== "view" || current.id !== target.id)) {
+    if (target.type === "view" && (current.type !== "view" || current.id !== target.id)) {
       navigation.selectView(target.id, route);
     }
   });
@@ -139,11 +136,6 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
     setSearch("");
   };
 
-  const selectAdministration = (id: string) => {
-    navigation.selectAdministration(id);
-    setSearch("");
-  };
-
   const controller: WorkspaceController = {
     workspace,
     navigation,
@@ -160,7 +152,6 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
       localStorage.setItem("joi.expanded-folders", JSON.stringify(next));
     },
     selectView,
-    selectAdministration,
     selectRecord(id) {
       navigation.selectRecord(id);
       setSearch("");
@@ -281,7 +272,6 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
       else {
         const target = entryDraft.shortcut.selection;
         const route = { source: "workspace" as const, section: "workspace", id };
-        if (target.type === "administration") navigation.selectAdministration(target.id, route);
         if (target.type === "view") navigation.selectView(target.id, route);
       }
       const name = entryDraft.type === "view" ? entryDraft.view.name : entryDraft.shortcut.name;
