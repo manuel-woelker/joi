@@ -1,6 +1,7 @@
 .editor { --filter-nesting-offset: 17px; min-width: 0; }
 .editor :global(.tree-row) { overflow: visible; }
 .filterTree :global([role="treeitem"]) { min-height: 26px; padding-left: 0; }
+.filterTree :global([role="treeitem"]:hover) { background: transparent; }
 .filterTree :global([role="treeitem"] > div:last-child) { padding-block: 2px; }
 .compositeSection {
   --filter-color: var(--color-filter-all);

@@ -13,11 +13,14 @@
   --color-border: color-mix(in srgb, var(--color-ink) 24%, white);
   --color-border-strong: color-mix(in srgb, var(--color-ink) 36%, white);
   --color-border-soft: color-mix(in srgb, var(--color-ink) 15%, white);
-  --color-control-background: var(--color-surface);
+  --color-control-background: var(--color-canvas);
   --color-control-background-hover: var(--color-surface-hover);
-  --color-control-button-background: var(--color-surface-muted);
+  --color-control-button-background: var(--color-surface-hover);
+  --color-control-button-highlight: var(--color-canvas);
   --color-control-border: var(--color-border-strong);
   --color-control-border-hover: var(--color-primary-dark);
+  --color-control-raised-shadow: color-mix(in srgb, var(--color-ink) 13%, transparent);
+  --color-control-inset-shadow: color-mix(in srgb, var(--color-ink) 14%, transparent);
   --color-control-disabled-background: var(--color-surface-muted);
   --color-primary-dark: color-mix(in srgb, var(--color-primary) 72%, black);
   --color-primary-soft: color-mix(in srgb, var(--color-primary) 14%, white);
