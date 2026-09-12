@@ -27,6 +27,7 @@ impl TableDescriptionProvider for UserSessionTableDescriptionProvider {
     fn table_description(&self) -> TableDescription {
         TableDescription {
             name: TableName("user_sessions".into()),
+            discoverable: false,
             columns: vec![
                 ColumnDescription {
                     name: AttributeName("session_id".into()),
@@ -281,6 +282,7 @@ impl TableDescriptionProvider for UserTableDescriptionProvider {
     fn table_description(&self) -> TableDescription {
         TableDescription {
             name: TableName("users".into()),
+            discoverable: true,
             columns: vec![
                 user_column("id", "Immutable KSUID user identifier"),
                 user_column("username", "Unique user login name"),

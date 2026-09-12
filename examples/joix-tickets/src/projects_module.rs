@@ -12,6 +12,7 @@ impl TableDescriptionProvider for ProjectTableDescriptionProvider {
     fn table_description(&self) -> TableDescription {
         TableDescription {
             name: TableName("projects".into()),
+            discoverable: true,
             columns: vec![
                 project_column("id", "Immutable KSUID project identifier"),
                 project_column("name", "Human-readable project name"),

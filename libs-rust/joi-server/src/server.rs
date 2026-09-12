@@ -15,6 +15,7 @@ use crate::{
     data_store::{DataStore, SharedDataStore, TableDescriptionProvider, TestDataProvider},
     generated::api::COMMAND_DESCRIPTORS,
     info_command::{InfoCollector, InfoCommand, InfoProvider},
+    model_info_command::ModelInfoCommand,
     mutate_command::MutateCommand,
     plugins_command::PluginsCommand,
     query_command::QueryCommand,
@@ -140,6 +141,7 @@ fn build_command_registry(
 ) -> JoiResult<CommandRegistry> {
     let mut builder = CommandRegistryBuilder::new();
     builder.register(InfoCommand::new(plugin_registry.clone()))?;
+    builder.register(ModelInfoCommand::new(plugin_registry.clone()))?;
     builder.register(PluginsCommand::new(plugin_registry))?;
     builder.register(QueryCommand::new(data_store.clone()))?;
     builder.register(MutateCommand::new(data_store.clone()))?;

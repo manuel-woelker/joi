@@ -681,6 +681,7 @@ mod tests {
         store
             .ensure_tables(vec![TableDescription {
                 name: table("records"),
+                discoverable: false,
                 columns: vec![string_column("id")],
             }])
             .unwrap();
@@ -724,6 +725,7 @@ mod tests {
         store
             .ensure_tables(vec![TableDescription {
                 name: table("records"),
+                discoverable: false,
                 columns: vec![string_column("id"), assignee],
             }])
             .unwrap();
@@ -821,6 +823,7 @@ mod tests {
     fn record_table() -> TableDescription {
         TableDescription {
             name: table("records"),
+            discoverable: false,
             columns: vec![
                 string_column("id"),
                 ColumnDescription {

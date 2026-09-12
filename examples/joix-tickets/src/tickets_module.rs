@@ -15,6 +15,7 @@ impl TableDescriptionProvider for TicketTableDescriptionProvider {
     fn table_description(&self) -> TableDescription {
         TableDescription {
             name: TableName("tickets".into()),
+            discoverable: true,
             columns: vec![
                 ticket_column("id", "Immutable KSUID ticket identifier"),
                 ticket_column("key", "Human-readable ticket key in PROJECT-NUMBER form"),

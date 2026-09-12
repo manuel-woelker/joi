@@ -71,6 +71,8 @@ pub struct DataStoreQueryResult {
 pub struct TableDescription {
     /// The table name.
     pub name: TableName,
+    /// Whether this table is part of the discoverable application model.
+    pub discoverable: bool,
     /// The columns defined for the table, the first one is used as primary key
     pub columns: Vec<ColumnDescription>,
 }

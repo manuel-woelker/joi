@@ -21,6 +21,8 @@ pub mod data_store;
 pub mod generated;
 /// Application information collection and command handling.
 pub mod info_command;
+/// Application model inspection command handling.
+pub mod model_info_command;
 /// Generic data mutation command handling.
 pub mod mutate_command;
 /// Plugin inventory command handling.

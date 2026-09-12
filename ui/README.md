@@ -95,6 +95,10 @@ project KSUID. Prefix uniqueness and automatic ticket-key allocation are not
 yet enforced by the generic mutation command; key allocation belongs in a
 transactional domain command when it is introduced.
 
+Administration also includes a Model explorer backed by the server's generated
+`model-info` command. It lists discoverable models and shows each attribute's
+type, key and optional state, description, and foreign-model reference.
+
 The initial editor intentionally supports only string and integer fields. It
 does not yet provide optimistic updates, conflict detection, custom controls,
 or a normalized entity cache.
