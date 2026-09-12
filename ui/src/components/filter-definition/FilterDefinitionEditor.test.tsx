@@ -19,6 +19,7 @@ const attributes = [
   {
     id: filterAttributeId("status"),
     label: "Status",
+    description: "Current workflow state.",
     valueType: "string" as const,
     values: [
       { value: "open", label: "Open" },
@@ -69,5 +70,13 @@ describe("FilterDefinitionEditor", () => {
     expect(screen.queryByRole("button", { name: /move filter/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /duplicate filter/i })).toBeNull();
     expect(screen.getByRole("combobox", { name: "Filter attribute" })).toBeTruthy();
+  });
+
+  it("shows attribute types and descriptions in the attribute picker", async () => {
+    render(() => <TestEditor />);
+    fireEvent.focus(screen.getByRole("combobox", { name: "Filter attribute" }));
+
+    expect(await screen.findByText("Current workflow state.")).toBeTruthy();
+    expect(screen.getByText("string")).toBeTruthy();
   });
 });

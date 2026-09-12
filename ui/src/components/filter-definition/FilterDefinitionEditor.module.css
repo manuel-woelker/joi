@@ -58,6 +58,12 @@
 .deleteButton:hover .deleteTooltip,
 .deleteButton:focus-visible .deleteTooltip { display: block; }
 .criterion :global(.root) { min-width: 0; grid-column: 4; }
+.criterion > :global(.root):first-of-type { grid-column: 2; }
+.attributeEntry { display: grid; min-width: 0; gap: 2px; }
+.attributeEntry > div { display: flex; min-width: 0; align-items: baseline; justify-content: space-between; gap: 12px; }
+.attributeEntry strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attributeEntry code { color: var(--color-text-muted); font-size: 11px; white-space: nowrap; }
+.attributeEntry > span { color: var(--color-text-muted); font-size: 12px; line-height: 1.25; }
 .range { display: grid; min-width: 0; grid-column: 4; grid-template-columns: minmax(60px, 1fr) auto minmax(60px, 1fr); align-items: center; gap: 4px; }
 .range input { min-width: 0; }
 .choices { display: flex; min-width: 0; grid-column: 4; flex-wrap: wrap; gap: 4px 10px; }

@@ -14,10 +14,17 @@ export const ticketEntity = defineEntity({
   icon: TicketIcon,
   identityAttribute: "id",
   attributes: [
-    { id: "id", label: "ID", valueType: "string", create: { hidden: true, initialValue: generateKsuid } },
+    {
+      id: "id",
+      label: "ID",
+      description: "Immutable ticket identifier.",
+      valueType: "string",
+      create: { hidden: true, initialValue: generateKsuid },
+    },
     {
       id: "key",
       label: "Key",
+      description: "Human-readable project-prefixed ticket key.",
       valueType: "string",
       table: { visibleByDefault: true, width: 100 },
       create: { control: "text", required: true, placeholder: "PROJECT-1" },
@@ -28,6 +35,7 @@ export const ticketEntity = defineEntity({
     {
       id: "project_id",
       label: "Project",
+      description: "Project that owns the ticket.",
       valueType: "string",
       lookup: lookupId("projects"),
       table: { visibleByDefault: true, width: 180 },
@@ -37,6 +45,7 @@ export const ticketEntity = defineEntity({
     {
       id: "title",
       label: "Title",
+      description: "Short summary of the issue or task.",
       valueType: "string",
       table: { visibleByDefault: true },
       edit: { control: "text", required: true },
@@ -45,6 +54,7 @@ export const ticketEntity = defineEntity({
     {
       id: "status",
       label: "Status",
+      description: "Current workflow state of the ticket.",
       valueType: "string",
       table: { visibleByDefault: true, width: 120 },
       create: { hidden: true, initialValue: "open" },
@@ -52,6 +62,7 @@ export const ticketEntity = defineEntity({
     {
       id: "description",
       label: "Description",
+      description: "Detailed issue or task description.",
       valueType: "string",
       table: { visibleByDefault: true },
       edit: { control: "textarea", rows: 10 },
@@ -60,6 +71,7 @@ export const ticketEntity = defineEntity({
     {
       id: "assignee",
       label: "Assignee",
+      description: "User currently responsible for the ticket.",
       valueType: "string",
       lookup: lookupId("users"),
       optional: true,

@@ -27,6 +27,8 @@ export interface SelectProps<T> {
   readonly invalid?: boolean;
   readonly describedBy?: string;
   readonly onBlur?: JSX.EventHandler<HTMLInputElement, FocusEvent>;
+  /** Uses the same compact height as dense form controls. */
+  readonly density?: "default" | "compact";
 }
 
 /** Searchable asynchronous combobox with automatic local filtering for small data sets. */
@@ -160,7 +162,14 @@ export function Select<T>(props: SelectProps<T>) {
 
   return (
     <div ref={root} class={styles.root}>
-      <div class={styles.control} classList={{ [styles.open]: open(), [styles.invalid]: props.invalid }}>
+      <div
+        class={styles.control}
+        classList={{
+          [styles.open]: open(),
+          [styles.invalid]: props.invalid,
+          [styles.compact]: props.density === "compact",
+        }}
+      >
         <input
           ref={input}
           id={props.id}

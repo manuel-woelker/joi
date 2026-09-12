@@ -16,6 +16,7 @@ export interface FilterChoice {
 export interface FilterableAttribute {
   readonly id: import("./filter-model").FilterAttributeId;
   readonly label: string;
+  readonly description?: string;
   readonly valueType: FilterValueType;
   readonly operators?: readonly FilterOperatorId[];
   readonly values?: readonly FilterChoice[];

@@ -7,6 +7,7 @@ export function entityFilterAttributes(entity: EntityDescription): readonly Filt
   return entity.attributes.map((attribute) => ({
     id: filterAttributeId(attribute.id),
     label: attribute.label,
+    description: attribute.description,
     valueType: attribute.valueType,
   }));
 }

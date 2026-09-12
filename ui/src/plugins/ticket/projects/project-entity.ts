@@ -15,10 +15,17 @@ export const projectEntity = defineEntity({
   icon: FolderKanbanIcon,
   identityAttribute: "id",
   attributes: [
-    { id: "id", label: "ID", valueType: "string", create: { hidden: true, initialValue: generateKsuid } },
+    {
+      id: "id",
+      label: "ID",
+      description: "Immutable project identifier.",
+      valueType: "string",
+      create: { hidden: true, initialValue: generateKsuid },
+    },
     {
       id: "name",
       label: "Name",
+      description: "Human-readable project name.",
       valueType: "string",
       table: { visibleByDefault: true },
       edit: { control: "text", required: true },
@@ -27,6 +34,7 @@ export const projectEntity = defineEntity({
     {
       id: "prefix",
       label: "Prefix",
+      description: "Uppercase prefix used for ticket keys.",
       valueType: "string",
       table: { visibleByDefault: true, width: 120 },
       edit: { control: "text", required: true, placeholder: "PROJECT" },
@@ -36,6 +44,7 @@ export const projectEntity = defineEntity({
     {
       id: "description",
       label: "Description",
+      description: "Purpose and scope of the project.",
       valueType: "string",
       table: { visibleByDefault: true },
       edit: { control: "textarea", required: true, rows: 8 },

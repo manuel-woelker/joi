@@ -12,10 +12,17 @@ export const userEntity = defineEntity({
   icon: UsersIcon,
   identityAttribute: "id",
   attributes: [
-    { id: "id", label: "ID", valueType: "string", create: { hidden: true, initialValue: generateKsuid } },
+    {
+      id: "id",
+      label: "ID",
+      description: "Immutable user identifier.",
+      valueType: "string",
+      create: { hidden: true, initialValue: generateKsuid },
+    },
     {
       id: "username",
       label: "Username",
+      description: "Unique name used to identify the user.",
       valueType: "string",
       table: { visibleByDefault: true },
       edit: { control: "text", required: true },
@@ -24,6 +31,7 @@ export const userEntity = defineEntity({
     {
       id: "name",
       label: "Name",
+      description: "Display name shown throughout the application.",
       valueType: "string",
       table: { visibleByDefault: true },
       edit: { control: "text", required: true },

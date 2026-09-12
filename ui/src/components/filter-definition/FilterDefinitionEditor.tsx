@@ -197,6 +197,18 @@ function CriterionRow(props: {
     availableOperators().find((item) => item.id === props.filter.operator) ?? availableOperators()[0];
   const setOperand = (operand?: FilterOperand) => props.onChange({ ...props.filter, operand });
   const parse = (value: string): FilterValue => (attribute()?.valueType === "int" ? Number(value) : value);
+  const selectAttribute = (attributeId: string) => {
+    const nextAttribute = props.attributes.find((item) => item.id === attributeId)!;
+    const nextOperator =
+      operatorsForAttribute(nextAttribute, props.operators).find((item) => item.id === props.filter.operator) ??
+      operatorsForAttribute(nextAttribute, props.operators)[0];
+    props.onChange({
+      ...props.filter,
+      attribute: nextAttribute.id,
+      operator: nextOperator.id,
+      operand: emptyOperand(nextOperator, nextAttribute),
+    });
+  };
   return (
     <div class={styles.criterion} classList={{ [styles.disabled]: !!props.filter.disabled }}>
       <input
@@ -205,24 +217,27 @@ function CriterionRow(props: {
         checked={!props.filter.disabled}
         onChange={() => props.onChange({ ...props.filter, disabled: !props.filter.disabled || undefined })}
       />
-      <select
-        aria-label="Filter attribute"
+      <Select
+        ariaLabel="Filter attribute"
         value={props.filter.attribute}
-        onChange={(event) => {
-          const nextAttribute = props.attributes.find((item) => item.id === event.currentTarget.value)!;
-          const nextOperator =
-            operatorsForAttribute(nextAttribute, props.operators).find((item) => item.id === props.filter.operator) ??
-            operatorsForAttribute(nextAttribute, props.operators)[0];
-          props.onChange({
-            ...props.filter,
-            attribute: nextAttribute.id,
-            operator: nextOperator.id,
-            operand: emptyOperand(nextOperator, nextAttribute),
-          });
-        }}
-      >
-        <For each={props.attributes}>{(item) => <option value={item.id}>{item.label}</option>}</For>
-      </select>
+        onChange={selectAttribute}
+        loadEntries={async () => ({ entries: props.attributes, total: props.attributes.length })}
+        entryId={(item) => item.id}
+        entryText={(item) => item.label}
+        renderEntry={(item) => (
+          <div class={styles.attributeEntry}>
+            <div>
+              <strong>{item.label}</strong>
+              <code>{item.valueType}</code>
+            </div>
+            <Show when={item.description}>
+              <span>{item.description}</span>
+            </Show>
+          </div>
+        )}
+        density="compact"
+        placeholder="Choose attribute"
+      />
       <select
         aria-label="Comparison operator"
         value={operator()?.id}
@@ -349,6 +364,7 @@ function OperandEditor(props: {
         loadEntries={loadEntries}
         entryId={(entry) => String(entry.value)}
         entryText={(entry) => entry.label}
+        density="compact"
         placeholder="Choose value"
       />
     );

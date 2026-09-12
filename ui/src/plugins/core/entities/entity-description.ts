@@ -51,6 +51,7 @@ export interface EntityAttributeDescription<
 > {
   readonly id: TId;
   readonly label: string;
+  readonly description?: string;
   readonly valueType: TValueType;
   readonly table?: EntityTableDescription;
   readonly edit?: EntityEditDescription<TValue>;
