@@ -60,7 +60,7 @@ describe("filter tree operations", () => {
     expect(copied.type === "composite" && copied.children[2].id).not.toBe("a");
   });
 
-  it("reports duplicate IDs and empty one groups", () => {
+  it("reports duplicate IDs and one groups without enabled children", () => {
     const root = createCompositeFilter("all", [criterion("same"), criterion("same")], filterNodeId("root"));
     expect(validateFilterDefinition(root)).toHaveLength(1);
     expect(validateFilterDefinition(createCompositeFilter("all", [], filterNodeId("empty-all")))).toEqual([]);
@@ -68,5 +68,19 @@ describe("filter tree operations", () => {
     expect(validateFilterDefinition(createCompositeFilter("one", [], filterNodeId("empty-one")))).toEqual([
       'A "One of" composite filter must contain at least one filter.',
     ]);
+    expect(
+      validateFilterDefinition(
+        createCompositeFilter("one", [{ ...criterion("disabled"), disabled: true }], filterNodeId("disabled-one")),
+      ),
+    ).toEqual(['A "One of" composite filter must contain at least one filter.']);
+    expect(
+      validateFilterDefinition(
+        createCompositeFilter(
+          "one",
+          [{ ...criterion("disabled"), disabled: true }, criterion("enabled")],
+          filterNodeId("enabled-one"),
+        ),
+      ),
+    ).toEqual([]);
   });
 });

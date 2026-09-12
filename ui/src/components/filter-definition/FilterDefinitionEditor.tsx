@@ -28,7 +28,7 @@ import {
   copyFilter,
   findFilter,
   insertFilter,
-  isInvalidEmptyCompositeFilter,
+  isInvalidOneCompositeFilter,
   moveFilter,
   removeFilter,
   updateFilter,
@@ -93,7 +93,7 @@ export function FilterDefinitionEditor(props: FilterDefinitionEditorProps) {
       .replace(folderTreeNodeKind, (node) => {
         const filter = node.data.filter as CompositeFilterDefinition;
         const movable = filter.id !== props.value.id;
-        const invalid = isInvalidEmptyCompositeFilter(filter);
+        const invalid = isInvalidOneCompositeFilter(filter);
         return (
           <div
             class={`${styles.group} ${styles[filter.kind]}`}

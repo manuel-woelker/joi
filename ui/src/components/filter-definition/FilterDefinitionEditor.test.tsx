@@ -80,8 +80,14 @@ describe("FilterDefinitionEditor", () => {
     expect(screen.getByText("string")).toBeTruthy();
   });
 
-  it("marks an empty one-of composite as invalid", () => {
-    const value = createCompositeFilter("one", [], filterNodeId("empty-one"));
+  it("marks a one-of composite without enabled children as invalid", () => {
+    const disabled = createFilterCriterion(
+      filterAttributeId("status"),
+      inSetFilterOperator,
+      { type: "set", values: ["open"] },
+      filterNodeId("disabled"),
+    );
+    const value = createCompositeFilter("one", [{ ...disabled, disabled: true }], filterNodeId("disabled-one"));
     render(() => <FilterDefinitionEditor attributes={attributes} value={value} onChange={() => undefined} />);
 
     expect(screen.getByText('A "One of" composite filter must contain at least one filter.')).toBeTruthy();

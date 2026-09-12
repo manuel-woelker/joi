@@ -24,8 +24,6 @@ export function Tree(props: TreeProps) {
   const [dropOverId, setDropOverId] = createSignal<TreeNodeId>();
   let expandTimer: ReturnType<typeof setTimeout> | undefined;
   let expandTarget: TreeNodeId | undefined;
-  let lastRejectedDropSignature: string | undefined;
-  let lastDropCandidate: { readonly over: TreeNodeId; readonly target: TreeMoveTarget } | undefined;
   let lastAcceptedDropTarget: TreeMoveTarget | undefined;
   let dropCompleted = false;
   onCleanup(() => clearTimeout(expandTimer));
@@ -168,25 +166,12 @@ export function Tree(props: TreeProps) {
           const draggedNode = dragged ? props.model.nodes.get(dragged) : undefined;
           const acceptsMove = Boolean(draggedNode && props.definition.move?.canMoveTo(draggedNode, target));
           const acceptsExternal = !dragged && Boolean(props.definition.externalDrop?.canDrop(event, target));
-          lastDropCandidate = { over: overId, target };
           if (!acceptsMove && !acceptsExternal) {
             lastAcceptedDropTarget = undefined;
-            const rejectionSignature = `${dragged ?? "external"}:${overId}:${target.parentId ?? "root"}:${target.index}`;
-            if (lastRejectedDropSignature !== rejectionSignature) {
-              console.info("[Tree] drop target rejected", {
-                dragged: draggedNode ? { id: draggedNode.id, kind: draggedNode.kind } : undefined,
-                over: overId,
-                target,
-                acceptsMove,
-                acceptsExternal,
-              });
-              lastRejectedDropSignature = rejectionSignature;
-            }
             setDropTarget(undefined);
             setDropOverId(undefined);
             return false;
           }
-          lastRejectedDropSignature = undefined;
           lastAcceptedDropTarget = target;
           event.preventDefault();
           if (event.dataTransfer)
@@ -204,15 +189,6 @@ export function Tree(props: TreeProps) {
           const acceptsMove = Boolean(draggedNode && target && props.definition.move?.canMoveTo(draggedNode, target));
           const acceptsExternal = Boolean(target && props.definition.externalDrop?.canDrop(event, target));
           const copyRequested = Boolean(event.ctrlKey || event.altKey);
-          console.info("[Tree] drop", {
-            dragged: draggedNode ? { id: draggedNode.id, kind: draggedNode.kind } : undefined,
-            over: dropOverId(),
-            target,
-            acceptsMove,
-            acceptsExternal,
-            copyRequested,
-            canCopy: Boolean(props.definition.move?.copy),
-          });
           if (draggedNode && target && acceptsMove) {
             event.preventDefault();
             event.stopPropagation();
@@ -266,9 +242,7 @@ export function Tree(props: TreeProps) {
                   return;
                 }
                 dropCompleted = false;
-                lastDropCandidate = undefined;
                 lastAcceptedDropTarget = undefined;
-                lastRejectedDropSignature = undefined;
                 if (props.definition.onDragStart && (props.definition.canDrag?.(node()) ?? true)) {
                   props.definition.onDragStart(event, node());
                   return;
@@ -293,28 +267,17 @@ export function Tree(props: TreeProps) {
               onDrop={finishDrop}
               onDragEnd={(event) => {
                 if (!dropCompleted) {
-                  console.info("[Tree] drag ended without an accepted drop", {
-                    dragged: draggedId(),
-                    candidate: lastDropCandidate,
-                  });
                   const dragged = draggedId();
                   const draggedNode = dragged ? props.model.nodes.get(dragged) : undefined;
                   const target = lastAcceptedDropTarget;
                   if (draggedNode && target && props.definition.move?.canMoveTo(draggedNode, target)) {
                     const copyRequested = Boolean(event.ctrlKey || event.altKey);
-                    console.info("[Tree] applying accepted target from dragend", {
-                      dragged: { id: draggedNode.id, kind: draggedNode.kind },
-                      target,
-                      copyRequested,
-                    });
                     if (copyRequested && props.definition.move.copy) props.definition.move.copy(draggedNode, target);
                     else props.definition.move.move(draggedNode, target);
                   }
                 }
                 dropCompleted = false;
-                lastDropCandidate = undefined;
                 lastAcceptedDropTarget = undefined;
-                lastRejectedDropSignature = undefined;
                 clearDragState();
               }}
             >
