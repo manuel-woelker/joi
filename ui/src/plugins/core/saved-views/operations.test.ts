@@ -12,6 +12,11 @@ import {
 } from "./operations";
 import { createTestWorkspace } from "./test-fixtures";
 
+function fillBytes<T extends ArrayBufferView>(bytes: T, value: number): T {
+  new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength).fill(value);
+  return bytes;
+}
+
 beforeEach(() =>
   vi.stubGlobal("crypto", {
     randomUUID: vi.fn().mockReturnValueOnce("one").mockReturnValueOnce("two").mockReturnValue("three"),
@@ -46,6 +51,24 @@ describe("workspace operations", () => {
       name: "Users",
       selection: { type: "administration", id: "users" },
     });
+  });
+
+  it("allows multiple shortcuts from the same navigation source", () => {
+    vi.mocked(crypto.getRandomValues)
+      .mockImplementationOnce((bytes) => fillBytes(bytes, 1))
+      .mockImplementationOnce((bytes) => fillBytes(bytes, 2));
+    const workspace = createTestWorkspace();
+    const source = {
+      name: "Users",
+      selection: { type: "administration" as const, id: "users" },
+      sourceNavigationEntryId: "administration/users",
+    };
+
+    const first = addShortcutFromDraft(workspace, source);
+    const second = addShortcutFromDraft(workspace, source);
+
+    expect(second).not.toBe(first);
+    expect(workspace.rootItems).toEqual(expect.arrayContaining([first, second]));
   });
 
   it("moves entries to an exact normalized tree position", () => {

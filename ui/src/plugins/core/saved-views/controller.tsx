@@ -263,29 +263,6 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
       setAnnouncement("Navigation item moved.");
     },
     copyEntry(entryDraft, parentId, index) {
-      const sourceNavigationEntryId =
-        entryDraft.type === "view"
-          ? entryDraft.view.sourceNavigationEntryId
-          : entryDraft.shortcut.sourceNavigationEntryId;
-      const existingView = sourceNavigationEntryId
-        ? Object.values(workspace.views).find((view) => view.sourceNavigationEntryId === sourceNavigationEntryId)
-        : undefined;
-      const existingShortcut = sourceNavigationEntryId
-        ? Object.values(workspace.navigation).find(
-            (item) => item.type === "shortcut" && item.sourceNavigationEntryId === sourceNavigationEntryId,
-          )
-        : undefined;
-      const existing = existingView?.id ?? existingShortcut?.id;
-      if (existing) {
-        if (existingShortcut?.type === "shortcut") {
-          const target = existingShortcut.selection;
-          const route = { source: "workspace" as const, section: "workspace", id: existingShortcut.id };
-          if (target.type === "administration") navigation.selectAdministration(target.id, route);
-          if (target.type === "view") navigation.selectView(target.id, route);
-        } else if (existingView) selectView(existingView.id);
-        setAnnouncement("View is already in My workspace.");
-        return existing;
-      }
       let id = "";
       commit((draft) => {
         id =
