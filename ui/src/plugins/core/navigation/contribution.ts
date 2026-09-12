@@ -1,7 +1,7 @@
 import type { IconComponent } from "../../../icons/icon-component";
 import type { NavigationSelection } from "../../../base/navigation";
 import { extensionPoint } from "../../../base/plugin-registry";
-import type { WorkspaceViewDraft } from "../saved-views/model";
+import type { WorkspaceEntryDraft } from "../saved-views/model";
 
 declare const navigationSectionIdBrand: unique symbol;
 declare const navigationEntryIdBrand: unique symbol;
@@ -26,7 +26,7 @@ export interface NavigationLeafContribution {
   readonly description?: string;
   readonly icon?: IconComponent;
   readonly selection: NavigationSelection;
-  readonly copyToWorkspace?: () => WorkspaceViewDraft;
+  readonly copyToWorkspace?: () => WorkspaceEntryDraft;
 }
 
 export type NavigationRootContribution = NavigationFolderContribution | NavigationLeafContribution;

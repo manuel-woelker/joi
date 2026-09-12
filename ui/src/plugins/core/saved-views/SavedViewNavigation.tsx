@@ -4,6 +4,7 @@ import { createMemo, Show } from "solid-js";
 import { Dynamic } from "solid-js/web";
 
 import { contextMenuEntryId, contextMenuGroupId } from "../../../components/context-menu/context-menu";
+import { usePluginRegistry } from "../../../base/plugin-registry-context";
 import { useContextMenu } from "../../../components/context-menu/ContextMenuProvider";
 import { IconButton } from "../../../components/IconButton";
 import { Tree } from "../../../components/tree/Tree";
@@ -19,6 +20,8 @@ import {
   treeNodeKind,
 } from "../../../components/tree/tree-model";
 import { useEntityRegistry } from "../entities/entity-registry";
+import { navigationSection } from "../navigation/contribution";
+import { leafForWorkspaceSource, readWorkspaceCopy, workspaceEntryMimeType } from "../navigation/workspace-copy";
 import { useWorkspace } from "./controller";
 import type { NavigationId } from "./model";
 import styles from "./SavedViewNavigation.module.css";
@@ -29,6 +32,8 @@ export function SavedViewNavigation(props: { embedded?: boolean } = {}) {
   const controller = useWorkspace();
   const contextMenu = useContextMenu();
   const entities = useEntityRegistry();
+  const registry = usePluginRegistry();
+  const navigationSections = registry.extensions(navigationSection);
   const model = createMemo<TreeModel>(() =>
     defineTreeModel({
       roots: controller.workspace.rootItems,
@@ -46,12 +51,24 @@ export function SavedViewNavigation(props: { embedded?: boolean } = {}) {
   };
   const label = (node: TreeNode) => {
     const item = navigationItem(node);
-    return item?.type === "folder" ? item.name : (viewFor(node)?.name ?? "Missing view");
+    return item?.type === "folder"
+      ? item.name
+      : item?.type === "shortcut"
+        ? item.name
+        : (viewFor(node)?.name ?? "Missing view");
   };
   const entityForNode = (node: TreeNode) => {
     const view = viewFor(node);
     const query = view ? controller.workspace.queries[view.queryId] : undefined;
     return query ? entities.require(query.entityId) : undefined;
+  };
+  const iconForNode = (node: TreeNode) => {
+    const entityIcon = entityForNode(node)?.icon;
+    if (entityIcon) return entityIcon;
+    const item = navigationItem(node);
+    return item?.type === "shortcut"
+      ? leafForWorkspaceSource(navigationSections, item.sourceNavigationEntryId)?.icon
+      : undefined;
   };
   const openContextMenu = (event: MouseEvent, node: TreeNode) => {
     const id = node.id as NavigationId;
@@ -172,7 +189,7 @@ export function SavedViewNavigation(props: { embedded?: boolean } = {}) {
     ))
     .register(savedViewNodeKind, (node) => (
       <>
-        <Dynamic component={entityForNode(node)?.icon} class={styles.entityIcon} size={16} aria-hidden="true" />
+        <Dynamic component={iconForNode(node)} class={styles.entityIcon} size={16} aria-hidden="true" />
         <span>{label(node)}</span>
         {commandButton(node)}
       </>
@@ -186,8 +203,16 @@ export function SavedViewNavigation(props: { embedded?: boolean } = {}) {
       return Boolean(view && route?.source === "workspace" && route.id === view.id);
     },
     onActivate: (node) => {
+      const item = navigationItem(node);
       const view = viewFor(node);
       if (view) controller.selectView(view.id);
+      if (item?.type === "shortcut") {
+        const route = { source: "workspace" as const, section: "workspace", id: item.id };
+        const selection =
+          item.selection.type === "record" || item.selection.type === "create" ? item.selection.owner : item.selection;
+        if (selection.type === "view") controller.navigation.selectView(selection.id, route);
+        if (selection.type === "administration") controller.navigation.selectAdministration(selection.id, route);
+      }
     },
     onContextMenu: openContextMenu,
     move: {
@@ -204,6 +229,15 @@ export function SavedViewNavigation(props: { embedded?: boolean } = {}) {
       },
       move: (node, target) =>
         controller.moveToPosition(node.id as NavigationId, target.parentId as NavigationId | undefined, target.index),
+    },
+    externalDrop: {
+      canDrop: (event) => event.dataTransfer?.types.includes(workspaceEntryMimeType) ?? false,
+      drop: (event, target) => {
+        const draft = readWorkspaceCopy(event);
+        if (draft) {
+          controller.copyEntry(draft, target.parentId as NavigationId | undefined, target.index);
+        }
+      },
     },
   };
   return (

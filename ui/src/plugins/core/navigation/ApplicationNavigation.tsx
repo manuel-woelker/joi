@@ -27,6 +27,14 @@ import { SavedViewNavigation } from "../saved-views/SavedViewNavigation";
 import type { NavigationEntryId, NavigationLeafContribution, NavigationRootContribution } from "./contribution";
 import { navigationSection, validateNavigationRoots } from "./contribution";
 import { addRecent, leafEntries, referenceForSelection, type RecentViewReference } from "./recent-views";
+import {
+  copyForLeaf,
+  copyForWorkspaceView,
+  readWorkspaceCopy,
+  workspaceEntryMimeType,
+  writeWorkspaceCopy,
+} from "./workspace-copy";
+import type { WorkspaceEntryDraft } from "../saved-views/model";
 import styles from "./ApplicationNavigation.module.css";
 
 const systemLeafKind = treeNodeKind("system-navigation-leaf");
@@ -36,6 +44,7 @@ type ResolvedRecent = {
   readonly label: string;
   readonly icon?: NavigationLeafContribution["icon"];
   readonly selection: NavigationSelection;
+  readonly copy: WorkspaceEntryDraft;
 };
 
 export function ApplicationNavigation(props: { registry: PluginRegistry; userId: string }) {
@@ -52,6 +61,7 @@ export function ApplicationNavigation(props: { registry: PluginRegistry; userId:
   const [openSystem, setOpenSystem] = createSignal<string | undefined>(
     localStorage.getItem("joi.navigation.system-open") ?? undefined,
   );
+  const [workspaceDropActive, setWorkspaceDropActive] = createSignal(false);
 
   createEffect(() => {
     const reference = referenceForSelection(workspace.navigation.selection(), allLeaves(), workspace.workspace);
@@ -98,18 +108,50 @@ export function ApplicationNavigation(props: { registry: PluginRegistry; userId:
       if (reference.type === "system") {
         const section = sections.find((candidate) => candidate.id === reference.section);
         const leaf = section && leafEntries(section.roots()).find((candidate) => candidate.id === reference.entryId);
-        if (leaf) resolved.push({ reference, label: leaf.label, icon: leaf.icon, selection: leaf.selection });
+        if (leaf) {
+          resolved.push({
+            reference,
+            label: leaf.label,
+            icon: leaf.icon,
+            selection: leaf.selection,
+            copy: copyForLeaf(leaf, reference.section),
+          });
+        }
         continue;
       }
       const view = workspace.workspace.views[reference.viewId];
-      if (view) resolved.push({ reference, label: view.name, selection: { type: "view", id: view.id } });
+      const copy = copyForWorkspaceView(workspace.workspace, reference.viewId);
+      if (view && copy) {
+        resolved.push({ reference, label: view.name, selection: { type: "view", id: view.id }, copy });
+      }
     }
     return resolved;
   });
 
   return (
     <nav class={styles.navigation} aria-label="Application navigation">
-      <section class={styles.section}>
+      <section
+        class={styles.section}
+        classList={{ [styles.workspaceDropTarget]: workspaceDropActive() }}
+        onDragEnter={(event) => {
+          if (event.dataTransfer?.types.includes(workspaceEntryMimeType)) setWorkspaceDropActive(true);
+        }}
+        onDragOver={(event) => {
+          if (!event.dataTransfer?.types.includes(workspaceEntryMimeType)) return;
+          event.preventDefault();
+          if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+        }}
+        onDragLeave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setWorkspaceDropActive(false);
+        }}
+        onDrop={(event) => {
+          setWorkspaceDropActive(false);
+          if (event.defaultPrevented) return;
+          event.preventDefault();
+          const draft = readWorkspaceCopy(event);
+          if (draft) workspace.copyEntry(draft);
+        }}
+      >
         <div class={styles.heading}>
           <span class={styles.headingLabel}>My workspace</span>
           <span class={styles.commands}>
@@ -174,7 +216,7 @@ export function ApplicationNavigation(props: { registry: PluginRegistry; userId:
                     activeRoute={workspace.navigation.activeRoute()}
                     onActivate={navigate}
                     openContextMenu={(event, leaf) => {
-                      if (!leaf.copyToWorkspace) return;
+                      const copy = copyForLeaf(leaf, section.id);
                       contextMenu.open({
                         event,
                         createGroups: () => [
@@ -187,7 +229,7 @@ export function ApplicationNavigation(props: { registry: PluginRegistry; userId:
                                 description: `Create an editable copy of ${leaf.label}.`,
                                 icon: () => <PlusIcon size={14} />,
                                 execute: () => {
-                                  workspace.copyView(leaf.copyToWorkspace!());
+                                  workspace.copyEntry(copy);
                                 },
                               },
                             ],
@@ -275,6 +317,11 @@ function SystemTree(props: {
       const entry = entryFor(node);
       if (entry.type === "leaf") props.openContextMenu(event, entry);
     },
+    onDragStart: (event, node) => {
+      const entry = entryFor(node);
+      if (entry.type === "leaf") writeWorkspaceCopy(event, copyForLeaf(entry, props.sectionId));
+    },
+    canDrag: (node) => entryFor(node).type === "leaf",
   };
   return <Tree ariaLabel="System views" model={model} definition={definition} defaultExpanded={new Set(model.roots)} />;
 }
@@ -285,12 +332,14 @@ function RecentTree(props: {
     label: string;
     icon?: NavigationLeafContribution["icon"];
     selection: NavigationSelection;
+    copy: WorkspaceEntryDraft;
   }[];
   activeRoute?: NavigationRoute;
   onActivate: (selection: NavigationSelection, route: NavigationRoute) => void;
   onRemove: (reference: RecentViewReference) => void;
 }) {
   const contextMenu = useContextMenu();
+  const workspace = useWorkspace();
   const byId = new Map(props.entries.map((entry, index) => [`recent-${index}`, entry]));
   const model: TreeModel = defineTreeModel({
     roots: [...byId.keys()],
@@ -337,6 +386,15 @@ function RecentTree(props: {
                 id: contextMenuGroupId("recent"),
                 entries: [
                   {
+                    id: contextMenuEntryId("copy-to-workspace"),
+                    label: "Copy to My workspace",
+                    description: `Create a copy of ${entryFor(node).label}.`,
+                    icon: () => <PlusIcon size={14} />,
+                    execute: () => {
+                      workspace.copyEntry(entryFor(node).copy);
+                    },
+                  },
+                  {
                     id: contextMenuEntryId("remove-recent"),
                     label: "Remove from recently used",
                     description: `Remove ${entryFor(node).label} from this list.`,
@@ -346,6 +404,7 @@ function RecentTree(props: {
               },
             ],
           }),
+        onDragStart: (event, node) => writeWorkspaceCopy(event, entryFor(node).copy),
       }}
     />
   );

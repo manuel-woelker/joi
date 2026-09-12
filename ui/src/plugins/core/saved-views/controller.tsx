@@ -7,14 +7,15 @@ import { savedViewDefaults } from "./contribution";
 import { useEntityRegistry } from "../entities/entity-registry";
 import type {
   NavigationId,
+  WorkspaceEntryDraft,
   PresentationDefinition,
   QueryDefinition,
   ViewId,
   WorkspaceDocument,
-  WorkspaceViewDraft,
 } from "./model";
 import {
   addFolder,
+  addShortcutFromDraft,
   addView,
   addViewFromDraft,
   cloneValue,
@@ -61,7 +62,7 @@ export interface WorkspaceController {
   move(id: NavigationId, direction: -1 | 1): void;
   moveToFolder(id: NavigationId, folderId?: NavigationId): void;
   moveToPosition(id: NavigationId, parentId: NavigationId | undefined, index: number): void;
-  copyView(draft: WorkspaceViewDraft): ViewId;
+  copyEntry(draft: WorkspaceEntryDraft, parentId?: NavigationId, index?: number): string;
   saveView(
     name: string,
     description: string,
@@ -98,6 +99,21 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
   const [search, setSearch] = createSignal("");
   const [expandedFolderIds, setExpandedFolderIds] = createSignal<NavigationId[]>(loadExpandedFolders());
   const [undoSnapshot, setUndoSnapshot] = createSignal<WorkspaceDocument>();
+
+  createEffect(() => {
+    const current = navigation.selection();
+    const route = navigation.activeRoute();
+    if (route?.source !== "workspace") return;
+    const item = workspace.navigation[route.id];
+    if (item?.type !== "shortcut") return;
+    const target =
+      item.selection.type === "record" || item.selection.type === "create" ? item.selection.owner : item.selection;
+    if (target.type === "administration" && current.type !== "administration") {
+      navigation.selectAdministration(target.id, route);
+    } else if (target.type === "view" && (current.type !== "view" || current.id !== target.id)) {
+      navigation.selectView(target.id, route);
+    }
+  });
 
   createEffect(() => {
     if (navigation.selection().type !== "none") return;
@@ -187,13 +203,15 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
     renameItem(id) {
       const item = workspace.navigation[id];
       if (!item) return;
-      const current = item.type === "folder" ? item.name : workspace.views[item.viewId]?.name;
+      const current =
+        item.type === "folder" ? item.name : item.type === "view" ? workspace.views[item.viewId]?.name : item.name;
       const name = window.prompt("New name", current)?.trim();
       if (!name) return;
       commit((draft) => {
         const draftItem = draft.navigation[id];
         if (draftItem?.type === "folder") draftItem.name = name;
         else if (draftItem?.type === "view") draft.views[draftItem.viewId].name = name;
+        else if (draftItem?.type === "shortcut") draftItem.name = name;
       });
       setAnnouncement(`Renamed to ${name}.`);
     },
@@ -217,7 +235,8 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
       commit((draft) => {
         removedView = deleteNavigationItem(draft, id);
       });
-      if (removedView === navigation.selectedViewId()) {
+      const removedActiveShortcut = item.type === "shortcut" && navigation.activeRoute()?.id === item.id;
+      if ((removedView !== undefined && removedView === navigation.selectedViewId()) || removedActiveShortcut) {
         const next = Object.keys(workspace.views).find((viewId) => viewId !== removedView);
         if (next) selectView(next);
       }
@@ -243,23 +262,53 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
       commit((draft) => moveItemToPosition(draft, id, parentId, index));
       setAnnouncement("Navigation item moved.");
     },
-    copyView(viewDraft) {
-      const existing = viewDraft.sourceNavigationEntryId
-        ? Object.values(workspace.views).find(
-            (view) => view.sourceNavigationEntryId === viewDraft.sourceNavigationEntryId,
+    copyEntry(entryDraft, parentId, index) {
+      const sourceNavigationEntryId =
+        entryDraft.type === "view"
+          ? entryDraft.view.sourceNavigationEntryId
+          : entryDraft.shortcut.sourceNavigationEntryId;
+      const existingView = sourceNavigationEntryId
+        ? Object.values(workspace.views).find((view) => view.sourceNavigationEntryId === sourceNavigationEntryId)
+        : undefined;
+      const existingShortcut = sourceNavigationEntryId
+        ? Object.values(workspace.navigation).find(
+            (item) => item.type === "shortcut" && item.sourceNavigationEntryId === sourceNavigationEntryId,
           )
         : undefined;
+      const existing = existingView?.id ?? existingShortcut?.id;
       if (existing) {
-        selectView(existing.id);
+        if (existingShortcut?.type === "shortcut") {
+          const target = existingShortcut.selection;
+          const route = { source: "workspace" as const, section: "workspace", id: existingShortcut.id };
+          if (target.type === "administration") navigation.selectAdministration(target.id, route);
+          if (target.type === "view") navigation.selectView(target.id, route);
+        } else if (existingView) selectView(existingView.id);
         setAnnouncement("View is already in My workspace.");
-        return existing.id;
+        return existing;
       }
       let id = "";
       commit((draft) => {
-        id = addViewFromDraft(draft, viewDraft);
+        id =
+          entryDraft.type === "view"
+            ? addViewFromDraft(draft, entryDraft.view)
+            : addShortcutFromDraft(draft, entryDraft.shortcut);
+        if (parentId !== undefined || index !== undefined) {
+          const navigationId =
+            entryDraft.type === "view"
+              ? Object.values(draft.navigation).find((item) => item.type === "view" && item.viewId === id)?.id
+              : id;
+          if (navigationId) moveItemToPosition(draft, navigationId, parentId, index ?? 0);
+        }
       });
-      selectView(id);
-      setAnnouncement(`Added ${viewDraft.name} to My workspace.`);
+      if (entryDraft.type === "view") selectView(id);
+      else {
+        const target = entryDraft.shortcut.selection;
+        const route = { source: "workspace" as const, section: "workspace", id };
+        if (target.type === "administration") navigation.selectAdministration(target.id, route);
+        if (target.type === "view") navigation.selectView(target.id, route);
+      }
+      const name = entryDraft.type === "view" ? entryDraft.view.name : entryDraft.shortcut.name;
+      setAnnouncement(`Added ${name} to My workspace.`);
       return id;
     },
     saveView(name, description, query, presentation, mode) {

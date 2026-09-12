@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   addFolder,
+  addShortcutFromDraft,
   addView,
   deleteNavigationItem,
   duplicateView,
@@ -28,6 +29,23 @@ describe("workspace operations", () => {
     )!;
     moveItemToFolder(workspace, navigation.id, folderId);
     expect(workspace.navigation[folderId]).toMatchObject({ type: "folder", children: [navigation.id] });
+  });
+
+  it("adds persistent navigation shortcuts", () => {
+    const workspace = createTestWorkspace();
+    const id = addShortcutFromDraft(workspace, {
+      name: "Users",
+      selection: { type: "administration", id: "users" },
+      sourceNavigationEntryId: "administration/users",
+    });
+
+    expect(workspace.rootItems).toContain(id);
+    expect(workspace.navigation[id]).toMatchObject({
+      id,
+      type: "shortcut",
+      name: "Users",
+      selection: { type: "administration", id: "users" },
+    });
   });
 
   it("moves entries to an exact normalized tree position", () => {

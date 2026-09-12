@@ -19,9 +19,11 @@ view needs private customization.
 The left navigation is an accordion with an editable **My workspace** tree, a
 flat list of the eight most recently used views, and plugin-contributed system
 trees. Workspace folders and views support drag reordering, context-menu moves,
-duplication, deletion with undo, and keyboard navigation. Only system-tree
-leaves navigate or copy into My workspace. Routes encode their navigation
-origin directly: `#/workspace/<view-ksuid>` for editable views,
+duplication, deletion with undo, and keyboard navigation. Every system or recent
+leaf can be copied through its context menu or dragged into My workspace. Query
+views become editable copies; other destinations, such as administration views,
+become persistent workspace shortcuts. Routes encode their navigation origin
+directly: `#/workspace/<view-ksuid>` for workspace entries,
 `#/<system-section>/<leaf-id>` for system views, and
 `#/recent/<section>/<leaf-id>` when opened from Recently used. This keeps
 selection state independent even when routes resolve to the same content.
@@ -154,7 +156,8 @@ context.registerExtension({
 System navigation contributions add complete root subtrees. They may nest
 folders, but cannot inject children into roots owned by another contribution.
 Folders are structural; only leaves can navigate, appear in Recently used, or
-provide a copy draft for My workspace.
+be copied to My workspace. Contributions may provide an editable view copy;
+otherwise the navigation system creates a shortcut automatically.
 
 This is build-time discovery, not post-deployment installation: Vite expands
 the eager glob into the production bundle. Runtime-loaded third-party code

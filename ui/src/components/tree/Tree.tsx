@@ -167,8 +167,16 @@ export function Tree(props: TreeProps) {
               }}
               onKeyDown={(event) => onKeyDown(event, node())}
               onContextMenu={(event) => props.definition.onContextMenu?.(event, node())}
-              draggable={props.definition.move?.canMove(node()) || undefined}
+              draggable={
+                props.definition.move?.canMove(node()) ||
+                (Boolean(props.definition.onDragStart) && (props.definition.canDrag?.(node()) ?? true)) ||
+                undefined
+              }
               onDragStart={(event) => {
+                if (props.definition.onDragStart && (props.definition.canDrag?.(node()) ?? true)) {
+                  props.definition.onDragStart(event, node());
+                  return;
+                }
                 if (!props.definition.move?.canMove(node())) {
                   event.preventDefault();
                   return;
@@ -179,10 +187,13 @@ export function Tree(props: TreeProps) {
               }}
               onDragOver={(event) => {
                 const dragged = draggedId();
-                if (!dragged || dragged === id || !props.definition.move) return;
-                const draggedNode = props.model.nodes.get(dragged);
                 const target = targetForEvent(event);
-                if (!draggedNode || !props.definition.move.canMoveTo(draggedNode, target)) {
+                const draggedNode = dragged ? props.model.nodes.get(dragged) : undefined;
+                const acceptsMove = Boolean(
+                  draggedNode && dragged !== id && props.definition.move?.canMoveTo(draggedNode, target),
+                );
+                const acceptsExternal = !dragged && Boolean(props.definition.externalDrop?.canDrop(event, target));
+                if (!acceptsMove && !acceptsExternal) {
                   setDropTarget(undefined);
                   setDropOverId(undefined);
                   return;
@@ -200,12 +211,16 @@ export function Tree(props: TreeProps) {
                 }
               }}
               onDrop={(event) => {
-                event.preventDefault();
                 const dragged = draggedId();
                 const target = dropTarget();
                 const draggedNode = dragged ? props.model.nodes.get(dragged) : undefined;
                 if (draggedNode && target && props.definition.move?.canMoveTo(draggedNode, target)) {
+                  event.preventDefault();
+                  event.stopPropagation();
                   props.definition.move.move(draggedNode, target);
+                } else if (target && props.definition.externalDrop?.canDrop(event, target)) {
+                  event.preventDefault();
+                  props.definition.externalDrop.drop(event, target);
                 }
                 setDraggedId(undefined);
                 setDropTarget(undefined);

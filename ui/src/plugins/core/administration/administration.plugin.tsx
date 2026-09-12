@@ -30,6 +30,15 @@ export default plugin({
             description: entry.description,
             icon: entry.icon,
             selection: { type: "administration" as const, id: entry.id },
+            copyToWorkspace: () => ({
+              type: "shortcut" as const,
+              shortcut: {
+                name: entry.name,
+                description: entry.description,
+                selection: { type: "administration" as const, id: entry.id },
+                sourceNavigationEntryId: `administration/${entry.id}`,
+              },
+            }),
           })),
       },
     });

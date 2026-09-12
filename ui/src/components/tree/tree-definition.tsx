@@ -30,13 +30,22 @@ export interface TreeMoveDefinition {
   move(node: TreeNode, target: TreeMoveTarget): void;
 }
 
+/** Accepts data dragged from outside this tree at a normalized tree position. */
+export interface TreeExternalDropDefinition {
+  canDrop(event: DragEvent, target: TreeMoveTarget): boolean;
+  drop(event: DragEvent, target: TreeMoveTarget): void;
+}
+
 /** Visual and behavioral definition applied to a logical tree model. */
 export interface TreeDefinition {
   readonly renderers: TreeRendererRegistry;
   readonly isSelected?: (node: TreeNode) => boolean;
   readonly onActivate?: (node: TreeNode) => void;
   readonly onContextMenu?: (event: MouseEvent, node: TreeNode) => void;
+  readonly canDrag?: (node: TreeNode) => boolean;
+  readonly onDragStart?: (event: DragEvent, node: TreeNode) => void;
   readonly move?: TreeMoveDefinition;
+  readonly externalDrop?: TreeExternalDropDefinition;
 }
 
 /** Incrementally creates an immutable renderer registry. */

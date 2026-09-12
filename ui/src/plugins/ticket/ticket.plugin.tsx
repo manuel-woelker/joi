@@ -82,17 +82,20 @@ export default plugin({
               icon: ticketEntity.icon,
               selection: { type: "view" as const, id: viewId },
               copyToWorkspace: () => ({
-                name: view.name,
-                description: view.description,
-                query: { name: query.name, entityId: query.entityId, filters: query.filters, sorting: query.sorting },
-                presentation: {
-                  name: presentation.name,
-                  entityId: presentation.entityId,
-                  layout: presentation.layout,
-                  density: presentation.density,
-                  fields: presentation.fields,
+                type: "view" as const,
+                view: {
+                  name: view.name,
+                  description: view.description,
+                  query: { name: query.name, entityId: query.entityId, filters: query.filters, sorting: query.sorting },
+                  presentation: {
+                    name: presentation.name,
+                    entityId: presentation.entityId,
+                    layout: presentation.layout,
+                    density: presentation.density,
+                    fields: presentation.fields,
+                  },
+                  sourceNavigationEntryId: `tickets/${entryId}`,
                 },
-                sourceNavigationEntryId: `tickets/${entryId}`,
               }),
             };
           };

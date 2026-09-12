@@ -163,6 +163,59 @@ describe("Tree", () => {
     expect(move).toHaveBeenCalledWith(expect.objectContaining({ id: documentId }), { parentId: folderId, index: 1 });
   });
 
+  it("delegates external drag starts only for draggable nodes", () => {
+    const onDragStart = vi.fn();
+    const renderers = createTreeRendererRegistry(label)
+      .register(documentKind, (node) => <span>{label(node)}</span>)
+      .build();
+    render(() => (
+      <Tree
+        ariaLabel="Copyable tree"
+        model={model()}
+        definition={{ renderers, canDrag: (node) => node.kind === documentKind, onDragStart }}
+        defaultExpanded={new Set([folderId])}
+      />
+    ));
+
+    const [folder, document] = screen.getAllByRole("treeitem");
+    expect(folder.hasAttribute("draggable")).toBe(false);
+    expect(document.getAttribute("draggable")).toBe("true");
+    fireEvent.dragStart(document);
+    expect(onDragStart).toHaveBeenCalledWith(expect.any(Event), expect.objectContaining({ id: documentId }));
+  });
+
+  it("drops external data at the same normalized positions as local moves", () => {
+    const drop = vi.fn();
+    const renderers = createTreeRendererRegistry(label)
+      .register(documentKind, (node) => <span>{label(node)}</span>)
+      .build();
+    render(() => (
+      <Tree
+        ariaLabel="Drop target tree"
+        model={model()}
+        definition={{ renderers, externalDrop: { canDrop: () => true, drop } }}
+        defaultExpanded={new Set([folderId])}
+      />
+    ));
+
+    const document = screen.getAllByRole("treeitem")[1];
+    vi.spyOn(document, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 32,
+      left: 0,
+      top: 32,
+      right: 200,
+      bottom: 64,
+      width: 200,
+      height: 32,
+      toJSON: () => undefined,
+    });
+    fireEvent(document, new MouseEvent("dragover", { bubbles: true, clientX: 10, clientY: 33 }));
+    fireEvent(document, new MouseEvent("drop", { bubbles: true, clientX: 10, clientY: 33 }));
+
+    expect(drop).toHaveBeenCalledWith(expect.any(Event), { parentId: folderId, index: 0 });
+  });
+
   it("reacts to controlled expansion updates", async () => {
     const renderers = createTreeRendererRegistry(label)
       .register(documentKind, () => <span>Document</span>)

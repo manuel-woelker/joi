@@ -4,6 +4,7 @@ import type {
   PresentationDefinition,
   ViewId,
   WorkspaceDocument,
+  WorkspaceShortcutDraft,
   WorkspaceViewDraft,
 } from "./model";
 import { generateKsuid } from "../entities/ksuid";
@@ -59,6 +60,20 @@ export function addViewFromDraft(workspace: WorkspaceDocument, draft: WorkspaceV
   workspace.views[viewId].description = draft.description;
   workspace.views[viewId].sourceNavigationEntryId = draft.sourceNavigationEntryId;
   return viewId;
+}
+
+export function addShortcutFromDraft(workspace: WorkspaceDocument, draft: WorkspaceShortcutDraft): NavigationId {
+  const id = generateKsuid();
+  workspace.navigation[id] = {
+    id,
+    type: "shortcut",
+    name: draft.name,
+    description: draft.description,
+    selection: cloneValue(draft.selection),
+    sourceNavigationEntryId: draft.sourceNavigationEntryId,
+  };
+  workspace.rootItems.push(id);
+  return id;
 }
 
 export function duplicateView(workspace: WorkspaceDocument, viewId: ViewId): ViewId | undefined {

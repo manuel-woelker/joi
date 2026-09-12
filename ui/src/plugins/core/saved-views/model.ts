@@ -57,6 +57,17 @@ export interface WorkspaceViewDraft {
   readonly sourceNavigationEntryId?: string;
 }
 
+export interface WorkspaceShortcutDraft {
+  readonly name: string;
+  readonly description?: string;
+  readonly selection: NavigationSelection;
+  readonly sourceNavigationEntryId: string;
+}
+
+export type WorkspaceEntryDraft =
+  | { readonly type: "view"; readonly view: WorkspaceViewDraft }
+  | { readonly type: "shortcut"; readonly shortcut: WorkspaceShortcutDraft };
+
 export interface FolderNavigationItem {
   id: NavigationId;
   type: "folder";
@@ -70,7 +81,16 @@ export interface ViewNavigationItem {
   viewId: ViewId;
 }
 
-export type NavigationItem = FolderNavigationItem | ViewNavigationItem;
+export interface ShortcutNavigationItem {
+  id: NavigationId;
+  type: "shortcut";
+  name: string;
+  description?: string;
+  selection: NavigationSelection;
+  sourceNavigationEntryId: string;
+}
+
+export type NavigationItem = FolderNavigationItem | ViewNavigationItem | ShortcutNavigationItem;
 
 export interface WorkspaceDocument {
   version: 4;
@@ -80,5 +100,6 @@ export interface WorkspaceDocument {
   navigation: Record<NavigationId, NavigationItem>;
   rootItems: NavigationId[];
 }
+import type { NavigationSelection } from "../../../base/navigation";
 import type { EntityId } from "../entities/entity-description";
 import type { QueryValue } from "../query/query-result";
