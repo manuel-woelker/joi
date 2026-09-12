@@ -163,6 +163,58 @@ describe("Tree", () => {
     expect(move).toHaveBeenCalledWith(expect.objectContaining({ id: documentId }), { parentId: folderId, index: 1 });
   });
 
+  it("copies with a modifier drag when copying is available", () => {
+    const move = vi.fn();
+    const copy = vi.fn();
+    const renderers = createTreeRendererRegistry(label)
+      .register(documentKind, (node) => <span>{label(node)}</span>)
+      .build();
+    render(() => (
+      <Tree
+        ariaLabel="Copyable movable tree"
+        model={model()}
+        definition={{ renderers, move: { canMove: () => true, canMoveTo: () => true, move, copy } }}
+        defaultExpanded={new Set([folderId])}
+      />
+    ));
+
+    const [folder, document] = screen.getAllByRole("treeitem");
+    vi.spyOn(folder, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: 200,
+      bottom: 32,
+      width: 200,
+      height: 32,
+      toJSON: () => undefined,
+    });
+    fireEvent.dragStart(document);
+    fireEvent(folder, new MouseEvent("dragover", { bubbles: true, ctrlKey: true, clientX: 60, clientY: 16 }));
+    fireEvent(folder, new MouseEvent("drop", { bubbles: true, ctrlKey: true, clientX: 60, clientY: 16 }));
+
+    expect(copy).toHaveBeenCalledOnce();
+    expect(move).not.toHaveBeenCalled();
+  });
+
+  it("keeps non-collapsible branches visible and styles their complete wrapper", () => {
+    const renderers = createTreeRendererRegistry(label)
+      .register(documentKind, (node) => <span>{label(node)}</span>)
+      .build();
+    render(() => (
+      <Tree
+        ariaLabel="Permanent tree"
+        model={model()}
+        definition={{ renderers, isCollapsible: () => false, classForNode: () => "permanent-branch" }}
+      />
+    ));
+
+    expect(screen.queryByRole("button", { name: /folder/i })).toBeNull();
+    expect(screen.getByText("Getting started")).toBeTruthy();
+    expect(screen.getAllByRole("treeitem")[0].parentElement?.classList.contains("permanent-branch")).toBe(true);
+  });
+
   it("delegates external drag starts only for draggable nodes", () => {
     const onDragStart = vi.fn();
     const renderers = createTreeRendererRegistry(label)

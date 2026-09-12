@@ -24,5 +24,11 @@
   --color-scrollbar-track: var(--color-surface-muted);
   --color-scrollbar-thumb: color-mix(in srgb, var(--color-ink) 38%, white);
   --color-scrollbar-thumb-hover: var(--color-primary-dark);
+  --color-filter-all: #8257c7;
+  --color-filter-all-soft: color-mix(in srgb, var(--color-filter-all) 9%, var(--color-surface));
+  --color-filter-one: #27985d;
+  --color-filter-one-soft: color-mix(in srgb, var(--color-filter-one) 9%, var(--color-surface));
+  --color-filter-none: #df7b22;
+  --color-filter-none-soft: color-mix(in srgb, var(--color-filter-none) 10%, var(--color-surface));
   --scrollbar-size: 14px;
 }

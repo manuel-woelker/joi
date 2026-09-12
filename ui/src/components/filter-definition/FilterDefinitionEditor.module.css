@@ -1,0 +1,40 @@
+.editor { min-width: 0; }
+.editor :global(.tree-row) { overflow: visible; }
+.filterTree :global([role="treeitem"]) { min-height: 26px; padding-left: 0; }
+.filterTree :global([role="treeitem"] > div:last-child) { padding-block: 2px; }
+.compositeSection {
+  --filter-color: var(--color-filter-all);
+  --filter-surface: var(--color-filter-all-soft);
+  margin-block: 5px;
+  margin-left: clamp(0px, calc(var(--tree-level) * 12px), 12px);
+  padding-left: 0;
+  border-left: 5px solid var(--filter-color);
+}
+.group, .criterion { min-width: 0; flex: 1; align-items: center; gap: 6px; }
+.group { display: flex; padding: 3px 5px; border-radius: 3px; background: var(--filter-surface); }
+.group select { min-width: 190px; flex: 1; font-weight: 600; }
+.group button, .criterion button { flex: none; padding: 3px 7px; }
+.all { --filter-color: var(--color-filter-all); --filter-surface: var(--color-filter-all-soft); }
+.one { --filter-color: var(--color-filter-one); --filter-surface: var(--color-filter-one-soft); }
+.none { --filter-color: var(--color-filter-none); --filter-surface: var(--color-filter-none-soft); }
+.criterion {
+  display: grid;
+  grid-template-columns: 20px minmax(120px, 1.2fr) minmax(100px, 0.8fr) minmax(180px, 2fr) 28px;
+  padding-left: 5px;
+}
+.criterion select, .criterion > input:not([type="checkbox"]) { min-width: 0; }
+.criterion > input:not([type="checkbox"]) { grid-column: 4; }
+.criterion > button:last-child { grid-column: 5; width: 28px; padding-inline: 0; }
+.criterion :global(.root) { min-width: 0; grid-column: 4; }
+.range { display: grid; min-width: 0; grid-column: 4; grid-template-columns: minmax(60px, 1fr) auto minmax(60px, 1fr); align-items: center; gap: 4px; }
+.range input { min-width: 0; }
+.choices { display: flex; min-width: 0; grid-column: 4; flex-wrap: wrap; gap: 4px 10px; }
+.choices label { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.disabled { opacity: 0.55; }
+.error { margin: 4px 24px; color: var(--color-danger); font-size: 12px; }
+.empty { margin: 0; color: var(--color-text-muted); font-size: 13px; }
+@media (max-width: 700px) {
+  .group { flex-wrap: wrap; }
+  .group select { min-width: 150px; }
+  .criterion { grid-template-columns: 20px minmax(100px, 1fr) minmax(90px, 0.8fr) minmax(120px, 1.4fr) 28px; }
+}

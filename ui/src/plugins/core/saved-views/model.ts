@@ -4,14 +4,6 @@ export type PresentationId = string;
 export type NavigationId = string;
 export type AttributeName = string;
 
-export type FilterOperator = "equals" | "not-equals" | "in" | "contains";
-
-export interface FilterDefinition {
-  field: AttributeName;
-  operator: FilterOperator;
-  value: QueryValue | QueryValue[];
-}
-
 export interface SortDefinition {
   field: AttributeName;
   direction: "ascending" | "descending";
@@ -21,7 +13,7 @@ export interface QueryDefinition {
   id: QueryId;
   name: string;
   entityId: EntityId;
-  filters: FilterDefinition[];
+  filter?: import("../../../components/filter-definition/filter-model").FilterDefinition;
   sorting: SortDefinition[];
 }
 
@@ -93,7 +85,7 @@ export interface ShortcutNavigationItem {
 export type NavigationItem = FolderNavigationItem | ViewNavigationItem | ShortcutNavigationItem;
 
 export interface WorkspaceDocument {
-  version: 4;
+  version: 5;
   queries: Record<QueryId, QueryDefinition>;
   presentations: Record<PresentationId, PresentationDefinition>;
   views: Record<ViewId, SavedView>;
@@ -102,4 +94,3 @@ export interface WorkspaceDocument {
 }
 import type { NavigationSelection } from "../../../base/navigation";
 import type { EntityId } from "../entities/entity-description";
-import type { QueryValue } from "../query/query-result";

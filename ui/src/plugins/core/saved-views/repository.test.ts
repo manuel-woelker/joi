@@ -40,7 +40,7 @@ describe("LocalWorkspaceRepository", () => {
     localStorage.setItem(WORKSPACE_STORAGE_KEY, "not json");
     const loaded = new LocalWorkspaceRepository(createTestWorkspace(), localStorage).load();
     expect(loaded.warning).toContain("could not be loaded");
-    expect(loaded.workspace.version).toBe(4);
+    expect(loaded.workspace.version).toBe(5);
   });
 
   it("rejects unsupported versions", () => {
@@ -57,11 +57,11 @@ describe("LocalWorkspaceRepository", () => {
         delete definition.entityId;
       }
     }
-    localStorage.setItem(LEGACY_WORKSPACE_STORAGE_KEYS[1], JSON.stringify(legacy));
+    localStorage.setItem(LEGACY_WORKSPACE_STORAGE_KEYS[2], JSON.stringify(legacy));
 
     const loaded = new LocalWorkspaceRepository(createTestWorkspace(), localStorage).load();
 
-    expect(loaded.workspace.version).toBe(4);
+    expect(loaded.workspace.version).toBe(5);
     expect(loaded.workspace.queries["query-open"].entityId).toBe("things");
     expect(localStorage.getItem(WORKSPACE_STORAGE_KEY)).toBeTruthy();
   });
@@ -70,13 +70,39 @@ describe("LocalWorkspaceRepository", () => {
     const legacy = structuredClone(createTestWorkspace()) as unknown as Record<string, unknown>;
     legacy.version = 3;
     legacy.favorites = ["view-active"];
-    localStorage.setItem(LEGACY_WORKSPACE_STORAGE_KEYS[0], JSON.stringify(legacy));
+    localStorage.setItem(LEGACY_WORKSPACE_STORAGE_KEYS[1], JSON.stringify(legacy));
 
     const loaded = new LocalWorkspaceRepository(createTestWorkspace(), localStorage).load();
 
-    expect(loaded.workspace.version).toBe(4);
+    expect(loaded.workspace.version).toBe(5);
     expect(loaded.workspace.rootItems).toEqual(createTestWorkspace().rootItems);
     expect("favorites" in loaded.workspace).toBe(false);
+  });
+
+  it("migrates version 4 flat filters to recursive definitions", () => {
+    const legacy = structuredClone(createTestWorkspace()) as unknown as Record<string, unknown>;
+    legacy.version = 4;
+    const query = (legacy.queries as Record<string, Record<string, unknown>>)["query-open"];
+    delete query.filter;
+    query.filters = [{ field: "status", operator: "in", value: ["open", "in-progress"] }];
+    localStorage.setItem(LEGACY_WORKSPACE_STORAGE_KEYS[0], JSON.stringify(legacy));
+
+    const loaded = new LocalWorkspaceRepository(createTestWorkspace(), localStorage).load();
+    const filter = loaded.workspace.queries["query-open"].filter;
+
+    expect(loaded.workspace.version).toBe(5);
+    expect(filter).toMatchObject({
+      type: "composite",
+      kind: "all",
+      children: [
+        {
+          type: "criterion",
+          attribute: "status",
+          operator: "in-set",
+          operand: { type: "set", values: ["open", "in-progress"] },
+        },
+      ],
+    });
   });
 
   it("rejects defaults that reference an unknown entity", () => {

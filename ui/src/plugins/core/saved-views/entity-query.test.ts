@@ -25,7 +25,13 @@ describe("loadEntityRecords", () => {
       id: "query-open",
       name: "Open tickets",
       entityId: testEntity.id,
-      filters: [{ field: "status", operator: "in", value: ["open", "in-progress"] }],
+      filter: {
+        id: "status-filter" as never,
+        type: "criterion",
+        attribute: "status" as never,
+        operator: "in-set" as never,
+        operand: { type: "set", values: ["open", "in-progress"] },
+      },
       sorting: [],
     };
     const result = await loadEntityRecords(testEntity, new FetchService(fetcher), query);

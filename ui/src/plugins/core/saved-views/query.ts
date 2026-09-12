@@ -1,33 +1,28 @@
 import type { EntityDescription } from "../entities/entity-description";
 import { requireEntityAttribute } from "../entities/entity-description";
 import type { QueryColumnHandle, QueryResult, QueryResultRow } from "../query/query-result";
-import type { FilterDefinition, PresentationDefinition, QueryDefinition } from "./model";
-
-function matchesFilter(row: QueryResultRow, column: QueryColumnHandle, filter: FilterDefinition): boolean {
-  const actual = String(row.value(column) ?? "").toLocaleLowerCase();
-  const values = (Array.isArray(filter.value) ? filter.value : [filter.value]).map((value) =>
-    String(value).toLocaleLowerCase(),
-  );
-
-  switch (filter.operator) {
-    case "equals":
-      return actual === values[0];
-    case "not-equals":
-      return actual !== values[0];
-    case "in":
-      return values.includes(actual);
-    case "contains":
-      return actual.includes(values[0] ?? "");
-  }
-}
+import type { PresentationDefinition, QueryDefinition } from "./model";
+import { matchesFilter } from "../../../components/filter-definition/filter-evaluation";
+import type { FilterDefinition } from "../../../components/filter-definition/filter-model";
+import { entityFilterAttributes } from "../../../components/filter-definition/entity-filter-attributes";
+import { validateFilterDefinition } from "../../../components/filter-definition/filter-operations";
+import { validateFilterAgainstSchema } from "../../../components/filter-definition/filter-operators";
 
 export function executeQuery(result: QueryResult, query: QueryDefinition, text = ""): QueryResultRow[] {
   const needle = text.trim().toLocaleLowerCase();
-  const filters = query.filters.map((filter) => ({ filter, column: result.requireColumn(filter.field) }));
+  const columns = new Map<string, QueryColumnHandle>();
+  const value = (row: QueryResultRow, attribute: string) => {
+    let column = columns.get(attribute);
+    if (!column) {
+      column = result.requireColumn(attribute);
+      columns.set(attribute, column);
+    }
+    return row.value(column);
+  };
   const sorting = query.sorting.map((sort) => ({ sort, column: result.requireColumn(sort.field) }));
   const filtered = result.rows.filter(
     (row) =>
-      filters.every(({ filter, column }) => matchesFilter(row, column, filter)) &&
+      (!query.filter || matchesFilter(query.filter, (attribute) => value(row, attribute))) &&
       (!needle ||
         result.columns.some((column) =>
           String(row.value(column) ?? "")
@@ -57,11 +52,23 @@ export function validatePresentation(
   if (query.entityId !== entity.id) return `Entity '${query.entityId}' is not available for this view.`;
   if (presentation.fields.length === 0) return "The presentation must include at least one field.";
   try {
-    for (const filter of query.filters) requireEntityAttribute(entity, filter.field);
+    if (query.filter) {
+      validateFilterAttributes(query.filter, entity);
+      const filterError = [
+        ...validateFilterDefinition(query.filter),
+        ...validateFilterAgainstSchema(query.filter, entityFilterAttributes(entity)),
+      ][0];
+      if (filterError) return filterError;
+    }
     for (const sort of query.sorting) requireEntityAttribute(entity, sort.field);
     for (const field of presentation.fields) requireEntityAttribute(entity, field.field);
   } catch (error) {
     return error instanceof Error ? error.message : "View configuration references an unknown attribute.";
   }
   return undefined;
+}
+
+function validateFilterAttributes(filter: FilterDefinition, entity: EntityDescription): void {
+  if (filter.type === "criterion") requireEntityAttribute(entity, filter.attribute);
+  else for (const child of filter.children) validateFilterAttributes(child, entity);
 }

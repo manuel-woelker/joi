@@ -86,7 +86,7 @@ export default plugin({
                 view: {
                   name: view.name,
                   description: view.description,
-                  query: { name: query.name, entityId: query.entityId, filters: query.filters, sorting: query.sorting },
+                  query: { name: query.name, entityId: query.entityId, filter: query.filter, sorting: query.sorting },
                   presentation: {
                     name: presentation.name,
                     entityId: presentation.entityId,

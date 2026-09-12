@@ -36,7 +36,14 @@ export function Tree(props: TreeProps) {
     }
     return props.model;
   });
-  const visible = createMemo(() => visibleTreeNodes(validatedModel(), expanded()));
+  const effectiveExpanded = createMemo(() => {
+    const result = new Set(expanded());
+    for (const node of validatedModel().nodes.values()) {
+      if (node.kind === folderTreeNodeKind && props.definition.isCollapsible?.(node) === false) result.add(node.id);
+    }
+    return result;
+  });
+  const visible = createMemo(() => visibleTreeNodes(validatedModel(), effectiveExpanded()));
 
   createEffect(() => {
     const rows = visible();
@@ -60,7 +67,7 @@ export function Tree(props: TreeProps) {
   };
 
   const toggle = (node: TreeNode) => {
-    if (node.kind !== folderTreeNodeKind) return;
+    if (node.kind !== folderTreeNodeKind || props.definition.isCollapsible?.(node) === false) return;
     const next = new Set(expanded());
     if (next.has(node.id)) {
       next.delete(node.id);
@@ -97,11 +104,13 @@ export function Tree(props: TreeProps) {
         destination = rows.at(-1)?.node.id;
         break;
       case "ArrowRight":
-        if (node.kind === folderTreeNodeKind && !expanded().has(node.id)) toggle(node);
+        if (node.kind === folderTreeNodeKind && isNodeCollapsible(node) && !effectiveExpanded().has(node.id))
+          toggle(node);
         else if (node.kind === folderTreeNodeKind) destination = node.children?.[0];
         break;
       case "ArrowLeft":
-        if (node.kind === folderTreeNodeKind && expanded().has(node.id)) toggle(node);
+        if (node.kind === folderTreeNodeKind && isNodeCollapsible(node) && effectiveExpanded().has(node.id))
+          toggle(node);
         else destination = current?.parentId;
         break;
       case "Enter":
@@ -123,7 +132,8 @@ export function Tree(props: TreeProps) {
       {(id) => {
         const node = () => props.model.nodes.get(id) as TreeNode;
         const isFolder = () => node().kind === folderTreeNodeKind;
-        const isExpanded = () => isFolder() && expanded().has(id);
+        const isCollapsible = () => isFolder() && (props.definition.isCollapsible?.(node()) ?? true);
+        const isExpanded = () => isFolder() && effectiveExpanded().has(id);
         const isSelected = () => props.definition.isSelected?.(node()) ?? false;
         const renderer = () => props.definition.renderers.get(node().kind) as TreeNodeRenderer;
         const parentId = () => parentFor(props.model, id);
@@ -141,10 +151,10 @@ export function Tree(props: TreeProps) {
           return { parentId, index };
         };
         return (
-          <li role="none">
+          <li role="none" class={props.definition.classForNode?.(node())} style={{ "--tree-level": level }}>
             <div
               role="treeitem"
-              aria-expanded={isFolder() ? isExpanded() : undefined}
+              aria-expanded={isCollapsible() ? isExpanded() : undefined}
               aria-selected={isSelected() || undefined}
               ref={(element) => rowElements.set(id, element)}
               class={styles.row}
@@ -183,7 +193,8 @@ export function Tree(props: TreeProps) {
                 }
                 setDraggedId(id);
                 event.dataTransfer?.setData("text/plain", id);
-                if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+                if (event.dataTransfer)
+                  event.dataTransfer.effectAllowed = props.definition.move.copy ? "copyMove" : "move";
               }}
               onDragOver={(event) => {
                 const dragged = draggedId();
@@ -199,6 +210,9 @@ export function Tree(props: TreeProps) {
                   return;
                 }
                 event.preventDefault();
+                if (event.dataTransfer)
+                  event.dataTransfer.dropEffect =
+                    (event.ctrlKey || event.altKey) && props.definition.move?.copy ? "copy" : "move";
                 setDropTarget(target);
                 setDropOverId(id);
                 if (target.parentId === id && isFolder() && !isExpanded() && expandTarget !== id) {
@@ -217,7 +231,9 @@ export function Tree(props: TreeProps) {
                 if (draggedNode && target && props.definition.move?.canMoveTo(draggedNode, target)) {
                   event.preventDefault();
                   event.stopPropagation();
-                  props.definition.move.move(draggedNode, target);
+                  if ((event.ctrlKey || event.altKey) && props.definition.move.copy) {
+                    props.definition.move.copy(draggedNode, target);
+                  } else props.definition.move.move(draggedNode, target);
                 } else if (target && props.definition.externalDrop?.canDrop(event, target)) {
                   event.preventDefault();
                   props.definition.externalDrop.drop(event, target);
@@ -236,7 +252,14 @@ export function Tree(props: TreeProps) {
                 expandTarget = undefined;
               }}
             >
-              <Show when={isFolder()} fallback={<span class={styles.disclosureSpacer} />}>
+              <Show
+                when={isCollapsible()}
+                fallback={
+                  <Show when={props.definition.reserveDisclosureSpace ?? true}>
+                    <span class={styles.disclosureSpacer} />
+                  </Show>
+                }
+              >
                 <button
                   type="button"
                   class={styles.disclosure}
@@ -261,6 +284,10 @@ export function Tree(props: TreeProps) {
       }}
     </For>
   );
+
+  function isNodeCollapsible(node: TreeNode): boolean {
+    return node.kind === folderTreeNodeKind && (props.definition.isCollapsible?.(node) ?? true);
+  }
 
   return (
     <ul class={`${styles.tree}${props.class ? ` ${props.class}` : ""}`} role="tree" aria-label={props.ariaLabel}>

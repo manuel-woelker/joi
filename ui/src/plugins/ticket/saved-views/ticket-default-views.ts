@@ -1,29 +1,42 @@
 import { entityId } from "../../core/entities/entity-description";
 import type { WorkspaceDocument } from "../../core/saved-views/model";
+import { filterAttributeId, filterNodeId } from "../../../components/filter-definition/filter-model";
+import { equalsFilterOperator, inSetFilterOperator } from "../../../components/filter-definition/filter-operators";
 
 export function createTicketDefaultWorkspace(): WorkspaceDocument {
   return {
-    version: 4,
+    version: 5,
     queries: {
       "query-open": {
         id: "query-open",
         name: "Active issues",
         entityId: entityId("tickets"),
-        filters: [{ field: "status", operator: "in", value: ["open", "in-progress"] }],
+        filter: {
+          id: filterNodeId("ticket-open-status"),
+          type: "criterion",
+          attribute: filterAttributeId("status"),
+          operator: inSetFilterOperator,
+          operand: { type: "set", values: ["open", "in-progress"] },
+        },
         sorting: [{ field: "id", direction: "ascending" }],
       },
       "query-all": {
         id: "query-all",
         name: "All issues",
         entityId: entityId("tickets"),
-        filters: [],
         sorting: [{ field: "id", direction: "ascending" }],
       },
       "query-closed": {
         id: "query-closed",
         name: "Closed issues",
         entityId: entityId("tickets"),
-        filters: [{ field: "status", operator: "equals", value: "closed" }],
+        filter: {
+          id: filterNodeId("ticket-closed-status"),
+          type: "criterion",
+          attribute: filterAttributeId("status"),
+          operator: equalsFilterOperator,
+          operand: { type: "value", value: "closed" },
+        },
         sorting: [{ field: "id", direction: "ascending" }],
       },
     },

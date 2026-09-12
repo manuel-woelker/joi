@@ -28,6 +28,8 @@ export interface TreeMoveDefinition {
   canMove(node: TreeNode): boolean;
   canMoveTo(node: TreeNode, target: TreeMoveTarget): boolean;
   move(node: TreeNode, target: TreeMoveTarget): void;
+  /** Copies a node when the user holds Control or Alt while dropping. */
+  copy?: (node: TreeNode, target: TreeMoveTarget) => void;
 }
 
 /** Accepts data dragged from outside this tree at a normalized tree position. */
@@ -40,6 +42,9 @@ export interface TreeExternalDropDefinition {
 export interface TreeDefinition {
   readonly renderers: TreeRendererRegistry;
   readonly isSelected?: (node: TreeNode) => boolean;
+  readonly isCollapsible?: (node: TreeNode) => boolean;
+  readonly reserveDisclosureSpace?: boolean;
+  readonly classForNode?: (node: TreeNode) => string | undefined;
   readonly onActivate?: (node: TreeNode) => void;
   readonly onContextMenu?: (event: MouseEvent, node: TreeNode) => void;
   readonly canDrag?: (node: TreeNode) => boolean;

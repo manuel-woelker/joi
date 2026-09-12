@@ -34,8 +34,11 @@ describe("workspace navigation copies", () => {
 
     expect(copy).toMatchObject({ type: "view", view: { name: "Active things" } });
     if (copy?.type !== "view") throw new Error("Expected a view copy");
-    copy.view.query.filters[0].field = "title";
-    expect(workspace.queries["query-open"].filters[0].field).toBe("status");
+    const copiedFilter = copy.view.query.filter;
+    if (!copiedFilter || copiedFilter.type !== "criterion") throw new Error("Expected criterion");
+    (copiedFilter as { attribute: string }).attribute = "title";
+    const sourceFilter = workspace.queries["query-open"].filter;
+    expect(sourceFilter?.type === "criterion" && sourceFilter.attribute).toBe("status");
   });
 
   it("resolves copied shortcut metadata from its originating section", () => {

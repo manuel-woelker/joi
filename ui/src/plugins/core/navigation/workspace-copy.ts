@@ -44,7 +44,7 @@ export function copyForWorkspaceView(workspace: WorkspaceDocument, viewId: strin
     query: {
       name: query.name,
       entityId: query.entityId,
-      filters: cloneValue(query.filters),
+      filter: cloneValue(query.filter),
       sorting: cloneValue(query.sorting),
     },
     presentation: {

@@ -1,6 +1,9 @@
 import { For, Show, createEffect, createMemo, createSignal } from "solid-js";
 
 import { IconButton } from "../../../components/IconButton";
+import { FilterDefinitionEditor } from "../../../components/filter-definition/FilterDefinitionEditor";
+import { createCompositeFilter, filterNodeId } from "../../../components/filter-definition/filter-model";
+import { entityFilterAttributes } from "../../../components/filter-definition/entity-filter-attributes";
 import { useWorkspace } from "../../core/saved-views/controller";
 import type { PresentationDefinition, QueryDefinition } from "../../core/saved-views/model";
 import { cloneValue } from "../../core/saved-views/operations";
@@ -43,19 +46,18 @@ export function ViewEditor() {
     query() && presentation()
       ? validatePresentation(query()!, presentation()!, ticketEntity)
       : "Choose a query and presentation.";
-  const activeStatuses = () => {
-    const filter = query()?.filters.find((item) => item.field === "status" && item.operator === "in");
-    return new Set(Array.isArray(filter?.value) ? filter.value : []);
-  };
-  const toggleStatus = (status: TicketStatus) => {
-    const current = query();
-    if (!current) return;
-    const statuses = activeStatuses();
-    statuses.has(status) ? statuses.delete(status) : statuses.add(status);
-    const filters = current.filters.filter((item) => !(item.field === "status" && item.operator === "in"));
-    if (statuses.size) filters.push({ field: "status", operator: "in", value: [...statuses] });
-    setQuery({ ...current, filters });
-  };
+  const filterAttributes = entityFilterAttributes(ticketEntity).map((attribute) =>
+    attribute.id === "status"
+      ? {
+          ...attribute,
+          values: [
+            { value: "open", label: "Open" },
+            { value: "in-progress", label: "In progress" },
+            { value: "closed", label: "Closed" },
+          ],
+        }
+      : attribute,
+  );
 
   return (
     <Show when={controller.editorOpen()}>
@@ -106,21 +108,16 @@ export function ViewEditor() {
               />
             </label>
             <fieldset>
-              <legend>Status filter</legend>
-              <div class={styles.checkGrid}>
-                <For each={["open", "in-progress", "closed"] as TicketStatus[]}>
-                  {(status) => (
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={activeStatuses().has(status)}
-                        onChange={() => toggleStatus(status)}
-                      />
-                      {status}
-                    </label>
-                  )}
-                </For>
-              </div>
+              <legend>Filter</legend>
+              <Show when={query()}>
+                {(current) => (
+                  <FilterDefinitionEditor
+                    attributes={filterAttributes}
+                    value={current().filter ?? createCompositeFilter("all", [], filterNodeId(`${current().id}-filter`))}
+                    onChange={(filter) => setQuery({ ...current(), filter })}
+                  />
+                )}
+              </Show>
             </fieldset>
           </section>
           <section>
@@ -220,5 +217,3 @@ export function ViewEditor() {
     </Show>
   );
 }
-
-type TicketStatus = "open" | "in-progress" | "closed";

@@ -6,8 +6,8 @@ import { navigationEntryId } from "./contribution";
 import { addRecent, referenceForSelection, type RecentViewReference } from "./recent-views";
 
 const workspace: WorkspaceDocument = {
-  version: 4,
-  queries: { q: { id: "q", name: "Q", entityId: entityId("tickets"), filters: [], sorting: [] } },
+  version: 5,
+  queries: { q: { id: "q", name: "Q", entityId: entityId("tickets"), sorting: [] } },
   presentations: {
     p: { id: "p", name: "P", entityId: entityId("tickets"), layout: "table", density: "compact", fields: [] },
   },

@@ -18,9 +18,18 @@ export function loadEntityRecords(
 }
 
 function queryCriterion(query: QueryDefinition | undefined): QueryCriterionRequest {
-  const filter = query?.filters.length === 1 ? query.filters[0] : undefined;
-  if (!filter || filter.operator === "contains") return "match_any";
-  const values = (Array.isArray(filter.value) ? filter.value : [filter.value]).map(String);
-  const equals = { equals: { attribute: filter.field, values } } as const;
+  const filter = query?.filter;
+  if (!filter || filter.disabled || filter.type !== "criterion") return "match_any";
+  if (filter.operator !== "equals" && filter.operator !== "not-equals" && filter.operator !== "in-set") {
+    return "match_any";
+  }
+  const values =
+    filter.operand?.type === "set"
+      ? filter.operand.values.map(String)
+      : filter.operand?.type === "value"
+        ? [String(filter.operand.value)]
+        : [];
+  if (!values.length) return "match_any";
+  const equals = { equals: { attribute: filter.attribute, values } } as const;
   return filter.operator === "not-equals" ? { not: equals } : equals;
 }

@@ -1,6 +1,8 @@
 import type { IconComponent } from "../../../icons/icon-component";
 import { defineEntity, entityId } from "../entities/entity-description";
 import type { WorkspaceDocument } from "./model";
+import { filterAttributeId, filterNodeId } from "../../../components/filter-definition/filter-model";
+import { inSetFilterOperator } from "../../../components/filter-definition/filter-operators";
 
 const TestIcon = (() => null) as IconComponent;
 
@@ -22,20 +24,25 @@ export const testEntity = defineEntity({
 
 export function createTestWorkspace(): WorkspaceDocument {
   return {
-    version: 4,
+    version: 5,
     queries: {
       "query-open": {
         id: "query-open",
         name: "Active things",
         entityId: testEntity.id,
-        filters: [{ field: "status", operator: "in", value: ["open", "in-progress"] }],
+        filter: {
+          id: filterNodeId("test-open-status"),
+          type: "criterion",
+          attribute: filterAttributeId("status"),
+          operator: inSetFilterOperator,
+          operand: { type: "set", values: ["open", "in-progress"] },
+        },
         sorting: [{ field: "id", direction: "ascending" }],
       },
       "query-all": {
         id: "query-all",
         name: "All things",
         entityId: testEntity.id,
-        filters: [],
         sorting: [{ field: "id", direction: "ascending" }],
       },
     },

@@ -3,6 +3,12 @@ import type { SavedViewDefaultsContribution } from "./contribution";
 import type { WorkspaceDocument } from "./model";
 import type { EntityRegistry } from "../entities/entity-registry";
 import { validatePresentation } from "./query";
+import {
+  filterAttributeId,
+  filterNodeId,
+  filterOperatorId,
+  type FilterDefinition,
+} from "../../../components/filter-definition/filter-model";
 
 export interface WorkspaceRepository {
   load(): { workspace: WorkspaceDocument; warning?: string };
@@ -10,12 +16,12 @@ export interface WorkspaceRepository {
   reset(): WorkspaceDocument;
 }
 
-export const WORKSPACE_STORAGE_KEY = "joi.workspace.v4";
-export const LEGACY_WORKSPACE_STORAGE_KEYS = ["joi.workspace.v3", "joi.workspace.v2"] as const;
+export const WORKSPACE_STORAGE_KEY = "joi.workspace.v5";
+export const LEGACY_WORKSPACE_STORAGE_KEYS = ["joi.workspace.v4", "joi.workspace.v3", "joi.workspace.v2"] as const;
 
 export function mergeSavedViewDefaults(contributions: readonly SavedViewDefaultsContribution[]): WorkspaceDocument {
   const workspace: WorkspaceDocument = {
-    version: 4,
+    version: 5,
     queries: {},
     presentations: {},
     views: {},
@@ -77,7 +83,7 @@ export function isWorkspaceDocument(value: unknown): value is WorkspaceDocument 
   if (!value || typeof value !== "object") return false;
   const document = value as Partial<WorkspaceDocument>;
   return (
-    document.version === 4 &&
+    document.version === 5 &&
     !!document.queries &&
     !!document.presentations &&
     !!document.views &&
@@ -102,7 +108,12 @@ function normalizeLegacyNavigationSelections(workspace: WorkspaceDocument): Work
 function migrateLegacyWorkspace(value: unknown): WorkspaceDocument | undefined {
   if (!value || typeof value !== "object") return undefined;
   const legacy = value as Record<string, unknown>;
-  if ((legacy.version !== 2 && legacy.version !== 3) || !legacy.queries || !legacy.presentations) return undefined;
+  if (
+    (legacy.version !== 2 && legacy.version !== 3 && legacy.version !== 4) ||
+    !legacy.queries ||
+    !legacy.presentations
+  )
+    return undefined;
   const migrated = structuredClone(legacy) as Record<string, unknown>;
   if (legacy.version === 2) {
     for (const definitions of [migrated.queries, migrated.presentations]) {
@@ -115,9 +126,35 @@ function migrateLegacyWorkspace(value: unknown): WorkspaceDocument | undefined {
       }
     }
   }
-  migrated.version = 4;
+  migrateFlatFilters(migrated.queries as Record<string, Record<string, unknown>>);
+  migrated.version = 5;
   delete migrated.favorites;
   return isWorkspaceDocument(migrated) ? migrated : undefined;
+}
+
+function migrateFlatFilters(queries: Record<string, Record<string, unknown>>): void {
+  for (const query of Object.values(queries)) {
+    const filters = Array.isArray(query.filters) ? (query.filters as Record<string, unknown>[]) : [];
+    if (filters.length) {
+      const queryId = String(query.id);
+      const children: FilterDefinition[] = filters.map((filter, index) => ({
+        id: filterNodeId(`${queryId}-filter-${index}`),
+        type: "criterion",
+        attribute: filterAttributeId(String(filter.field)),
+        operator: filterOperatorId(filter.operator === "in" ? "in-set" : String(filter.operator)),
+        operand: Array.isArray(filter.value)
+          ? { type: "set", values: filter.value as (string | number)[] }
+          : { type: "value", value: filter.value as string | number },
+      }));
+      query.filter = {
+        id: filterNodeId(`${queryId}-filter-root`),
+        type: "composite",
+        kind: "all",
+        children,
+      };
+    }
+    delete query.filters;
+  }
 }
 
 export class LocalWorkspaceRepository implements WorkspaceRepository {

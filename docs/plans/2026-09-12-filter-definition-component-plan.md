@@ -125,10 +125,10 @@ operations in the filter component module so the generic Tree API does not
 learn filter semantics.
 
 Allow drops before or after every node and inside composite nodes. Show the
-prospective row position while dragging, auto-expand a closed composite after
-a short hover, and preserve the current Tree keyboard navigation. Add
-context-menu or row commands for moving a node up/down and nesting/unnesting it
-so rearranging filters does not require pointer dragging.
+prospective row position while dragging and preserve the current Tree keyboard
+navigation. Composite nodes remain permanently expanded. A normal drag moves a
+node; holding Control or Alt while dragging copies it with fresh IDs. Keep move
+and copy buttons out of the compact criterion rows.
 
 ## How does this relate to saved queries?
 
@@ -144,10 +144,10 @@ may exist while editing but must be rejected before persistence or execution,
 avoiding surprising vacuous-truth behavior.
 
 The backend query contract currently supports fewer operations than this
-editor. Do not claim server execution for unsupported operators. Add a
-capability/translation boundary that either converts a complete supported
-filter tree or returns a precise unsupported-operation error; expanding the
-backend query language is follow-up work unless required by the first consumer.
+editor. The implemented translation boundary sends a criterion to the server
+only when it can represent it exactly; otherwise it requests unfiltered rows
+and applies the recursive filter client-side. Expanding the backend query
+language remains follow-up work for large result sets.
 
 Replace the ticket-specific status filter controls in `ViewEditor` with the
 generic component once migration, evaluation, and entity-attribute adaptation
@@ -156,31 +156,31 @@ view infrastructure.
 
 ## Implementation Checklist
 
-- [ ] Add branded IDs, recursive composite/criterion definitions, structured
+- [x] Add branded IDs, recursive composite/criterion definitions, structured
       operand types, constructors, cloning, and structural validation.
-- [ ] Add filterable attribute and operator definitions, the default operator
+- [x] Add filterable attribute and operator definitions, the default operator
       catalog, compatibility checks, and the entity-description adapter.
-- [ ] Implement immutable add, remove, duplicate, replace, enable/disable, and
+- [x] Implement immutable add, remove, duplicate, replace, enable/disable, and
       move operations with descendant and no-op protection.
-- [ ] Create the controlled `FilterDefinition` editor component with composite
+- [x] Create the controlled `FilterDefinition` editor component with composite
       and criterion renderers, accessible controls, and inline validation.
-- [ ] Reuse the existing Select for finite and asynchronous choices and add
+- [x] Reuse the existing Select for finite and asynchronous choices and add
       operand editors for none, scalar, inclusive range, and set shapes.
-- [ ] Adapt filter definitions to `TreeModel` and wire pointer drag/drop plus
-      keyboard-accessible move and nesting commands.
-- [ ] Add compact CSS-module styling and semantic orange, green, and purple
+- [x] Adapt filter definitions to `TreeModel`, wire move and modifier-copy drag
+      operations, and keep composite branches permanently expanded.
+- [x] Add compact CSS-module styling and semantic orange, green, and purple
       composite variables derived from the application palette.
-- [ ] Add playground scenarios for an empty filter, every operator shape,
+- [x] Add playground scenarios for an empty filter, every operator shape,
       nested all/one/none groups, disabled nodes, validation failures, async
       choices, and drag/reorder behavior.
-- [ ] Migrate saved-view filters from the flat model to an `all` root while
+- [x] Migrate saved-view filters from the flat model to an `all` root while
       preserving existing workspace data and ticket defaults.
-- [ ] Add recursive client-side evaluation and an explicit server-query
+- [x] Add recursive client-side evaluation and an explicit server-query
       translation/capability boundary for unsupported operations.
-- [ ] Replace ticket-specific filter editing with the generic component.
-- [ ] Add focused model, move, validation, rendering, keyboard, drag/drop,
+- [x] Replace ticket-specific filter editing with the generic component.
+- [x] Add focused model, move, validation, rendering, keyboard, drag/drop,
       migration, and recursive evaluation tests.
-- [ ] Run focused UI tests and type checking, then run `nao check` and restart
+- [x] Run focused UI tests and type checking, then run `nao check` and restart
       active development tasks with `nao --restart`.
 
 ## How will we verify it?
@@ -189,7 +189,7 @@ view infrastructure.
   operand editor; `set` and `unset` require no operand.
 - Users can construct arbitrarily nested all/one/none groups, disable any node,
   and restore it without losing its values or descendants.
-- Pointer and keyboard operations can reorder and reparent nodes while cycles,
+- Pointer operations can move, copy, reorder, and reparent nodes while cycles,
   root deletion, invalid targets, and accidental no-op moves are rejected.
 - Composite meaning is communicated by text and accessible state as well as by
   orange, green, or purple accents.
@@ -214,6 +214,7 @@ view infrastructure.
   form-control interaction and accessibility. If folder-specific assumptions
   leak into the UI, generalize Tree's branch predicate narrowly instead of
   duplicating its drag algorithm.
-- The broad operator catalog is ahead of the current backend. UI integration
-  must expose only executable operators or clearly prevent saving/executing an
-  unsupported definition until the backend catches up.
+- The broad operator catalog is ahead of the current backend. Unsupported
+  server predicates are evaluated client-side after a `match_any` request. This
+  is correct for the current small data sets, but server-side composition is
+  required before filtered tables can exceed the query result limit.
