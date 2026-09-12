@@ -60,9 +60,13 @@ describe("filter tree operations", () => {
     expect(copied.type === "composite" && copied.children[2].id).not.toBe("a");
   });
 
-  it("reports duplicate IDs and empty groups", () => {
+  it("reports duplicate IDs and empty one groups", () => {
     const root = createCompositeFilter("all", [criterion("same"), criterion("same")], filterNodeId("root"));
     expect(validateFilterDefinition(root)).toHaveLength(1);
-    expect(validateFilterDefinition(createCompositeFilter("all", [], filterNodeId("empty")))[0]).toContain("at least");
+    expect(validateFilterDefinition(createCompositeFilter("all", [], filterNodeId("empty-all")))).toEqual([]);
+    expect(validateFilterDefinition(createCompositeFilter("none", [], filterNodeId("empty-none")))).toEqual([]);
+    expect(validateFilterDefinition(createCompositeFilter("one", [], filterNodeId("empty-one")))).toEqual([
+      'A "One of" composite filter must contain at least one filter.',
+    ]);
   });
 });

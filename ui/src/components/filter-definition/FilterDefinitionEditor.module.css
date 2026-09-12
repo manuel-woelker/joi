@@ -12,6 +12,7 @@
 }
 .group, .criterion { min-width: 0; flex: 1; align-items: center; gap: 6px; }
 .group { display: flex; padding: 3px 5px; border-radius: 3px; background: var(--filter-surface); }
+.group.invalid { border: 1px solid var(--color-danger); }
 .dragHandle {
   display: grid;
   width: 14px;

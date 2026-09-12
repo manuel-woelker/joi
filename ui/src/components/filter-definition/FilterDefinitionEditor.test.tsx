@@ -80,6 +80,16 @@ describe("FilterDefinitionEditor", () => {
     expect(screen.getByText("string")).toBeTruthy();
   });
 
+  it("marks an empty one-of composite as invalid", () => {
+    const value = createCompositeFilter("one", [], filterNodeId("empty-one"));
+    render(() => <FilterDefinitionEditor attributes={attributes} value={value} onChange={() => undefined} />);
+
+    expect(screen.getByText('A "One of" composite filter must contain at least one filter.')).toBeTruthy();
+    expect(
+      screen.getByRole("combobox", { name: "Composite filter kind" }).closest('[aria-invalid="true"]'),
+    ).toBeTruthy();
+  });
+
   it("reorders criteria when dragging their handles", () => {
     const first = createFilterCriterion(
       filterAttributeId("status"),

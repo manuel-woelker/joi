@@ -18,6 +18,12 @@ describe("matchesFilter", () => {
     expect(matchesFilter(createCompositeFilter("none", [title("a", "Other")]), value)).toBe(true);
   });
 
+  it("matches everything with empty all and none composites", () => {
+    const value = () => undefined;
+    expect(matchesFilter(createCompositeFilter("all"), value)).toBe(true);
+    expect(matchesFilter(createCompositeFilter("none"), value)).toBe(true);
+  });
+
   it("ignores disabled nodes and handles typed operands", () => {
     const disabled = { ...title("disabled", "wrong"), disabled: true };
     const range = createFilterCriterion(filterAttributeId("estimate"), inRangeFilterOperator, {

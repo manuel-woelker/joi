@@ -139,9 +139,8 @@ criteria with generated stable IDs. Preserve existing filter behavior exactly.
 
 Update client-side query evaluation to recurse through composite nodes and skip
 disabled nodes. Keep operator evaluation in a separate pure module shared by
-the editor's validation tests and saved-view execution tests. Empty composites
-may exist while editing but must be rejected before persistence or execution,
-avoiding surprising vacuous-truth behavior.
+the editor's validation tests and saved-view execution tests. Empty `all` and
+`none` composites match everything; an empty `one` composite is invalid.
 
 The backend query contract currently supports fewer operations than this
 editor. The implemented translation boundary sends a criterion to the server

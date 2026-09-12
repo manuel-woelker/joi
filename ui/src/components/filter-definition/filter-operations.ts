@@ -124,12 +124,19 @@ export function validateFilterDefinition(root: FilterDefinition): readonly strin
     if (ids.has(node.id)) errors.push(`Filter node '${node.id}' is defined more than once.`);
     ids.add(node.id);
     if (node.type === "composite") {
-      if (!node.children.length) errors.push("Composite filters must contain at least one filter.");
+      if (isInvalidEmptyCompositeFilter(node)) {
+        errors.push('A "One of" composite filter must contain at least one filter.');
+      }
       node.children.forEach(visit);
     }
   };
   visit(root);
   return errors;
+}
+
+/** Returns whether a composite has no valid interpretation without children. */
+export function isInvalidEmptyCompositeFilter(filter: CompositeFilterDefinition): boolean {
+  return filter.kind === "one" && filter.children.length === 0;
 }
 
 function findParent(root: FilterDefinition, id: FilterNodeId): CompositeFilterDefinition | undefined {
