@@ -1,0 +1,24 @@
+.history { width: min(780px, 100%); color: var(--color-ink); }
+.commits { margin: 0; padding: 0; list-style: none; }
+.commit { display: flex; min-height: 64px; border-bottom: 1px solid var(--color-border-soft); }
+.graph { position: relative; flex: none; align-self: stretch; min-height: 64px; }
+.graph svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.line { fill: none; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.bubble { fill: var(--color-surface); stroke-width: 3; vector-effect: non-scaling-stroke; }
+.color0 { stroke: var(--color-primary-dark); }
+.color1 { stroke: var(--color-secondary-dark); }
+.color2 { stroke: color-mix(in srgb, var(--color-filter-all) 78%, var(--color-ink)); }
+.color3 { stroke: color-mix(in srgb, var(--color-primary) 58%, var(--color-filter-all)); }
+.color4 { stroke: color-mix(in srgb, var(--color-secondary) 62%, var(--color-filter-all)); }
+.color5 { stroke: color-mix(in srgb, var(--color-primary) 48%, var(--color-secondary-dark)); }
+.details { min-width: 0; flex: 1; overflow: hidden; padding: 10px 8px 9px 4px; }
+.message { display: grid; gap: 3px; font-size: 13px; line-height: 1.35; }
+.message strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.message span { color: var(--color-ink-soft); white-space: pre-wrap; }
+.metadata { display: flex; align-items: center; gap: 6px; margin-top: 5px; overflow: hidden; color: var(--color-text-muted); font-size: 11px; white-space: nowrap; }
+.metadata code { margin-left: auto; color: var(--color-ink-soft); font-family: ui-monospace, "Cascadia Mono", monospace; }
+.status,
+.empty,
+.error { margin: 0; padding: 12px; color: var(--color-text-muted); font-size: 12px; }
+.error { color: var(--color-danger); }
+.loadMore { display: block; margin: 10px auto; }
