@@ -13,7 +13,7 @@ import {
   filterNodeId,
   type FilterDefinition,
 } from "./filter-model";
-import { equalsFilterOperator, inSetFilterOperator } from "./filter-operators";
+import { equalsFilterOperator, inSetFilterOperator, notEqualsFilterOperator } from "./filter-operators";
 
 const attributes = [
   {
@@ -94,6 +94,35 @@ describe("FilterDefinitionEditor", () => {
     expect(screen.getByRole("textbox", { name: "Filter value" })).toBe(input);
     expect(document.activeElement).toBe(input);
     expect(input.value).toBe("ab");
+  });
+
+  it("preserves an operand when changing to an operator with the same operand shape", () => {
+    const textAttributes = [
+      {
+        id: filterAttributeId("title"),
+        label: "Title",
+        valueType: "string" as const,
+      },
+    ];
+    const initial = createCompositeFilter("all", [
+      createFilterCriterion(
+        textAttributes[0].id,
+        equalsFilterOperator,
+        { type: "value", value: "preserve me" },
+        filterNodeId("title"),
+      ),
+    ]);
+    const TestTextEditor = () => {
+      const [value, setValue] = createSignal<FilterDefinition>(initial);
+      return <FilterDefinitionEditor attributes={textAttributes} value={value()} onChange={setValue} />;
+    };
+    render(() => <TestTextEditor />);
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Comparison operator" }), {
+      target: { value: notEqualsFilterOperator },
+    });
+
+    expect(screen.getByRole<HTMLInputElement>("textbox", { name: "Filter value" }).value).toBe("preserve me");
   });
 
   it("keeps composites expanded and omits move and copy buttons", () => {

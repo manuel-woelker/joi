@@ -282,7 +282,11 @@ function CriterionRow(props: {
         value={operator()?.id}
         onChange={(event) => {
           const next = availableOperators().find((item) => item.id === event.currentTarget.value)!;
-          props.onChange({ ...props.filter, operator: next.id, operand: emptyOperand(next, attribute()!) });
+          props.onChange({
+            ...props.filter,
+            operator: next.id,
+            operand: operandForOperator(next, attribute()!, props.filter.operand),
+          });
         }}
       >
         <For each={availableOperators()}>{(item) => <option value={item.id}>{item.label}</option>}</For>
@@ -457,6 +461,15 @@ function emptyOperand(operator: FilterOperatorDefinition, attribute: FilterableA
   if (operator.operand === "range") return { type: "range" };
   if (operator.operand === "set") return { type: "set", values: [] };
   return { type: "value", value: attribute.valueType === "int" ? 0 : "" };
+}
+
+function operandForOperator(
+  operator: FilterOperatorDefinition,
+  attribute: FilterableAttribute,
+  current: FilterOperand | undefined,
+): FilterOperand | undefined {
+  if (operator.operand === "none") return undefined;
+  return current?.type === operator.operand ? current : emptyOperand(operator, attribute);
 }
 
 function moveTarget(target: TreeMoveTarget) {
