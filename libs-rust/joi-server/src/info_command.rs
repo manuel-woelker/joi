@@ -67,7 +67,11 @@ impl Command for InfoCommandRequest {
 impl CommandHandler for InfoCommand {
     type Command = InfoCommandRequest;
 
-    fn execute(&self, _request: Self::Command) -> JoiResult<InfoCommandResponse> {
+    fn execute(
+        &self,
+        _context: &crate::command_handler::CommandContext,
+        _request: Self::Command,
+    ) -> JoiResult<InfoCommandResponse> {
         let mut collector = InfoCollector::default();
         for provider in self.plugin_registry.extensions::<dyn InfoProvider>()? {
             provider.collect_info(&mut collector);
@@ -96,7 +100,7 @@ mod tests {
 
     #[test]
     fn requires_the_info_provider_extension_point() {
-        let response = InfoCommand::new_empty().execute(InfoCommandRequest {});
+        let response = InfoCommand::new_empty().execute(&Default::default(), InfoCommandRequest {});
 
         assert!(response.is_err());
     }

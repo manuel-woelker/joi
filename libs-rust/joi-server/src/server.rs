@@ -192,7 +192,11 @@ fn parse_command_name(arguments: impl IntoIterator<Item = String>) -> JoiResult<
 
 fn execute_cli_command(registry: &CommandRegistry, command_name: &str) -> JoiResult<String> {
     let response = registry
-        .execute(command_name, serde_json::json!({}))
+        .execute(
+            &crate::command_handler::CommandContext::default(),
+            command_name,
+            serde_json::json!({}),
+        )
         .ok_or_else(|| joi_error!("command `{command_name}` is not registered"))??;
     yaml_serde::to_string(&response).map_err(report)
 }
@@ -288,7 +292,10 @@ mod tests {
 
     #[test]
     fn built_in_info_uses_application_configuration() {
-        let response = test_registry().execute("info", json!({})).unwrap().unwrap();
+        let response = test_registry()
+            .execute(&Default::default(), "info", json!({}))
+            .unwrap()
+            .unwrap();
 
         assert_eq!(response["application_name"], "test-application");
         assert_eq!(response["version"], "1.2.3");
@@ -316,6 +323,7 @@ mod tests {
         let registry = test_registry();
         let users = registry
             .execute(
+                &Default::default(),
                 "query",
                 json!({
                     "table_name": "users",

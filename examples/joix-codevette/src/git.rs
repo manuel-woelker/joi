@@ -204,7 +204,11 @@ mod tests {
         assert_eq!(details.commit.id, commits[0].id);
         assert_eq!(
             details.files_changed,
-            details.patch.matches("diff --git ").count()
+            details
+                .patch
+                .lines()
+                .filter(|line| line.starts_with("diff --git "))
+                .count()
         );
     }
 

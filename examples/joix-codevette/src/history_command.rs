@@ -37,7 +37,11 @@ struct GitHistoryCommand {
 impl CommandHandler for GitHistoryCommand {
     type Command = GitHistoryRequest;
 
-    fn execute(&self, request: GitHistoryRequest) -> JoiResult<GitHistoryResponse> {
+    fn execute(
+        &self,
+        _context: &joi_server::command_handler::CommandContext,
+        request: GitHistoryRequest,
+    ) -> JoiResult<GitHistoryResponse> {
         let limit = usize::try_from(request.limit)
             .ok()
             .filter(|limit| (1..=200).contains(limit))

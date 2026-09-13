@@ -87,7 +87,11 @@ impl Command for MutateRequest {
 impl CommandHandler for MutateCommand {
     type Command = MutateRequest;
 
-    fn execute(&self, request: Self::Command) -> JoiResult<MutateResponse> {
+    fn execute(
+        &self,
+        _context: &crate::command_handler::CommandContext,
+        request: Self::Command,
+    ) -> JoiResult<MutateResponse> {
         let mutation = DataStoreMutation {
             steps: request.steps.into_iter().map(mutation_step).collect(),
         };
@@ -158,23 +162,26 @@ mod tests {
         let command = MutateCommand::new(store.clone());
 
         command
-            .execute(MutateRequest {
-                steps: vec![
-                    MutateRequestStep::Insert(InsertRequest {
-                        table_name: "users".into(),
-                        columns: vec![
-                            strings("id", ["user-1"]),
-                            strings("username", ["jane.developer"]),
-                            strings("name", ["Jane Developer"]),
-                        ],
-                    }),
-                    MutateRequestStep::Update(UpdateRequest {
-                        table_name: "users".into(),
-                        ids: vec!["user-1".into()],
-                        columns: vec![strings("name", ["Jane Engineer"])],
-                    }),
-                ],
-            })
+            .execute(
+                &Default::default(),
+                MutateRequest {
+                    steps: vec![
+                        MutateRequestStep::Insert(InsertRequest {
+                            table_name: "users".into(),
+                            columns: vec![
+                                strings("id", ["user-1"]),
+                                strings("username", ["jane.developer"]),
+                                strings("name", ["Jane Developer"]),
+                            ],
+                        }),
+                        MutateRequestStep::Update(UpdateRequest {
+                            table_name: "users".into(),
+                            ids: vec!["user-1".into()],
+                            columns: vec![strings("name", ["Jane Engineer"])],
+                        }),
+                    ],
+                },
+            )
             .unwrap();
 
         let result = store
@@ -203,23 +210,26 @@ mod tests {
         let command = MutateCommand::new(store.clone());
 
         let error = command
-            .execute(MutateRequest {
-                steps: vec![
-                    MutateRequestStep::Insert(InsertRequest {
-                        table_name: "users".into(),
-                        columns: vec![
-                            strings("id", ["user-1"]),
-                            strings("username", ["jane.developer"]),
-                            strings("name", ["Jane Developer"]),
-                        ],
-                    }),
-                    MutateRequestStep::Update(UpdateRequest {
-                        table_name: "users".into(),
-                        ids: vec!["missing".into()],
-                        columns: vec![strings("name", ["Missing User"])],
-                    }),
-                ],
-            })
+            .execute(
+                &Default::default(),
+                MutateRequest {
+                    steps: vec![
+                        MutateRequestStep::Insert(InsertRequest {
+                            table_name: "users".into(),
+                            columns: vec![
+                                strings("id", ["user-1"]),
+                                strings("username", ["jane.developer"]),
+                                strings("name", ["Jane Developer"]),
+                            ],
+                        }),
+                        MutateRequestStep::Update(UpdateRequest {
+                            table_name: "users".into(),
+                            ids: vec!["missing".into()],
+                            columns: vec![strings("name", ["Missing User"])],
+                        }),
+                    ],
+                },
+            )
             .unwrap_err();
         assert!(error.to_string().contains("no record with ID `missing`"));
 
@@ -245,22 +255,25 @@ mod tests {
         let store = Arc::new(Mutex::new(Box::new(store) as Box<dyn DataStore>));
         let command = MutateCommand::new(store.clone());
         command
-            .execute(MutateRequest {
-                steps: vec![
-                    MutateRequestStep::Insert(InsertRequest {
-                        table_name: "users".into(),
-                        columns: vec![
-                            strings("id", ["user-1"]),
-                            strings("username", ["jane.developer"]),
-                            strings("name", ["Jane Developer"]),
-                        ],
-                    }),
-                    MutateRequestStep::Delete(DeleteRequest {
-                        table_name: "users".into(),
-                        ids: vec!["user-1".into()],
-                    }),
-                ],
-            })
+            .execute(
+                &Default::default(),
+                MutateRequest {
+                    steps: vec![
+                        MutateRequestStep::Insert(InsertRequest {
+                            table_name: "users".into(),
+                            columns: vec![
+                                strings("id", ["user-1"]),
+                                strings("username", ["jane.developer"]),
+                                strings("name", ["Jane Developer"]),
+                            ],
+                        }),
+                        MutateRequestStep::Delete(DeleteRequest {
+                            table_name: "users".into(),
+                            ids: vec!["user-1".into()],
+                        }),
+                    ],
+                },
+            )
             .unwrap();
 
         let result = store

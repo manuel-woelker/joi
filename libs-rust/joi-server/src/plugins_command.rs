@@ -88,7 +88,11 @@ pub struct ExtensionSummary {
 impl CommandHandler for PluginsCommand {
     type Command = PluginsCommandRequest;
 
-    fn execute(&self, _request: Self::Command) -> JoiResult<PluginsCommandResponse> {
+    fn execute(
+        &self,
+        _context: &crate::command_handler::CommandContext,
+        _request: Self::Command,
+    ) -> JoiResult<PluginsCommandResponse> {
         Ok(PluginsCommandResponse {
             plugins: self
                 .plugin_registry
@@ -160,7 +164,7 @@ mod tests {
             .unwrap();
 
         let mut response = PluginsCommand::new(builder.build())
-            .execute(PluginsCommandRequest {})
+            .execute(&Default::default(), PluginsCommandRequest {})
             .unwrap();
 
         for plugin in &mut response.plugins {

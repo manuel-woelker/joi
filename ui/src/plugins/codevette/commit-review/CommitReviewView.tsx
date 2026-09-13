@@ -3,7 +3,7 @@ import { createResource, createSignal, Match, Show, Switch } from "solid-js";
 
 import type { FetchService } from "../../../base/services/fetch-service";
 import { CommandService } from "../../../generated/api/command-service";
-import { CommitDiff } from "./CommitDiff";
+import { CommitDiff, type ReviewCommentSource } from "./CommitDiff";
 import styles from "./CommitReviewView.module.css";
 
 export interface CommitReviewViewProps {
@@ -20,6 +20,7 @@ export function CommitReviewView(props: CommitReviewViewProps) {
     () => ({ branchId: props.branchId, commitId: props.commitId }),
     (request) => commands.codevetteCommit(request),
   );
+  const [currentUser] = createResource(() => commands.userInfo({}));
   return (
     <section class={styles.review}>
       <Switch>
@@ -52,7 +53,14 @@ export function CommitReviewView(props: CommitReviewViewProps) {
                 when={tab() === "overview"}
                 fallback={
                   <div class={styles.diffPane}>
-                    <CommitDiff patch={details().patch} />
+                    <Show when={currentUser()} fallback={<p class={styles.loading}>Loading comments…</p>}>
+                      {(user) => (
+                        <CommitDiff
+                          patch={details().patch}
+                          comments={commentSource(commands, details().id, user().id)}
+                        />
+                      )}
+                    </Show>
                   </div>
                 }
               >
@@ -103,4 +111,16 @@ export function CommitReviewView(props: CommitReviewViewProps) {
 
 function subject(message: string) {
   return message.split(/\r?\n/, 1)[0] || "Commit";
+}
+
+function commentSource(commands: CommandService, commitId: string, currentUserId: string): ReviewCommentSource {
+  return {
+    currentUserId,
+    async load() {
+      return (await commands.codevetteReviewComments({ commitId })).comments;
+    },
+    save(request) {
+      return commands.codevetteReviewCommentSave({ ...request, commitId });
+    },
+  };
 }

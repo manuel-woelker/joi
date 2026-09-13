@@ -6,13 +6,13 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value;
 
 use crate::command::{Command, CommandDescriptor};
-use crate::command_handler::CommandHandler;
+use crate::command_handler::{CommandContext, CommandHandler};
 
 use crate::data_store::SharedDataStore;
 
 const COMMANDS_LIST_NAME: &str = "commands/list";
 
-type ExecuteCommand = Arc<dyn Fn(Value) -> JoiResult<Value> + Send + Sync>;
+type ExecuteCommand = Arc<dyn Fn(&CommandContext, Value) -> JoiResult<Value> + Send + Sync>;
 
 struct RegisteredCommand {
     info: CommandInfo,
@@ -85,8 +85,10 @@ impl CommandRegistryBuilder {
             info.name.clone(),
             RegisteredCommand {
                 info,
-                execute: Arc::new(move |request| {
-                    execute_typed::<H::Command>(request, |request| handler.execute(request))
+                execute: Arc::new(move |context, request| {
+                    execute_typed::<H::Command>(request, |request| {
+                        handler.execute(context, request)
+                    })
                 }),
             },
         );
@@ -138,7 +140,7 @@ impl CommandRegistryBuilder {
             info.name.clone(),
             RegisteredCommand {
                 info,
-                execute: Arc::new(move |request| {
+                execute: Arc::new(move |_context, request| {
                     execute_typed::<CommandsListRequest>(request, |_| {
                         Ok(CommandsListResponse {
                             commands: commands.as_ref().clone(),
@@ -171,11 +173,16 @@ impl CommandRegistry {
     ///
     /// Returns [`None`] when the command is not registered. The inner result reports
     /// request deserialization, handler, or response serialization failures.
-    pub fn execute(&self, name: &str, request: Value) -> Option<JoiResult<Value>> {
+    pub fn execute(
+        &self,
+        context: &CommandContext,
+        name: &str,
+        request: Value,
+    ) -> Option<JoiResult<Value>> {
         self.inner
             .commands
             .get(name)
-            .map(|command| (command.execute)(request))
+            .map(|command| (command.execute)(context, request))
     }
 }
 
@@ -233,12 +240,42 @@ fn is_valid_command_name(name: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use serde::{Deserialize, Serialize};
     use serde_json::json;
 
-    use crate::generated::api::COMMAND_DESCRIPTORS;
     use crate::info_command::InfoCommand;
+    use crate::{
+        command::Command,
+        command_handler::{CommandContext, CommandHandler, CommandUser},
+        generated::api::COMMAND_DESCRIPTORS,
+    };
 
     use super::CommandRegistryBuilder;
+
+    #[derive(Deserialize)]
+    struct CurrentUsernameRequest {}
+    #[derive(Serialize)]
+    struct CurrentUsernameResponse {
+        username: String,
+    }
+    impl Command for CurrentUsernameRequest {
+        const NAME: &'static str = "current-username";
+        const DESCRIPTION: &'static str = "Returns context identity";
+        type Response = CurrentUsernameResponse;
+    }
+    struct CurrentUsernameCommand;
+    impl CommandHandler for CurrentUsernameCommand {
+        type Command = CurrentUsernameRequest;
+        fn execute(
+            &self,
+            context: &CommandContext,
+            _request: Self::Command,
+        ) -> joi_error::JoiResult<CurrentUsernameResponse> {
+            Ok(CurrentUsernameResponse {
+                username: context.require_user()?.username.to_string(),
+            })
+        }
+    }
 
     #[test]
     fn builds_a_cloneable_immutable_registry() {
@@ -260,7 +297,11 @@ mod tests {
         let registry = builder.build();
 
         let response = registry
-            .execute("commands/list", json!({}))
+            .execute(
+                &crate::command_handler::CommandContext::default(),
+                "commands/list",
+                json!({}),
+            )
             .unwrap()
             .unwrap();
 
@@ -291,5 +332,25 @@ mod tests {
             error.to_string(),
             "commands have no registered handlers: model-info, query, user-info"
         );
+    }
+
+    #[test]
+    fn forwards_the_command_context_to_handlers() {
+        let mut builder = CommandRegistryBuilder::new();
+        builder.register(CurrentUsernameCommand).unwrap();
+        let registry = builder.build();
+        let context = CommandContext {
+            user: Some(CommandUser {
+                id: "user-1".into(),
+                username: "jane".into(),
+            }),
+        };
+
+        let response = registry
+            .execute(&context, "current-username", json!({}))
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(response, json!({ "username": "jane" }));
     }
 }

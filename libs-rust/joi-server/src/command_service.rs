@@ -11,6 +11,7 @@ use axum::{
 use joi_base::JoiString;
 use serde::Serialize;
 
+use crate::command_handler::{CommandContext, CommandUser};
 use crate::command_registry::CommandRegistry;
 use crate::user_session_command::{
     LOGIN_COMMAND, LOGOUT_COMMAND, SESSION_COOKIE, USER_INFO_COMMAND,
@@ -89,11 +90,12 @@ fn command_error(
 
 fn execute_registered(
     registry: &CommandRegistry,
+    context: &CommandContext,
     command_name: &str,
     request: serde_json::Value,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<CommandResponseError>)> {
     registry
-        .execute(command_name, request)
+        .execute(context, command_name, request)
         .ok_or_else(|| {
             (
                 StatusCode::NOT_FOUND,
@@ -112,11 +114,19 @@ fn execute_http(
     mut request: serde_json::Value,
     headers: &HeaderMap,
 ) -> Result<Response, (StatusCode, Json<CommandResponseError>)> {
+    let session_id = session_cookie(headers);
+    let context = if command_name == LOGIN_COMMAND {
+        CommandContext::default()
+    } else if let Some(session_id) = session_id {
+        authenticated_context(registry, session_id)?
+    } else {
+        CommandContext::default()
+    };
     if command_name == USER_INFO_COMMAND || command_name == LOGOUT_COMMAND {
-        let session_id = session_cookie(headers).ok_or_else(unauthorized)?;
+        let session_id = session_id.ok_or_else(unauthorized)?;
         request = serde_json::json!({ "session_id": session_id });
     }
-    let mut response = execute_registered(registry, command_name, request)
+    let mut response = execute_registered(registry, &context, command_name, request)
         .map_err(|error| {
             if command_name == USER_INFO_COMMAND {
                 unauthorized()
@@ -152,6 +162,34 @@ fn execute_http(
         );
     }
     Ok((response_headers, Json(response)).into_response())
+}
+
+fn authenticated_context(
+    registry: &CommandRegistry,
+    session_id: &str,
+) -> Result<CommandContext, (StatusCode, Json<CommandResponseError>)> {
+    let response = registry
+        .execute(
+            &CommandContext::default(),
+            USER_INFO_COMMAND,
+            serde_json::json!({ "session_id": session_id }),
+        )
+        .ok_or_else(unauthorized)?
+        .map_err(|_| unauthorized())?;
+    let id = response
+        .get("id")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(unauthorized)?;
+    let username = response
+        .get("username")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(unauthorized)?;
+    Ok(CommandContext {
+        user: Some(CommandUser {
+            id: id.into(),
+            username: username.into(),
+        }),
+    })
 }
 
 fn session_cookie(headers: &HeaderMap) -> Option<&str> {
@@ -215,7 +253,11 @@ mod tests {
     impl CommandHandler for GreetingCommand {
         type Command = GreetingRequest;
 
-        fn execute(&self, request: Self::Command) -> joi_error::JoiResult<GreetingResponse> {
+        fn execute(
+            &self,
+            _context: &crate::command_handler::CommandContext,
+            request: Self::Command,
+        ) -> joi_error::JoiResult<GreetingResponse> {
             Ok(GreetingResponse {
                 message: format!("Hello, {}!", request.name).into(),
             })
@@ -238,8 +280,12 @@ mod tests {
     impl CommandHandler for InvalidNameCommand {
         type Command = InvalidNameRequest;
 
-        fn execute(&self, request: Self::Command) -> joi_error::JoiResult<GreetingResponse> {
-            GreetingCommand.execute(GreetingRequest { name: request.name })
+        fn execute(
+            &self,
+            context: &crate::command_handler::CommandContext,
+            request: Self::Command,
+        ) -> joi_error::JoiResult<GreetingResponse> {
+            GreetingCommand.execute(context, GreetingRequest { name: request.name })
         }
     }
 
@@ -270,7 +316,11 @@ mod tests {
     impl CommandHandler for FailingCommand {
         type Command = FailingRequest;
 
-        fn execute(&self, request: Self::Command) -> joi_error::JoiResult<GreetingResponse> {
+        fn execute(
+            &self,
+            _context: &crate::command_handler::CommandContext,
+            request: Self::Command,
+        ) -> joi_error::JoiResult<GreetingResponse> {
             let _ = request.name;
             Err(joi_error::report(ExampleCommandError))
         }

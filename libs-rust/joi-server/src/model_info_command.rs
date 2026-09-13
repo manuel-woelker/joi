@@ -25,7 +25,11 @@ impl ModelInfoCommand {
 impl CommandHandler for ModelInfoCommand {
     type Command = ModelInfoRequest;
 
-    fn execute(&self, _request: Self::Command) -> JoiResult<ModelInfoResponse> {
+    fn execute(
+        &self,
+        _context: &crate::command_handler::CommandContext,
+        _request: Self::Command,
+    ) -> JoiResult<ModelInfoResponse> {
         let mut models = self
             .plugin_registry
             .extensions::<dyn TableDescriptionProvider>()?
@@ -130,7 +134,7 @@ mod tests {
             .unwrap();
 
         let response = ModelInfoCommand::new(builder.build())
-            .execute(ModelInfoRequest {})
+            .execute(&Default::default(), ModelInfoRequest {})
             .unwrap();
 
         assert_eq!(

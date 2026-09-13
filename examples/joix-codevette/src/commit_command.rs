@@ -74,7 +74,11 @@ struct GitCommitCommand {
 
 impl CommandHandler for GitCommitCommand {
     type Command = GitCommitRequest;
-    fn execute(&self, request: GitCommitRequest) -> JoiResult<GitCommitDetails> {
+    fn execute(
+        &self,
+        _context: &joi_server::command_handler::CommandContext,
+        request: GitCommitRequest,
+    ) -> JoiResult<GitCommitDetails> {
         let (repository_id, git_directory) = self.resolve_repository(&request.branch_id)?;
         if let Some(details) = self.cached(&request.commit_id)? {
             return Ok(details);

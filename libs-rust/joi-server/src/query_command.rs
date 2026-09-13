@@ -96,7 +96,11 @@ pub enum QueryValues {
 impl CommandHandler for QueryCommand {
     type Command = QueryRequest;
 
-    fn execute(&self, request: Self::Command) -> JoiResult<QueryResponse> {
+    fn execute(
+        &self,
+        _context: &crate::command_handler::CommandContext,
+        request: Self::Command,
+    ) -> JoiResult<QueryResponse> {
         let query = DataStoreQuery {
             table_name: TableName(request.table_name),
             criterion: query_criterion(request.criterion),
@@ -195,12 +199,15 @@ mod tests {
         let command = QueryCommand::new(Arc::new(Mutex::new(Box::new(store))));
 
         let response = command
-            .execute(QueryRequest {
-                table_name: "users".into(),
-                criterion: QueryRequestCriterion::MatchAny,
-                max_results: 2,
-                attributes: vec!["username".into(), "name".into()],
-            })
+            .execute(
+                &Default::default(),
+                QueryRequest {
+                    table_name: "users".into(),
+                    criterion: QueryRequestCriterion::MatchAny,
+                    max_results: 2,
+                    attributes: vec!["username".into(), "name".into()],
+                },
+            )
             .unwrap();
 
         assert_eq!(response.number_of_hits, 2);
@@ -221,30 +228,33 @@ mod tests {
         let command = QueryCommand::new(Arc::new(Mutex::new(Box::new(store))));
 
         let response = command
-            .execute(QueryRequest {
-                table_name: "users".into(),
-                criterion: QueryRequestCriterion::All(vec![
-                    QueryRequestCriterion::One(vec![
-                        QueryRequestCriterion::Contains {
-                            attribute: "name".into(),
-                            value: "developer".into(),
-                        },
-                        QueryRequestCriterion::Equals {
+            .execute(
+                &Default::default(),
+                QueryRequest {
+                    table_name: "users".into(),
+                    criterion: QueryRequestCriterion::All(vec![
+                        QueryRequestCriterion::One(vec![
+                            QueryRequestCriterion::Contains {
+                                attribute: "name".into(),
+                                value: "developer".into(),
+                            },
+                            QueryRequestCriterion::Equals {
+                                attribute: "username".into(),
+                                values: vec!["missing".into()],
+                            },
+                        ]),
+                        QueryRequestCriterion::None(vec![QueryRequestCriterion::Equals {
                             attribute: "username".into(),
-                            values: vec!["missing".into()],
+                            values: vec!["joe.tester".into()],
+                        }]),
+                        QueryRequestCriterion::Set {
+                            attribute: "name".into(),
                         },
                     ]),
-                    QueryRequestCriterion::None(vec![QueryRequestCriterion::Equals {
-                        attribute: "username".into(),
-                        values: vec!["joe.tester".into()],
-                    }]),
-                    QueryRequestCriterion::Set {
-                        attribute: "name".into(),
-                    },
-                ]),
-                max_results: 10,
-                attributes: vec!["username".into()],
-            })
+                    max_results: 10,
+                    attributes: vec!["username".into()],
+                },
+            )
             .unwrap();
 
         assert_eq!(response.number_of_hits, 1);

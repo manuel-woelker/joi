@@ -88,7 +88,11 @@ impl LoginCommand {
 impl CommandHandler for LoginCommand {
     type Command = LoginRequest;
 
-    fn execute(&self, request: Self::Command) -> JoiResult<LoginResponse> {
+    fn execute(
+        &self,
+        _context: &crate::command_handler::CommandContext,
+        request: Self::Command,
+    ) -> JoiResult<LoginResponse> {
         let mut data_store = self
             .data_store
             .lock()
@@ -170,7 +174,11 @@ impl LogoutCommand {
 impl CommandHandler for LogoutCommand {
     type Command = LogoutRequest;
 
-    fn execute(&self, request: Self::Command) -> JoiResult<LogoutResponse> {
+    fn execute(
+        &self,
+        _context: &crate::command_handler::CommandContext,
+        request: Self::Command,
+    ) -> JoiResult<LogoutResponse> {
         self.data_store
             .lock()
             .map_err(|_| joi_error!("data store lock is poisoned"))?
@@ -194,7 +202,11 @@ impl UserInfoCommand {
 impl CommandHandler for UserInfoCommand {
     type Command = UserInfoRequest;
 
-    fn execute(&self, request: Self::Command) -> JoiResult<UserInfo> {
+    fn execute(
+        &self,
+        _context: &crate::command_handler::CommandContext,
+        request: Self::Command,
+    ) -> JoiResult<UserInfo> {
         let data_store = self
             .data_store
             .lock()
@@ -395,7 +407,7 @@ mod tests {
         let store: SharedDataStore = Arc::new(Mutex::new(Box::new(store)));
 
         let login = LoginCommand::new(store.clone())
-            .execute(LoginRequest { user_id })
+            .execute(&Default::default(), LoginRequest { user_id })
             .unwrap();
         assert_eq!(login.session_id.len(), 64);
         assert!(
@@ -405,9 +417,12 @@ mod tests {
                 .all(|character| character.is_ascii_hexdigit())
         );
         let user = UserInfoCommand::new(store)
-            .execute(UserInfoRequest {
-                session_id: login.session_id,
-            })
+            .execute(
+                &Default::default(),
+                UserInfoRequest {
+                    session_id: login.session_id,
+                },
+            )
             .unwrap();
 
         assert_eq!(user, login.user);
