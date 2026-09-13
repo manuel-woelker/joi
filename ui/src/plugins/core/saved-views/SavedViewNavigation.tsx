@@ -1,5 +1,6 @@
 import FolderIcon from "lucide-solid/icons/folder";
 import FolderOpenIcon from "lucide-solid/icons/folder-open";
+import Trash2Icon from "lucide-solid/icons/trash-2";
 import { createMemo, Show } from "solid-js";
 import { Dynamic } from "solid-js/web";
 
@@ -163,7 +164,7 @@ export function SavedViewNavigation(props: { embedded?: boolean } = {}) {
               id: contextMenuEntryId("delete"),
               label: "Delete",
               description: `Delete ${label(node)}.`,
-              icon: () => <span>×</span>,
+              icon: () => <Trash2Icon size={14} />,
               execute: () => controller.remove(id),
             },
           ],

@@ -2,6 +2,7 @@ import ChevronDownIcon from "lucide-solid/icons/chevron-down";
 import ChevronRightIcon from "lucide-solid/icons/chevron-right";
 import FolderIcon from "lucide-solid/icons/folder";
 import FolderOpenIcon from "lucide-solid/icons/folder-open";
+import ListMinusIcon from "lucide-solid/icons/list-minus";
 import PlusIcon from "lucide-solid/icons/plus";
 import { createEffect, createMemo, createSignal, For, Show, untrack } from "solid-js";
 import { Dynamic } from "solid-js/web";
@@ -398,6 +399,7 @@ function RecentTree(props: {
                     id: contextMenuEntryId("remove-recent"),
                     label: "Remove from recently used",
                     description: `Remove ${entryFor(node).label} from this list.`,
+                    icon: () => <ListMinusIcon size={14} />,
                     execute: () => props.onRemove(entryFor(node).reference),
                   },
                 ],

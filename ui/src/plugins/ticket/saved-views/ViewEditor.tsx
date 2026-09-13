@@ -1,4 +1,5 @@
 import { For, Show, createEffect, createMemo, createSignal } from "solid-js";
+import XIcon from "lucide-solid/icons/x";
 
 import { IconButton } from "../../../components/IconButton";
 import { FilterDefinitionEditor } from "../../../components/filter-definition/FilterDefinitionEditor";
@@ -68,7 +69,7 @@ export function ViewEditor() {
             <p class={styles.eyebrow}>Configuration</p>
             <h2>Edit view</h2>
           </div>
-          <IconButton label="Close editor" icon="×" onClick={() => controller.setEditorOpen(false)} />
+          <IconButton label="Close editor" icon={<XIcon size={16} />} onClick={() => controller.setEditorOpen(false)} />
         </div>
         <div class={styles.editorContent}>
           <section>

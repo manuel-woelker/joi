@@ -1,4 +1,5 @@
 import { For, Show, createSignal } from "solid-js";
+import XIcon from "lucide-solid/icons/x";
 import { Dynamic } from "solid-js/web";
 
 import type { RegisteredExtensionEntry } from "../../../../base/plugin-registry";
@@ -32,7 +33,7 @@ export function DebugTools(props: DebugToolsProps) {
           <header>
             <h2>Debug</h2>
             <button class={styles.debugClose} aria-label="Close debug panel" onClick={() => setOpen(false)}>
-              &times;
+              <XIcon size={18} aria-hidden="true" />
             </button>
           </header>
           <div class={styles.debugWorkspace}>

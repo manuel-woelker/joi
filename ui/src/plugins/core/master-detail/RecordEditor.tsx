@@ -1,4 +1,5 @@
 import { For, Show, createMemo, createSignal, createUniqueId, onCleanup, type JSX } from "solid-js";
+import XIcon from "lucide-solid/icons/x";
 
 import {
   Form,
@@ -178,7 +179,7 @@ function EditorLayout(props: {
       <header class={styles.header}>
         <h2>{props.title}</h2>
         <button type="button" class={styles.close} aria-label="Close details" onClick={props.onClose}>
-          ×
+          <XIcon size={18} aria-hidden="true" />
         </button>
       </header>
       <For each={props.fields}>{(field) => <EditorField field={field} />}</For>

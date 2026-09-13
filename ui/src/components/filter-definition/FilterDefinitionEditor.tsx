@@ -1,5 +1,6 @@
 import { createMemo, createUniqueId, For, Show } from "solid-js";
 import GripVerticalIcon from "lucide-solid/icons/grip-vertical";
+import Trash2Icon from "lucide-solid/icons/trash-2";
 
 import { Select } from "../Select";
 import { Tree } from "../tree/Tree";
@@ -336,7 +337,7 @@ function DeleteFilterButton(props: { readonly onClick: () => void }) {
       aria-describedby={tooltipId}
       onClick={props.onClick}
     >
-      <span aria-hidden="true">×</span>
+      <Trash2Icon size={14} aria-hidden="true" />
       <span id={tooltipId} role="tooltip" class={styles.deleteTooltip}>
         Delete filter
       </span>
