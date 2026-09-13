@@ -1,0 +1,11 @@
+.page { display: grid; min-height: 100vh; place-items: center; padding: 24px; background: var(--color-surface-muted); }
+.failure { display: grid; width: min(100%, 480px); gap: 12px; padding: 24px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); box-shadow: 0 8px 24px var(--color-shadow); }
+.brand { margin: 0; color: var(--color-primary-dark); font-size: 15px; font-weight: 750; }
+.failure h1 { margin: 0; color: var(--color-ink); font-size: 20px; }
+.message { margin: 0; overflow-wrap: anywhere; color: var(--color-ink-soft); font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: 13px; line-height: 1.5; }
+.stackTrace { min-width: 0; color: var(--color-ink-soft); font-size: 12px; }
+.stackTrace summary { width: max-content; color: var(--color-primary-dark); cursor: pointer; font-weight: 700; }
+.stackTrace pre { max-height: min(320px, 40vh); overflow: auto; margin: 8px 0 0; padding: 10px; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-canvas); color: var(--color-ink); font: 11px/1.45 ui-monospace, "SFMono-Regular", Consolas, monospace; white-space: pre-wrap; }
+.actions { display: flex; min-height: 28px; align-items: center; gap: 8px; }
+.actions button { display: inline-flex; align-items: center; gap: 6px; }
+.copyStatus { color: var(--color-text-muted); font-size: 12px; }

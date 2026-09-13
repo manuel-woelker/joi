@@ -8,9 +8,8 @@ import { loadCurrentUser, logout } from "./plugins/core/authentication/authentic
 import { Login } from "./plugins/core/authentication/Login";
 import { ApplicationShell } from "./plugins/core/shell/ApplicationShell";
 
-const application = createApplication();
-
 export default function App(props: { pluginRegistry?: PluginRegistry; services?: ApplicationServices }) {
+  const application = props.pluginRegistry && props.services ? undefined : createApplication();
   const [user, { refetch }] = createResource(() => loadCurrentUser(fetchService));
   return (
     <Switch>
@@ -23,8 +22,8 @@ export default function App(props: { pluginRegistry?: PluginRegistry; services?:
       <Match when={user()}>
         {(currentUser) => (
           <ApplicationShell
-            registry={props.pluginRegistry ?? application.registry}
-            services={props.services ?? application.services}
+            registry={props.pluginRegistry ?? application!.registry}
+            services={props.services ?? application!.services}
             user={currentUser()}
             onLogout={async () => {
               await logout(fetchService);
