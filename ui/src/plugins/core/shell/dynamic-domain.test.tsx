@@ -142,6 +142,7 @@ describe("dynamic domain plugins", () => {
     ));
     expect(screen.getByRole("complementary", { name: "Workspace navigation" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Administration" }));
+    expect(screen.getByText("Repositories")).toBeTruthy();
     expect(screen.getByText("Users")).toBeTruthy();
     expect(screen.getByText("No view selected")).toBeTruthy();
   });

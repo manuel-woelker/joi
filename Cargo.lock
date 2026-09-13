@@ -409,8 +409,11 @@ dependencies = [
 name = "joix-codevette"
 version = "0.1.0"
 dependencies = [
+ "joi-base",
+ "joi-error",
  "joi-plugin",
  "joi-server",
+ "ksuid",
 ]
 
 [[package]]
