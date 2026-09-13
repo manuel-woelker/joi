@@ -16,12 +16,12 @@ export function CommitDiff(props: { readonly patch: string }) {
 }
 
 function DiffFile(props: { readonly file: FileDiffMetadata }) {
-  let container: HTMLDivElement | undefined;
+  let wrapper: HTMLDivElement | undefined;
   let renderer: FileDiff | undefined;
   onMount(() => {
     renderer = new FileDiff();
-    renderer.render({ fileDiff: props.file, fileContainer: container });
+    renderer.render({ fileDiff: props.file, containerWrapper: wrapper });
   });
   onCleanup(() => renderer?.cleanUp());
-  return <div ref={container} class={styles.diffFile} />;
+  return <div ref={wrapper} class={styles.diffFile} />;
 }
