@@ -5,8 +5,16 @@ import { parseQueryResponse, type QueryResult } from "./query-result";
 
 export type QueryCriterionRequest =
   | "match_any"
+  | { all: readonly QueryCriterionRequest[] }
+  | { one: readonly QueryCriterionRequest[] }
+  | { none: readonly QueryCriterionRequest[] }
   | { not: QueryCriterionRequest }
-  | { equals: { attribute: string; values: string[] } };
+  | { equals: { attribute: string; values: readonly string[] } }
+  | { less_than: { attribute: string; value: string } }
+  | { set: { attribute: string } }
+  | { unset: { attribute: string } }
+  | { in_range: { attribute: string; minimum?: string; maximum?: string } }
+  | { contains: { attribute: string; value: string } };
 
 export type QueryRequest = Omit<GeneratedQueryRequest, "criterion"> & {
   readonly criterion: QueryCriterionRequest;

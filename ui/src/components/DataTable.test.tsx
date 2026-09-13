@@ -64,6 +64,28 @@ describe("DataTable", () => {
     expect(screen.queryByText("Jane")).toBeNull();
   });
 
+  it("renders an empty result message inside the table body", () => {
+    const result = parseQueryResponse({
+      number_of_hits: 0,
+      result_columns: [
+        { attribute: "name", values: { type: "string", values: [] } },
+        { attribute: "age", values: { type: "int", values: [] } },
+      ],
+    });
+    render(() => (
+      <DataTable
+        ariaLabel="People"
+        result={result}
+        columns={[{ column: result.requireColumn("name"), header: "Name" }]}
+        emptyMessage="No matching people found."
+      />
+    ));
+
+    const message = screen.getByText("No matching people found.");
+    expect(message.tagName).toBe("TD");
+    expect(message.closest("tbody")).toBeTruthy();
+  });
+
   it("updates a cell in place when its query row changes", () => {
     const result = createResult("Jane", 34);
     render(() => (

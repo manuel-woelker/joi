@@ -1,8 +1,7 @@
 import type { EntityDescription } from "../entities/entity-description";
 import { requireEntityAttribute } from "../entities/entity-description";
-import type { QueryColumnHandle, QueryResult, QueryResultRow } from "../query/query-result";
+import type { QueryResult, QueryResultRow } from "../query/query-result";
 import type { PresentationDefinition, QueryDefinition } from "./model";
-import { matchesFilter } from "../../../components/filter-definition/filter-evaluation";
 import type { FilterDefinition } from "../../../components/filter-definition/filter-model";
 import { entityFilterAttributes } from "../../../components/filter-definition/entity-filter-attributes";
 import { validateFilterDefinition } from "../../../components/filter-definition/filter-operations";
@@ -10,25 +9,15 @@ import { validateFilterAgainstSchema } from "../../../components/filter-definiti
 
 export function executeQuery(result: QueryResult, query: QueryDefinition, text = ""): QueryResultRow[] {
   const needle = text.trim().toLocaleLowerCase();
-  const columns = new Map<string, QueryColumnHandle>();
-  const value = (row: QueryResultRow, attribute: string) => {
-    let column = columns.get(attribute);
-    if (!column) {
-      column = result.requireColumn(attribute);
-      columns.set(attribute, column);
-    }
-    return row.value(column);
-  };
   const sorting = query.sorting.map((sort) => ({ sort, column: result.requireColumn(sort.field) }));
   const filtered = result.rows.filter(
     (row) =>
-      (!query.filter || matchesFilter(query.filter, (attribute) => value(row, attribute))) &&
-      (!needle ||
-        result.columns.some((column) =>
-          String(row.value(column) ?? "")
-            .toLocaleLowerCase()
-            .includes(needle),
-        )),
+      !needle ||
+      result.columns.some((column) =>
+        String(row.value(column) ?? "")
+          .toLocaleLowerCase()
+          .includes(needle),
+      ),
   );
 
   return filtered

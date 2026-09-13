@@ -18,6 +18,12 @@ pub struct AttributeName(pub JoiString);
 pub enum QueryCriterion {
     /// Selects every available record.
     MatchAny,
+    /// Selects records matching every nested criterion.
+    All(Vec<QueryCriterion>),
+    /// Selects records matching at least one nested criterion.
+    One(Vec<QueryCriterion>),
+    /// Selects records matching none of the nested criteria.
+    None(Vec<QueryCriterion>),
     /// Inverts another criterion.
     Not(Box<QueryCriterion>),
     /// Selects records whose attribute equals at least one supplied value.
@@ -26,6 +32,33 @@ pub enum QueryCriterion {
         attribute: AttributeName,
         /// Values accepted by the comparison.
         values: Vec<JoiString>,
+    },
+    /// Selects records whose attribute is less than the supplied value.
+    LessThan {
+        /// The attribute to compare.
+        attribute: AttributeName,
+        /// The exclusive upper bound.
+        value: JoiString,
+    },
+    /// Selects records whose attribute has a non-null, non-empty value.
+    Set(AttributeName),
+    /// Selects records whose attribute is null or empty.
+    Unset(AttributeName),
+    /// Selects records whose attribute falls within the supplied inclusive bounds.
+    InRange {
+        /// The attribute to compare.
+        attribute: AttributeName,
+        /// Optional inclusive lower bound.
+        minimum: Option<JoiString>,
+        /// Optional inclusive upper bound.
+        maximum: Option<JoiString>,
+    },
+    /// Selects records whose string representation contains a value.
+    Contains {
+        /// The attribute to inspect.
+        attribute: AttributeName,
+        /// The case-insensitive substring to find.
+        value: JoiString,
     },
 }
 

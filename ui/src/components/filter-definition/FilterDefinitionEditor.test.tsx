@@ -13,7 +13,12 @@ import {
   filterNodeId,
   type FilterDefinition,
 } from "./filter-model";
-import { equalsFilterOperator, inSetFilterOperator, notEqualsFilterOperator } from "./filter-operators";
+import {
+  containsFilterOperator,
+  equalsFilterOperator,
+  inSetFilterOperator,
+  notEqualsFilterOperator,
+} from "./filter-operators";
 
 const attributes = [
   {
@@ -131,6 +136,17 @@ describe("FilterDefinitionEditor", () => {
     expect(screen.queryByRole("button", { name: /move filter/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /duplicate filter/i })).toBeNull();
     expect(screen.getByRole("combobox", { name: "Filter attribute" })).toBeTruthy();
+  });
+
+  it("uses contains as the default operator for string criteria", () => {
+    const [value, setValue] = createSignal<FilterDefinition>(createCompositeFilter("all", [], filterNodeId("empty")));
+    render(() => <FilterDefinitionEditor attributes={attributes} value={value()} onChange={setValue} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "+ Criterion" }));
+
+    expect(screen.getByRole<HTMLSelectElement>("combobox", { name: "Comparison operator" }).value).toBe(
+      containsFilterOperator,
+    );
   });
 
   it("shows attribute types and descriptions in the attribute picker", async () => {

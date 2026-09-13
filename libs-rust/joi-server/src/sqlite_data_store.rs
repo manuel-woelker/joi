@@ -167,6 +167,12 @@ impl DataStore for SqliteDataStore {
 fn criterion_sql(criterion: &QueryCriterion) -> (String, Vec<Value>) {
     match criterion {
         QueryCriterion::MatchAny => ("1 = 1".into(), Vec::new()),
+        QueryCriterion::All(criteria) => composite_criterion_sql(criteria, "AND", "1 = 1"),
+        QueryCriterion::One(criteria) => composite_criterion_sql(criteria, "OR", "1 = 0"),
+        QueryCriterion::None(criteria) => {
+            let (sql, values) = composite_criterion_sql(criteria, "OR", "1 = 0");
+            (format!("NOT ({sql})"), values)
+        }
         QueryCriterion::Not(criterion) => {
             let (sql, values) = criterion_sql(criterion);
             (format!("NOT ({sql})"), values)
@@ -187,7 +193,74 @@ fn criterion_sql(criterion: &QueryCriterion) -> (String, Vec<Value>) {
                     .collect(),
             )
         }
+        QueryCriterion::LessThan { attribute, value } => (
+            format!("{} < ?", quote_identifier(&attribute.0)),
+            vec![Value::Text(value.clone().into())],
+        ),
+        QueryCriterion::Set(attribute) => {
+            let attribute = quote_identifier(&attribute.0);
+            (
+                format!("{attribute} IS NOT NULL AND {attribute} <> ''"),
+                Vec::new(),
+            )
+        }
+        QueryCriterion::Unset(attribute) => {
+            let attribute = quote_identifier(&attribute.0);
+            (
+                format!("{attribute} IS NULL OR {attribute} = ''"),
+                Vec::new(),
+            )
+        }
+        QueryCriterion::InRange {
+            attribute,
+            minimum,
+            maximum,
+        } => {
+            let attribute = quote_identifier(&attribute.0);
+            let mut clauses = Vec::new();
+            let mut values = Vec::new();
+            if let Some(minimum) = minimum {
+                clauses.push(format!("{attribute} >= ?"));
+                values.push(Value::Text(minimum.clone().into()));
+            }
+            if let Some(maximum) = maximum {
+                clauses.push(format!("{attribute} <= ?"));
+                values.push(Value::Text(maximum.clone().into()));
+            }
+            if clauses.is_empty() {
+                ("1 = 1".into(), values)
+            } else {
+                (clauses.join(" AND "), values)
+            }
+        }
+        QueryCriterion::Contains { attribute, value } => (
+            format!(
+                "instr(lower({}), lower(?)) > 0",
+                quote_identifier(&attribute.0)
+            ),
+            vec![Value::Text(value.clone().into())],
+        ),
     }
+}
+
+fn composite_criterion_sql(
+    criteria: &[QueryCriterion],
+    operator: &str,
+    empty: &str,
+) -> (String, Vec<Value>) {
+    if criteria.is_empty() {
+        return (empty.into(), Vec::new());
+    }
+    let mut values = Vec::new();
+    let clauses = criteria
+        .iter()
+        .map(|criterion| {
+            let (sql, mut criterion_values) = criterion_sql(criterion);
+            values.append(&mut criterion_values);
+            format!("({sql})")
+        })
+        .collect::<Vec<_>>();
+    (clauses.join(&format!(" {operator} ")), values)
 }
 
 fn ensure_table(transaction: &Transaction<'_>, table: TableDescription) -> JoiResult<()> {

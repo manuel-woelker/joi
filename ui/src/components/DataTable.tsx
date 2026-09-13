@@ -18,6 +18,7 @@ export interface DataTableProps {
   readonly result: QueryResult;
   readonly rows?: readonly QueryResultRow[];
   readonly columns: readonly DataTableColumn[];
+  readonly emptyMessage?: string;
   readonly density?: "compact" | "comfortable";
   readonly rowKey?: QueryColumnHandle;
   readonly selectedRowKey?: QueryValue;
@@ -393,25 +394,36 @@ export function DataTable(props: DataTableProps) {
           }}
           style={{ "max-height": props.virtualization ? `${props.virtualization.height}px` : undefined }}
         >
-          <Show when={props.virtualization} fallback={<For each={tableRows()}>{(row) => renderRow(row)}</For>}>
-            <Show when={paddingTop() > 0}>
-              <tr aria-hidden="true">
-                <td
-                  class={styles.virtualSpacer}
-                  colSpan={props.columns.length}
-                  style={{ height: `${paddingTop()}px` }}
-                />
+          <Show
+            when={tableRows().length > 0}
+            fallback={
+              <tr>
+                <td class={styles.emptyCell} colSpan={props.columns.length}>
+                  {props.emptyMessage ?? "No results found."}
+                </td>
               </tr>
-            </Show>
-            <For each={virtualItems()}>{(item) => renderRow(tableRows()[item.index], item.index)}</For>
-            <Show when={paddingBottom() > 0}>
-              <tr aria-hidden="true">
-                <td
-                  class={styles.virtualSpacer}
-                  colSpan={props.columns.length}
-                  style={{ height: `${paddingBottom()}px` }}
-                />
-              </tr>
+            }
+          >
+            <Show when={props.virtualization} fallback={<For each={tableRows()}>{(row) => renderRow(row)}</For>}>
+              <Show when={paddingTop() > 0}>
+                <tr aria-hidden="true">
+                  <td
+                    class={styles.virtualSpacer}
+                    colSpan={props.columns.length}
+                    style={{ height: `${paddingTop()}px` }}
+                  />
+                </tr>
+              </Show>
+              <For each={virtualItems()}>{(item) => renderRow(tableRows()[item.index], item.index)}</For>
+              <Show when={paddingBottom() > 0}>
+                <tr aria-hidden="true">
+                  <td
+                    class={styles.virtualSpacer}
+                    colSpan={props.columns.length}
+                    style={{ height: `${paddingBottom()}px` }}
+                  />
+                </tr>
+              </Show>
             </Show>
           </Show>
         </tbody>

@@ -1,6 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchService } from "./fetch-service";
+
+afterEach(() => vi.useRealTimers());
 
 describe("FetchService", () => {
   it("gets and decodes JSON", async () => {
@@ -25,5 +27,21 @@ describe("FetchService", () => {
     const fetcher = vi.fn().mockResolvedValue({ ok: false, status: 503 });
 
     await expect(new FetchService(fetcher).get("/api/info")).rejects.toThrow("GET /api/info failed with HTTP 503");
+  });
+
+  it("applies a configurable artificial delay before requests", async () => {
+    vi.useFakeTimers();
+    const fetcher = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ value: 1 }) });
+    const service = new FetchService(fetcher);
+    service.setArtificialDelayMs(1000);
+
+    const request = service.get("/api/info");
+    expect(fetcher).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(999);
+    expect(fetcher).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    await request;
+
+    expect(fetcher).toHaveBeenCalledOnce();
   });
 });

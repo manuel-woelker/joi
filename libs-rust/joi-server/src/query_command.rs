@@ -34,10 +34,32 @@ pub struct QueryRequest {
 #[serde(rename_all = "snake_case")]
 enum QueryRequestCriterion {
     MatchAny,
+    All(Vec<QueryRequestCriterion>),
+    One(Vec<QueryRequestCriterion>),
+    None(Vec<QueryRequestCriterion>),
     Not(Box<QueryRequestCriterion>),
     Equals {
         attribute: JoiString,
         values: Vec<JoiString>,
+    },
+    LessThan {
+        attribute: JoiString,
+        value: JoiString,
+    },
+    Set {
+        attribute: JoiString,
+    },
+    Unset {
+        attribute: JoiString,
+    },
+    InRange {
+        attribute: JoiString,
+        minimum: Option<JoiString>,
+        maximum: Option<JoiString>,
+    },
+    Contains {
+        attribute: JoiString,
+        value: JoiString,
     },
 }
 
@@ -77,16 +99,7 @@ impl CommandHandler for QueryCommand {
     fn execute(&self, request: Self::Command) -> JoiResult<QueryResponse> {
         let query = DataStoreQuery {
             table_name: TableName(request.table_name),
-            criterion: match request.criterion {
-                QueryRequestCriterion::MatchAny => QueryCriterion::MatchAny,
-                QueryRequestCriterion::Not(criterion) => {
-                    QueryCriterion::Not(Box::new(query_criterion(*criterion)))
-                }
-                QueryRequestCriterion::Equals { attribute, values } => QueryCriterion::Equals {
-                    attribute: AttributeName(attribute),
-                    values,
-                },
-            },
+            criterion: query_criterion(request.criterion),
             max_results: request.max_results,
             attributes: request.attributes.into_iter().map(AttributeName).collect(),
         };
@@ -119,6 +132,15 @@ impl CommandHandler for QueryCommand {
 fn query_criterion(criterion: QueryRequestCriterion) -> QueryCriterion {
     match criterion {
         QueryRequestCriterion::MatchAny => QueryCriterion::MatchAny,
+        QueryRequestCriterion::All(criteria) => {
+            QueryCriterion::All(criteria.into_iter().map(query_criterion).collect())
+        }
+        QueryRequestCriterion::One(criteria) => {
+            QueryCriterion::One(criteria.into_iter().map(query_criterion).collect())
+        }
+        QueryRequestCriterion::None(criteria) => {
+            QueryCriterion::None(criteria.into_iter().map(query_criterion).collect())
+        }
         QueryRequestCriterion::Not(criterion) => {
             QueryCriterion::Not(Box::new(query_criterion(*criterion)))
         }
@@ -126,12 +148,35 @@ fn query_criterion(criterion: QueryRequestCriterion) -> QueryCriterion {
             attribute: AttributeName(attribute),
             values,
         },
+        QueryRequestCriterion::LessThan { attribute, value } => QueryCriterion::LessThan {
+            attribute: AttributeName(attribute),
+            value,
+        },
+        QueryRequestCriterion::Set { attribute } => QueryCriterion::Set(AttributeName(attribute)),
+        QueryRequestCriterion::Unset { attribute } => {
+            QueryCriterion::Unset(AttributeName(attribute))
+        }
+        QueryRequestCriterion::InRange {
+            attribute,
+            minimum,
+            maximum,
+        } => QueryCriterion::InRange {
+            attribute: AttributeName(attribute),
+            minimum,
+            maximum,
+        },
+        QueryRequestCriterion::Contains { attribute, value } => QueryCriterion::Contains {
+            attribute: AttributeName(attribute),
+            value,
+        },
     }
 }
 
 #[cfg(test)]
 mod tests {
     use std::sync::{Arc, Mutex};
+
+    use joi_base::JoiString;
 
     use crate::command_handler::CommandHandler;
     use crate::data_store::{DataStore, TableDescriptionProvider, TestDataProvider};
@@ -163,6 +208,49 @@ mod tests {
         assert!(matches!(
             &response.result_columns[0].values,
             QueryValues::String(values) if values.len() == 2 && values[0] == "jane.developer"
+        ));
+    }
+
+    #[test]
+    fn executes_composed_criteria() {
+        let mut store = SqliteDataStore::in_memory().unwrap();
+        store
+            .ensure_tables(vec![UserTableDescriptionProvider.table_description()])
+            .unwrap();
+        UserTestDataProvider.insert_test_data(&mut store).unwrap();
+        let command = QueryCommand::new(Arc::new(Mutex::new(Box::new(store))));
+
+        let response = command
+            .execute(QueryRequest {
+                table_name: "users".into(),
+                criterion: QueryRequestCriterion::All(vec![
+                    QueryRequestCriterion::One(vec![
+                        QueryRequestCriterion::Contains {
+                            attribute: "name".into(),
+                            value: "developer".into(),
+                        },
+                        QueryRequestCriterion::Equals {
+                            attribute: "username".into(),
+                            values: vec!["missing".into()],
+                        },
+                    ]),
+                    QueryRequestCriterion::None(vec![QueryRequestCriterion::Equals {
+                        attribute: "username".into(),
+                        values: vec!["joe.tester".into()],
+                    }]),
+                    QueryRequestCriterion::Set {
+                        attribute: "name".into(),
+                    },
+                ]),
+                max_results: 10,
+                attributes: vec!["username".into()],
+            })
+            .unwrap();
+
+        assert_eq!(response.number_of_hits, 1);
+        assert!(matches!(
+            &response.result_columns[0].values,
+            QueryValues::String(values) if values == &[JoiString::from("jane.developer")]
         ));
     }
 }

@@ -36,6 +36,7 @@ import {
   validateFilterDefinition,
 } from "./filter-operations";
 import {
+  containsFilterOperator,
   defaultFilterOperators,
   operatorsForAttribute,
   validateFilterSchema,
@@ -84,7 +85,7 @@ export function FilterDefinitionEditor(props: FilterDefinitionEditorProps) {
   const firstCriterion = () => {
     const attribute = props.attributes[0];
     if (!attribute) return undefined;
-    const operator = operatorsForAttribute(attribute, operators())[0];
+    const operator = defaultOperatorForAttribute(attribute, operators());
     return operator && createFilterCriterion(attribute.id, operator.id, emptyOperand(operator, attribute));
   };
   const addCriterion = (parent: CompositeFilterDefinition) => {
@@ -237,9 +238,11 @@ function CriterionRow(props: {
   const parse = (value: string): FilterValue => (attribute()?.valueType === "int" ? Number(value) : value);
   const selectAttribute = (attributeId: string) => {
     const nextAttribute = props.attributes.find((item) => item.id === attributeId)!;
+    const available = operatorsForAttribute(nextAttribute, props.operators);
     const nextOperator =
-      operatorsForAttribute(nextAttribute, props.operators).find((item) => item.id === props.filter.operator) ??
-      operatorsForAttribute(nextAttribute, props.operators)[0];
+      available.find((item) => item.id === props.filter.operator) ??
+      defaultOperatorForAttribute(nextAttribute, props.operators);
+    if (!nextOperator) return;
     props.onChange({
       ...props.filter,
       attribute: nextAttribute.id,
@@ -461,6 +464,14 @@ function emptyOperand(operator: FilterOperatorDefinition, attribute: FilterableA
   if (operator.operand === "range") return { type: "range" };
   if (operator.operand === "set") return { type: "set", values: [] };
   return { type: "value", value: attribute.valueType === "int" ? 0 : "" };
+}
+
+function defaultOperatorForAttribute(
+  attribute: FilterableAttribute,
+  operators: readonly FilterOperatorDefinition[],
+): FilterOperatorDefinition | undefined {
+  const available = operatorsForAttribute(attribute, operators);
+  return available.find((operator) => operator.id === containsFilterOperator) ?? available[0];
 }
 
 function operandForOperator(

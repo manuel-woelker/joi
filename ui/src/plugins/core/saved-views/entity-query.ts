@@ -2,12 +2,13 @@ import { executeDataQuery, type QueryCriterionRequest } from "../query/query-cli
 import type { QueryResult } from "../query/query-result";
 import { fetchService, type FetchService } from "../../../base/services/fetch-service";
 import type { EntityDescription } from "../entities/entity-description";
+import type { FilterDefinition } from "../../../components/filter-definition/filter-model";
 import type { QueryDefinition } from "./model";
 
 export function loadEntityRecords(
   entity: EntityDescription,
   service: FetchService = fetchService,
-  query?: QueryDefinition,
+  query?: Pick<QueryDefinition, "filter">,
 ): Promise<QueryResult> {
   return executeDataQuery(service, {
     tableName: entity.tableName,
@@ -17,11 +18,31 @@ export function loadEntityRecords(
   });
 }
 
-function queryCriterion(query: QueryDefinition | undefined): QueryCriterionRequest {
-  const filter = query?.filter;
-  if (!filter || filter.disabled || filter.type !== "criterion") return "match_any";
-  if (filter.operator !== "equals" && filter.operator !== "not-equals" && filter.operator !== "in-set") {
-    return "match_any";
+function queryCriterion(query: Pick<QueryDefinition, "filter"> | undefined): QueryCriterionRequest {
+  return filterCriterion(query?.filter) ?? "match_any";
+}
+
+function filterCriterion(filter: FilterDefinition | undefined): QueryCriterionRequest | undefined {
+  if (!filter || filter.disabled) return undefined;
+  if (filter.type === "composite") {
+    const children = filter.children.flatMap((child) => {
+      const criterion = filterCriterion(child);
+      return criterion ? [criterion] : [];
+    });
+    if (filter.kind === "all") return { all: children };
+    if (filter.kind === "one") return { one: children };
+    return { none: children };
+  }
+  if (filter.operator === "set") return { set: { attribute: filter.attribute } };
+  if (filter.operator === "unset") return { unset: { attribute: filter.attribute } };
+  if (filter.operator === "in-range" && filter.operand?.type === "range") {
+    return {
+      in_range: {
+        attribute: filter.attribute,
+        minimum: filter.operand.minimum === undefined ? undefined : String(filter.operand.minimum),
+        maximum: filter.operand.maximum === undefined ? undefined : String(filter.operand.maximum),
+      },
+    };
   }
   const values =
     filter.operand?.type === "set"
@@ -29,7 +50,14 @@ function queryCriterion(query: QueryDefinition | undefined): QueryCriterionReque
       : filter.operand?.type === "value"
         ? [String(filter.operand.value)]
         : [];
-  if (!values.length) return "match_any";
+  if (filter.operator === "less-than" && values[0] !== undefined) {
+    return { less_than: { attribute: filter.attribute, value: values[0] } };
+  }
+  if (filter.operator === "contains" && values[0] !== undefined) {
+    return { contains: { attribute: filter.attribute, value: values[0] } };
+  }
+  if (!values.length) return undefined;
   const equals = { equals: { attribute: filter.attribute, values } } as const;
-  return filter.operator === "not-equals" ? { not: equals } : equals;
+  if (filter.operator === "not-equals") return { not: equals };
+  return filter.operator === "equals" || filter.operator === "in-set" ? equals : undefined;
 }

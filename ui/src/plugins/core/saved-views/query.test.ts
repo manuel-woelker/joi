@@ -27,9 +27,9 @@ const values = (attribute: string, rows = tickets.rows) => {
 };
 
 describe("executeQuery", () => {
-  it("filters with membership and supports transient text search", () => {
+  it("supports transient text search after server-side filtering", () => {
     const query = createTestWorkspace().queries["query-open"];
-    expect(values("key", executeQuery(tickets, query))).toEqual(["TEST-1", "TEST-2"]);
+    expect(values("key", executeQuery(tickets, query))).toEqual(["TEST-1", "TEST-2", "TEST-3"]);
     expect(values("key", executeQuery(tickets, query, "filters"))).toEqual(["TEST-2"]);
   });
 

@@ -1,11 +1,10 @@
-import { createMemo, createResource, createSignal, Match, onCleanup, Switch } from "solid-js";
+import { createEffect, createMemo, createResource, createSignal, Match, onCleanup, Show, Switch } from "solid-js";
 import FunnelIcon from "lucide-solid/icons/funnel";
 import XIcon from "lucide-solid/icons/x";
 
 import { useNavigation } from "../../../base/navigation";
 import { DataTable } from "../../../components/DataTable";
 import { entityFilterAttributes } from "../../../components/filter-definition/entity-filter-attributes";
-import { matchesFilter } from "../../../components/filter-definition/filter-evaluation";
 import { FilterDefinitionEditor } from "../../../components/filter-definition/FilterDefinitionEditor";
 import { createCompositeFilter, type FilterDefinition } from "../../../components/filter-definition/filter-model";
 import { IconButton } from "../../../components/IconButton";
@@ -28,7 +27,24 @@ export function EntityMasterDetailView(props: { entityId: EntityId }) {
   const editor = createEntityEditorDefinition(description);
   const [filterOpen, setFilterOpen] = createSignal(false);
   const [filter, setFilter] = createSignal<FilterDefinition>(createCompositeFilter());
-  const [records, { refetch }] = createResource(() => loadEntityRecords(description, fetchService));
+  const [queryFilter, setQueryFilter] = createSignal<FilterDefinition>(filter());
+  const [showLoading, setShowLoading] = createSignal(false);
+  createEffect(() => {
+    const current = filter();
+    const timer = window.setTimeout(() => setQueryFilter(current), 300);
+    onCleanup(() => window.clearTimeout(timer));
+  });
+  const [records, { refetch }] = createResource(queryFilter, (currentFilter) =>
+    loadEntityRecords(description, fetchService, { filter: currentFilter }),
+  );
+  createEffect(() => {
+    if (!records.loading) {
+      setShowLoading(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setShowLoading(true), 200);
+    onCleanup(() => window.clearTimeout(timer));
+  });
   const unsubscribe = dataChanges.subscribe({ tableName: description.tableName }, () => {
     lookups.invalidateSource(description.tableName);
   });
@@ -41,20 +57,14 @@ export function EntityMasterDetailView(props: { entityId: EntityId }) {
           {records.error.message}
         </p>
       </Match>
-      <Match when={records.loading}>
-        <p class={styles.loading}>Loading {description.pluralLabel.toLowerCase()}...</p>
+      <Match when={records.loading && !records()}>
+        <Show when={showLoading()}>
+          <p class={styles.loading}>Loading {description.pluralLabel.toLowerCase()}...</p>
+        </Show>
       </Match>
       <Match when={records()}>
         {(result) => {
-          const entity = bindEntity(result(), description);
-          const filteredRows = createMemo(() =>
-            result().rows.filter((row) =>
-              matchesFilter(filter(), (attribute) => {
-                const value = row.value(result().requireColumn(attribute));
-                return typeof value === "string" || typeof value === "number" ? value : undefined;
-              }),
-            ),
-          );
+          const entity = createMemo(() => bindEntity(result(), description));
           return (
             <MasterDetailView
               leadingPanel={
@@ -87,22 +97,30 @@ export function EntityMasterDetailView(props: { entityId: EntityId }) {
                       class={`${styles.filterButton} ${filterOpen() ? styles.activeFilter : ""}`}
                       onClick={() => setFilterOpen((open) => !open)}
                     />
+                    <Show when={showLoading()}>
+                      <span class={styles.queryLoading} role="status">
+                        <span class={styles.spinner} aria-hidden="true" />
+                        Loading...
+                      </span>
+                    </Show>
                     <IconButton
                       label={`New ${description.label.toLowerCase()}`}
                       icon="+"
+                      class={styles.createButton}
                       onClick={() => navigation.createRecord()}
                     />
                   </div>
                   <DataTable
                     ariaLabel={description.pluralLabel}
                     result={result()}
-                    rows={filteredRows()}
-                    columns={createEntityTableColumns(entity)}
-                    rowKey={entity.identity}
+                    rows={result().rows}
+                    columns={createEntityTableColumns(entity())}
+                    rowKey={entity().identity}
                     selectedRowKey={navigation.selectedRecordId()}
                     density="compact"
+                    emptyMessage={`No matching ${description.pluralLabel.toLowerCase()} found.`}
                     onRowSelect={(row) => {
-                      const id = row.value(entity.identity);
+                      const id = row.value(entity().identity);
                       if (typeof id === "string") navigation.selectRecord(id);
                     }}
                   />

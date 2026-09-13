@@ -26,11 +26,25 @@ describe("loadEntityRecords", () => {
       name: "Open tickets",
       entityId: testEntity.id,
       filter: {
-        id: "status-filter" as never,
-        type: "criterion",
-        attribute: "status" as never,
-        operator: "in-set" as never,
-        operand: { type: "set", values: ["open", "in-progress"] },
+        id: "root-filter" as never,
+        type: "composite",
+        kind: "all",
+        children: [
+          {
+            id: "status-filter" as never,
+            type: "criterion",
+            attribute: "status" as never,
+            operator: "in-set" as never,
+            operand: { type: "set", values: ["open", "in-progress"] },
+          },
+          {
+            id: "title-filter" as never,
+            type: "criterion",
+            attribute: "title" as never,
+            operator: "contains" as never,
+            operand: { type: "value", value: "navigation" },
+          },
+        ],
       },
       sorting: [],
     };
@@ -39,7 +53,12 @@ describe("loadEntityRecords", () => {
     expect(fetcher).toHaveBeenCalledWith("/api/query", expect.objectContaining({ method: "POST" }));
     expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({
       table_name: "things",
-      criterion: { equals: { attribute: "status", values: ["open", "in-progress"] } },
+      criterion: {
+        all: [
+          { equals: { attribute: "status", values: ["open", "in-progress"] } },
+          { contains: { attribute: "title", value: "navigation" } },
+        ],
+      },
       max_results: 100,
       attributes: ["*"],
     });

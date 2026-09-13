@@ -277,7 +277,7 @@ mod tests {
 
         assert_eq!(
             error.to_string(),
-            "commands have no registered handlers: query, user-info"
+            "commands have no registered handlers: model-info, query, user-info"
         );
     }
 }
