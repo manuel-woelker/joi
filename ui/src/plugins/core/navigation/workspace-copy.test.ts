@@ -41,6 +41,19 @@ describe("workspace navigation copies", () => {
     expect(sourceFilter?.type === "criterion" && sourceFilter.attribute).toBe("status");
   });
 
+  it("copies workspace views without an optional filter", () => {
+    const source = createTestWorkspace();
+    source.queries["query-open"].filter = undefined;
+    const [workspace] = createStore(source);
+
+    const copy = copyForWorkspaceView(workspace, "view-active");
+
+    expect(copy).toMatchObject({
+      type: "view",
+      view: { query: { filter: undefined } },
+    });
+  });
+
   it("resolves copied shortcut metadata from its originating section", () => {
     const leaf = {
       id: navigationEntryId("users"),

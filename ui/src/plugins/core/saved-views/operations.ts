@@ -7,6 +7,7 @@ import type {
   WorkspaceShortcutDraft,
   WorkspaceViewDraft,
 } from "./model";
+import { unwrap } from "solid-js/store";
 import { generateKsuid } from "../entities/ksuid";
 
 const nextId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
@@ -16,7 +17,7 @@ export function cloneWorkspace(workspace: WorkspaceDocument): WorkspaceDocument 
 }
 
 export function cloneValue<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value)) as T;
+  return structuredClone(unwrap(value));
 }
 
 function containerFor(workspace: WorkspaceDocument, itemId: NavigationId): NavigationId[] | undefined {

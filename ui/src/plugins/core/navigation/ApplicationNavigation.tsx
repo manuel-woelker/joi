@@ -125,7 +125,8 @@ export function ApplicationNavigation(props: { registry: PluginRegistry; userId:
       }
     }
     return resolved;
-  });
+  }, []);
+  const recentEntries = () => resolvedRecent() ?? [];
 
   return (
     <nav class={styles.navigation} aria-label="Application navigation">
@@ -178,9 +179,9 @@ export function ApplicationNavigation(props: { registry: PluginRegistry; userId:
         </button>
         <Show when={recentOpen()}>
           <div id="recently-used-navigation" class={styles.panel}>
-            <Show when={resolvedRecent().length} fallback={<p class={styles.empty}>No recently used views</p>}>
+            <Show when={recentEntries().length} fallback={<p class={styles.empty}>No recently used views</p>}>
               <RecentTree
-                entries={resolvedRecent()}
+                entries={recentEntries()}
                 activeRoute={workspace.navigation.activeRoute()}
                 onActivate={navigate}
                 onRemove={(reference) => {
