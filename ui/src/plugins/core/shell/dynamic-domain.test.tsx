@@ -116,7 +116,7 @@ describe("dynamic domain plugins", () => {
     expect(resolveApplicationView(registry, { type: "view", id: "test.milestones" })?.name).toBe("Milestones");
   });
 
-  it("constructs core UI plugins without the ticket domain", () => {
+  it("constructs the application without the ticket domain", () => {
     vi.spyOn(console, "info").mockImplementation(() => undefined);
     const plugins = discoveredApplicationPlugins().filter(
       (candidate) => !candidate.location?.file.includes("/plugins/ticket/"),
@@ -126,7 +126,10 @@ describe("dynamic domain plugins", () => {
     const application = createApplication({ plugins });
 
     expect(application.registry.metadata().plugins.some((candidate) => candidate.name === "administration")).toBe(true);
-    expect(application.registry.extensions(entityDescriptions).map((entity) => entity.id)).toEqual(["users"]);
+    expect(application.registry.extensions(entityDescriptions).map((entity) => entity.id)).toEqual([
+      "repositories",
+      "users",
+    ]);
 
     window.location.hash = "#/not-a-domain-route";
     render(() => (

@@ -7,10 +7,12 @@ use joi_server::{
 };
 
 use crate::{
+    codevette_plugin::codevette_plugin,
     projects_module::{ProjectTableDescriptionProvider, ProjectTestDataProvider},
     tickets_module::{TicketTableDescriptionProvider, TicketTestDataProvider},
 };
 
+mod codevette_plugin;
 mod projects_module;
 mod tickets_module;
 
@@ -23,7 +25,7 @@ fn main() -> ExitCode {
         listen_address: "127.0.0.1:3000".into(),
         data_store_path: PathBuf::from(DATA_STORE_PATH),
         insert_test_data: true,
-        plugins: vec![tickets_plugin()],
+        plugins: vec![tickets_plugin(), codevette_plugin()],
     })
 }
 
