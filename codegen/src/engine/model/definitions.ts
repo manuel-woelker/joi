@@ -61,6 +61,7 @@ export interface CommandDefinition {
   readonly request: StructDefinition;
   readonly response: TypeDefinition;
   readonly sourcePath: string;
+  readonly requiredHandler: boolean;
 }
 
 export interface ApiModel {

@@ -1,12 +1,18 @@
 use std::path::PathBuf;
 
 use joi_plugin::{Plugin, plugin};
+use joi_server::command_registry::CommandProvider;
 use joi_server::data_store::{
     AttributeColumn, AttributeName, ColumnDataType, ColumnDescription, ColumnReference, DataStore,
     DataStoreInsertMutation, DataStoreMutation, DataStoreMutationStep, DataStoreQuery,
     QueryCriterion, TableDescription, TableDescriptionProvider, TableName, TestDataProvider,
     Values,
 };
+
+mod git;
+mod history_command;
+
+use history_command::GitHistoryCommandProvider;
 
 /// Creates the Codevette trunk-based code review server plugin.
 pub fn codevette_plugin() -> Plugin {
@@ -25,6 +31,11 @@ pub fn codevette_plugin() -> Plugin {
             "current-repository",
             "Registers the current Git repository for code review",
             Box::new(CurrentRepositoryProvider::from_current_directory()?),
+        )?;
+        context.register_extension::<dyn CommandProvider>(
+            "git-history-command",
+            "Loads commit history from configured repositories",
+            Box::new(GitHistoryCommandProvider),
         )
     })
 }

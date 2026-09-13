@@ -10,7 +10,7 @@ use joi_plugin::{Plugin, PluginRegistry, PluginRegistryBuilder, plugin};
 use serde_json::Value as JsonValue;
 
 use crate::{
-    command_registry::{CommandRegistry, CommandRegistryBuilder},
+    command_registry::{CommandProvider, CommandRegistry, CommandRegistryBuilder},
     command_service::CommandService,
     data_store::{DataStore, SharedDataStore, TableDescriptionProvider, TestDataProvider},
     generated::api::COMMAND_DESCRIPTORS,
@@ -99,6 +99,10 @@ fn create_plugin_registry(config: &mut ServerConfig) -> JoiResult<PluginRegistry
                 "test-data-providers",
                 "Populates tables with development data",
             )?;
+            context.register_extension_point::<dyn CommandProvider>(
+                "command-providers",
+                "Registers domain command handlers",
+            )?;
             context.register_extension::<dyn InfoProvider>(
                 "package-info",
                 "Provides package name and version",
@@ -142,12 +146,15 @@ fn build_command_registry(
     let mut builder = CommandRegistryBuilder::new();
     builder.register(InfoCommand::new(plugin_registry.clone()))?;
     builder.register(ModelInfoCommand::new(plugin_registry.clone()))?;
-    builder.register(PluginsCommand::new(plugin_registry))?;
+    builder.register(PluginsCommand::new(plugin_registry.clone()))?;
     builder.register(QueryCommand::new(data_store.clone()))?;
     builder.register(MutateCommand::new(data_store.clone()))?;
     builder.register(LoginCommand::new(data_store.clone()))?;
     builder.register(LogoutCommand::new(data_store.clone()))?;
-    builder.register(UserInfoCommand::new(data_store))?;
+    builder.register(UserInfoCommand::new(data_store.clone()))?;
+    for provider in plugin_registry.extensions::<dyn CommandProvider>()? {
+        provider.register_commands(&mut builder, data_store.clone())?;
+    }
     builder.require_handlers(COMMAND_DESCRIPTORS)?;
     Ok(builder.build())
 }

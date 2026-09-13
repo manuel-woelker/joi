@@ -8,6 +8,8 @@ use serde_json::Value;
 use crate::command::{Command, CommandDescriptor};
 use crate::command_handler::CommandHandler;
 
+use crate::data_store::SharedDataStore;
+
 const COMMANDS_LIST_NAME: &str = "commands/list";
 
 type ExecuteCommand = Arc<dyn Fn(Value) -> JoiResult<Value> + Send + Sync>;
@@ -40,6 +42,16 @@ struct CommandRegistryInner {
 #[derive(Default)]
 pub struct CommandRegistryBuilder {
     commands: HashMap<JoiString, RegisteredCommand>,
+}
+
+/// Registers domain command handlers after server infrastructure is available.
+pub trait CommandProvider: Send + Sync {
+    /// Adds this provider's handlers to the command registry under construction.
+    fn register_commands(
+        &self,
+        builder: &mut CommandRegistryBuilder,
+        data_store: SharedDataStore,
+    ) -> JoiResult<()>;
 }
 
 impl CommandRegistryBuilder {

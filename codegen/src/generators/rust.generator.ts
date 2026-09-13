@@ -146,6 +146,7 @@ export default defineGenerator({
       )
       .join("\n\n");
     const commandDescriptors = model.commands
+      .filter((command) => command.requiredHandler)
       .map(
         (command) => source`
           CommandDescriptor::of::<${pascalCase(command.request.id)}>(),

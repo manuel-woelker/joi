@@ -139,6 +139,7 @@ export function buildModel(sources: readonly SourcedCommandDeclaration[]): ApiMo
         request: normalizeType(declaration.request, `${sourcePath}: request`) as StructDefinition,
         response: normalizeType(declaration.response, `${sourcePath}: response`),
         sourcePath,
+        requiredHandler: declaration.requiredHandler,
       });
     });
 

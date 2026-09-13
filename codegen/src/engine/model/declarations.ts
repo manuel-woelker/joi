@@ -62,6 +62,7 @@ export interface CommandDeclaration extends DeclarationBase {
   readonly description: string;
   readonly request: StructDeclaration;
   readonly response: TypeDeclaration;
+  readonly requiredHandler: boolean;
 }
 
 function freezeFields(fields: readonly FieldDeclaration[]): readonly FieldDeclaration[] {
@@ -141,8 +142,9 @@ export function defineCommand(input: {
   readonly description: string;
   readonly request: StructDeclaration;
   readonly response: TypeDeclaration;
+  readonly requiredHandler?: boolean;
 }): CommandDeclaration {
-  return Object.freeze({ [declarationMarker]: true as const, kind: "command", ...input });
+  return Object.freeze({ [declarationMarker]: true as const, kind: "command", requiredHandler: true, ...input });
 }
 
 export function isCommandDeclaration(value: unknown): value is CommandDeclaration {

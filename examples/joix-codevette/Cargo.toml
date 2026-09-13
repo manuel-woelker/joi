@@ -7,8 +7,10 @@ description = "Codevette trunk-based code review plugin for JOI example applicat
 publish = false
 
 [dependencies]
+gix = { version = "0.87.1", default-features = false, features = ["revision", "sha1"] }
 joi-base = { path = "../../libs-rust/joi-base" }
 joi-error = { path = "../../libs-rust/joi-error" }
 joi-plugin = { path = "../../libs-rust/joi-plugin" }
 joi-server = { path = "../../libs-rust/joi-server" }
 ksuid = "0.2"
+time = { version = "0.3", features = ["formatting"] }

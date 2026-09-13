@@ -4,6 +4,9 @@ import { createSignal } from "solid-js";
 
 import { plugin } from "../../base/plugin-registry";
 import { fetchServiceKey, type FetchService } from "../../base/services/fetch-service";
+import { GitHistory } from "../../components/git-history/GitHistory";
+import type { GitHistorySource } from "../../components/git-history/git-history";
+import { CommandService } from "../../generated/api/command-service";
 import { administrationContributions } from "../core/administration/contribution";
 import { entityDescriptions } from "../core/entities/entity-registry";
 import { EntityMasterDetailView } from "../core/master-detail/EntityMasterDetailView";
@@ -82,10 +85,11 @@ export default plugin({
                 section: "Codevette",
                 icon: GitBranchIcon,
                 content: () => (
-                  <section>
-                    <h2>{branch.repositoryName}</h2>
-                    <p>{branch.name}</p>
-                  </section>
+                  <GitHistory
+                    ariaLabel={`${branch.repositoryName} ${branch.name} history`}
+                    source={gitHistorySource(context.services.fetchService, branch.id)}
+                    pageSize={200}
+                  />
                 ),
               }
             : undefined;
@@ -167,5 +171,18 @@ function createRepositoryNavigation(service: FetchService): {
       }));
     },
     byId: (id) => items().find((branch) => branch.id === id),
+  };
+}
+
+function gitHistorySource(service: FetchService, branchId: string): GitHistorySource {
+  const commands = new CommandService(service);
+  return {
+    async loadCommits({ cursor, limit }) {
+      const response = await commands.codevetteHistory({ branchId, cursor: cursor ?? null, limit });
+      return {
+        commits: response.commits,
+        nextCursor: response.nextCursor ?? undefined,
+      };
+    },
   };
 }
