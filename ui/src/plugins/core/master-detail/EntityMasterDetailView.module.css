@@ -11,21 +11,26 @@
 
 .toolbar {
   display: grid;
+  width: 100%;
+  max-width: 1080px;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  margin-bottom: 8px;
+  margin: 0 auto 8px;
 }
 
 .filterButton {
+  grid-column: 1;
   justify-self: start;
 }
 
 .createButton {
+  grid-column: 3;
   justify-self: end;
 }
 
 .queryLoading {
   display: inline-flex;
+  grid-column: 2;
   align-items: center;
   gap: 6px;
   color: var(--color-text-muted);
