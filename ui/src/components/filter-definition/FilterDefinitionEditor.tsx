@@ -10,6 +10,7 @@ import {
   defineTreeNode,
   folderTreeNodeKind,
   treeNodeKind,
+  type TreeModel,
   type TreeNode,
 } from "../tree/tree-model";
 import type { TreeMoveTarget } from "../tree/tree-definition";
@@ -57,19 +58,27 @@ export interface FilterDefinitionEditorProps {
 /** Controlled editor for nested composite and attribute filter definitions. */
 export function FilterDefinitionEditor(props: FilterDefinitionEditorProps) {
   const operators = () => props.operators ?? defaultFilterOperators;
-  const model = createMemo(() => {
-    const nodes: TreeNode[] = [];
-    const visit = (filter: FilterDefinition) => {
-      if (filter.type === "composite") {
-        nodes.push(
-          defineTreeFolder({ id: filter.id, children: filter.children.map((child) => child.id), data: { filter } }),
-        );
-        filter.children.forEach(visit);
-      } else nodes.push(defineTreeNode({ id: filter.id, kind: criterionKind, data: { filter } }));
-    };
-    visit(props.value);
-    return defineTreeModel({ roots: [props.value.id], nodes });
-  });
+  const model = createMemo(
+    () => {
+      const nodes: TreeNode[] = [];
+      const visit = (filter: FilterDefinition) => {
+        const filterId = filter.id;
+        const data = {
+          get filter() {
+            return findFilter(props.value, filterId);
+          },
+        };
+        if (filter.type === "composite") {
+          nodes.push(defineTreeFolder({ id: filter.id, children: filter.children.map((child) => child.id), data }));
+          filter.children.forEach(visit);
+        } else nodes.push(defineTreeNode({ id: filter.id, kind: criterionKind, data }));
+      };
+      visit(props.value);
+      return defineTreeModel({ roots: [props.value.id], nodes });
+    },
+    undefined,
+    { equals: sameTreeStructure },
+  );
   const replace = (id: FilterNodeId, next: FilterDefinition) =>
     props.onChange(updateFilter(props.value, id, () => next));
   const firstCriterion = () => {
@@ -193,6 +202,23 @@ export function FilterDefinitionEditor(props: FilterDefinitionEditorProps) {
       <For each={errors()}>{(error) => <p class={styles.error}>{error}</p>}</For>
     </div>
   );
+}
+
+function sameTreeStructure(previous: TreeModel, next: TreeModel): boolean {
+  if (previous.roots.length !== next.roots.length || previous.nodes.size !== next.nodes.size) return false;
+  if (previous.roots.some((id, index) => id !== next.roots[index])) return false;
+  for (const [id, node] of previous.nodes) {
+    const candidate = next.nodes.get(id);
+    if (!candidate || candidate.kind !== node.kind) return false;
+    const children = node.children ?? [];
+    const candidateChildren = candidate.children ?? [];
+    if (
+      children.length !== candidateChildren.length ||
+      children.some((child, index) => child !== candidateChildren[index])
+    )
+      return false;
+  }
+  return true;
 }
 
 function CriterionRow(props: {

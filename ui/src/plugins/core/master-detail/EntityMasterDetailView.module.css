@@ -11,6 +11,27 @@
 
 .toolbar {
   display: flex;
-  justify-content: flex-end;
   margin-bottom: 8px;
+}
+
+.filterButton {
+  margin-right: auto;
+}
+
+.filterHeader {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.filterHeader h2 {
+  margin: 0;
+  font-size: 13px;
+}
+
+.activeFilter {
+  color: var(--color-primary-dark);
+  background: var(--color-surface-hover);
 }

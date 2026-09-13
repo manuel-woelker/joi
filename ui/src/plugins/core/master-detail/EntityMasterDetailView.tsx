@@ -1,7 +1,13 @@
-import { createResource, Match, onCleanup, Switch } from "solid-js";
+import { createMemo, createResource, createSignal, Match, onCleanup, Switch } from "solid-js";
+import FunnelIcon from "lucide-solid/icons/funnel";
+import XIcon from "lucide-solid/icons/x";
 
 import { useNavigation } from "../../../base/navigation";
 import { DataTable } from "../../../components/DataTable";
+import { entityFilterAttributes } from "../../../components/filter-definition/entity-filter-attributes";
+import { matchesFilter } from "../../../components/filter-definition/filter-evaluation";
+import { FilterDefinitionEditor } from "../../../components/filter-definition/FilterDefinitionEditor";
+import { createCompositeFilter, type FilterDefinition } from "../../../components/filter-definition/filter-model";
 import { IconButton } from "../../../components/IconButton";
 import { bindEntity, createEntityTableColumns } from "../entities/bound-entity";
 import { createEntityEditorDefinition } from "../entities/entity-editor";
@@ -20,6 +26,8 @@ export function EntityMasterDetailView(props: { entityId: EntityId }) {
   const lookups = useLookupService();
   const description = useEntityRegistry().require(props.entityId);
   const editor = createEntityEditorDefinition(description);
+  const [filterOpen, setFilterOpen] = createSignal(false);
+  const [filter, setFilter] = createSignal<FilterDefinition>(createCompositeFilter());
   const [records, { refetch }] = createResource(() => loadEntityRecords(description, fetchService));
   const unsubscribe = dataChanges.subscribe({ tableName: description.tableName }, () => {
     lookups.invalidateSource(description.tableName);
@@ -39,11 +47,46 @@ export function EntityMasterDetailView(props: { entityId: EntityId }) {
       <Match when={records()}>
         {(result) => {
           const entity = bindEntity(result(), description);
+          const filteredRows = createMemo(() =>
+            result().rows.filter((row) =>
+              matchesFilter(filter(), (attribute) => {
+                const value = row.value(result().requireColumn(attribute));
+                return typeof value === "string" || typeof value === "number" ? value : undefined;
+              }),
+            ),
+          );
           return (
             <MasterDetailView
+              leadingPanel={
+                filterOpen() ? (
+                  <div aria-label={`Filter ${description.pluralLabel}`}>
+                    <header class={styles.filterHeader}>
+                      <h2>Filter {description.pluralLabel}</h2>
+                      <IconButton
+                        label="Close filter"
+                        icon={<XIcon size={16} />}
+                        onClick={() => setFilterOpen(false)}
+                      />
+                    </header>
+                    <FilterDefinitionEditor
+                      attributes={entityFilterAttributes(description)}
+                      value={filter()}
+                      onChange={setFilter}
+                      ariaLabel={`Filter ${description.pluralLabel}`}
+                    />
+                  </div>
+                ) : undefined
+              }
               master={
                 <>
                   <div class={styles.toolbar}>
+                    <IconButton
+                      label={filterOpen() ? "Close filter" : `Filter ${description.pluralLabel.toLowerCase()}`}
+                      icon={<FunnelIcon size={17} />}
+                      aria-expanded={filterOpen()}
+                      class={`${styles.filterButton} ${filterOpen() ? styles.activeFilter : ""}`}
+                      onClick={() => setFilterOpen((open) => !open)}
+                    />
                     <IconButton
                       label={`New ${description.label.toLowerCase()}`}
                       icon="+"
@@ -53,8 +96,10 @@ export function EntityMasterDetailView(props: { entityId: EntityId }) {
                   <DataTable
                     ariaLabel={description.pluralLabel}
                     result={result()}
+                    rows={filteredRows()}
                     columns={createEntityTableColumns(entity)}
                     rowKey={entity.identity}
+                    selectedRowKey={navigation.selectedRecordId()}
                     density="compact"
                     onRowSelect={(row) => {
                       const id = row.value(entity.identity);

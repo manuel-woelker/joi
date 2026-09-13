@@ -50,7 +50,8 @@ export function Select<T>(props: SelectProps<T>) {
     left: 0,
     top: 0,
     bottom: 0,
-    width: 0,
+    triggerWidth: 0,
+    maxWidth: 0,
     height: 260,
     above: false,
   });
@@ -116,11 +117,13 @@ export function Select<T>(props: SelectProps<T>) {
       const below = window.innerHeight - rect.bottom - 6;
       const above = rect.top - 6;
       const opensAbove = below < 180 && above > below;
+      const maxWidth = Math.min(480, window.innerWidth - 12);
       setPopupPosition({
-        left: Math.max(6, Math.min(rect.left, window.innerWidth - rect.width - 6)),
+        left: Math.max(6, Math.min(rect.left, window.innerWidth - maxWidth - 6)),
         top: rect.bottom + 4,
         bottom: window.innerHeight - rect.top + 4,
-        width: Math.min(rect.width, window.innerWidth - 12),
+        triggerWidth: Math.min(rect.width, maxWidth),
+        maxWidth,
         height: Math.max(96, Math.min(300, opensAbove ? above : below)),
         above: opensAbove,
       });
@@ -222,7 +225,7 @@ export function Select<T>(props: SelectProps<T>) {
           <div
             ref={popup}
             class={styles.popup}
-            style={`left:${popupPosition().left}px;width:${popupPosition().width}px;${popupPosition().above ? `bottom:${popupPosition().bottom}px` : `top:${popupPosition().top}px`};--select-list-height:${popupPosition().height}px`}
+            style={`left:${popupPosition().left}px;min-width:${popupPosition().triggerWidth}px;max-width:${popupPosition().maxWidth}px;${popupPosition().above ? `bottom:${popupPosition().bottom}px` : `top:${popupPosition().top}px`};--select-list-height:${popupPosition().height}px`}
           >
             <ul id={listboxId} role="listbox" aria-label={`${props.ariaLabel} options`}>
               <Show when={props.emptyLabel}>

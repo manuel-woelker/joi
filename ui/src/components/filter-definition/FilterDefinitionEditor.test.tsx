@@ -13,7 +13,7 @@ import {
   filterNodeId,
   type FilterDefinition,
 } from "./filter-model";
-import { inSetFilterOperator } from "./filter-operators";
+import { equalsFilterOperator, inSetFilterOperator } from "./filter-operators";
 
 const attributes = [
   {
@@ -62,6 +62,38 @@ describe("FilterDefinitionEditor", () => {
     fireEvent.click(enabled);
     expect(enabled.checked).toBe(false);
     expect(screen.getByRole<HTMLInputElement>("checkbox", { name: "Open" }).checked).toBe(true);
+  });
+
+  it("preserves input focus while editing an operand", () => {
+    const textAttributes = [
+      {
+        id: filterAttributeId("title"),
+        label: "Title",
+        valueType: "string" as const,
+      },
+    ];
+    const initial = createCompositeFilter("all", [
+      createFilterCriterion(
+        textAttributes[0].id,
+        equalsFilterOperator,
+        { type: "value", value: "" },
+        filterNodeId("title"),
+      ),
+    ]);
+    const TestTextEditor = () => {
+      const [value, setValue] = createSignal<FilterDefinition>(initial);
+      return <FilterDefinitionEditor attributes={textAttributes} value={value()} onChange={setValue} />;
+    };
+    render(() => <TestTextEditor />);
+    const input = screen.getByRole<HTMLInputElement>("textbox", { name: "Filter value" });
+    input.focus();
+
+    fireEvent.input(input, { target: { value: "a" } });
+    fireEvent.input(input, { target: { value: "ab" } });
+
+    expect(screen.getByRole("textbox", { name: "Filter value" })).toBe(input);
+    expect(document.activeElement).toBe(input);
+    expect(input.value).toBe("ab");
   });
 
   it("keeps composites expanded and omits move and copy buttons", () => {

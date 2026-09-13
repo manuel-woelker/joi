@@ -8,6 +8,7 @@ import styles from "./MasterDetailView.module.css";
 
 export function MasterDetailView(props: {
   master: JSX.Element;
+  leadingPanel?: JSX.Element;
   definition: MasterDetailDefinition;
   fetchService: FetchService;
   result?: QueryResult;
@@ -17,7 +18,16 @@ export function MasterDetailView(props: {
   onClose: () => void;
 }) {
   return (
-    <div class={styles.layout} classList={{ [styles.withDetail]: Boolean(props.selectedRecordId || props.creating) }}>
+    <div
+      class={styles.layout}
+      classList={{
+        [styles.withLeadingPanel]: Boolean(props.leadingPanel),
+        [styles.withDetail]: Boolean(props.selectedRecordId || props.creating),
+      }}
+    >
+      <Show when={props.leadingPanel}>
+        <aside class={styles.leadingPanel}>{props.leadingPanel}</aside>
+      </Show>
       <div class={styles.master}>{props.master}</div>
       <Show when={props.selectedRecordId && props.result}>
         <aside class={styles.detail} aria-label={`${props.definition.detailTitle} details`}>
