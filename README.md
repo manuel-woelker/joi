@@ -42,7 +42,9 @@ Current libraries:
 
 Cross-library examples:
 
-- [`examples/joix-tickets`](examples/joix-tickets/README.md) - Infrastructure for a future cross-library issue-tracker testbed.
+- [`examples/joix`](examples/joix/README.md) - Combined server application for exercising JOI domain plugins.
+- [`examples/joix-codevette`](examples/joix-codevette/README.md) - Trunk-based code review server plugin.
+- [`examples/joix-tickets`](examples/joix-tickets/README.md) - Issue-tracker server plugin.
 
 ## Working in This Repo
 

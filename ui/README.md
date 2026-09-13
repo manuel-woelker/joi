@@ -236,8 +236,8 @@ renaming or moving a demo invalidates old deep links.
 Run these commands from the repository root. The root pnpm workspace installs
 dependencies for both UI projects from one lockfile.
 
-During development, Vite proxies `/api` requests to the joix-tickets backend at
-`http://127.0.0.1:3000`. Start that service separately with `nao joix-tickets`.
+During development, Vite proxies `/api` requests to the combined `joix` backend
+at `http://127.0.0.1:3000`. Start that service separately with `./n joix`.
 
 ## How do I check and build it?
 

@@ -1,0 +1,12 @@
+[package]
+name = "joix"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Combined JOI example server application"
+publish = false
+
+[dependencies]
+joi-server = { path = "../../libs-rust/joi-server" }
+joix-codevette = { path = "../joix-codevette" }
+joix-tickets = { path = "../joix-tickets" }

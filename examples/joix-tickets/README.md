@@ -1,15 +1,14 @@
 # joix-tickets
 
-`joix-tickets` is an experimental issue-tracker application and integration
-testbed for the JOI libraries. Tickets represent bugs, tasks, and other work
-items rather than user-support requests.
+`joix-tickets` is an experimental issue-tracker server plugin for JOI example
+applications. Tickets represent bugs, tasks, and other work items rather than
+user-support requests.
 
-## What does the application own?
+## What does the plugin own?
 
-The application is intentionally thin. It defines the project and ticket
-tables, provides representative data, registers those contributions as a
-plugin, and supplies `joi-server` with application metadata and runtime
-configuration.
+The plugin defines the project and ticket tables, provides representative data,
+and registers those contributions for a host application. Applications compose
+it by calling `joix_tickets::tickets_plugin()`.
 
 The reusable [`joi-server`](../../libs-rust/joi-server/README.md) crate owns
 application startup, HTTP and CLI command execution, generated command
@@ -29,29 +28,10 @@ physical `project_id` column is nullable so existing development databases can
 receive it through additive schema upgrades; fixture initialization associates
 legacy unassigned rows by key prefix.
 
-## How do I run it?
-
-From the repository root, run:
-
-```bash
-./n joix-tickets
-```
-
-The server listens on `http://127.0.0.1:3000` and exposes commands at
-`/api/<command-name>`. Passing one command name runs it through the CLI and
-prints YAML instead of starting HTTP:
-
-```bash
-./t cargo run -p joix-tickets -- info
-```
-
-The SQLite database is stored at
-`examples/joix-tickets/joix-tickets.sqlite3` and is ignored by Git.
-
 ## How do I check it?
 
 Run the repository checks from the root:
 
 ```bash
-./t nao check
+./n check
 ```

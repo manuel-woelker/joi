@@ -1,14 +1,11 @@
 [package]
-name = "joix-tickets"
+name = "joix-codevette"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Ticket and project plugin for JOI example applications"
+description = "Codevette trunk-based code review plugin for JOI example applications"
 publish = false
 
 [dependencies]
-joi-base = { path = "../../libs-rust/joi-base" }
-joi-error = { path = "../../libs-rust/joi-error" }
 joi-plugin = { path = "../../libs-rust/joi-plugin" }
 joi-server = { path = "../../libs-rust/joi-server" }
-ksuid = "0.2"

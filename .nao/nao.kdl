@@ -3,9 +3,9 @@ recipe "default" {
     run shell="./t pnpm install --frozen-lockfile"
   }
 
-  task "joix-tickets" description="Run the joix-tickets testbed" direct-output=#true {
+  task "joix" description="Run the combined JOI example server" direct-output=#true {
     depends-on "codegen"
-    run shell="./t cargo run -p joix-tickets"
+    run shell="./t cargo run -p joix"
   }
 
   task "ui" description="Run the Joi UI development server" {
@@ -17,8 +17,8 @@ recipe "default" {
     """
   }
 
-  task "dev" description="Run the joix-tickets backend and Joi UI" {
-    depends-on "joix-tickets"
+  task "dev" description="Run the combined JOI backend and UI" {
+    depends-on "joix"
     depends-on "ui"
     run shell="printf 'Task outcome: development servers stopped\n'"
   }

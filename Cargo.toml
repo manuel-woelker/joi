@@ -1,5 +1,7 @@
 [workspace]
 members = [
+    "examples/joix",
+    "examples/joix-codevette",
     "examples/joix-tickets",
     "libs-rust/joi-base",
     "libs-rust/joi-error",
