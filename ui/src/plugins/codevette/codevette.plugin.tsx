@@ -18,6 +18,8 @@ import {
 } from "../core/navigation/contribution";
 import { executeDataQuery } from "../core/query/query-client";
 import { shellContributionId, viewResolvers } from "../core/shell/contribution";
+import { useWorkspace } from "../core/saved-views/controller";
+import { CommitReviewView } from "./commit-review/CommitReviewView";
 import { repositoryEntity } from "./repository-entity";
 
 interface RepositoryBranch {
@@ -28,6 +30,7 @@ interface RepositoryBranch {
 }
 
 const branchViewPrefix = "codevette-branch/";
+const commitViewPrefix = "codevette-commit/";
 
 export default plugin({
   name: "codevette",
@@ -74,6 +77,26 @@ export default plugin({
         order: 10,
         resolve(selection) {
           const id = selection.type === "view" ? selection.id : undefined;
+          const commitParts = id?.startsWith(commitViewPrefix)
+            ? id.slice(commitViewPrefix.length).split("/")
+            : undefined;
+          const commitBranch = commitParts?.length === 2 ? branches.byId(commitParts[0]) : undefined;
+          if (commitBranch && commitParts) {
+            return {
+              id: `${commitViewPrefix}${commitParts.join("/")}`,
+              name: commitParts[1].slice(0, 8),
+              description: `${commitBranch.repositoryName} commit review`,
+              section: "Codevette",
+              icon: GitPullRequestIcon,
+              content: () => (
+                <CommitReviewView
+                  service={context.services.fetchService}
+                  branchId={commitParts[0]}
+                  commitId={commitParts[1]}
+                />
+              ),
+            };
+          }
           const branch = id?.startsWith(branchViewPrefix)
             ? branches.byId(id.slice(branchViewPrefix.length))
             : undefined;
@@ -84,13 +107,7 @@ export default plugin({
                 description: `${branch.repositoryName} branch`,
                 section: "Codevette",
                 icon: GitBranchIcon,
-                content: () => (
-                  <GitHistory
-                    ariaLabel={`${branch.repositoryName} ${branch.name} history`}
-                    source={gitHistorySource(context.services.fetchService, branch.id)}
-                    pageSize={200}
-                  />
-                ),
+                content: () => <BranchHistoryView service={context.services.fetchService} branch={branch} />,
               }
             : undefined;
         },
@@ -172,6 +189,21 @@ function createRepositoryNavigation(service: FetchService): {
     },
     byId: (id) => items().find((branch) => branch.id === id),
   };
+}
+
+function BranchHistoryView(props: { readonly service: FetchService; readonly branch: RepositoryBranch }) {
+  const workspace = useWorkspace();
+  return (
+    <GitHistory
+      ariaLabel={`${props.branch.repositoryName} ${props.branch.name} history`}
+      source={gitHistorySource(props.service, props.branch.id)}
+      pageSize={200}
+      onCommitSelect={(commit) => {
+        const id = `${commitViewPrefix}${props.branch.id}/${commit.id}`;
+        workspace.navigation.selectView(id, { source: "system", section: "codevette", id });
+      }}
+    />
+  );
 }
 
 function gitHistorySource(service: FetchService, branchId: string): GitHistorySource {

@@ -9,9 +9,11 @@ use joi_server::data_store::{
     Values,
 };
 
+mod commit_command;
 mod git;
 mod history_command;
 
+use commit_command::{CommitTableDescriptionProvider, GitCommitCommandProvider};
 use history_command::GitHistoryCommandProvider;
 
 /// Creates the Codevette trunk-based code review server plugin.
@@ -27,6 +29,11 @@ pub fn codevette_plugin() -> Plugin {
             "Defines branches belonging to configured repositories",
             Box::new(RepositoryBranchTableDescriptionProvider),
         )?;
+        context.register_extension::<dyn TableDescriptionProvider>(
+            "commits-table",
+            "Caches immutable commit review data and mutable review status",
+            Box::new(CommitTableDescriptionProvider),
+        )?;
         context.register_extension::<dyn TestDataProvider>(
             "current-repository",
             "Registers the current Git repository for code review",
@@ -36,6 +43,11 @@ pub fn codevette_plugin() -> Plugin {
             "git-history-command",
             "Loads commit history from configured repositories",
             Box::new(GitHistoryCommandProvider),
+        )?;
+        context.register_extension::<dyn CommandProvider>(
+            "git-commit-command",
+            "Loads and caches commit review details",
+            Box::new(GitCommitCommandProvider),
         )
     })
 }

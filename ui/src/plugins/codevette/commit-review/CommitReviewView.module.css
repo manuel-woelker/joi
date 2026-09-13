@@ -1,0 +1,23 @@
+.review { height: 100%; min-width: 0; min-height: 0; display: grid; grid-template-rows: auto auto minmax(0, 1fr); overflow: hidden; background: var(--color-surface); }
+.header { min-height: 64px; padding: 12px 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--color-border); }
+.header h1 { margin: 0 0 3px; font-size: 17px; }
+.header code { color: var(--color-text-muted); }
+.status { margin-left: auto; padding: 3px 8px; border: 1px solid var(--color-border); border-radius: 4px; text-transform: capitalize; background: var(--color-primary-light); }
+.tabs { z-index: 2; display: flex; gap: 4px; padding: 0 20px; border-bottom: 1px solid var(--color-border); background: var(--color-surface); }
+.tabs button { padding: 8px 12px; border: 0; border-bottom: 2px solid transparent; box-shadow: none; background: transparent; }
+.tabs .active { border-bottom-color: var(--color-primary); color: var(--color-primary-dark); }
+.overviewPane { min-height: 0; overflow: auto; }
+.overview { padding: 18px 20px; display: grid; gap: 18px; }
+.metadata { margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px 24px; }
+.metadata div { min-width: 0; }
+.metadata dt { color: var(--color-text-muted); font-size: 12px; }
+.metadata dd { margin: 3px 0 0; overflow-wrap: anywhere; }
+.metadata dd code + code { margin-left: 8px; }
+.summary { display: flex; gap: 12px; }
+.added { color: #167342; }
+.deleted, .error { color: var(--color-danger); }
+.message { margin: 0; padding: 14px; white-space: pre-wrap; font: inherit; border: 1px solid var(--color-border); background: var(--color-background); }
+.diffPane { min-width: 0; min-height: 0; overflow: auto; }
+.diffList { width: max-content; min-width: 100%; padding: 16px 20px; display: grid; gap: 14px; }
+.diffFile { min-width: 100%; border: 1px solid var(--color-border); }
+.loading, .empty, .error { margin: 20px; }

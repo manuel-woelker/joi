@@ -1410,6 +1410,7 @@ dependencies = [
  "joi-plugin",
  "joi-server",
  "ksuid",
+ "serde_json",
  "time 0.3.55",
 ]
 

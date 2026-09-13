@@ -9,6 +9,7 @@ export interface GitHistoryProps {
   readonly pageSize?: number;
   readonly ariaLabel?: string;
   readonly now?: () => Date;
+  readonly onCommitSelect?: (commit: GitHistoryCommit) => void;
 }
 
 const laneWidth = 18;
@@ -53,7 +54,19 @@ export function GitHistory(props: GitHistoryProps) {
               const row = () => graph()[index()];
               const message = () => splitMessage(commit.message);
               return (
-                <li class={styles.commit}>
+                <li
+                  class={styles.commit}
+                  classList={{ [styles.selectable]: Boolean(props.onCommitSelect) }}
+                  onClick={() => props.onCommitSelect?.(commit)}
+                  onKeyDown={(event) => {
+                    if (props.onCommitSelect && (event.key === "Enter" || event.key === " ")) {
+                      event.preventDefault();
+                      props.onCommitSelect(commit);
+                    }
+                  }}
+                  role={props.onCommitSelect ? "button" : undefined}
+                  tabIndex={props.onCommitSelect ? 0 : undefined}
+                >
                   <CommitGraph row={row()} />
                   <div class={styles.details}>
                     <div class={styles.message}>
