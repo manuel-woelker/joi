@@ -34,7 +34,9 @@ export function ViewContent(props: { view?: ApplicationView }) {
                 <ActionCommands />
               </div>
             </div>
-            <Dynamic component={view().content} />
+            <div class={styles.viewBody}>
+              <Dynamic component={view().content} />
+            </div>
           </>
         )}
       </Show>

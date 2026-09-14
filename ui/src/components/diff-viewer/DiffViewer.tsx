@@ -83,14 +83,16 @@ export function DiffViewer(props: DiffViewerProps) {
             placeholder="Path..."
           />
         </label>
-        <Show when={tree().model.roots.length} fallback={<p class={styles.empty}>No matching files.</p>}>
-          <Tree
-            ariaLabel="Changed files"
-            model={tree().model}
-            definition={diffFileTreeDefinition(tree(), controller.state.selectedFile, selectFile)}
-            expanded={tree().expanded}
-          />
-        </Show>
+        <div class={styles.fileTree}>
+          <Show when={tree().model.roots.length} fallback={<p class={styles.empty}>No matching files.</p>}>
+            <Tree
+              ariaLabel="Changed files"
+              model={tree().model}
+              definition={diffFileTreeDefinition(tree(), controller.state.selectedFile, selectFile)}
+              expanded={tree().expanded}
+            />
+          </Show>
+        </div>
       </aside>
       <main ref={viewport} class={styles.viewport} aria-label="Diff">
         <Show when={!parseError} fallback={<p class={styles.error}>{parseError}</p>}>

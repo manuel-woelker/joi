@@ -1,4 +1,5 @@
-.workspaceMain { min-width: 0; min-height: 0; flex: 1 1 auto; overflow: auto; padding: 28px 34px; }
+.workspaceMain { display: flex; min-width: 0; min-height: 0; flex: 1 1 auto; overflow: hidden; padding: 28px 34px; flex-direction: column; }
+.viewBody { min-width: 0; min-height: 0; flex: 1 1 auto; overflow: auto; }
 .viewHeading, .viewToolbar { display: flex; max-width: 1080px; margin-right: auto; margin-left: auto; }
 .viewHeading { align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 22px; }
 .headingCommands { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }

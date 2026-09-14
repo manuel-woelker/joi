@@ -81,6 +81,21 @@ describe("NavigationController", () => {
     });
   });
 
+  it("restores and updates route-local hash state without changing the selection", () => {
+    window.location.hash = "#/codevette/commit%2F123?tab=diff";
+    const replaceState = vi.spyOn(window.history, "replaceState");
+    createRoot((dispose) => {
+      const navigation = createNavigationController();
+      expect(navigation.selectedViewId()).toBe("commit/123");
+      expect(navigation.hashState("tab")).toBe("diff");
+
+      navigation.setHashState("tab", undefined);
+      expect(navigation.hashState("tab")).toBeUndefined();
+      expect(replaceState).toHaveBeenLastCalledWith(undefined, "", "#/codevette/commit%2F123");
+      dispose();
+    });
+  });
+
   it("removes its hash listener on cleanup", () => {
     const remove = vi.spyOn(window, "removeEventListener");
     createRoot((dispose) => {

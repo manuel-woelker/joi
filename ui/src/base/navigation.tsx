@@ -21,6 +21,8 @@ export interface NavigationController {
   selectedRecordId: () => string | undefined;
   creatingRecord: () => boolean;
   activeRoute: () => NavigationRoute | undefined;
+  hashState: (key: string) => string | undefined;
+  setHashState(key: string, value?: string): void;
   selectView(id: string, route?: NavigationRoute): void;
   selectRecord(id: string): void;
   createRecord(): void;
@@ -31,7 +33,7 @@ export interface NavigationController {
 const NavigationContext = createContext<NavigationController>();
 
 function selectionFromHash(): NavigationSelection {
-  const parts = window.location.hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
+  const parts = hashPath().replace(/^\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
   if (!parts.length) return { type: "none" };
   const recent = parts[0] === "recent";
   const offset = recent ? 1 : 0;
@@ -55,6 +57,7 @@ function selectionFromHash(): NavigationSelection {
 /** Creates a reactive hash navigation controller for the current window. */
 export function createNavigationController(): NavigationController {
   const [selection, setSelection] = createSignal(selectionFromHash());
+  const [routeState, setRouteState] = createSignal(hashParameters());
   const selectedViewId = createMemo(() => {
     const current = selection();
     return current.type === "view"
@@ -63,7 +66,10 @@ export function createNavigationController(): NavigationController {
         ? current.owner.id
         : undefined;
   });
-  const onHashChange = () => setSelection(selectionFromHash());
+  const onHashChange = () => {
+    setSelection(selectionFromHash());
+    setRouteState(hashParameters());
+  };
   window.addEventListener("hashchange", onHashChange);
   onCleanup(() => window.removeEventListener("hashchange", onHashChange));
 
@@ -83,8 +89,19 @@ export function createNavigationController(): NavigationController {
           ? current.route
           : undefined;
     }),
+    hashState: (key) => routeState().get(key) ?? undefined,
+    setHashState(key, value) {
+      const parameters = hashParameters();
+      if (value === undefined) parameters.delete(key);
+      else parameters.set(key, value);
+      const query = parameters.toString();
+      const hash = `#${hashPath()}${query ? `?${query}` : ""}`;
+      window.history.replaceState(undefined, "", hash);
+      setRouteState(parameters);
+    },
     selectView(id, route = { source: "workspace", section: "workspace", id }) {
       setSelection({ type: "view", id, route });
+      setRouteState(new URLSearchParams());
       window.location.hash = routeHash(route);
     },
     selectRecord(recordId) {
@@ -92,6 +109,7 @@ export function createNavigationController(): NavigationController {
       if (current.type === "none" || current.type === "unknown") return;
       const owner = current.type === "record" || current.type === "create" ? current.owner : current;
       setSelection({ type: "record", owner, recordId });
+      setRouteState(new URLSearchParams());
       window.location.hash = `${routeHash(ownerRoute(owner))}/records/${encodeURIComponent(recordId)}`;
     },
     createRecord() {
@@ -99,12 +117,14 @@ export function createNavigationController(): NavigationController {
       if (current.type === "none" || current.type === "unknown") return;
       const owner = current.type === "record" || current.type === "create" ? current.owner : current;
       setSelection({ type: "create", owner });
+      setRouteState(new URLSearchParams());
       window.location.hash = `${routeHash(ownerRoute(owner))}/new`;
     },
     finishCreatingRecord(recordId) {
       const current = selection();
       if (current.type !== "create") return;
       setSelection({ type: "record", owner: current.owner, recordId });
+      setRouteState(new URLSearchParams());
       const hash = `#${routeHash(ownerRoute(current.owner))}/records/${encodeURIComponent(recordId)}`;
       window.history.replaceState(undefined, "", hash);
     },
@@ -112,9 +132,18 @@ export function createNavigationController(): NavigationController {
       const current = selection();
       if (current.type !== "record" && current.type !== "create") return;
       setSelection(current.owner);
+      setRouteState(new URLSearchParams());
       window.location.hash = routeHash(ownerRoute(current.owner));
     },
   };
+}
+
+function hashPath(): string {
+  return window.location.hash.replace(/^#/, "").split("?", 1)[0];
+}
+
+function hashParameters(): URLSearchParams {
+  return new URLSearchParams(window.location.hash.split("?", 2)[1] ?? "");
 }
 
 function routeHash(route: NavigationRoute): string {

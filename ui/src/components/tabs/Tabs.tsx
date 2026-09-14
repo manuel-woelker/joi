@@ -10,6 +10,7 @@ export interface TabDefinition {
 }
 
 export interface TabsProps {
+  readonly class?: string;
   readonly ariaLabel: string;
   readonly tabs: readonly TabDefinition[];
   readonly selected: string;
@@ -42,7 +43,7 @@ export function Tabs(props: TabsProps) {
   const panelId = (id: string) => `${instanceId}-panel-${id}`;
 
   return (
-    <div class={styles.tabs}>
+    <div class={`${styles.tabs} ${props.class ?? ""}`}>
       <div class={styles.tabList} role="tablist" aria-label={props.ariaLabel}>
         <For each={props.tabs}>
           {(tab) => (
