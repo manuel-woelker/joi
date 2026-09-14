@@ -50,7 +50,7 @@ describe("DiffViewer", () => {
         comments={{ currentUserId: "user", commitId: "demo", load: async () => comments, save }}
       />
     ));
-    await user.click(await screen.findByLabelText("Comment on new line 4"));
+    await user.click((await screen.findAllByLabelText("Comment on new line 4"))[0]);
     fireEvent.input(await screen.findByLabelText("Comment"), { target: { value: "Review this" } });
     fireEvent.click(screen.getByText("Save"));
     await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ id: null, commitId: "demo" })));

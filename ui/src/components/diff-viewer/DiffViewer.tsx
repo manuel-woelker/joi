@@ -13,6 +13,7 @@ import { buildDiffFileTree, diffFileTreeDefinition } from "./file-tree";
 import { parsePatch } from "./patch-parser";
 import styles from "./DiffViewer.module.css";
 import { flattenDiffRows, type VirtualDiffRow } from "./virtual-rows";
+import { diffWords, type WordDiffFragment } from "./word-diff";
 
 export interface DiffViewerProps {
   readonly patch: string;
@@ -229,18 +230,17 @@ function CodeBlock(props: {
   readonly commentable: boolean;
   readonly open: (location: DiffLocation) => void;
 }) {
-  const deletions = () =>
-    props.row.pairs.map((pair) => pair.deletion).filter((line): line is DiffLine => Boolean(line));
-  const additions = () =>
-    props.row.pairs.map((pair) => pair.addition).filter((line): line is DiffLine => Boolean(line));
+  const deletions = () => props.row.pairs.filter((pair) => Boolean(pair.deletion));
+  const additions = () => props.row.pairs.filter((pair) => Boolean(pair.addition));
   return (
     <div class={styles.codeBlock}>
       <Show when={deletions().length} fallback={<div class={styles.placeholder} aria-hidden="true" />}>
         <div class={styles.codeBlockSide}>
           <For each={deletions()}>
-            {(line) => (
+            {(pair) => (
               <CodeSide
-                line={line}
+                line={pair.deletion!}
+                comparison={pair.addition}
                 side="deletions"
                 file={props.row.file.displayPath}
                 commentable={props.commentable}
@@ -253,9 +253,10 @@ function CodeBlock(props: {
       <Show when={additions().length} fallback={<div class={styles.placeholder} aria-hidden="true" />}>
         <div class={styles.codeBlockSide}>
           <For each={additions()}>
-            {(line) => (
+            {(pair) => (
               <CodeSide
-                line={line}
+                line={pair.addition!}
+                comparison={pair.deletion}
                 side="additions"
                 file={props.row.file.displayPath}
                 commentable={props.commentable}
@@ -271,6 +272,7 @@ function CodeBlock(props: {
 
 function CodeSide(props: {
   readonly line?: DiffLine;
+  readonly comparison?: DiffLine;
   readonly side: "additions" | "deletions";
   readonly file: string;
   readonly commentable: boolean;
@@ -302,14 +304,36 @@ function CodeSide(props: {
       <span class={styles.marker}>
         {props.line?.kind === "addition" ? "+" : props.line?.kind === "deletion" ? "-" : " "}
       </span>
-      <code>{renderCode(props.line?.content ?? "")}</code>
+      <code>
+        <For each={codeFragments(props.line, props.comparison, props.side)}>
+          {(fragment) => (
+            <span
+              classList={{
+                [styles.wordAddition]: fragment.changed && props.side === "additions",
+                [styles.wordDeletion]: fragment.changed && props.side === "deletions",
+              }}
+            >
+              {fragment.text}
+            </span>
+          )}
+        </For>
+      </code>
     </div>
   );
 }
 
-/** Boundary for future asynchronous syntax highlighting. */
-function renderCode(content: string) {
-  return content;
+function codeFragments(
+  line: DiffLine | undefined,
+  comparison: DiffLine | undefined,
+  side: "additions" | "deletions",
+): readonly WordDiffFragment[] {
+  if (!line) return [];
+  if (!comparison || line.kind === "context" || comparison.kind === "context") {
+    return [{ text: line.content, changed: false }];
+  }
+  const words =
+    side === "deletions" ? diffWords(line.content, comparison.content) : diffWords(comparison.content, line.content);
+  return side === "deletions" ? words.deletion : words.addition;
 }
 
 function Comment(props: {

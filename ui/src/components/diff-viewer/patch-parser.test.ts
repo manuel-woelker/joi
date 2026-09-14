@@ -5,11 +5,14 @@ import { parsePatch } from "./patch-parser";
 describe("parsePatch", () => {
   it("normalizes multiple modified and added files with exact line numbers", () => {
     const document = parsePatch(multipleFilesPatch);
-    expect(document.files).toHaveLength(2);
-    const review = document.filesById.get(document.files[0]);
+    expect(document.files).toHaveLength(3);
+    const review = [...document.filesById.values()].find((file) => file.displayPath === "src/review.ts");
     expect(review).toMatchObject({ displayPath: "src/review.ts", status: "modified", additions: 5, deletions: 2 });
     expect(review?.hunks[0].lines.find((line) => line.kind === "addition")).toMatchObject({ newLine: 3 });
-    expect(document.filesById.get(document.files[1])).toMatchObject({ displayPath: "src/status.ts", status: "added" });
+    expect([...document.filesById.values()].find((file) => file.displayPath === "src/status.ts")).toMatchObject({
+      displayPath: "src/status.ts",
+      status: "added",
+    });
   });
 
   it("normalizes deleted files", () => {

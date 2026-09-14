@@ -20,6 +20,8 @@
 .gutter:hover, .gutter:focus-visible { color: var(--color-primary-dark); background: var(--color-surface-hover); }
 .marker { padding: 0 3px; color: var(--color-text-muted); user-select: none; }
 .codeSide code { overflow: visible; padding: 0 8px 0 0; line-height: 20px; white-space: pre; }
+.wordAddition { border-radius: 2px; background: color-mix(in srgb, #20a66a 35%, transparent); }
+.wordDeletion { border-radius: 2px; background: color-mix(in srgb, #d94a55 35%, transparent); }
 .thread { padding: 2px 14px 2px 8px; border-block: 1px solid var(--color-border); border-left: 3px solid var(--color-comment-accent); background: var(--color-surface-subtle); }
 .comment { margin-left: calc(var(--comment-depth) * 12px); padding: 2px 4px; background: transparent; }
 .comment + .comment { border-top: 1px solid color-mix(in srgb, var(--color-border) 65%, transparent); }
