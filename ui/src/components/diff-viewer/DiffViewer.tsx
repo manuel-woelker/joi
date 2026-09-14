@@ -19,7 +19,7 @@ import { diffWords, type WordDiffFragment } from "./word-diff";
 export interface DiffViewerProps {
   readonly patch: string;
   readonly comments?: ReviewCommentSource;
-  readonly height?: number;
+  readonly height?: number | string;
   readonly showDiagnostics?: boolean;
   /** Disable virtualization for tests or very small embedded patches. */
   readonly virtualized?: boolean;
@@ -51,7 +51,7 @@ export function DiffViewer(props: DiffViewerProps) {
     getScrollElement: () => viewport ?? null,
     estimateSize: (index) => estimateHeight(rows()[index]),
     overscan: 12,
-    initialRect: { width: 900, height: props.height ?? 560 },
+    initialRect: { width: 900, height: typeof props.height === "number" ? props.height : 560 },
   });
   createEffect(() => {
     rows();
@@ -70,7 +70,10 @@ export function DiffViewer(props: DiffViewerProps) {
   };
   onMount(() => void controller.load());
   return (
-    <div class={styles.viewer} style={{ height: `${props.height ?? 560}px` }}>
+    <div
+      class={styles.viewer}
+      style={{ height: typeof props.height === "number" ? `${props.height}px` : (props.height ?? "560px") }}
+    >
       <aside class={styles.files}>
         <label class={styles.filter}>
           <span>Filter files</span>

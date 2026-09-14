@@ -17,7 +17,5 @@
 .added { color: #167342; }
 .deleted, .error { color: var(--color-danger); }
 .message { margin: 0; padding: 14px; white-space: pre-wrap; font: inherit; border: 1px solid var(--color-border); background: var(--color-background); }
-.diffPane { min-width: 0; min-height: 0; overflow-x: hidden; overflow-y: auto; }
-.diffList { width: 100%; min-width: 0; padding: 16px 20px; display: grid; gap: 14px; }
-.diffFile { width: 100%; min-width: 0; border: 1px solid var(--color-border); }
+.diffPane { min-width: 0; min-height: 0; overflow: hidden; padding: 12px 20px 20px; }
 .loading, .empty, .error { margin: 20px; }

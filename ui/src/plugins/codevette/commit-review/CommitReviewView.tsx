@@ -2,8 +2,9 @@ import GitCommitIcon from "lucide-solid/icons/git-commit-horizontal";
 import { createResource, createSignal, Match, Show, Switch } from "solid-js";
 
 import type { FetchService } from "../../../base/services/fetch-service";
+import { DiffViewer } from "../../../components/diff-viewer/DiffViewer";
+import type { ReviewCommentSource } from "../../../components/diff-viewer/comment-model";
 import { CommandService } from "../../../generated/api/command-service";
-import { CommitDiff, type ReviewCommentSource } from "./CommitDiff";
 import styles from "./CommitReviewView.module.css";
 
 export interface CommitReviewViewProps {
@@ -55,8 +56,9 @@ export function CommitReviewView(props: CommitReviewViewProps) {
                   <div class={styles.diffPane}>
                     <Show when={currentUser()} fallback={<p class={styles.loading}>Loading comments…</p>}>
                       {(user) => (
-                        <CommitDiff
+                        <DiffViewer
                           patch={details().patch}
+                          height="100%"
                           comments={commentSource(commands, details().id, user().id)}
                         />
                       )}
@@ -116,6 +118,7 @@ function subject(message: string) {
 function commentSource(commands: CommandService, commitId: string, currentUserId: string): ReviewCommentSource {
   return {
     currentUserId,
+    commitId,
     async load() {
       return (await commands.codevetteReviewComments({ commitId })).comments;
     },
