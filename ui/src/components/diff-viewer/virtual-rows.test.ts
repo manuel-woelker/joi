@@ -22,6 +22,28 @@ describe("flattenDiffRows", () => {
     expect(rows.some((row) => row.kind === "code" && row.pairs.length > 1)).toBe(true);
   });
 
+  it("keeps a missing-line section grouped when one of its lines has a comment", () => {
+    const document = parsePatch(multipleFilesPatch);
+    const comment: ReviewComment = {
+      id: "comment-1",
+      commitId: "commit-1",
+      createdAt: "2026-01-02T00:00:00Z",
+      authorId: "user-1",
+      authorUsername: "jane",
+      parentId: null,
+      file: "src/review.ts",
+      line: 5,
+      side: "additions",
+      comment: "This line is in the additions-only run.",
+    };
+    const rows = flattenDiffRows(document, document.files, [comment]);
+    const threadIndex = rows.findIndex((row) => row.kind === "thread");
+    const preceding = rows[threadIndex - 1];
+
+    expect(preceding.kind).toBe("code");
+    expect(preceding.kind === "code" && preceding.pairs).toHaveLength(3);
+  });
+
   it("keeps comment editors inline instead of emitting a separate row", () => {
     const document = parsePatch(multipleFilesPatch);
     const rows = flattenDiffRows(document, document.files, [], {

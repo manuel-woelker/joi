@@ -47,27 +47,24 @@ export function flattenDiffRows(
       const pairs = pairHunkLines(hunk);
       for (let pairIndex = 0; pairIndex < pairs.length; pairIndex += 1) {
         const pair = pairs[pairIndex];
-        const missingSide = hasAnnotations(file, pair, byLocation, editor) ? undefined : missingSideFor(pair);
+        const missingSide = missingSideFor(pair);
         const group = [pair];
-        while (
-          missingSide &&
-          pairIndex + 1 < pairs.length &&
-          missingSideFor(pairs[pairIndex + 1]) === missingSide &&
-          !hasAnnotations(file, pairs[pairIndex + 1], byLocation, editor)
-        ) {
+        while (missingSide && pairIndex + 1 < pairs.length && missingSideFor(pairs[pairIndex + 1]) === missingSide) {
           group.push(pairs[++pairIndex]);
         }
         rows.push({ id: pair.id, kind: "code", file, pairs: group });
-        for (const location of pairLocations(file, pair)) {
-          const located = byLocation.get(locationKey(location)) ?? [];
-          if (located.length)
-            rows.push({
-              id: diffRowId(`${pair.id}:thread:${location.side}`),
-              kind: "thread",
-              entries: commentThreads(located).flat(),
-            });
-          if (editor?.kind === "new" && locationKey(editor.location) === locationKey(location)) {
-            rows.push({ id: diffRowId(`${pair.id}:editor:${location.side}`), kind: "editor", editor });
+        for (const groupedPair of group) {
+          for (const location of pairLocations(file, groupedPair)) {
+            const located = byLocation.get(locationKey(location)) ?? [];
+            if (located.length)
+              rows.push({
+                id: diffRowId(`${groupedPair.id}:thread:${location.side}`),
+                kind: "thread",
+                entries: commentThreads(located).flat(),
+              });
+            if (editor?.kind === "new" && locationKey(editor.location) === locationKey(location)) {
+              rows.push({ id: diffRowId(`${groupedPair.id}:editor:${location.side}`), kind: "editor", editor });
+            }
           }
         }
       }
@@ -131,19 +128,6 @@ function missingSideFor(pair: PairedDiffLine): "additions" | "deletions" | undef
   if (!pair.addition) return "additions";
   if (!pair.deletion) return "deletions";
   return undefined;
-}
-
-function hasAnnotations(
-  file: DiffFile,
-  pair: PairedDiffLine,
-  comments: ReadonlyMap<string, readonly ReviewComment[]>,
-  editor: CommentEditor | undefined,
-): boolean {
-  return pairLocations(file, pair).some(
-    (location) =>
-      comments.has(locationKey(location)) ||
-      (editor !== undefined && locationKey(editor.location) === locationKey(location)),
-  );
 }
 
 function pairLocations(file: DiffFile, pair: PairedDiffLine): DiffLocation[] {
