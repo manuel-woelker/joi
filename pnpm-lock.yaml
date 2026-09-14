@@ -38,6 +38,9 @@ importers:
       lucide-solid:
         specifier: ^1.39.0
         version: 1.41.0(solid-js@1.9.15)
+      parse-diff:
+        specifier: ^0.12.0
+        version: 0.12.0
       solid-js:
         specifier: ^1.9.13
         version: 1.9.15
@@ -1094,6 +1097,9 @@ packages:
 
   oniguruma-to-es@4.3.6:
     resolution: {integrity: sha512-csuQ9x3Yr0cEIs/Zgx/OEt9iBw9vqIunAPQkx19R/fiMq2oGVTgcMqO/V3Ybqefr1TBvosI6jU539ksaBULJyA==}
+
+  parse-diff@0.12.0:
+    resolution: {integrity: sha512-2Xr5mW4Bqd4CqYq2zttfw/RZraK+KcRuJvNkJzbDk3ea67Ap525XeTvBdtDE5tigJMVzIx/DMUzsShAf6+5SCA==}
 
   parse5@7.3.0:
     resolution: {integrity: sha512-IInvU7fabl34qmi9gY8XOVxhYyMyuH2xUNpb2q8/Y+7552KlejkRvqvD19nMoUW/uQGGbqNpA6Tufu5FL5BZgw==}
@@ -2308,6 +2314,8 @@ snapshots:
       oniguruma-parser: 0.12.2
       regex: 6.1.0
       regex-recursion: 6.0.2
+
+  parse-diff@0.12.0: {}
 
   parse5@7.3.0:
     dependencies:

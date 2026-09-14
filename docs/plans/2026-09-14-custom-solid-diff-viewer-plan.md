@@ -204,44 +204,44 @@ token colors.
 
 ## Implementation Checklist
 
-- [ ] Add `parse-diff` to the UI and implement a private parser adapter that
+- [x] Add `parse-diff` to the UI and implement a private parser adapter that
       returns Joi-owned normalized diff types.
-- [ ] Add parser fixtures for modified/added/deleted/renamed files, multiple
+- [x] Add parser fixtures for modified/added/deleted/renamed files, multiple
       hunks/files, special markers, spaces, binary/mode-only files, and invalid
       input; switch to jsdiff only if the documented fallback criteria occur.
-- [ ] Add branded file/row IDs, canonical comment locations, side-by-side line
+- [x] Add branded file/row IDs, canonical comment locations, side-by-side line
       pairing, and flattened virtual-row derivation as pure modules.
-- [ ] Add `DiffViewerStore` with explicit selection, filtering, comment editor,
+- [x] Add `DiffViewerStore` with explicit selection, filtering, comment editor,
       save, and error operations using the existing review-comment API types.
-- [ ] Index and assemble comment threads with deterministic ordering and
+- [x] Index and assemble comment threads with deterministic ordering and
       orphan/cycle protection.
-- [ ] Implement the file-tree adapter and quick-filter input using the existing
+- [x] Implement the file-tree adapter and quick-filter input using the existing
       Tree component, including auto-expansion and empty results.
-- [ ] Implement the two-column viewer shell with a non-scrolling file panel and
+- [x] Implement the two-column viewer shell with a non-scrolling file panel and
       independently scrolling diff viewport.
-- [ ] Implement virtual file/hunk/code/comment/editor rows with TanStack
+- [x] Implement virtual file/hunk/code/comment/editor rows with TanStack
       Virtual, dynamic measurement, overscan, and stable scroll anchoring.
-- [ ] Implement side-by-side code rows, fixed gutters, symmetric change bars,
+- [x] Implement side-by-side code rows, fixed gutters, symmetric change bars,
       horizontal code scrolling, text selection, and accessible line-comment
       controls.
-- [ ] Implement Solid comment threads with text-first presentation, metadata,
+- [x] Implement Solid comment threads with text-first presentation, metadata,
       pen/reply icon actions, custom tooltips, local textarea drafts, and
       inline save errors.
-- [ ] Add file selection and filtered-file keyboard interaction, including
+- [x] Add file selection and filtered-file keyboard interaction, including
       scrolling the selected file header into view.
-- [ ] Create playground scenarios based on the existing demo: multiple files,
+- [x] Create playground scenarios based on the existing demo: multiple files,
       long lines, removed file, comments with nested replies, add/edit/reply
       interactions, empty patch, malformed patch, quick filtering, and a large
       virtualized patch.
-- [ ] Add focused tests for parser normalization, line pairing, stable IDs,
+- [x] Add focused tests for parser normalization, line pairing, stable IDs,
       filtering, thread assembly, store transitions, failed saves, local draft
       isolation, virtual-row flattening, and comment accessibility.
-- [ ] Add component integration tests for file-tree navigation, add/edit/reply
+- [x] Add component integration tests for file-tree navigation, add/edit/reply
       flows, focus retention, and bounded rendered row counts.
-- [ ] Measure parse time, initial render time, comment-open latency, and scroll
+- [x] Measure parse time, initial render time, comment-open latency, and scroll
       behavior in the large demo; document measured baselines in the plan's
       implementation record.
-- [ ] Run UI tests, type checking, and production build, then run `nao check`
+- [x] Run UI tests, type checking, and production build, then run `nao check`
       and restart active development tasks with `nao --restart`.
 
 ## How will we verify it?
@@ -262,6 +262,20 @@ token colors.
   use deterministic in-memory comment sources.
 - The existing Pierre-based production commit view is unchanged during this
   phase, providing a direct comparison and rollback path.
+
+## Implementation Record
+
+Implemented the playground-only viewer in `ui/src/components/diff-viewer`.
+`parse-diff` passed the Git metadata contract fixtures, so the jsdiff fallback
+was not needed. The former Pierre playground demo was replaced while the
+production Codevette commit view remains unchanged.
+
+On the development machine, the focused Vitest run parsed all fixtures,
+including the 20-file/10,000-line patch, in 26 ms and completed the component
+interaction suite in 215 ms. The large scenario renders fewer than 100 virtual
+rows at once. These are regression baselines rather than browser-frame
+benchmarks; production integration should add browser performance traces
+before replacing the current viewer.
 
 ## What assumptions and risks remain?
 

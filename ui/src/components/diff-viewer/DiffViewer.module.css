@@ -1,0 +1,40 @@
+.viewer { display: grid; grid-template-columns: 240px minmax(0, 1fr); min-height: 320px; overflow: hidden; border: 1px solid var(--color-border); background: var(--color-surface); }
+.files { min-width: 0; overflow: auto; border-right: 1px solid var(--color-border); background: var(--color-surface-subtle); }
+.filter { display: grid; gap: 4px; padding: 8px; border-bottom: 1px solid var(--color-border); color: var(--color-text-muted); font-size: 11px; font-weight: 650; text-transform: uppercase; }
+.filter input { width: 100%; min-width: 0; }
+.files small { margin-left: auto; color: var(--color-text-muted); font-family: monospace; font-size: 10px; }
+.viewport { position: relative; min-width: 0; overflow: auto; background: var(--color-surface); }
+.virtualCanvas { position: relative; min-width: 760px; }
+.virtualRow { position: absolute; top: 0; left: 0; width: 100%; }
+.fileHeader { display: flex; align-items: center; justify-content: space-between; min-height: 38px; padding: 0 12px; border-block: 1px solid var(--color-border); background: var(--color-surface-subtle); }
+.counts { color: var(--color-text-muted); font-family: monospace; }
+.hunk { min-height: 22px; padding: 2px 12px; color: var(--color-primary-dark); background: var(--color-primary-faint); font-family: monospace; line-height: 18px; white-space: pre; }
+.codeBlock { display: grid; grid-template-columns: minmax(380px, 1fr) minmax(380px, 1fr); min-height: 20px; font: 12px/20px monospace; }
+.codeBlock > :first-child { border-right: 1px solid var(--color-border); }
+.codeSide { display: grid; grid-template-columns: 44px 18px minmax(0, 1fr); min-width: 0; border-left: 3px solid transparent; background: var(--color-surface); }
+.addition { border-left-color: #20a66a; background: color-mix(in srgb, #20a66a 11%, var(--color-surface)); }
+.deletion { border-left-color: #d94a55; background: color-mix(in srgb, #d94a55 11%, var(--color-surface)); }
+.placeholder { min-height: 100%; background: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--color-border) 55%, transparent) 6px 8px); }
+.gutter { height: 20px; padding: 0 7px; border: 0; border-radius: 0; box-shadow: none; color: var(--color-text-muted); background: transparent; font: inherit; line-height: 20px; text-align: right; }
+.gutter:hover, .gutter:focus-visible { color: var(--color-primary-dark); background: var(--color-surface-hover); }
+.marker { padding: 0 3px; color: var(--color-text-muted); user-select: none; }
+.codeSide code { overflow: visible; padding: 0 8px 0 0; line-height: 20px; white-space: pre; }
+.thread { padding: 6px 14px 6px 64px; border-block: 1px solid var(--color-border); background: var(--color-surface-subtle); }
+.comment { margin-left: calc(var(--comment-depth) * 18px); padding: 7px 9px; border-left: 3px solid var(--color-secondary); background: var(--color-surface); }
+.comment + .comment { margin-top: 5px; }
+.comment p { margin: 0 0 5px; white-space: pre-wrap; }
+.comment footer { display: flex; align-items: center; gap: 5px; color: var(--color-text-muted); font-size: 11px; }
+.comment footer > span:first-child { margin-right: auto; }
+.iconAction { position: relative; display: inline-grid; }
+.iconAction button { display: grid; width: 24px; height: 24px; place-items: center; padding: 0; }
+.iconAction [role="tooltip"] { position: absolute; z-index: 5; right: 0; bottom: calc(100% + 4px); display: none; width: max-content; padding: 4px 6px; border: 1px solid var(--color-border); background: var(--color-surface); box-shadow: 0 2px 5px color-mix(in srgb, var(--color-ink) 15%, transparent); font-size: 11px; }
+.iconAction:hover [role="tooltip"], .iconAction:focus-within [role="tooltip"] { display: block; }
+.editor { display: grid; gap: 6px; padding: 8px 14px 8px 64px; border-block: 1px solid var(--color-primary); background: var(--color-surface-subtle); }
+.editor textarea { min-height: 62px; resize: vertical; }
+.editor > div { display: flex; justify-content: flex-end; align-items: center; gap: 7px; }
+.editor button { display: inline-flex; align-items: center; gap: 4px; }
+.editor .error { margin-right: auto; }
+.empty, .error, .info { margin: 12px; color: var(--color-text-muted); }
+.error { color: var(--color-danger, #b4232d); }
+.diagnostics { position: sticky; right: 8px; bottom: 8px; float: right; padding: 3px 6px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-muted); font: 11px monospace; }
+@media (max-width: 720px) { .viewer { grid-template-columns: 180px minmax(0, 1fr); } }
