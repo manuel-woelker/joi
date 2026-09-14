@@ -3,7 +3,7 @@ import CheckIcon from "lucide-solid/icons/check";
 import PencilIcon from "lucide-solid/icons/pencil";
 import ReplyIcon from "lucide-solid/icons/reply";
 import XIcon from "lucide-solid/icons/x";
-import { createEffect, createMemo, createSignal, For, onMount, Show } from "solid-js";
+import { createEffect, createMemo, createResource, createSignal, For, onMount, Show } from "solid-js";
 import type { ReviewComment } from "../../generated/api/api";
 import { Tree } from "../tree/Tree";
 import type { CommentThreadEntry, ReviewCommentSource } from "./comment-model";
@@ -11,6 +11,7 @@ import { createDiffViewerStore, type CommentEditor as CommentEditorState } from 
 import { type DiffFileId, type DiffLine, type DiffLocation } from "./diff-model";
 import { buildDiffFileTree, diffFileTreeDefinition } from "./file-tree";
 import { parsePatch } from "./patch-parser";
+import { highlightLine, type SyntaxToken } from "./syntax-highlighter";
 import styles from "./DiffViewer.module.css";
 import { flattenDiffRows, type VirtualDiffRow } from "./virtual-rows";
 import { diffWords, type WordDiffFragment } from "./word-diff";
@@ -280,6 +281,12 @@ function CodeSide(props: {
 }) {
   const open = props.open;
   const number = () => (props.side === "additions" ? props.line?.newLine : props.line?.oldLine);
+  const words = createMemo(() => codeFragments(props.line, props.comparison, props.side));
+  const [syntax] = createResource(
+    () => (props.line ? { path: props.file, code: props.line.content } : undefined),
+    ({ path, code }) => highlightLine(path, code),
+  );
+  const fragments = createMemo(() => combineHighlighting(syntax() ?? [{ text: props.line?.content ?? "" }], words()));
   return (
     <div
       class={styles.codeSide}
@@ -305,9 +312,10 @@ function CodeSide(props: {
         {props.line?.kind === "addition" ? "+" : props.line?.kind === "deletion" ? "-" : " "}
       </span>
       <code>
-        <For each={codeFragments(props.line, props.comparison, props.side)}>
+        <For each={fragments()}>
           {(fragment) => (
             <span
+              style={{ color: fragment.color }}
               classList={{
                 [styles.wordAddition]: fragment.changed && props.side === "additions",
                 [styles.wordDeletion]: fragment.changed && props.side === "deletions",
@@ -334,6 +342,42 @@ function codeFragments(
   const words =
     side === "deletions" ? diffWords(line.content, comparison.content) : diffWords(comparison.content, line.content);
   return side === "deletions" ? words.deletion : words.addition;
+}
+
+interface HighlightedFragment extends WordDiffFragment {
+  readonly color?: string;
+}
+
+function combineHighlighting(
+  syntax: readonly SyntaxToken[],
+  words: readonly WordDiffFragment[],
+): readonly HighlightedFragment[] {
+  const result: HighlightedFragment[] = [];
+  let syntaxIndex = 0;
+  let wordIndex = 0;
+  let syntaxOffset = 0;
+  let wordOffset = 0;
+  while (syntaxIndex < syntax.length && wordIndex < words.length) {
+    const syntaxToken = syntax[syntaxIndex];
+    const word = words[wordIndex];
+    const length = Math.min(syntaxToken.text.length - syntaxOffset, word.text.length - wordOffset);
+    result.push({
+      text: syntaxToken.text.slice(syntaxOffset, syntaxOffset + length),
+      color: syntaxToken.color,
+      changed: word.changed,
+    });
+    syntaxOffset += length;
+    wordOffset += length;
+    if (syntaxOffset === syntaxToken.text.length) {
+      syntaxIndex += 1;
+      syntaxOffset = 0;
+    }
+    if (wordOffset === word.text.length) {
+      wordIndex += 1;
+      wordOffset = 0;
+    }
+  }
+  return result;
 }
 
 function Comment(props: {
