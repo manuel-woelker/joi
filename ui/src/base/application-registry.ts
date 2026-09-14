@@ -2,7 +2,7 @@ import { DataChangeService, dataChangeServiceKey } from "../plugins/core/data-ch
 import { RecordMutationService, recordMutationServiceKey } from "../plugins/core/data-changes/record-mutation-service";
 import { createPluginRegistryService, pluginRegistryServiceKey } from "./plugin-registry-service";
 import { PluginRegistryBuilder, type UiPlugin } from "./plugin-registry";
-import { fetchService, fetchServiceKey } from "./services/fetch-service";
+import { fetchService as defaultFetchService, fetchServiceKey, type FetchService } from "./services/fetch-service";
 
 interface PluginModule {
   default: UiPlugin;
@@ -23,9 +23,10 @@ export function discoveredApplicationPlugins(): readonly UiPlugin[] {
  * Passing plugins explicitly bypasses discovery, which is useful for tests and
  * alternate application compositions.
  */
-export function createApplication(options: { plugins?: readonly UiPlugin[] } = {}) {
+export function createApplication(options: { plugins?: readonly UiPlugin[]; fetchService?: FetchService } = {}) {
   const initializationStarted = performance.now();
   const plugins = options.plugins ?? discoveredApplicationPlugins();
+  const fetchService = options.fetchService ?? defaultFetchService;
 
   const pluginRegistry = createPluginRegistryService();
   const dataChanges = new DataChangeService();

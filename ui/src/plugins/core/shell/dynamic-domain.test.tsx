@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createApplication, discoveredApplicationPlugins } from "../../../base/application-registry";
 import { PluginRegistryBuilder, plugin } from "../../../base/plugin-registry";
+import { FetchService } from "../../../base/services/fetch-service";
 import { entityDescriptions } from "../entities/entity-registry";
 import { defineEntity, entityId } from "../entities/entity-description";
 import entitiesPlugin from "../entities/entities.plugin";
@@ -123,7 +124,21 @@ describe("dynamic domain plugins", () => {
     );
     expect(plugins.some((candidate) => candidate.name === "tickets")).toBe(false);
 
-    const application = createApplication({ plugins });
+    const fetchService = new FetchService(async (_input, init) => {
+      const request = JSON.parse(String(init?.body)) as { table_name: string };
+      const attributes = request.table_name === "repositories" ? ["id", "name"] : ["id", "repository_id", "name"];
+      return {
+        ok: true,
+        json: async () => ({
+          number_of_hits: 0,
+          result_columns: attributes.map((attribute) => ({
+            attribute,
+            values: { type: "string", values: [] },
+          })),
+        }),
+      } as Response;
+    });
+    const application = createApplication({ plugins, fetchService });
 
     expect(application.registry.metadata().plugins.some((candidate) => candidate.name === "administration")).toBe(true);
     expect(application.registry.extensions(entityDescriptions).map((entity) => entity.id)).toEqual([

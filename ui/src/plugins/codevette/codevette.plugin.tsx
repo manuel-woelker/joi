@@ -136,32 +136,34 @@ function createRepositoryNavigation(service: FetchService): {
         maxResults: 10_000,
         attributes: ["id", "repository_id", "name"],
       }),
-    ]).then(([repositories, branchResult]) => {
-      const repositoryId = repositories.requireColumn("id");
-      const repositoryName = repositories.requireColumn("name");
-      const names = new Map(
-        repositories.rows.map((row) => [String(row.value(repositoryId)), String(row.value(repositoryName))]),
-      );
-      const branchId = branchResult.requireColumn("id");
-      const branchRepositoryId = branchResult.requireColumn("repository_id");
-      const branchName = branchResult.requireColumn("name");
-      setItems(
-        branchResult.rows.flatMap((row) => {
-          const repositoryIdValue = String(row.value(branchRepositoryId));
-          const name = names.get(repositoryIdValue);
-          return name
-            ? [
-                {
-                  id: String(row.value(branchId)),
-                  repositoryId: repositoryIdValue,
-                  repositoryName: name,
-                  name: String(row.value(branchName)),
-                },
-              ]
-            : [];
-        }),
-      );
-    });
+    ])
+      .then(([repositories, branchResult]) => {
+        const repositoryId = repositories.requireColumn("id");
+        const repositoryName = repositories.requireColumn("name");
+        const names = new Map(
+          repositories.rows.map((row) => [String(row.value(repositoryId)), String(row.value(repositoryName))]),
+        );
+        const branchId = branchResult.requireColumn("id");
+        const branchRepositoryId = branchResult.requireColumn("repository_id");
+        const branchName = branchResult.requireColumn("name");
+        setItems(
+          branchResult.rows.flatMap((row) => {
+            const repositoryIdValue = String(row.value(branchRepositoryId));
+            const name = names.get(repositoryIdValue);
+            return name
+              ? [
+                  {
+                    id: String(row.value(branchId)),
+                    repositoryId: repositoryIdValue,
+                    repositoryName: name,
+                    name: String(row.value(branchName)),
+                  },
+                ]
+              : [];
+          }),
+        );
+      })
+      .catch((error: unknown) => console.error("Failed to load Codevette repository navigation", error));
   };
   return {
     roots: () => {
