@@ -66,7 +66,7 @@ export function flattenDiffRows(
               kind: "thread",
               entries: commentThreads(located).flat(),
             });
-          if (editor && locationKey(editor.location) === locationKey(location)) {
+          if (editor?.kind === "new" && locationKey(editor.location) === locationKey(location)) {
             rows.push({ id: diffRowId(`${pair.id}:editor:${location.side}`), kind: "editor", editor });
           }
         }

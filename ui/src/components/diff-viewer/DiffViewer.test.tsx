@@ -25,6 +25,7 @@ describe("DiffViewer", () => {
     fireEvent.input(screen.getByPlaceholderText("Path..."), { target: { value: "status" } });
     expect(await screen.findByText("status.ts")).toBeTruthy();
     expect(screen.queryByText("review.ts")).toBeNull();
+    expect(screen.queryByLabelText(/Comment on/)).toBeNull();
   });
 
   it("adds, edits, and replies using accessible controls", async () => {
@@ -46,15 +47,17 @@ describe("DiffViewer", () => {
       <DiffViewer
         patch={multipleFilesPatch}
         virtualized={false}
-        comments={{ currentUserId: "user", load: async () => comments, save }}
+        comments={{ currentUserId: "user", commitId: "demo", load: async () => comments, save }}
       />
     ));
     await user.click(await screen.findByLabelText("Comment on new line 4"));
     fireEvent.input(await screen.findByLabelText("Comment"), { target: { value: "Review this" } });
     fireEvent.click(screen.getByText("Save"));
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ id: null, commitId: "demo" })));
     expect(await screen.findByText("Review this")).toBeTruthy();
     fireEvent.click(screen.getByLabelText("Edit comment"));
     const editor = screen.getByLabelText("Comment");
+    expect(editor.closest("article")?.textContent).toContain("Save");
     fireEvent.input(editor, { target: { value: "Updated review" } });
     fireEvent.click(screen.getByText("Save"));
     await waitFor(() =>

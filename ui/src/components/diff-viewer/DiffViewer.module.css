@@ -15,7 +15,8 @@
 .addition { border-left-color: #20a66a; background: color-mix(in srgb, #20a66a 11%, var(--color-surface)); }
 .deletion { border-left-color: #d94a55; background: color-mix(in srgb, #d94a55 11%, var(--color-surface)); }
 .placeholder { min-height: 100%; background: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--color-border) 55%, transparent) 6px 8px); }
-.gutter { height: 20px; padding: 0 7px; border: 0; border-radius: 0; box-shadow: none; color: var(--color-text-muted); background: transparent; font: inherit; line-height: 20px; text-align: right; }
+.lineNumber { height: 20px; padding: 0 7px; color: var(--color-text-muted); font: inherit; line-height: 20px; text-align: right; }
+.gutter { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
 .gutter:hover, .gutter:focus-visible { color: var(--color-primary-dark); background: var(--color-surface-hover); }
 .marker { padding: 0 3px; color: var(--color-text-muted); user-select: none; }
 .codeSide code { overflow: visible; padding: 0 8px 0 0; line-height: 20px; white-space: pre; }
@@ -30,6 +31,7 @@
 .iconAction [role="tooltip"] { position: absolute; z-index: 5; right: 0; bottom: calc(100% + 4px); display: none; width: max-content; padding: 4px 6px; border: 1px solid var(--color-border); background: var(--color-surface); box-shadow: 0 2px 5px color-mix(in srgb, var(--color-ink) 15%, transparent); font-size: 11px; }
 .iconAction:hover [role="tooltip"], .iconAction:focus-within [role="tooltip"] { display: block; }
 .editor { display: grid; gap: 4px; padding: 5px 14px 5px 8px; border-block: 1px solid var(--color-primary); background: var(--color-surface-subtle); }
+.editor.inlineEditor { padding: 2px 0; border: 0; background: transparent; }
 .editor textarea { min-height: 48px; resize: vertical; }
 .editor > div { display: flex; justify-content: flex-end; align-items: center; gap: 4px; }
 .editor button { display: inline-flex; align-items: center; gap: 4px; }

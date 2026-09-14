@@ -47,14 +47,15 @@ export function createDiffViewerStore(document: DiffDocument, source?: ReviewCom
     const editor = state.editor;
     setState({ saving: true, error: undefined });
     const editing = editor.kind === "edit" ? state.comments.find((item) => item.id === editor.commentId) : undefined;
+    const request = {
+      id: editing?.id ?? null,
+      commitId: editing?.commitId ?? source.commitId,
+      parentId: editing?.parentId ?? (editor.kind === "new" ? (editor.parentId ?? null) : null),
+      ...editor.location,
+      comment: text.trim(),
+    };
     try {
-      const saved = await source.save({
-        id: editing?.id ?? null,
-        commitId: editing?.commitId ?? "",
-        parentId: editing?.parentId ?? (editor.kind === "new" ? (editor.parentId ?? null) : null),
-        ...editor.location,
-        comment: text.trim(),
-      });
+      const saved = await source.save(request);
       setState("comments", (comments) => [...comments.filter((item) => item.id !== saved.id), saved]);
       setState({ editor: undefined, saving: false });
     } catch (reason) {

@@ -54,6 +54,7 @@ function commentSource(): ReviewCommentSource {
   ];
   return {
     currentUserId: "user-1",
+    commitId: "demo",
     async load() {
       return comments;
     },
@@ -62,7 +63,6 @@ function commentSource(): ReviewCommentSource {
       const saved: ReviewComment = {
         ...request,
         id: request.id ?? `comment-${comments.length + 1}`,
-        commitId: "demo",
         createdAt: previous?.createdAt ?? new Date().toISOString(),
         authorId: "user-1",
         authorUsername: "jane",

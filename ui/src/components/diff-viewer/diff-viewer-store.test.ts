@@ -25,6 +25,7 @@ describe("DiffViewerStore", () => {
       const save = vi.fn(async (request) => ({ ...comment, ...request, id: request.id ?? "two" }));
       const controller = createDiffViewerStore(parsePatch(multipleFilesPatch), {
         currentUserId: "user",
+        commitId: "commit",
         load: async () => [comment],
         save,
       });
@@ -41,6 +42,7 @@ describe("DiffViewerStore", () => {
     createRoot(async (dispose) => {
       const controller = createDiffViewerStore(parsePatch(multipleFilesPatch), {
         currentUserId: "user",
+        commitId: "commit",
         load: async () => [],
         save: async () => {
           throw new Error("Nope");

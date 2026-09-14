@@ -3,6 +3,7 @@ import type { DiffLocation } from "./diff-model";
 
 export interface ReviewCommentSource {
   readonly currentUserId: string;
+  readonly commitId: string;
   load(): Promise<readonly ReviewComment[]>;
   save(request: ReviewCommentSaveRequest): Promise<ReviewComment>;
 }

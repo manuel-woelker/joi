@@ -20,4 +20,14 @@ describe("flattenDiffRows", () => {
     const rows = flattenDiffRows(document, document.files, []);
     expect(rows.some((row) => row.kind === "code" && row.pairs.length > 1)).toBe(true);
   });
+
+  it("keeps comment editors inline instead of emitting a separate row", () => {
+    const document = parsePatch(multipleFilesPatch);
+    const rows = flattenDiffRows(document, document.files, [], {
+      kind: "edit",
+      commentId: "comment-1",
+      location: { file: "src/review.ts", line: 4, side: "additions" },
+    });
+    expect(rows.some((row) => row.kind === "editor")).toBe(false);
+  });
 });

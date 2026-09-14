@@ -7,7 +7,7 @@ import { createEffect, createMemo, createSignal, For, onMount, Show } from "soli
 import type { ReviewComment } from "../../generated/api/api";
 import { Tree } from "../tree/Tree";
 import type { CommentThreadEntry, ReviewCommentSource } from "./comment-model";
-import { createDiffViewerStore } from "./diff-viewer-store";
+import { createDiffViewerStore, type CommentEditor as CommentEditorState } from "./diff-viewer-store";
 import { type DiffFileId, type DiffLine, type DiffLocation } from "./diff-model";
 import { buildDiffFileTree, diffFileTreeDefinition } from "./file-tree";
 import { parsePatch } from "./patch-parser";
@@ -96,7 +96,12 @@ export function DiffViewer(props: DiffViewerProps) {
                 <For each={rows()}>
                   {(row) => (
                     <div data-row-id={row.id}>
-                      <DiffRow row={row} controller={controller} currentUserId={props.comments?.currentUserId} />
+                      <DiffRow
+                        row={row}
+                        controller={controller}
+                        commentable={Boolean(props.comments)}
+                        currentUserId={props.comments?.currentUserId}
+                      />
                     </div>
                   )}
                 </For>
@@ -119,7 +124,12 @@ export function DiffViewer(props: DiffViewerProps) {
                               transform: `translateY(${item.start}px)`,
                             }}
                           >
-                            <DiffRow row={row} controller={controller} currentUserId={props.comments?.currentUserId} />
+                            <DiffRow
+                              row={row}
+                              controller={controller}
+                              commentable={Boolean(props.comments)}
+                              currentUserId={props.comments?.currentUserId}
+                            />
                           </div>
                         )}
                       </Show>
@@ -143,6 +153,7 @@ export function DiffViewer(props: DiffViewerProps) {
 function DiffRow(props: {
   readonly row: VirtualDiffRow;
   readonly controller: ReturnType<typeof createDiffViewerStore>;
+  readonly commentable: boolean;
   readonly currentUserId?: string;
 }) {
   switch (props.row.kind) {
@@ -162,7 +173,13 @@ function DiffRow(props: {
     case "hunk":
       return <div class={styles.hunk}>{props.row.header}</div>;
     case "code":
-      return <CodeBlock row={props.row} open={(location) => props.controller.openCommentEditor(location)} />;
+      return (
+        <CodeBlock
+          row={props.row}
+          commentable={props.commentable}
+          open={(location) => props.controller.openCommentEditor(location)}
+        />
+      );
     case "thread":
       return (
         <div class={styles.thread}>
@@ -171,6 +188,9 @@ function DiffRow(props: {
               <Comment
                 entry={entry}
                 currentUserId={props.currentUserId}
+                editor={props.controller.state.editor}
+                saving={props.controller.state.saving}
+                error={props.controller.state.error}
                 edit={props.controller.openCommentEdit}
                 reply={(comment) =>
                   props.controller.openCommentEditor(
@@ -178,6 +198,8 @@ function DiffRow(props: {
                     comment.id,
                   )
                 }
+                save={props.controller.saveComment}
+                cancel={props.controller.cancelCommentEdit}
               />
             )}
           </For>
@@ -204,6 +226,7 @@ function DiffRow(props: {
 
 function CodeBlock(props: {
   readonly row: Extract<VirtualDiffRow, { readonly kind: "code" }>;
+  readonly commentable: boolean;
   readonly open: (location: DiffLocation) => void;
 }) {
   const deletions = () =>
@@ -215,14 +238,30 @@ function CodeBlock(props: {
       <Show when={deletions().length} fallback={<div class={styles.placeholder} aria-hidden="true" />}>
         <div class={styles.codeBlockSide}>
           <For each={deletions()}>
-            {(line) => <CodeSide line={line} side="deletions" file={props.row.file.displayPath} open={props.open} />}
+            {(line) => (
+              <CodeSide
+                line={line}
+                side="deletions"
+                file={props.row.file.displayPath}
+                commentable={props.commentable}
+                open={props.open}
+              />
+            )}
           </For>
         </div>
       </Show>
       <Show when={additions().length} fallback={<div class={styles.placeholder} aria-hidden="true" />}>
         <div class={styles.codeBlockSide}>
           <For each={additions()}>
-            {(line) => <CodeSide line={line} side="additions" file={props.row.file.displayPath} open={props.open} />}
+            {(line) => (
+              <CodeSide
+                line={line}
+                side="additions"
+                file={props.row.file.displayPath}
+                commentable={props.commentable}
+                open={props.open}
+              />
+            )}
           </For>
         </div>
       </Show>
@@ -234,6 +273,7 @@ function CodeSide(props: {
   readonly line?: DiffLine;
   readonly side: "additions" | "deletions";
   readonly file: string;
+  readonly commentable: boolean;
   readonly open: (location: DiffLocation) => void;
 }) {
   const open = props.open;
@@ -248,14 +288,16 @@ function CodeSide(props: {
       }}
     >
       <Show when={number()}>
-        <button
-          type="button"
-          class={styles.gutter}
-          aria-label={`Comment on ${props.side === "additions" ? "new" : "old"} line ${number()}`}
-          on:click={() => open({ file: props.file, line: number()!, side: props.side })}
-        >
-          {number()}
-        </button>
+        <Show when={props.commentable} fallback={<span class={styles.lineNumber}>{number()}</span>}>
+          <button
+            type="button"
+            class={`${styles.lineNumber} ${styles.gutter}`}
+            aria-label={`Comment on ${props.side === "additions" ? "new" : "old"} line ${number()}`}
+            on:click={() => open({ file: props.file, line: number()!, side: props.side })}
+          >
+            {number()}
+          </button>
+        </Show>
       </Show>
       <span class={styles.marker}>
         {props.line?.kind === "addition" ? "+" : props.line?.kind === "deletion" ? "-" : " "}
@@ -273,25 +315,47 @@ function renderCode(content: string) {
 function Comment(props: {
   readonly entry: CommentThreadEntry;
   readonly currentUserId?: string;
+  readonly editor?: CommentEditorState;
+  readonly saving: boolean;
+  readonly error?: string;
   readonly edit: (id: string) => void;
   readonly reply: (comment: ReviewComment) => void;
+  readonly save: (text: string) => Promise<void>;
+  readonly cancel: () => void;
 }) {
+  const isEditing = () => props.editor?.kind === "edit" && props.editor.commentId === props.entry.comment.id;
   return (
     <article class={styles.comment} style={{ "--comment-depth": Math.min(props.entry.depth, 3) }}>
-      <p>{props.entry.comment.comment}</p>
-      <footer>
-        <span>
-          @{props.entry.comment.authorUsername} · {new Date(props.entry.comment.createdAt).toLocaleString()}
-        </span>
-        <Show when={props.currentUserId === props.entry.comment.authorId}>
-          <IconAction label="Edit comment" onClick={() => props.edit(props.entry.comment.id)}>
-            <PencilIcon size={14} />
-          </IconAction>
-        </Show>
-        <IconAction label="Reply" onClick={() => props.reply(props.entry.comment)}>
-          <ReplyIcon size={14} />
-        </IconAction>
-      </footer>
+      <Show
+        when={isEditing()}
+        fallback={
+          <>
+            <p>{props.entry.comment.comment}</p>
+            <footer>
+              <span>
+                @{props.entry.comment.authorUsername} · {new Date(props.entry.comment.createdAt).toLocaleString()}
+              </span>
+              <Show when={props.currentUserId === props.entry.comment.authorId}>
+                <IconAction label="Edit comment" onClick={() => props.edit(props.entry.comment.id)}>
+                  <PencilIcon size={14} />
+                </IconAction>
+              </Show>
+              <IconAction label="Reply" onClick={() => props.reply(props.entry.comment)}>
+                <ReplyIcon size={14} />
+              </IconAction>
+            </footer>
+          </>
+        }
+      >
+        <CommentEditor
+          inline
+          initialValue={props.entry.comment.comment}
+          saving={props.saving}
+          error={props.error}
+          save={props.save}
+          cancel={props.cancel}
+        />
+      </Show>
     </article>
   );
 }
@@ -308,6 +372,7 @@ function IconAction(props: { readonly label: string; readonly onClick: () => voi
 }
 
 function CommentEditor(props: {
+  readonly inline?: boolean;
   readonly initialValue: string;
   readonly saving: boolean;
   readonly error?: string;
@@ -318,6 +383,7 @@ function CommentEditor(props: {
   return (
     <form
       class={styles.editor}
+      classList={{ [styles.inlineEditor]: props.inline }}
       onSubmit={(event) => {
         event.preventDefault();
         void props.save(draft()).catch(() => undefined);
