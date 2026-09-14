@@ -19,7 +19,10 @@ export interface CommitReviewViewProps {
 /** Displays commit metadata, its review state, and text-file changes. */
 export function CommitReviewView(props: CommitReviewViewProps) {
   const navigation = useNavigation();
-  const selectedTab = () => (navigation.hashState("tab") === "diff" ? "diff" : "summary");
+  const selectedTab = () => {
+    const tab = navigation.hashState("tab");
+    return tab === "diff" || tab === "comments" ? tab : "summary";
+  };
   const commands = new CommandService(props.service);
   const [commit] = createResource(
     () => ({ branchId: props.branchId, commitId: props.commitId }),
@@ -51,7 +54,7 @@ export function CommitReviewView(props: CommitReviewViewProps) {
                 ariaLabel="Commit review"
                 tabs={commitTabs(details(), currentUser(), commands)}
                 selected={selectedTab()}
-                onSelect={(id) => navigation.setHashState("tab", id === "diff" ? "diff" : undefined)}
+                onSelect={(id) => navigation.setHashState("tab", id === "summary" ? undefined : id)}
               />
             </>
           )}
@@ -106,6 +109,24 @@ function commitTabs(
             </div>
             <pre class={styles.message}>{details.message}</pre>
           </div>
+        </div>
+      ),
+    },
+    {
+      id: "comments",
+      label: "Comments",
+      render: () => (
+        <div class={styles.diffPane}>
+          <Show when={currentUser} fallback={<p class={styles.loading}>Loading comments…</p>}>
+            {(user) => (
+              <DiffViewer
+                patch={details.patch}
+                height="100%"
+                mode="comments"
+                comments={commentSource(commands, details.id, user().id)}
+              />
+            )}
+          </Show>
         </div>
       ),
     },

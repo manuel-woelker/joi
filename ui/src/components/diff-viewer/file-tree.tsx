@@ -23,13 +23,19 @@ export interface DiffFileTree {
 }
 
 /** Builds a filtered normalized tree while retaining matching files' ancestors. */
-export function buildDiffFileTree(document: DiffDocument, filter: string): DiffFileTree {
+export function buildDiffFileTree(
+  document: DiffDocument,
+  filter: string,
+  includedFiles?: ReadonlySet<DiffFileId>,
+): DiffFileTree {
   const tokens = filter.toLocaleLowerCase().split(/\s+/).filter(Boolean);
   const files = document.files
     .map((id) => document.filesById.get(id))
     .filter(
       (file): file is DiffFile =>
-        Boolean(file) && tokens.every((token) => file!.displayPath.toLocaleLowerCase().includes(token)),
+        Boolean(file) &&
+        (includedFiles === undefined || includedFiles.has(file!.id)) &&
+        tokens.every((token) => file!.displayPath.toLocaleLowerCase().includes(token)),
     );
   const children = new Map<string, string[]>();
   const nodes = new Map<string, TreeNode>();

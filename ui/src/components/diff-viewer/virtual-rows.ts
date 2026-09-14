@@ -76,6 +76,57 @@ export function flattenDiffRows(
   return rows;
 }
 
+/** Keeps comment threads and a small amount of code context around their locations. */
+export function flattenCommentRows(
+  document: DiffDocument,
+  fileIds: readonly DiffFileId[],
+  comments: readonly ReviewComment[],
+  editor?: CommentEditor,
+  contextLines = 3,
+): readonly VirtualDiffRow[] {
+  const rows = flattenDiffRows(document, fileIds, comments, editor);
+  const fileAt = new Map<number, number>();
+  const hunkAt = new Map<number, number>();
+  const codeByHunk = new Map<string, number[]>();
+  let fileIndex = -1;
+  let hunkIndex = -1;
+
+  for (let index = 0; index < rows.length; index += 1) {
+    if (rows[index].kind === "file") {
+      fileIndex = index;
+      hunkIndex = -1;
+    } else if (rows[index].kind === "hunk") hunkIndex = index;
+    fileAt.set(index, fileIndex);
+    hunkAt.set(index, hunkIndex);
+    if (rows[index].kind === "code") {
+      const key = `${fileIndex}:${hunkIndex}`;
+      codeByHunk.set(key, [...(codeByHunk.get(key) ?? []), index]);
+    }
+  }
+
+  const kept = new Set<number>();
+  for (let index = 0; index < rows.length; index += 1) {
+    if (rows[index].kind !== "thread" && rows[index].kind !== "editor") continue;
+    let codeIndex = index - 1;
+    while (codeIndex >= 0 && rows[codeIndex].kind !== "code" && rows[codeIndex].kind !== "file") codeIndex -= 1;
+    if (codeIndex < 0 || rows[codeIndex].kind !== "code") continue;
+    const context = codeByHunk.get(`${fileAt.get(codeIndex)}:${hunkAt.get(codeIndex)}`) ?? [];
+    const position = context.indexOf(codeIndex);
+    for (const contextIndex of context.slice(Math.max(0, position - contextLines), position + contextLines + 1)) {
+      kept.add(contextIndex);
+    }
+    kept.add(index);
+  }
+
+  for (const index of [...kept]) {
+    const containingFile = fileAt.get(index);
+    const containingHunk = hunkAt.get(index);
+    if (containingFile !== undefined && containingFile >= 0) kept.add(containingFile);
+    if (containingHunk !== undefined && containingHunk >= 0) kept.add(containingHunk);
+  }
+  return rows.filter((_, index) => kept.has(index));
+}
+
 function missingSideFor(pair: PairedDiffLine): "additions" | "deletions" | undefined {
   if (!pair.addition) return "additions";
   if (!pair.deletion) return "deletions";

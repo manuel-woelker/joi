@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { multipleFilesPatch } from "./diff-fixtures";
 import { parsePatch } from "./patch-parser";
-import { flattenDiffRows } from "./virtual-rows";
+import type { ReviewComment } from "../../generated/api/api";
+import { flattenCommentRows, flattenDiffRows } from "./virtual-rows";
 
 describe("flattenDiffRows", () => {
   it("places editors and comments directly after their source line", () => {
@@ -29,5 +30,27 @@ describe("flattenDiffRows", () => {
       location: { file: "src/review.ts", line: 4, side: "additions" },
     });
     expect(rows.some((row) => row.kind === "editor")).toBe(false);
+  });
+
+  it("shows only comment threads and nearby code context", () => {
+    const document = parsePatch(multipleFilesPatch);
+    const comment: ReviewComment = {
+      id: "comment-1",
+      commitId: "commit-1",
+      createdAt: "2026-01-02T00:00:00Z",
+      authorId: "user-1",
+      authorUsername: "jane",
+      parentId: null,
+      file: "src/review.ts",
+      line: 4,
+      side: "additions",
+      comment: "Keep this readable.",
+    };
+    const rows = flattenCommentRows(document, document.files, [comment], undefined, 1);
+
+    expect(rows.some((row) => row.kind === "thread")).toBe(true);
+    expect(rows.filter((row) => row.kind === "file")).toHaveLength(1);
+    expect(rows.some((row) => row.kind === "file" && row.file.displayPath === "src/status.ts")).toBe(false);
+    expect(rows.filter((row) => row.kind === "code").length).toBeLessThanOrEqual(3);
   });
 });

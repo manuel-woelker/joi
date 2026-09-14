@@ -13,7 +13,7 @@ import { buildDiffFileTree, diffFileTreeDefinition } from "./file-tree";
 import { parsePatch } from "./patch-parser";
 import { highlightLine, type SyntaxToken } from "./syntax-highlighter";
 import styles from "./DiffViewer.module.css";
-import { flattenDiffRows, type VirtualDiffRow } from "./virtual-rows";
+import { flattenCommentRows, flattenDiffRows, type VirtualDiffRow } from "./virtual-rows";
 import { diffWords, type WordDiffFragment } from "./word-diff";
 
 export interface DiffViewerProps {
@@ -23,6 +23,8 @@ export interface DiffViewerProps {
   readonly showDiagnostics?: boolean;
   /** Disable virtualization for tests or very small embedded patches. */
   readonly virtualized?: boolean;
+  /** Limit the view to comment threads and nearby code lines. */
+  readonly mode?: "diff" | "comments";
 }
 
 /** Renders a virtualized, commentable side-by-side Git patch. */
@@ -36,12 +38,23 @@ export function DiffViewer(props: DiffViewerProps) {
     document = parsePatch("");
   }
   const controller = createDiffViewerStore(document, props.comments);
-  const tree = createMemo(() => buildDiffFileTree(document, controller.state.fileFilter));
+  const commentedFiles = createMemo(() => {
+    if (props.mode !== "comments") return undefined;
+    return new Set(
+      document.files.filter((id) => {
+        const file = document.filesById.get(id);
+        return file && controller.state.comments.some((comment) => comment.file === file.displayPath);
+      }),
+    );
+  });
+  const tree = createMemo(() => buildDiffFileTree(document, controller.state.fileFilter, commentedFiles()));
   const visibleFiles = createMemo(() => [...tree().fileByNode.values()]);
   const rows = createMemo(() => {
     const editor = controller.state.editor;
     const comments = [...controller.state.comments];
-    return flattenDiffRows(document, visibleFiles(), comments, editor);
+    return props.mode === "comments"
+      ? flattenCommentRows(document, visibleFiles(), comments, editor)
+      : flattenDiffRows(document, visibleFiles(), comments, editor);
   });
   let viewport: HTMLDivElement | undefined;
   const virtualizer = createVirtualizer<HTMLDivElement, HTMLDivElement>({
@@ -84,7 +97,12 @@ export function DiffViewer(props: DiffViewerProps) {
           />
         </label>
         <div class={styles.fileTree}>
-          <Show when={tree().model.roots.length} fallback={<p class={styles.empty}>No matching files.</p>}>
+          <Show
+            when={tree().model.roots.length}
+            fallback={
+              <p class={styles.empty}>{props.mode === "comments" ? "No commented files." : "No matching files."}</p>
+            }
+          >
             <Tree
               ariaLabel="Changed files"
               model={tree().model}
@@ -96,7 +114,14 @@ export function DiffViewer(props: DiffViewerProps) {
       </aside>
       <main ref={viewport} class={styles.viewport} aria-label="Diff">
         <Show when={!parseError} fallback={<p class={styles.error}>{parseError}</p>}>
-          <Show when={rows().length} fallback={<p class={styles.empty}>This patch has no text changes.</p>}>
+          <Show
+            when={rows().length}
+            fallback={
+              <p class={styles.empty}>
+                {props.mode === "comments" ? "No comments on this commit." : "This patch has no text changes."}
+              </p>
+            }
+          >
             <Show
               when={props.virtualized !== false}
               fallback={
