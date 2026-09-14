@@ -19,19 +19,19 @@
 .gutter:hover, .gutter:focus-visible { color: var(--color-primary-dark); background: var(--color-surface-hover); }
 .marker { padding: 0 3px; color: var(--color-text-muted); user-select: none; }
 .codeSide code { overflow: visible; padding: 0 8px 0 0; line-height: 20px; white-space: pre; }
-.thread { padding: 6px 14px 6px 64px; border-block: 1px solid var(--color-border); background: var(--color-surface-subtle); }
-.comment { margin-left: calc(var(--comment-depth) * 18px); padding: 7px 9px; border-left: 3px solid var(--color-secondary); background: var(--color-surface); }
-.comment + .comment { margin-top: 5px; }
-.comment p { margin: 0 0 5px; white-space: pre-wrap; }
-.comment footer { display: flex; align-items: center; gap: 5px; color: var(--color-text-muted); font-size: 11px; }
+.thread { padding: 2px 14px 2px 8px; border-block: 1px solid var(--color-border); border-left: 3px solid var(--color-comment-accent); background: var(--color-surface-subtle); }
+.comment { margin-left: calc(var(--comment-depth) * 12px); padding: 2px 4px; background: transparent; }
+.comment + .comment { border-top: 1px solid color-mix(in srgb, var(--color-border) 65%, transparent); }
+.comment p { margin: 0 0 2px; line-height: 1.3; white-space: pre-wrap; }
+.comment footer { display: flex; align-items: center; gap: 3px; min-height: 20px; color: var(--color-text-muted); font-size: 10px; }
 .comment footer > span:first-child { margin-right: auto; }
 .iconAction { position: relative; display: inline-grid; }
-.iconAction button { display: grid; width: 24px; height: 24px; place-items: center; padding: 0; }
+.iconAction button { display: grid; width: 20px; height: 20px; place-items: center; padding: 0; }
 .iconAction [role="tooltip"] { position: absolute; z-index: 5; right: 0; bottom: calc(100% + 4px); display: none; width: max-content; padding: 4px 6px; border: 1px solid var(--color-border); background: var(--color-surface); box-shadow: 0 2px 5px color-mix(in srgb, var(--color-ink) 15%, transparent); font-size: 11px; }
 .iconAction:hover [role="tooltip"], .iconAction:focus-within [role="tooltip"] { display: block; }
-.editor { display: grid; gap: 6px; padding: 8px 14px 8px 64px; border-block: 1px solid var(--color-primary); background: var(--color-surface-subtle); }
-.editor textarea { min-height: 62px; resize: vertical; }
-.editor > div { display: flex; justify-content: flex-end; align-items: center; gap: 7px; }
+.editor { display: grid; gap: 4px; padding: 5px 14px 5px 8px; border-block: 1px solid var(--color-primary); background: var(--color-surface-subtle); }
+.editor textarea { min-height: 48px; resize: vertical; }
+.editor > div { display: flex; justify-content: flex-end; align-items: center; gap: 4px; }
 .editor button { display: inline-flex; align-items: center; gap: 4px; }
 .editor .error { margin-right: auto; }
 .empty, .error, .info { margin: 12px; color: var(--color-text-muted); }

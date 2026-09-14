@@ -346,9 +346,9 @@ function CommentEditor(props: {
 
 function estimateHeight(row: VirtualDiffRow) {
   return row.kind === "thread"
-    ? Math.max(72, row.entries.length * 68)
+    ? Math.max(46, row.entries.length * 42)
     : row.kind === "editor"
-      ? 118
+      ? 88
       : row.kind === "file"
         ? 38
         : row.kind === "code"
