@@ -8,6 +8,7 @@ target/
 
 # Dependencies
 node_modules/
+/.pnpm-store/
 /ui/src/generated/
 /libs-rust/joi-server/src/generated/
 

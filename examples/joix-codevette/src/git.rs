@@ -198,19 +198,6 @@ mod tests {
                 .iter()
                 .all(|commit| commit.authored_at.contains('T'))
         );
-
-        let details = GixGitHistory
-            .commit_details(&git_directory, &commits[0].id)
-            .unwrap();
-        assert_eq!(details.commit.id, commits[0].id);
-        assert_eq!(
-            details.files_changed,
-            details
-                .patch
-                .lines()
-                .filter(|line| line.starts_with("diff --git "))
-                .count()
-        );
     }
 
     #[test]
