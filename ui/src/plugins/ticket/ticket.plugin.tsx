@@ -3,7 +3,7 @@ import { Show } from "solid-js";
 import { plugin } from "../../base/plugin-registry";
 import { IconButton } from "../../components/IconButton";
 import { shellOverlays, topBarContributions, viewResolvers, shellContributionId } from "../core/shell/contribution";
-import { SavedViewCommands, SavedViewContent } from "../core/saved-views/SavedViewContent";
+import { EntityMasterDetailView } from "../core/master-detail/EntityMasterDetailView";
 import { ViewEditor } from "./saved-views/ViewEditor";
 import { ticketEntity } from "./entities/ticket-entity";
 import { entityDescriptions } from "../core/entities/entity-registry";
@@ -41,6 +41,23 @@ function TicketOverlays() {
         {controller.announcement()}
       </div>
     </>
+  );
+}
+
+function TicketViewCommands() {
+  const controller = useWorkspace();
+  return <IconButton label="Configure view" icon="⚙" onClick={() => controller.setEditorOpen(true)} />;
+}
+
+function TicketMasterDetailView() {
+  const controller = useWorkspace();
+  const view = () => controller.selectedView();
+  const query = () => {
+    const current = view();
+    return current ? controller.workspace.queries[current.queryId] : undefined;
+  };
+  return (
+    <EntityMasterDetailView entityId={ticketEntity.id} initialFilter={query()?.filter} filterIdentity={query()?.id} />
   );
 }
 
@@ -137,8 +154,8 @@ export default plugin({
                 ...view,
                 section: "Saved view",
                 icon: ticketEntity.icon,
-                content: SavedViewContent,
-                commands: SavedViewCommands,
+                content: TicketMasterDetailView,
+                commands: TicketViewCommands,
               }
             : undefined;
         },

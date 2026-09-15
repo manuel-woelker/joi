@@ -8,31 +8,51 @@ import { entityFilterAttributes } from "../../../components/filter-definition/en
 import { FilterDefinitionEditor } from "../../../components/filter-definition/FilterDefinitionEditor";
 import { createCompositeFilter, type FilterDefinition } from "../../../components/filter-definition/filter-model";
 import { IconButton } from "../../../components/IconButton";
+import { useContextMenu } from "../../../components/context-menu/ContextMenuProvider";
+import { contextMenuGroupId } from "../../../components/context-menu/context-menu";
+import { useActions } from "../actions/ActionProvider";
+import type { EntityRecordActionTarget } from "../actions/action";
+import { actionsToContextMenuEntries } from "../actions/action-context-menu";
 import { bindEntity, createEntityTableColumns } from "../entities/bound-entity";
 import { createEntityEditorDefinition } from "../entities/entity-editor";
 import type { EntityId } from "../entities/entity-description";
 import { useEntityRegistry } from "../entities/entity-registry";
 import { useLookupService } from "../lookups/lookup";
+import type { QueryResultRow } from "../query/query-result";
 import { loadEntityRecords } from "../saved-views/entity-query";
 import { useApplicationServices } from "../../../base/services/application-services";
 import { MasterDetailView } from "./MasterDetailView";
 import styles from "./EntityMasterDetailView.module.css";
 
-/** Generic create, list, and edit view driven by one entity description. */
-export function EntityMasterDetailView(props: { entityId: EntityId }) {
+/** Generic create, filter, list, and edit view driven by one entity description. */
+export function EntityMasterDetailView(props: {
+  entityId: EntityId;
+  initialFilter?: FilterDefinition;
+  filterIdentity?: string;
+}) {
   const navigation = useNavigation();
-  const { dataChanges, fetchService } = useApplicationServices();
+  const { dataChanges, fetchService, recordMutations } = useApplicationServices();
+  const actions = useActions();
+  const contextMenu = useContextMenu();
   const lookups = useLookupService();
   const description = useEntityRegistry().require(props.entityId);
   const editor = createEntityEditorDefinition(description);
   const [filterOpen, setFilterOpen] = createSignal(false);
-  const [filter, setFilter] = createSignal<FilterDefinition>(createCompositeFilter());
+  const [filter, setFilter] = createSignal<FilterDefinition>(cloneFilter(props.initialFilter));
   const [queryFilter, setQueryFilter] = createSignal<FilterDefinition>(filter());
   const [showLoading, setShowLoading] = createSignal(false);
   createEffect(() => {
     const current = filter();
     const timer = window.setTimeout(() => setQueryFilter(current), 300);
     onCleanup(() => window.clearTimeout(timer));
+  });
+  let activeFilterIdentity = props.filterIdentity;
+  createEffect(() => {
+    if (props.filterIdentity === activeFilterIdentity) return;
+    activeFilterIdentity = props.filterIdentity;
+    const next = cloneFilter(props.initialFilter);
+    setFilter(next);
+    setQueryFilter(next);
   });
   const [records, { refetch }] = createResource(queryFilter, (currentFilter) =>
     loadEntityRecords(description, fetchService, { filter: currentFilter }),
@@ -45,10 +65,66 @@ export function EntityMasterDetailView(props: { entityId: EntityId }) {
     const timer = window.setTimeout(() => setShowLoading(true), 200);
     onCleanup(() => window.clearTimeout(timer));
   });
-  const unsubscribe = dataChanges.subscribe({ tableName: description.tableName }, () => {
+  const unsubscribe = dataChanges.subscribe({ tableName: description.tableName }, (change) => {
     lookups.invalidateSource(description.tableName);
+    const result = records();
+    if (!result) return;
+    const identity = result.column(description.identityAttribute);
+    const row = identity && result.rows.find((candidate) => candidate.value(identity) === change.recordId);
+    if (!row) return;
+    const updates = Object.entries(change.changes).flatMap(([attribute, value]) => {
+      const column = result.column(attribute);
+      return column ? [{ column, value }] : [];
+    });
+    if (updates.length) result.updateRow(row, updates);
   });
   onCleanup(unsubscribe);
+
+  const actionTarget = (): EntityRecordActionTarget | undefined => {
+    const result = records();
+    const recordId = navigation.selectedRecordId();
+    const identity = result?.column(description.identityAttribute);
+    const row =
+      identity && recordId ? result?.rows.find((candidate) => candidate.value(identity) === recordId) : undefined;
+    if (!result || !recordId || !row) return undefined;
+    const values = Object.freeze(
+      Object.fromEntries(result.columns.map((column) => [column.attribute, row.value(column)!])),
+    );
+    return {
+      type: "entity-record",
+      entityId: description.id,
+      recordId,
+      values,
+      update: async (changes) => {
+        const changed = Object.fromEntries(
+          Object.entries(changes).filter(([attribute, value]) => values[attribute] !== value),
+        );
+        if (Object.keys(changed).length) await recordMutations.update(editor, recordId, changed);
+      },
+    };
+  };
+  onCleanup(actions.registerTarget(actionTarget));
+
+  const openContextMenu = (event: MouseEvent, row: QueryResultRow) => {
+    const result = records();
+    const identity = result?.column(description.identityAttribute);
+    const id = identity ? row.value(identity) : undefined;
+    if (typeof id !== "string") return;
+    navigation.selectRecord(id);
+    contextMenu.open({
+      event,
+      createGroups: () => [
+        {
+          id: contextMenuGroupId("record-actions"),
+          label: `${description.label} actions`,
+          entries: actionsToContextMenuEntries(actions.availableActions(), {
+            disabled: Boolean(actions.pendingAction()),
+            execute: actions.execute,
+          }),
+        },
+      ],
+    });
+  };
 
   return (
     <Switch>
@@ -123,6 +199,7 @@ export function EntityMasterDetailView(props: { entityId: EntityId }) {
                       const id = row.value(entity().identity);
                       if (typeof id === "string") navigation.selectRecord(id);
                     }}
+                    onRowContextMenu={openContextMenu}
                   />
                 </>
               }
@@ -147,4 +224,19 @@ export function EntityMasterDetailView(props: { entityId: EntityId }) {
       </Match>
     </Switch>
   );
+}
+
+function cloneFilter(filter: FilterDefinition | undefined): FilterDefinition {
+  if (!filter) return createCompositeFilter();
+  if (filter.type === "composite") {
+    return { ...filter, children: filter.children.map(cloneFilter) };
+  }
+  return {
+    ...filter,
+    operand: filter.operand
+      ? filter.operand.type === "set"
+        ? { ...filter.operand, values: [...filter.operand.values] }
+        : { ...filter.operand }
+      : undefined,
+  };
 }
