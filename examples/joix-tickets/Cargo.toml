@@ -7,6 +7,7 @@ description = "Ticket and project plugin for JOI example applications"
 publish = false
 
 [dependencies]
+fake = "5"
 joi-base = { path = "../../libs-rust/joi-base" }
 joi-error = { path = "../../libs-rust/joi-error" }
 joi-plugin = { path = "../../libs-rust/joi-plugin" }

@@ -1,5 +1,9 @@
 use std::collections::HashMap;
 
+use fake::{
+    Fake,
+    faker::lorem::en::{Paragraph, Sentence},
+};
 use joi_base::JoiString;
 use joi_server::data_store::{
     AttributeColumn, AttributeName, ColumnDataType, ColumnDescription, ColumnReference, DataStore,
@@ -61,6 +65,8 @@ fn ticket_column(name: &'static str, description: &'static str) -> ColumnDescrip
 /// Inserts representative tickets for local development.
 pub struct TicketTestDataProvider;
 
+const STARTUP_TICKET_COUNT: usize = 20_000;
+
 impl TestDataProvider for TicketTestDataProvider {
     fn insert_test_data(&self, data_store: &mut dyn DataStore) -> joi_error::JoiResult<()> {
         let projects = project_ids_by_prefix(data_store)?;
@@ -78,68 +84,180 @@ impl TestDataProvider for TicketTestDataProvider {
                 "ticket test data requires at least one user"
             ));
         }
-        let existing = data_store.query(DataStoreQuery {
-            table_name: TableName("tickets".into()),
-            criterion: QueryCriterion::MatchAny,
-            max_results: 0,
-            attributes: Vec::new(),
-        })?;
-        if existing.number_of_hits > 0 {
-            return associate_existing_tickets(data_store, &projects);
-        }
-
-        let keys = ["TEST-1", "TEST-2", "DEMO-1"];
-        let project_ids = keys
-            .iter()
-            .map(|key| project_for_key(&projects, key))
-            .collect::<joi_error::JoiResult<Vec<_>>>()?;
-
-        data_store.mutate(DataStoreMutation {
-            steps: vec![DataStoreMutationStep::Insert(DataStoreInsertMutation {
+        let mut existing_count = data_store
+            .query(DataStoreQuery {
                 table_name: TableName("tickets".into()),
-                columns: vec![
-                    test_data_column(
-                        "id",
-                        [
-                            ksuid::Ksuid::generate().to_base62(),
-                            ksuid::Ksuid::generate().to_base62(),
-                            ksuid::Ksuid::generate().to_base62(),
-                        ],
-                    ),
-                    test_data_column("key", keys),
-                    AttributeColumn {
-                        attribute: AttributeName("project_id".into()),
-                        values: Values::String(project_ids),
-                    },
-                    test_data_column(
-                        "title",
-                        [
-                            "Fix navigation bug",
-                            "Add issue filters",
-                            "Review table schema",
-                        ],
-                    ),
-                    test_data_column(
-                        "description",
-                        [
-                            "Navigation loses the selected view after reload",
-                            "Allow views to filter issues by workflow status",
-                            "Check the initial ticket storage definition",
-                        ],
-                    ),
-                    test_data_column("status", ["open", "in-progress", "closed"]),
-                    AttributeColumn {
-                        attribute: AttributeName("assignee".into()),
-                        values: Values::String(
-                            (0..3)
-                                .map(|index| user_ids[index % user_ids.len()].clone())
-                                .collect(),
-                        ),
-                    },
-                ],
-            })],
-        })?;
+                criterion: QueryCriterion::MatchAny,
+                max_results: 0,
+                attributes: Vec::new(),
+            })?
+            .number_of_hits;
+        if existing_count == 0 {
+            insert_representative_tickets(data_store, &projects, user_ids)?;
+            existing_count = 3;
+        }
+        associate_existing_tickets(data_store, &projects)?;
+        generate_tickets(
+            data_store,
+            STARTUP_TICKET_COUNT.saturating_sub(existing_count),
+            existing_count,
+            &projects,
+            user_ids,
+        )?;
         Ok(())
+    }
+}
+
+fn insert_representative_tickets(
+    data_store: &mut dyn DataStore,
+    projects: &HashMap<JoiString, JoiString>,
+    user_ids: &[JoiString],
+) -> joi_error::JoiResult<()> {
+    let keys = ["TEST-1", "TEST-2", "DEMO-1"];
+    let project_ids = keys
+        .iter()
+        .map(|key| project_for_key(projects, key))
+        .collect::<joi_error::JoiResult<Vec<_>>>()?;
+    data_store.mutate(DataStoreMutation {
+        steps: vec![DataStoreMutationStep::Insert(DataStoreInsertMutation {
+            table_name: TableName("tickets".into()),
+            columns: vec![
+                string_values_column(
+                    "id",
+                    (0..3)
+                        .map(|_| ksuid::Ksuid::generate().to_base62().into())
+                        .collect(),
+                ),
+                string_values_column("key", keys.into_iter().map(Into::into).collect()),
+                string_values_column("project_id", project_ids),
+                string_values_column(
+                    "title",
+                    [
+                        "Fix navigation bug",
+                        "Add issue filters",
+                        "Review table schema",
+                    ]
+                    .into_iter()
+                    .map(Into::into)
+                    .collect(),
+                ),
+                string_values_column(
+                    "description",
+                    [
+                        "Navigation loses the selected view after reload",
+                        "Allow views to filter issues by workflow status",
+                        "Check the initial ticket storage definition",
+                    ]
+                    .into_iter()
+                    .map(Into::into)
+                    .collect(),
+                ),
+                string_values_column(
+                    "status",
+                    ["open", "in-progress", "closed"]
+                        .into_iter()
+                        .map(Into::into)
+                        .collect(),
+                ),
+                string_values_column(
+                    "assignee",
+                    (0..3)
+                        .map(|index| user_ids[index % user_ids.len()].clone())
+                        .collect(),
+                ),
+            ],
+        })],
+    })?;
+    Ok(())
+}
+
+pub(crate) fn generate_additional_tickets(
+    data_store: &mut dyn DataStore,
+    count: usize,
+) -> joi_error::JoiResult<usize> {
+    let projects = project_ids_by_prefix(data_store)?;
+    let users = data_store.query(DataStoreQuery {
+        table_name: TableName("users".into()),
+        criterion: QueryCriterion::MatchAny,
+        max_results: 1_000,
+        attributes: vec![AttributeName("id".into())],
+    })?;
+    let Values::String(user_ids) = &users.result_columns[0].values else {
+        return Err(joi_error::joi_error!("user IDs must be strings"));
+    };
+    if user_ids.is_empty() {
+        return Err(joi_error::joi_error!(
+            "ticket test data requires at least one user"
+        ));
+    }
+    let existing = data_store.query(DataStoreQuery {
+        table_name: TableName("tickets".into()),
+        criterion: QueryCriterion::MatchAny,
+        max_results: 0,
+        attributes: Vec::new(),
+    })?;
+    generate_tickets(
+        data_store,
+        count,
+        existing.number_of_hits,
+        &projects,
+        user_ids,
+    )?;
+    Ok(count)
+}
+
+fn generate_tickets(
+    data_store: &mut dyn DataStore,
+    count: usize,
+    offset: usize,
+    projects: &HashMap<JoiString, JoiString>,
+    user_ids: &[JoiString],
+) -> joi_error::JoiResult<()> {
+    if count == 0 {
+        return Ok(());
+    }
+    let test_project = projects
+        .get("TEST")
+        .ok_or_else(|| joi_error::joi_error!("TEST project is not defined"))?;
+    let mut ids = Vec::with_capacity(count);
+    let mut keys = Vec::with_capacity(count);
+    let mut project_ids = Vec::with_capacity(count);
+    let mut titles = Vec::with_capacity(count);
+    let mut descriptions = Vec::with_capacity(count);
+    let mut statuses = Vec::with_capacity(count);
+    let mut assignees = Vec::with_capacity(count);
+    let statuses_available = ["open", "in-progress", "closed"];
+    for index in 0..count {
+        ids.push(ksuid::Ksuid::generate().to_base62().into());
+        keys.push(format!("TEST-{}", offset + index + 1).into());
+        project_ids.push(test_project.clone());
+        let title: String = Sentence(4..9).fake();
+        titles.push(title.trim_end_matches('.').into());
+        descriptions.push(Paragraph(2..5).fake::<String>().into());
+        statuses.push(statuses_available[index % statuses_available.len()].into());
+        assignees.push(user_ids[index % user_ids.len()].clone());
+    }
+    data_store.mutate(DataStoreMutation {
+        steps: vec![DataStoreMutationStep::Insert(DataStoreInsertMutation {
+            table_name: TableName("tickets".into()),
+            columns: vec![
+                string_values_column("id", ids),
+                string_values_column("key", keys),
+                string_values_column("project_id", project_ids),
+                string_values_column("title", titles),
+                string_values_column("description", descriptions),
+                string_values_column("status", statuses),
+                string_values_column("assignee", assignees),
+            ],
+        })],
+    })?;
+    Ok(())
+}
+
+fn string_values_column(name: &'static str, values: Vec<JoiString>) -> AttributeColumn {
+    AttributeColumn {
+        attribute: AttributeName(name.into()),
+        values: Values::String(values),
     }
 }
 
@@ -229,16 +347,6 @@ fn associate_existing_tickets(
     Ok(())
 }
 
-fn test_data_column<T: Into<joi_base::JoiString>, const N: usize>(
-    name: &'static str,
-    values: [T; N],
-) -> AttributeColumn {
-    AttributeColumn {
-        attribute: AttributeName(name.into()),
-        values: Values::String(values.into_iter().map(Into::into).collect()),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use joi_server::data_store::{
@@ -251,7 +359,7 @@ mod tests {
 
     use crate::projects_module::{ProjectTableDescriptionProvider, ProjectTestDataProvider};
 
-    use super::{TicketTableDescriptionProvider, TicketTestDataProvider};
+    use super::{STARTUP_TICKET_COUNT, TicketTableDescriptionProvider, TicketTestDataProvider};
 
     #[test]
     fn describes_the_ticket_table() {
@@ -319,7 +427,7 @@ mod tests {
             .query(DataStoreQuery {
                 table_name: TableName("tickets".into()),
                 criterion: QueryCriterion::MatchAny,
-                max_results: 10,
+                max_results: STARTUP_TICKET_COUNT,
                 attributes: vec![
                     AttributeName("id".into()),
                     AttributeName("key".into()),
@@ -329,7 +437,7 @@ mod tests {
                 ],
             })
             .unwrap();
-        assert_eq!(result.number_of_hits, 3);
+        assert_eq!(result.number_of_hits, STARTUP_TICKET_COUNT);
         assert!(matches!(
             &result.result_columns[0].values,
             Values::String(values) if values.iter().map(|value| value.as_str()).collect::<Vec<_>>().iter()
@@ -337,8 +445,8 @@ mod tests {
         ));
         assert!(matches!(
             &result.result_columns[1].values,
-            Values::String(values) if values.iter().map(|value| value.as_str()).collect::<Vec<_>>()
-                == ["TEST-1", "TEST-2", "DEMO-1"]
+            Values::String(values) if ["TEST-1", "TEST-2", "DEMO-1"]
+                .iter().all(|expected| values.iter().any(|value| value == *expected))
         ));
         assert!(matches!(
             &result.result_columns[2].values,
@@ -384,7 +492,7 @@ mod tests {
                 ],
             })
             .unwrap();
-        assert_eq!(after_reinitialization.number_of_hits, 3);
+        assert_eq!(after_reinitialization.number_of_hits, STARTUP_TICKET_COUNT);
         assert!(matches!(
             &after_reinitialization.result_columns[0].values,
             Values::String(values) if values[0].is_empty()

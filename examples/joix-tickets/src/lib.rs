@@ -1,4 +1,5 @@
 use joi_plugin::{Plugin, plugin};
+use joi_server::command_registry::CommandProvider;
 use joi_server::data_store::{TableDescriptionProvider, TestDataProvider};
 
 use crate::{
@@ -7,7 +8,10 @@ use crate::{
 };
 
 mod projects_module;
+mod ticket_test_data_command;
 mod tickets_module;
+
+use ticket_test_data_command::TicketTestDataCommandProvider;
 
 /// Creates the ticket and project domain plugin.
 pub fn tickets_plugin() -> Plugin {
@@ -31,6 +35,11 @@ pub fn tickets_plugin() -> Plugin {
             "ticket-test-data",
             "Adds representative tickets for development",
             Box::new(TicketTestDataProvider),
+        )?;
+        context.register_extension::<dyn CommandProvider>(
+            "ticket-test-data-command",
+            "Generates additional ticket data for development",
+            Box::new(TicketTestDataCommandProvider),
         )
     })
 }
