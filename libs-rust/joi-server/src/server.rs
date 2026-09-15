@@ -328,6 +328,7 @@ mod tests {
                 json!({
                     "table_name": "users",
                     "criterion": "match_any",
+                    "sorting": [],
                     "max_results": 1,
                     "attributes": ["id"]
                 }),

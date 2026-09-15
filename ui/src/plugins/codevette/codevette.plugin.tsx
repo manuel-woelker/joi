@@ -127,12 +127,14 @@ function createRepositoryNavigation(service: FetchService): {
       executeDataQuery(service, {
         tableName: "repositories",
         criterion: "match_any",
+        sorting: [],
         maxResults: 1_000,
         attributes: ["id", "name"],
       }),
       executeDataQuery(service, {
         tableName: "repository_branches",
         criterion: "match_any",
+        sorting: [],
         maxResults: 10_000,
         attributes: ["id", "repository_id", "name"],
       }),

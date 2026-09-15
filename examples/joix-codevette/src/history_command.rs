@@ -88,6 +88,7 @@ impl GitHistoryCommand {
                 attribute: AttributeName("id".into()),
                 values: vec![branch_id.into()],
             },
+            sorting: Vec::new(),
             max_results: 1,
             attributes: vec![
                 AttributeName("repository_id".into()),
@@ -104,6 +105,7 @@ impl GitHistoryCommand {
                 attribute: AttributeName("id".into()),
                 values: vec![repository_id.into()],
             },
+            sorting: Vec::new(),
             max_results: 1,
             attributes: vec![AttributeName("path".into())],
         })?;

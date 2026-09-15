@@ -73,6 +73,7 @@ impl TestDataProvider for TicketTestDataProvider {
         let users = data_store.query(DataStoreQuery {
             table_name: TableName("users".into()),
             criterion: QueryCriterion::MatchAny,
+            sorting: Vec::new(),
             max_results: 2,
             attributes: vec![AttributeName("id".into())],
         })?;
@@ -88,6 +89,7 @@ impl TestDataProvider for TicketTestDataProvider {
             .query(DataStoreQuery {
                 table_name: TableName("tickets".into()),
                 criterion: QueryCriterion::MatchAny,
+                sorting: Vec::new(),
                 max_results: 0,
                 attributes: Vec::new(),
             })?
@@ -179,6 +181,7 @@ pub(crate) fn generate_additional_tickets(
     let users = data_store.query(DataStoreQuery {
         table_name: TableName("users".into()),
         criterion: QueryCriterion::MatchAny,
+        sorting: Vec::new(),
         max_results: 1_000,
         attributes: vec![AttributeName("id".into())],
     })?;
@@ -193,6 +196,7 @@ pub(crate) fn generate_additional_tickets(
     let existing = data_store.query(DataStoreQuery {
         table_name: TableName("tickets".into()),
         criterion: QueryCriterion::MatchAny,
+        sorting: Vec::new(),
         max_results: 0,
         attributes: Vec::new(),
     })?;
@@ -267,6 +271,7 @@ fn project_ids_by_prefix(
     let result = data_store.query(DataStoreQuery {
         table_name: TableName("projects".into()),
         criterion: QueryCriterion::MatchAny,
+        sorting: Vec::new(),
         max_results: 100,
         attributes: vec![AttributeName("id".into()), AttributeName("prefix".into())],
     })?;
@@ -305,6 +310,7 @@ fn associate_existing_tickets(
     let result = data_store.query(DataStoreQuery {
         table_name: TableName("tickets".into()),
         criterion: QueryCriterion::MatchAny,
+        sorting: Vec::new(),
         max_results: 10_000,
         attributes: vec![
             AttributeName("id".into()),
@@ -427,6 +433,7 @@ mod tests {
             .query(DataStoreQuery {
                 table_name: TableName("tickets".into()),
                 criterion: QueryCriterion::MatchAny,
+                sorting: Vec::new(),
                 max_results: STARTUP_TICKET_COUNT,
                 attributes: vec![
                     AttributeName("id".into()),
@@ -485,6 +492,7 @@ mod tests {
             .query(DataStoreQuery {
                 table_name: TableName("tickets".into()),
                 criterion: QueryCriterion::MatchAny,
+                sorting: Vec::new(),
                 max_results: 10,
                 attributes: vec![
                     AttributeName("assignee".into()),

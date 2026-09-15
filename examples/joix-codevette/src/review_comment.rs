@@ -122,6 +122,7 @@ impl CommandHandler for ListReviewComments {
                 attribute: AttributeName("commit_id".into()),
                 values: vec![request.commit_id.into()],
             },
+            sorting: Vec::new(),
             max_results: 10_000,
             attributes: attributes.map(|name| AttributeName(name.into())).to_vec(),
         })?;
@@ -134,6 +135,7 @@ impl CommandHandler for ListReviewComments {
                     attribute: AttributeName("id".into()),
                     values: vec![author_id.as_str().into()],
                 },
+                sorting: Vec::new(),
                 max_results: 1,
                 attributes: vec![AttributeName("username".into())],
             })?;
@@ -183,6 +185,7 @@ impl CommandHandler for SaveReviewComment {
                     attribute: AttributeName("id".into()),
                     values: vec![id.as_str().into()],
                 },
+                sorting: Vec::new(),
                 max_results: 1,
                 attributes: vec![
                     AttributeName("author_id".into()),
@@ -224,6 +227,7 @@ impl CommandHandler for SaveReviewComment {
                     attribute: AttributeName("id".into()),
                     values: vec![parent_id.as_str().into()],
                 },
+                sorting: Vec::new(),
                 max_results: 1,
                 attributes: ["commit_id", "file", "line", "side"]
                     .map(|name| AttributeName(name.into()))

@@ -62,12 +62,31 @@ pub enum QueryCriterion {
     },
 }
 
+/// Direction used to order values from one query attribute.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum QuerySortDirection {
+    /// Orders lower values before higher values.
+    Ascending,
+    /// Orders higher values before lower values.
+    Descending,
+}
+
+/// One attribute and direction in an ordered query sort sequence.
+pub struct QuerySort {
+    /// The attribute used for sorting.
+    pub attribute: AttributeName,
+    /// The direction used for this attribute.
+    pub direction: QuerySortDirection,
+}
+
 /// Describes a query against one table.
 pub struct DataStoreQuery {
     /// The table to query.
     pub table_name: TableName,
     /// The condition records must satisfy.
     pub criterion: QueryCriterion,
+    /// Sort criteria applied in priority order before limiting the result.
+    pub sorting: Vec<QuerySort>,
     /// The maximum number of records to return.
     pub max_results: usize,
     /// The attributes to include in the result.

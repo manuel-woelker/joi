@@ -5,14 +5,25 @@ import type { EntityDescription } from "../entities/entity-description";
 import type { FilterDefinition } from "../../../components/filter-definition/filter-model";
 import type { QueryDefinition } from "./model";
 
+type EntityQuery = Pick<QueryDefinition, "filter"> & {
+  readonly sorting?: readonly (
+    | QueryDefinition["sorting"][number]
+    | { readonly attribute: string; readonly direction: "ascending" | "descending" }
+  )[];
+};
+
 export function loadEntityRecords(
   entity: EntityDescription,
   service: FetchService = fetchService,
-  query?: Pick<QueryDefinition, "filter">,
+  query?: EntityQuery,
 ): Promise<QueryResult> {
   return executeDataQuery(service, {
     tableName: entity.tableName,
     criterion: queryCriterion(query),
+    sorting: (query?.sorting ?? []).map((sort) => ({
+      attribute: "attribute" in sort ? sort.attribute : sort.field,
+      direction: sort.direction,
+    })),
     maxResults: 100,
     attributes: ["*"],
   });

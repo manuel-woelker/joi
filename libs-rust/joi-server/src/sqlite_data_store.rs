@@ -10,8 +10,8 @@ use rusqlite::{Connection, Transaction, params, params_from_iter, types::Value};
 use crate::data_store::{
     AttributeColumn, ColumnDataType, ColumnDescription, DataStore, DataStoreDeleteMutation,
     DataStoreInsertMutation, DataStoreMutation, DataStoreMutationResult, DataStoreMutationStep,
-    DataStoreQuery, DataStoreQueryResult, DataStoreUpdateMutation, QueryCriterion,
-    TableDescription, Values,
+    DataStoreQuery, DataStoreQueryResult, DataStoreUpdateMutation, QueryCriterion, QuerySort,
+    QuerySortDirection, TableDescription, Values,
 };
 
 /// A SQLite-backed [`DataStore`].
@@ -69,6 +69,7 @@ impl DataStore for SqliteDataStore {
             .map_err(|_| joi_error::joi_error!("SQLite returned a negative row count"))?;
 
         let schema = table_schema(&self.connection, &query.table_name.0)?;
+        let order_sql = order_by_sql(&query.sorting, &schema, &query.table_name.0)?;
         let attributes = if query.attributes.len() == 1 && query.attributes[0].0 == "*" {
             schema
                 .iter()
@@ -118,7 +119,8 @@ impl DataStore for SqliteDataStore {
             .map(|attribute| quote_identifier(&attribute.0))
             .collect::<Vec<_>>()
             .join(", ");
-        let select_sql = format!("SELECT {selected_attributes} FROM {table}{where_sql} LIMIT ?");
+        let select_sql =
+            format!("SELECT {selected_attributes} FROM {table}{where_sql}{order_sql} LIMIT ?");
         let limit = i64::try_from(query.max_results)
             .map_err(|_| joi_error::joi_error!("query result limit is too large"))?;
         let mut statement = self.connection.prepare(&select_sql).map_err(report)?;
@@ -162,6 +164,44 @@ impl DataStore for SqliteDataStore {
         transaction.commit().map_err(report)?;
         Ok(DataStoreMutationResult {})
     }
+}
+
+fn order_by_sql(
+    sorting: &[QuerySort],
+    schema: &[SqliteColumn],
+    table_name: &str,
+) -> JoiResult<String> {
+    if sorting.is_empty() {
+        return Ok(String::new());
+    }
+    let mut attributes = HashSet::new();
+    let mut clauses = Vec::with_capacity(sorting.len());
+    for sort in sorting {
+        if !attributes.insert(&sort.attribute.0) {
+            joi_bail!(
+                "query sorts attribute `{}` more than once",
+                sort.attribute.0
+            );
+        }
+        if !schema
+            .iter()
+            .any(|column| column.description.name == sort.attribute)
+        {
+            joi_bail!(
+                "table `{table_name}` has no sort attribute `{}`",
+                sort.attribute.0
+            );
+        }
+        let direction = match sort.direction {
+            QuerySortDirection::Ascending => "ASC",
+            QuerySortDirection::Descending => "DESC",
+        };
+        clauses.push(format!(
+            "{} {direction}",
+            quote_identifier(&sort.attribute.0)
+        ));
+    }
+    Ok(format!(" ORDER BY {}", clauses.join(", ")))
 }
 
 fn criterion_sql(criterion: &QueryCriterion) -> (String, Vec<Value>) {
@@ -670,7 +710,8 @@ mod tests {
     use crate::data_store::{
         AttributeColumn, AttributeName, ColumnDataType, ColumnDescription, DataStore,
         DataStoreInsertMutation, DataStoreMutation, DataStoreMutationStep, DataStoreQuery,
-        DataStoreUpdateMutation, QueryCriterion, TableDescription, TableName, Values,
+        DataStoreUpdateMutation, QueryCriterion, QuerySort, QuerySortDirection, TableDescription,
+        TableName, Values,
     };
 
     use super::SqliteDataStore;
@@ -689,6 +730,7 @@ mod tests {
             .query(DataStoreQuery {
                 table_name: table("records"),
                 criterion: QueryCriterion::MatchAny,
+                sorting: Vec::new(),
                 max_results: 1,
                 attributes: vec![attribute("id"), attribute("priority")],
             })
@@ -709,6 +751,7 @@ mod tests {
             .query(DataStoreQuery {
                 table_name: table("records"),
                 criterion: QueryCriterion::MatchAny,
+                sorting: Vec::new(),
                 max_results: 1,
                 attributes: vec![attribute("*")],
             })
@@ -728,6 +771,7 @@ mod tests {
                     attribute: attribute("priority"),
                     values: vec!["2".into(), "5".into()],
                 },
+                sorting: Vec::new(),
                 max_results: 10,
                 attributes: vec![attribute("id")],
             })
@@ -741,11 +785,70 @@ mod tests {
                     attribute: attribute("priority"),
                     values: vec!["2".into()],
                 })),
+                sorting: Vec::new(),
                 max_results: 10,
                 attributes: vec![attribute("id")],
             })
             .unwrap();
         assert_eq!(excluded.number_of_hits, 1);
+    }
+
+    #[test]
+    fn sorts_by_multiple_attributes_before_limiting_results() {
+        let mut store = SqliteDataStore::in_memory().unwrap();
+        store.ensure_tables(vec![record_table()]).unwrap();
+        store
+            .mutate(DataStoreMutation {
+                steps: vec![insert_records(&[("T-2", 2), ("T-1", 2), ("T-3", 1)])],
+            })
+            .unwrap();
+
+        let result = store
+            .query(DataStoreQuery {
+                table_name: table("records"),
+                criterion: QueryCriterion::MatchAny,
+                sorting: vec![
+                    QuerySort {
+                        attribute: attribute("priority"),
+                        direction: QuerySortDirection::Descending,
+                    },
+                    QuerySort {
+                        attribute: attribute("id"),
+                        direction: QuerySortDirection::Ascending,
+                    },
+                ],
+                max_results: 2,
+                attributes: vec![attribute("id")],
+            })
+            .unwrap();
+
+        assert_eq!(result.number_of_hits, 3);
+        assert!(matches!(
+            &result.result_columns[0].values,
+            Values::String(values) if values == &[JoiString::from("T-1"), JoiString::from("T-2")]
+        ));
+    }
+
+    #[test]
+    fn rejects_unknown_sort_attributes() {
+        let mut store = SqliteDataStore::in_memory().unwrap();
+        store.ensure_tables(vec![record_table()]).unwrap();
+
+        let error = match store.query(DataStoreQuery {
+            table_name: table("records"),
+            criterion: QueryCriterion::MatchAny,
+            sorting: vec![QuerySort {
+                attribute: attribute("missing"),
+                direction: QuerySortDirection::Ascending,
+            }],
+            max_results: 10,
+            attributes: vec![attribute("id")],
+        }) {
+            Ok(_) => panic!("unknown sort attribute should fail"),
+            Err(error) => error,
+        };
+
+        assert!(error.to_string().contains("no sort attribute `missing`"));
     }
 
     #[test]
@@ -765,6 +868,7 @@ mod tests {
             .query(DataStoreQuery {
                 table_name: table("records"),
                 criterion: QueryCriterion::MatchAny,
+                sorting: Vec::new(),
                 max_results: 0,
                 attributes: vec![attribute("priority")],
             })
@@ -824,6 +928,7 @@ mod tests {
             .query(DataStoreQuery {
                 table_name: table("records"),
                 criterion: QueryCriterion::MatchAny,
+                sorting: Vec::new(),
                 max_results: 1,
                 attributes: vec![attribute("assignee")],
             })
@@ -860,6 +965,7 @@ mod tests {
             .query(DataStoreQuery {
                 table_name: table("records"),
                 criterion: QueryCriterion::MatchAny,
+                sorting: Vec::new(),
                 max_results: 10,
                 attributes: vec![attribute("priority")],
             })
@@ -886,6 +992,7 @@ mod tests {
             .query(DataStoreQuery {
                 table_name: table("records"),
                 criterion: QueryCriterion::MatchAny,
+                sorting: Vec::new(),
                 max_results: 10,
                 attributes: vec![attribute("id")],
             })

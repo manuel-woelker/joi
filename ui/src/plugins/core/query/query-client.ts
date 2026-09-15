@@ -24,6 +24,7 @@ export async function executeDataQuery(service: FetchService, request: QueryRequ
   const response = await new CommandService(service).query({
     tableName: request.tableName,
     criterion: request.criterion,
+    sorting: request.sorting,
     maxResults: request.maxResults,
     attributes: request.attributes,
   });

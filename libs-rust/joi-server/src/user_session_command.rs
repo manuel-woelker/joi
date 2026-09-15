@@ -214,6 +214,7 @@ impl CommandHandler for UserInfoCommand {
         let sessions = data_store.query(DataStoreQuery {
             table_name: TableName("user_sessions".into()),
             criterion: equals("session_id", request.session_id),
+            sorting: Vec::new(),
             max_results: 1,
             attributes: vec![AttributeName("user_id".into())],
         })?;
@@ -228,6 +229,7 @@ fn find_user(data_store: &dyn DataStore, user_id: &str) -> JoiResult<Option<User
     let users = data_store.query(DataStoreQuery {
         table_name: TableName("users".into()),
         criterion: equals("id", user_id.into()),
+        sorting: Vec::new(),
         max_results: 1,
         attributes: vec![
             AttributeName("id".into()),
@@ -322,6 +324,7 @@ impl TestDataProvider for UserTestDataProvider {
         let existing = data_store.query(DataStoreQuery {
             table_name: TableName("users".into()),
             criterion: QueryCriterion::MatchAny,
+            sorting: Vec::new(),
             max_results: 0,
             attributes: Vec::new(),
         })?;
@@ -399,6 +402,7 @@ mod tests {
             .query(crate::data_store::DataStoreQuery {
                 table_name: crate::data_store::TableName("users".into()),
                 criterion: crate::data_store::QueryCriterion::MatchAny,
+                sorting: Vec::new(),
                 max_results: 1,
                 attributes: vec![crate::data_store::AttributeName("id".into())],
             })

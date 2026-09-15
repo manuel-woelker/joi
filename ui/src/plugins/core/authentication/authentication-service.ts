@@ -13,6 +13,7 @@ export async function loadLoginUsers(service: FetchService): Promise<readonly Au
   const result = await executeDataQuery(service, {
     tableName: "users",
     criterion: "match_any",
+    sorting: [],
     maxResults: 100,
     attributes: ["id", "username", "name"],
   });

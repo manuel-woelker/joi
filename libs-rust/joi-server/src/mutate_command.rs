@@ -190,6 +190,7 @@ mod tests {
             .query(DataStoreQuery {
                 table_name: crate::data_store::TableName("users".into()),
                 criterion: QueryCriterion::MatchAny,
+                sorting: Vec::new(),
                 max_results: 10,
                 attributes: vec![crate::data_store::AttributeName("name".into())],
             })
@@ -239,6 +240,7 @@ mod tests {
             .query(DataStoreQuery {
                 table_name: crate::data_store::TableName("users".into()),
                 criterion: QueryCriterion::MatchAny,
+                sorting: Vec::new(),
                 max_results: 0,
                 attributes: Vec::new(),
             })
@@ -282,6 +284,7 @@ mod tests {
             .query(DataStoreQuery {
                 table_name: crate::data_store::TableName("users".into()),
                 criterion: QueryCriterion::MatchAny,
+                sorting: Vec::new(),
                 max_results: 0,
                 attributes: Vec::new(),
             })

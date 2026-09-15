@@ -29,6 +29,7 @@ describe("loadUsers", () => {
       body: JSON.stringify({
         table_name: "users",
         criterion: "match_any",
+        sorting: [],
         max_results: 100,
         attributes: ["*"],
       }),

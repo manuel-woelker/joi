@@ -57,7 +57,12 @@ function TicketMasterDetailView() {
     return current ? controller.workspace.queries[current.queryId] : undefined;
   };
   return (
-    <EntityMasterDetailView entityId={ticketEntity.id} initialFilter={query()?.filter} filterIdentity={query()?.id} />
+    <EntityMasterDetailView
+      entityId={ticketEntity.id}
+      initialFilter={query()?.filter}
+      initialSorting={query()?.sorting.map((sort) => ({ attribute: sort.field, direction: sort.direction }))}
+      filterIdentity={query()?.id}
+    />
   );
 }
 

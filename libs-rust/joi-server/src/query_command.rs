@@ -5,7 +5,8 @@ use serde::{Deserialize, Serialize};
 use crate::command::Command;
 use crate::command_handler::CommandHandler;
 use crate::data_store::{
-    AttributeName, DataStoreQuery, QueryCriterion, SharedDataStore, TableName, Values,
+    AttributeName, DataStoreQuery, QueryCriterion, QuerySort, QuerySortDirection, SharedDataStore,
+    TableName, Values,
 };
 
 /// Executes generic table queries against a shared data store.
@@ -26,8 +27,23 @@ impl QueryCommand {
 pub struct QueryRequest {
     table_name: JoiString,
     criterion: QueryRequestCriterion,
+    sorting: Vec<QueryRequestSort>,
     max_results: usize,
     attributes: Vec<JoiString>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct QueryRequestSort {
+    attribute: JoiString,
+    direction: QueryRequestSortDirection,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum QueryRequestSortDirection {
+    Ascending,
+    Descending,
 }
 
 #[derive(Deserialize)]
@@ -104,6 +120,17 @@ impl CommandHandler for QueryCommand {
         let query = DataStoreQuery {
             table_name: TableName(request.table_name),
             criterion: query_criterion(request.criterion),
+            sorting: request
+                .sorting
+                .into_iter()
+                .map(|sort| QuerySort {
+                    attribute: AttributeName(sort.attribute),
+                    direction: match sort.direction {
+                        QueryRequestSortDirection::Ascending => QuerySortDirection::Ascending,
+                        QueryRequestSortDirection::Descending => QuerySortDirection::Descending,
+                    },
+                })
+                .collect(),
             max_results: request.max_results,
             attributes: request.attributes.into_iter().map(AttributeName).collect(),
         };
@@ -187,7 +214,10 @@ mod tests {
     use crate::sqlite_data_store::SqliteDataStore;
     use crate::user_session_command::{UserTableDescriptionProvider, UserTestDataProvider};
 
-    use super::{QueryCommand, QueryRequest, QueryRequestCriterion, QueryValues};
+    use super::{
+        QueryCommand, QueryRequest, QueryRequestCriterion, QueryRequestSort,
+        QueryRequestSortDirection, QueryValues,
+    };
 
     #[test]
     fn queries_columns() {
@@ -204,6 +234,10 @@ mod tests {
                 QueryRequest {
                     table_name: "users".into(),
                     criterion: QueryRequestCriterion::MatchAny,
+                    sorting: vec![QueryRequestSort {
+                        attribute: "username".into(),
+                        direction: QueryRequestSortDirection::Descending,
+                    }],
                     max_results: 2,
                     attributes: vec!["username".into(), "name".into()],
                 },
@@ -214,7 +248,7 @@ mod tests {
         assert_eq!(response.result_columns.len(), 2);
         assert!(matches!(
             &response.result_columns[0].values,
-            QueryValues::String(values) if values.len() == 2 && values[0] == "jane.developer"
+            QueryValues::String(values) if values.len() == 2 && values[0] == "joe.tester"
         ));
     }
 
@@ -251,6 +285,7 @@ mod tests {
                             attribute: "name".into(),
                         },
                     ]),
+                    sorting: Vec::new(),
                     max_results: 10,
                     attributes: vec!["username".into()],
                 },

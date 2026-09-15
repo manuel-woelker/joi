@@ -46,7 +46,10 @@ describe("loadEntityRecords", () => {
           },
         ],
       },
-      sorting: [],
+      sorting: [
+        { field: "status" as never, direction: "ascending" },
+        { field: "title" as never, direction: "descending" },
+      ],
     };
     const result = await loadEntityRecords(testEntity, new FetchService(fetcher), query);
     expect(result.rows[0].value(result.requireColumn("key"))).toBe("TEST-1");
@@ -59,6 +62,10 @@ describe("loadEntityRecords", () => {
           { contains: { attribute: "title", value: "navigation" } },
         ],
       },
+      sorting: [
+        { attribute: "status", direction: "ascending" },
+        { attribute: "title", direction: "descending" },
+      ],
       max_results: 100,
       attributes: ["*"],
     });

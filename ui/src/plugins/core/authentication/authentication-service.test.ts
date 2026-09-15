@@ -33,6 +33,7 @@ describe("authentication service", () => {
     expect(JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body))).toEqual({
       table_name: "users",
       criterion: "match_any",
+      sorting: [],
       max_results: 100,
       attributes: ["id", "username", "name"],
     });

@@ -41,6 +41,7 @@ impl TestDataProvider for ProjectTestDataProvider {
         let existing = data_store.query(DataStoreQuery {
             table_name: TableName("projects".into()),
             criterion: QueryCriterion::MatchAny,
+            sorting: Vec::new(),
             max_results: 10_000,
             attributes: vec![AttributeName("prefix".into())],
         })?;
@@ -138,6 +139,7 @@ mod tests {
             .query(DataStoreQuery {
                 table_name: TableName("projects".into()),
                 criterion: QueryCriterion::MatchAny,
+                sorting: Vec::new(),
                 max_results: 10,
                 attributes: vec![
                     joi_server::data_store::AttributeName("id".into()),

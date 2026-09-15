@@ -157,6 +157,7 @@ impl TestDataProvider for CurrentRepositoryProvider {
                 attribute: AttributeName("path".into()),
                 values: vec![path.as_ref().into()],
             },
+            sorting: Vec::new(),
             max_results: 1,
             attributes: vec![AttributeName("id".into())],
         })?;
@@ -179,6 +180,7 @@ impl TestDataProvider for CurrentRepositoryProvider {
                     values: vec!["main".into()],
                 },
             ]),
+            sorting: Vec::new(),
             max_results: 1,
             attributes: vec![AttributeName("id".into())],
         })?;
@@ -272,6 +274,7 @@ mod tests {
             .query(DataStoreQuery {
                 table_name: TableName("repositories".into()),
                 criterion: QueryCriterion::MatchAny,
+                sorting: Vec::new(),
                 max_results: 10,
                 attributes: vec![
                     joi_server::data_store::AttributeName("key".into()),
@@ -296,6 +299,7 @@ mod tests {
             .query(DataStoreQuery {
                 table_name: TableName("repository_branches".into()),
                 criterion: QueryCriterion::MatchAny,
+                sorting: Vec::new(),
                 max_results: 10,
                 attributes: vec![joi_server::data_store::AttributeName("name".into())],
             })

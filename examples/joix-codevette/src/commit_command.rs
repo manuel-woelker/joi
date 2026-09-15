@@ -115,6 +115,7 @@ impl GitCommitCommand {
                 attribute: AttributeName("id".into()),
                 values: vec![branch_id.into()],
             },
+            sorting: Vec::new(),
             max_results: 1,
             attributes: vec![AttributeName("repository_id".into())],
         })?;
@@ -127,6 +128,7 @@ impl GitCommitCommand {
                 attribute: AttributeName("id".into()),
                 values: vec![repository_id.as_str().into()],
             },
+            sorting: Vec::new(),
             max_results: 1,
             attributes: vec![AttributeName("path".into())],
         })?;
@@ -157,6 +159,7 @@ impl GitCommitCommand {
                 attribute: AttributeName("commit_id".into()),
                 values: vec![id.into()],
             },
+            sorting: Vec::new(),
             max_results: 1,
             attributes: attributes.map(|value| AttributeName(value.into())).to_vec(),
         })?;

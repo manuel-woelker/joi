@@ -3,7 +3,7 @@ import FunnelIcon from "lucide-solid/icons/funnel";
 import XIcon from "lucide-solid/icons/x";
 
 import { useNavigation } from "../../../base/navigation";
-import { DataTable } from "../../../components/DataTable";
+import { DataTable, type DataTableSort } from "../../../components/DataTable";
 import { entityFilterAttributes } from "../../../components/filter-definition/entity-filter-attributes";
 import { FilterDefinitionEditor } from "../../../components/filter-definition/FilterDefinitionEditor";
 import { createCompositeFilter, type FilterDefinition } from "../../../components/filter-definition/filter-model";
@@ -28,6 +28,7 @@ import styles from "./EntityMasterDetailView.module.css";
 export function EntityMasterDetailView(props: {
   entityId: EntityId;
   initialFilter?: FilterDefinition;
+  initialSorting?: readonly DataTableSort[];
   filterIdentity?: string;
 }) {
   const navigation = useNavigation();
@@ -39,11 +40,13 @@ export function EntityMasterDetailView(props: {
   const editor = createEntityEditorDefinition(description);
   const [filterOpen, setFilterOpen] = createSignal(false);
   const [filter, setFilter] = createSignal<FilterDefinition>(cloneFilter(props.initialFilter));
-  const [queryFilter, setQueryFilter] = createSignal<FilterDefinition>(filter());
+  const [sorting, setSorting] = createSignal<readonly DataTableSort[]>(cloneSorting(props.initialSorting));
+  const [queryParameters, setQueryParameters] = createSignal({ filter: filter(), sorting: sorting() });
   const [showLoading, setShowLoading] = createSignal(false);
   createEffect(() => {
     const current = filter();
-    const timer = window.setTimeout(() => setQueryFilter(current), 300);
+    const currentSorting = sorting();
+    const timer = window.setTimeout(() => setQueryParameters({ filter: current, sorting: currentSorting }), 300);
     onCleanup(() => window.clearTimeout(timer));
   });
   let activeFilterIdentity = props.filterIdentity;
@@ -51,11 +54,13 @@ export function EntityMasterDetailView(props: {
     if (props.filterIdentity === activeFilterIdentity) return;
     activeFilterIdentity = props.filterIdentity;
     const next = cloneFilter(props.initialFilter);
+    const nextSorting = cloneSorting(props.initialSorting);
     setFilter(next);
-    setQueryFilter(next);
+    setSorting(nextSorting);
+    setQueryParameters({ filter: next, sorting: nextSorting });
   });
-  const [records, { refetch }] = createResource(queryFilter, (currentFilter) =>
-    loadEntityRecords(description, fetchService, { filter: currentFilter }),
+  const [records, { refetch }] = createResource(queryParameters, (query) =>
+    loadEntityRecords(description, fetchService, query),
   );
   createEffect(() => {
     if (!records.loading) {
@@ -191,6 +196,8 @@ export function EntityMasterDetailView(props: {
                     result={result()}
                     rows={result().rows}
                     columns={createEntityTableColumns(entity())}
+                    sorting={sorting()}
+                    onSortingChange={setSorting}
                     rowKey={entity().identity}
                     selectedRowKey={navigation.selectedRecordId()}
                     density="compact"
@@ -224,6 +231,10 @@ export function EntityMasterDetailView(props: {
       </Match>
     </Switch>
   );
+}
+
+function cloneSorting(sorting: readonly DataTableSort[] | undefined): readonly DataTableSort[] {
+  return sorting?.map((sort) => ({ ...sort })) ?? [];
 }
 
 function cloneFilter(filter: FilterDefinition | undefined): FilterDefinition {
