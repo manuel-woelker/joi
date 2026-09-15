@@ -2,6 +2,7 @@ import { type ColumnDef, createSolidTable, flexRender, getCoreRowModel, type Row
 import { createVirtualizer } from "@tanstack/solid-virtual";
 import { createEffect, createMemo, createSignal, For, type JSX, onCleanup, onMount, Show } from "solid-js";
 import { Portal } from "solid-js/web";
+import ArrowDownIcon from "lucide-solid/icons/arrow-down";
 
 import type { QueryColumnHandle, QueryResult, QueryResultRow, QueryValue } from "../plugins/core/query/query-result";
 import styles from "./DataTable.module.css";
@@ -10,7 +11,18 @@ export interface DataTableColumn {
   readonly column: QueryColumnHandle;
   readonly header: string;
   readonly width?: number;
+  readonly type?: DataTableColumnType;
+  readonly sortable?: boolean;
   readonly cell?: (value: QueryValue | undefined, row: QueryResultRow, column: QueryColumnHandle) => JSX.Element;
+}
+
+export type DataTableColumnType = "text" | "number" | "date" | "time";
+
+export type DataTableSortDirection = "ascending" | "descending";
+
+export interface DataTableSort {
+  readonly attribute: string;
+  readonly direction: DataTableSortDirection;
 }
 
 export interface DataTableProps {
@@ -22,6 +34,8 @@ export interface DataTableProps {
   readonly density?: "compact" | "comfortable";
   readonly rowKey?: QueryColumnHandle;
   readonly selectedRowKey?: QueryValue;
+  readonly sorting?: readonly DataTableSort[];
+  readonly onSortingChange?: (sorting: readonly DataTableSort[]) => void;
   readonly onRowSelect?: (row: QueryResultRow) => void;
   readonly onRowActivate?: (row: QueryResultRow) => void;
   readonly onRowContextMenu?: (event: MouseEvent, row: QueryResultRow) => void;
@@ -52,6 +66,16 @@ export function DataTable(props: DataTableProps) {
   const [draggedColumnId, setDraggedColumnId] = createSignal<string>();
   const [columnDragPosition, setColumnDragPosition] = createSignal({ x: 0, y: 0 });
   const [resizingColumnId, setResizingColumnId] = createSignal<string>();
+  const canSort = (attribute: string) =>
+    Boolean(
+      props.onSortingChange &&
+        props.columns.find((column) => column.column.attribute === attribute)?.sortable !== false,
+    );
+  const sortFor = (attribute: string) => props.sorting?.find((sort) => sort.attribute === attribute);
+  const changeSorting = (attribute: string, multi: boolean) => {
+    if (!props.onSortingChange) return;
+    props.onSortingChange(nextDataTableSorting(props.sorting ?? [], attribute, multi));
+  };
   const columns = createMemo<ColumnDef<QueryResultRow>[]>(() =>
     props.columns.map((definition) => ({
       id: definition.column.attribute,
@@ -283,7 +307,11 @@ export function DataTable(props: DataTableProps) {
       }}
     >
       <For each={row.getVisibleCells()}>
-        {(cell) => <td>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>}
+        {(cell) => (
+          <td data-column-type={columnType(props.columns, cell.column.id)}>
+            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+          </td>
+        )}
       </For>
     </tr>
   );
@@ -310,10 +338,14 @@ export function DataTable(props: DataTableProps) {
                   {(header) => (
                     <th
                       aria-label={String(header.column.columnDef.header)}
+                      aria-sort={
+                        canSort(header.column.id) ? (sortFor(header.column.id)?.direction ?? "none") : undefined
+                      }
                       classList={{
                         [styles.draggingColumn]: draggedColumnId() === header.column.id,
                       }}
                       data-column-id={header.column.id}
+                      data-column-type={columnType(props.columns, header.column.id)}
                       tabIndex={header.isPlaceholder ? undefined : 0}
                       onPointerDown={(event) => {
                         if (header.isPlaceholder || resizingColumnId() || event.button !== 0) return;
@@ -335,7 +367,47 @@ export function DataTable(props: DataTableProps) {
                       }}
                     >
                       <span class={styles.headerLabel}>
-                        {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                        {header.isPlaceholder ? null : (
+                          <Show
+                            when={canSort(header.column.id)}
+                            fallback={flexRender(header.column.columnDef.header, header.getContext())}
+                          >
+                            <button
+                              type="button"
+                              class={styles.sortButton}
+                              aria-label={sortButtonLabel(
+                                String(header.column.columnDef.header),
+                                sortFor(header.column.id),
+                                props.sorting ?? [],
+                              )}
+                              onPointerDown={(event) => event.stopPropagation()}
+                              onClick={(event) => changeSorting(header.column.id, event.shiftKey)}
+                            >
+                              <span>{flexRender(header.column.columnDef.header, header.getContext())}</span>
+                              <Show when={sortFor(header.column.id)}>
+                                {(sort) => (
+                                  <span class={styles.sortIndicator} aria-hidden="true">
+                                    <span class={styles.sortDirection}>
+                                      <For
+                                        each={sortDirectionCharacters(
+                                          columnType(props.columns, header.column.id),
+                                          sort().direction,
+                                        )}
+                                      >
+                                        {(character) => <span>{character}</span>}
+                                      </For>
+                                    </span>
+                                    <ArrowDownIcon class={styles.sortArrow} size={12} strokeWidth={2.25} />
+                                    <span class={styles.sortPriority}>
+                                      {(props.sorting?.findIndex((item) => item.attribute === header.column.id) ?? 0) +
+                                        1}
+                                    </span>
+                                  </span>
+                                )}
+                              </Show>
+                            </button>
+                          </Show>
+                        )}
                       </span>
                       <Show when={!header.isPlaceholder && header.column.getCanResize()}>
                         <span
@@ -442,6 +514,42 @@ export function DataTable(props: DataTableProps) {
       </Show>
     </div>
   );
+}
+
+/** Computes the next controlled sort state without changing row order locally. */
+export function nextDataTableSorting(
+  sorting: readonly DataTableSort[],
+  attribute: string,
+  multi: boolean,
+): readonly DataTableSort[] {
+  const index = sorting.findIndex((sort) => sort.attribute === attribute);
+  const current = sorting[index];
+  const nextDirection =
+    current?.direction === "ascending" ? "descending" : current?.direction === "descending" ? undefined : "ascending";
+  if (!multi) return nextDirection ? [{ attribute, direction: nextDirection }] : [];
+  if (!nextDirection) return sorting.filter((sort) => sort.attribute !== attribute);
+  if (index < 0) return [...sorting, { attribute, direction: nextDirection }];
+  return sorting.map((sort, sortIndex) => (sortIndex === index ? { attribute, direction: nextDirection } : sort));
+}
+
+function columnType(columns: readonly DataTableColumn[], attribute: string): DataTableColumnType {
+  const definition = columns.find((column) => column.column.attribute === attribute);
+  return definition?.type ?? (definition?.column.type === "int" ? "number" : "text");
+}
+
+function sortDirectionCharacters(
+  type: DataTableColumnType,
+  direction: DataTableSortDirection,
+): readonly [string, string] {
+  const ascending = type === "text" ? (["A", "Z"] as const) : (["0", "9"] as const);
+  return direction === "ascending" ? ascending : [ascending[1], ascending[0]];
+}
+
+function sortButtonLabel(header: string, sort: DataTableSort | undefined, sorting: readonly DataTableSort[]): string {
+  if (!sort) return `Sort by ${header}`;
+  const order = sorting.findIndex((item) => item.attribute === sort.attribute) + 1;
+  const next = sort.direction === "ascending" ? "descending" : "unsorted";
+  return `${header}, ${sort.direction}, priority ${order}. Sort ${next}`;
 }
 
 function isTabStop(

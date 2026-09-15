@@ -5,7 +5,7 @@ import { createSignal } from "solid-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { parseQueryResponse } from "../plugins/core/query/query-result";
-import { DataTable, type DataTableColumn } from "./DataTable";
+import { DataTable, type DataTableColumn, type DataTableSort } from "./DataTable";
 
 afterEach(cleanup);
 
@@ -126,6 +126,59 @@ describe("DataTable", () => {
     fireEvent.dblClick(row);
     fireEvent.keyDown(row, { key: "Enter" });
     expect(activate).toHaveBeenCalledTimes(2);
+  });
+
+  it("emits controlled multi-column sorting without sorting rows locally", () => {
+    const result = parseQueryResponse({
+      number_of_hits: 2,
+      result_columns: [
+        { attribute: "name", values: { type: "string", values: ["Zoe", "Alex"] } },
+        { attribute: "age", values: { type: "int", values: [20, 40] } },
+      ],
+    });
+    const [sorting, setSorting] = createSignal<readonly DataTableSort[]>([]);
+    const changes = vi.fn((next: readonly DataTableSort[]) => setSorting(next));
+    render(() => (
+      <DataTable
+        ariaLabel="Sortable people"
+        result={result}
+        sorting={sorting()}
+        onSortingChange={changes}
+        columns={[
+          { column: result.requireColumn("name"), header: "Name" },
+          { column: result.requireColumn("age"), header: "Age" },
+        ]}
+      />
+    ));
+
+    fireEvent.click(screen.getByRole("button", { name: "Sort by Name" }));
+    expect(changes).toHaveBeenLastCalledWith([{ attribute: "name", direction: "ascending" }]);
+    expect(screen.getByRole("columnheader", { name: "Name" }).getAttribute("aria-sort")).toBe("ascending");
+    expect(
+      screen
+        .getAllByRole("row")
+        .slice(1)
+        .map((row) => row.textContent),
+    ).toEqual(["Zoe20", "Alex40"]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Sort by Age" }), { shiftKey: true });
+    expect(changes).toHaveBeenLastCalledWith([
+      { attribute: "name", direction: "ascending" },
+      { attribute: "age", direction: "ascending" },
+    ]);
+    expect(screen.getByRole("button", { name: /Name, ascending, priority 1/ }).textContent).toContain("1");
+    expect(screen.getByRole("button", { name: /Age, ascending, priority 2/ }).textContent).toContain("2");
+    expect(screen.getByRole("button", { name: /Name, ascending, priority 1/ }).textContent).toContain("AZ");
+    expect(screen.getByRole("button", { name: /Age, ascending, priority 2/ }).textContent).toContain("09");
+    expect(screen.getByText("20").closest("td")?.dataset.columnType).toBe("number");
+
+    fireEvent.click(screen.getByRole("button", { name: /Name, ascending/ }), { shiftKey: true });
+    expect(changes).toHaveBeenLastCalledWith([
+      { attribute: "name", direction: "descending" },
+      { attribute: "age", direction: "ascending" },
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: /Name, descending/ }), { shiftKey: true });
+    expect(changes).toHaveBeenLastCalledWith([{ attribute: "age", direction: "ascending" }]);
   });
 
   it("resizes and reorders columns", async () => {
