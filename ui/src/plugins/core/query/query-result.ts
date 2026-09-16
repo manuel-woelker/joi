@@ -20,7 +20,7 @@ export interface QueryResultColumn {
 }
 
 export interface QueryResponse {
-  readonly number_of_hits: number;
+  readonly number_of_hits: number | null;
   readonly result_columns: readonly QueryResultColumn[];
 }
 
@@ -42,7 +42,7 @@ export interface QueryValueUpdate {
 }
 
 export interface QueryResult {
-  readonly numberOfHits: number;
+  readonly numberOfHits?: number;
   readonly columns: readonly QueryColumnHandle[];
   readonly rows: readonly QueryResultRow[];
   column(attribute: string): QueryColumnHandle | undefined;
@@ -81,7 +81,7 @@ export function parseQueryResponse(value: unknown): QueryResult {
   });
 
   return {
-    numberOfHits: response.number_of_hits,
+    numberOfHits: response.number_of_hits ?? undefined,
     columns,
     rows,
     column: (attribute) => columnsByAttribute.get(attribute),
@@ -112,7 +112,10 @@ function isValueOfType(value: QueryValue, type: QueryValueType): boolean {
 function validateResponse(value: unknown): QueryResponse {
   if (!value || typeof value !== "object") throw new Error("Query returned an invalid response");
   const response = value as Partial<QueryResponse>;
-  if (!Number.isSafeInteger(response.number_of_hits) || response.number_of_hits! < 0) {
+  if (
+    response.number_of_hits !== null &&
+    (!Number.isSafeInteger(response.number_of_hits) || response.number_of_hits! < 0)
+  ) {
     throw new Error("Query response has an invalid number_of_hits");
   }
   if (!Array.isArray(response.result_columns)) throw new Error("Query response has invalid result_columns");

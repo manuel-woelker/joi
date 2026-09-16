@@ -36,6 +36,7 @@ describe("authentication service", () => {
       sorting: [],
       max_results: 100,
       attributes: ["id", "username", "name"],
+      return_total_count: false,
     });
   });
 });

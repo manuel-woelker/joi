@@ -68,6 +68,7 @@ describe("loadEntityRecords", () => {
       ],
       max_results: 100,
       attributes: ["*"],
+      return_total_count: true,
     });
   });
 

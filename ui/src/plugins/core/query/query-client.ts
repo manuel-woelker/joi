@@ -16,8 +16,9 @@ export type QueryCriterionRequest =
   | { in_range: { attribute: string; minimum?: string; maximum?: string } }
   | { contains: { attribute: string; value: string } };
 
-export type QueryRequest = Omit<GeneratedQueryRequest, "criterion"> & {
+export type QueryRequest = Omit<GeneratedQueryRequest, "criterion" | "returnTotalCount"> & {
   readonly criterion: QueryCriterionRequest;
+  readonly returnTotalCount?: boolean;
 };
 
 export async function executeDataQuery(service: FetchService, request: QueryRequest): Promise<QueryResult> {
@@ -27,6 +28,7 @@ export async function executeDataQuery(service: FetchService, request: QueryRequ
     sorting: request.sorting,
     maxResults: request.maxResults,
     attributes: request.attributes,
+    returnTotalCount: request.returnTotalCount ?? false,
   });
   return parseQueryResponse({
     number_of_hits: response.numberOfHits,

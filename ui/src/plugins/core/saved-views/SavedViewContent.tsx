@@ -325,6 +325,7 @@ function openRecord(
 function resultCount(result: QueryResult | undefined, visibleRows: number, pluralLabel = "records"): string {
   if (!result) return `0 ${pluralLabel.toLocaleLowerCase()}`;
   const label = pluralLabel.toLocaleLowerCase();
+  if (result.numberOfHits === undefined) return `${visibleRows} ${label}`;
   return visibleRows === result.numberOfHits
     ? `${result.numberOfHits} ${label}`
     : `${visibleRows} of ${result.numberOfHits} ${label}`;

@@ -218,8 +218,17 @@ pub trait DataStore: Send {
     /// Ensures that the requested tables and columns exist.
     fn ensure_tables(&mut self, tables: Vec<TableDescription>) -> JoiResult<()>;
 
-    /// Executes a query and returns its matching records.
-    fn query(&self, query: DataStoreQuery) -> JoiResult<DataStoreQueryResult>;
+    /// Executes a query and returns its matching records and total count.
+    fn query(&self, query: DataStoreQuery) -> JoiResult<DataStoreQueryResult> {
+        self.query_with_total_count(query, true)
+    }
+
+    /// Executes a query, optionally calculating the total count before limiting rows.
+    fn query_with_total_count(
+        &self,
+        query: DataStoreQuery,
+        return_total_count: bool,
+    ) -> JoiResult<DataStoreQueryResult>;
 
     /// Applies a mutation and returns its outcome.
     fn mutate(&mut self, mutation: DataStoreMutation) -> JoiResult<DataStoreMutationResult>;

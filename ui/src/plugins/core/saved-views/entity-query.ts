@@ -26,6 +26,7 @@ export function loadEntityRecords(
     })),
     maxResults: 100,
     attributes: ["*"],
+    returnTotalCount: true,
   });
 }
 

@@ -44,6 +44,7 @@ describe("DataTable", () => {
     expect(screen.getByText("Jane")).toBeTruthy();
     expect(screen.getByText("34 years").tagName).toBe("STRONG");
     expect(screen.getByText("Jane").closest("tr")?.dataset.rowId).toBe("Jane");
+    expect(screen.getByLabelText("Table status").textContent).toBe("Rows shown: 1Rows selected: 0Total rows: 1");
   });
 
   it("reacts to a new result and schema", () => {
@@ -62,6 +63,26 @@ describe("DataTable", () => {
     expect(screen.getByRole("columnheader", { name: "Age" })).toBeTruthy();
     expect(screen.getByText("41")).toBeTruthy();
     expect(screen.queryByText("Jane")).toBeNull();
+  });
+
+  it("shows selected rows and an unavailable total", () => {
+    const result = parseQueryResponse({
+      number_of_hits: null,
+      result_columns: [{ attribute: "name", values: { type: "string", values: ["Jane"] } }],
+    });
+    render(() => (
+      <DataTable
+        ariaLabel="People"
+        result={result}
+        columns={[{ column: result.requireColumn("name"), header: "Name" }]}
+        rowKey={result.requireColumn("name")}
+        selectedRowKey="Jane"
+      />
+    ));
+
+    expect(screen.getByLabelText("Table status").textContent).toBe(
+      "Rows shown: 1Rows selected: 1Total rows: Not requested",
+    );
   });
 
   it("renders an empty result message inside the table body", () => {

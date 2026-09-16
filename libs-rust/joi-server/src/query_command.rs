@@ -30,6 +30,8 @@ pub struct QueryRequest {
     sorting: Vec<QueryRequestSort>,
     max_results: usize,
     attributes: Vec<JoiString>,
+    #[serde(default)]
+    return_total_count: bool,
 }
 
 #[derive(Deserialize)]
@@ -88,7 +90,7 @@ impl Command for QueryRequest {
 #[derive(Debug, PartialEq, Serialize)]
 /// Columnar result returned by the `query` command.
 pub struct QueryResponse {
-    number_of_hits: usize,
+    number_of_hits: Option<usize>,
     result_columns: Vec<QueryResultColumn>,
 }
 
@@ -117,6 +119,7 @@ impl CommandHandler for QueryCommand {
         _context: &crate::command_handler::CommandContext,
         request: Self::Command,
     ) -> JoiResult<QueryResponse> {
+        let return_total_count = request.return_total_count;
         let query = DataStoreQuery {
             table_name: TableName(request.table_name),
             criterion: query_criterion(request.criterion),
@@ -138,10 +141,10 @@ impl CommandHandler for QueryCommand {
             .data_store
             .lock()
             .map_err(|_| joi_error!("data store lock is poisoned"))?
-            .query(query)?;
+            .query_with_total_count(query, return_total_count)?;
 
         Ok(QueryResponse {
-            number_of_hits: result.number_of_hits,
+            number_of_hits: return_total_count.then_some(result.number_of_hits),
             result_columns: result
                 .result_columns
                 .into_iter()
@@ -240,11 +243,12 @@ mod tests {
                     }],
                     max_results: 2,
                     attributes: vec!["username".into(), "name".into()],
+                    return_total_count: true,
                 },
             )
             .unwrap();
 
-        assert_eq!(response.number_of_hits, 2);
+        assert_eq!(response.number_of_hits, Some(2));
         assert_eq!(response.result_columns.len(), 2);
         assert!(matches!(
             &response.result_columns[0].values,
@@ -288,11 +292,12 @@ mod tests {
                     sorting: Vec::new(),
                     max_results: 10,
                     attributes: vec!["username".into()],
+                    return_total_count: false,
                 },
             )
             .unwrap();
 
-        assert_eq!(response.number_of_hits, 1);
+        assert_eq!(response.number_of_hits, None);
         assert!(matches!(
             &response.result_columns[0].values,
             QueryValues::String(values) if values == &[JoiString::from("jane.developer")]

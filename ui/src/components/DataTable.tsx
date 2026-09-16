@@ -509,6 +509,11 @@ export function DataTable(props: DataTableProps) {
           </Show>
         </tbody>
       </table>
+      <footer class={styles.tableStatus} aria-label="Table status">
+        <span>Rows shown: {tableRows().length}</span>
+        <span>Rows selected: {tableRows().filter((row) => isSelected(props, row.original)).length}</span>
+        <span>Total rows: {props.result.numberOfHits ?? "Not requested"}</span>
+      </footer>
       <Show when={draggedColumnId() && pendingColumnDrag}>
         <Portal>
           <div

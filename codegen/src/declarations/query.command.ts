@@ -2,9 +2,11 @@ import {
   defineCommand,
   defineEnum,
   defineStruct,
+  booleanType,
   integerType,
   jsonType,
   list,
+  optional,
   stringType,
 } from "../engine/model/declarations.ts";
 
@@ -48,7 +50,11 @@ export const QueryResponse = defineStruct({
   name: "QueryResponse",
   description: "The column-oriented result of querying a table.",
   fields: [
-    { name: "numberOfHits", type: integerType, description: "The total number of matching rows." },
+    {
+      name: "numberOfHits",
+      type: optional(integerType),
+      description: "The total number of matching rows when requested.",
+    },
     { name: "resultColumns", type: list(QueryResultColumn), description: "The requested result columns." },
   ],
 });
@@ -65,6 +71,11 @@ export default defineCommand({
       { name: "sorting", type: list(QuerySort), description: "Sort criteria applied in priority order." },
       { name: "maxResults", type: integerType, description: "The maximum number of rows to return." },
       { name: "attributes", type: list(stringType), description: "The attributes to return, or `*` for all." },
+      {
+        name: "returnTotalCount",
+        type: booleanType,
+        description: "Whether to include the total number of matching rows in the response.",
+      },
     ],
   }),
   response: QueryResponse,

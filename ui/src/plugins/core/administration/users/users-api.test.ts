@@ -32,6 +32,7 @@ describe("loadUsers", () => {
         sorting: [],
         max_results: 100,
         attributes: ["*"],
+        return_total_count: true,
       }),
     });
   });

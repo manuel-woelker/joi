@@ -19,6 +19,7 @@
   min-height: 0;
   overflow: hidden;
   flex: 1 1 auto;
+  flex-direction: column;
 }
 
 .fillHeight .table {
@@ -39,6 +40,21 @@
   flex: 1 1 auto;
   scrollbar-gutter: stable;
   overscroll-behavior: contain;
+}
+
+.tableStatus {
+  display: flex;
+  width: 100%;
+  min-height: 28px;
+  flex: none;
+  align-items: center;
+  gap: 18px;
+  padding: 5px 12px;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  background: var(--color-canvas);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }
 
 .table {
