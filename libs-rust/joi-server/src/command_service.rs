@@ -10,6 +10,7 @@ use axum::{
 };
 use joi_base::JoiString;
 use serde::Serialize;
+use tower_http::compression::CompressionLayer;
 
 use crate::command_handler::{CommandContext, CommandUser};
 use crate::command_registry::CommandRegistry;
@@ -34,7 +35,8 @@ impl CommandService {
                     "/api/{*command_name}",
                     post(execute).get(execute_empty_object),
                 )
-                .with_state(registry),
+                .with_state(registry)
+                .layer(CompressionLayer::new()),
         }
     }
 
@@ -217,7 +219,10 @@ mod tests {
 
     use axum::{
         body::{Body, to_bytes},
-        http::{Request, StatusCode, header::CONTENT_TYPE},
+        http::{
+            Request, StatusCode,
+            header::{ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_TYPE},
+        },
     };
     use joi_base::JoiString;
     use joi_plugin::{PluginRegistryBuilder, plugin};
@@ -394,6 +399,29 @@ mod tests {
                 message: "Hello, Ada!".into(),
             }
         );
+    }
+
+    #[tokio::test]
+    async fn compresses_responses_with_zstd_when_requested() {
+        let service = service_with(GreetingCommand);
+        let name = "A".repeat(1_024);
+
+        let response = service
+            .into_router()
+            .oneshot(
+                Request::post("/api/greet")
+                    .header(CONTENT_TYPE, "application/json")
+                    .header(ACCEPT_ENCODING, "zstd")
+                    .body(Body::from(format!(r#"{{"name":"{name}"}}"#)))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.headers()[CONTENT_ENCODING], "zstd");
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        assert_eq!(body.get(..4), Some([0x28, 0xb5, 0x2f, 0xfd].as_slice()));
     }
 
     #[tokio::test]
