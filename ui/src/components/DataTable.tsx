@@ -31,6 +31,7 @@ export interface DataTableProps {
   readonly rows?: readonly QueryResultRow[];
   readonly columns: readonly DataTableColumn[];
   readonly emptyMessage?: string;
+  readonly fillWidth?: boolean;
   readonly density?: "compact" | "comfortable";
   readonly rowKey?: QueryColumnHandle;
   readonly selectedRowKey?: QueryValue;
@@ -317,7 +318,13 @@ export function DataTable(props: DataTableProps) {
   );
 
   return (
-    <div class={styles.tableScroll} classList={{ [styles.virtualized]: Boolean(props.virtualization) }}>
+    <div
+      class={styles.tableScroll}
+      classList={{
+        [styles.fillWidth]: props.fillWidth,
+        [styles.virtualized]: Boolean(props.virtualization),
+      }}
+    >
       <table
         ref={tableElement}
         class={styles.table}

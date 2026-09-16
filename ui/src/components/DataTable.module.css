@@ -8,6 +8,12 @@
   background: var(--color-surface);
 }
 
+.fillWidth {
+  max-width: none;
+  margin-right: 0;
+  margin-left: 0;
+}
+
 .table {
   display: block;
   width: 100%;
