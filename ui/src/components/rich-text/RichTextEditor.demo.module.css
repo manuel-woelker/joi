@@ -1,0 +1,45 @@
+.demo {
+  display: grid;
+  gap: 12px;
+  max-width: 820px;
+}
+
+.statusRow {
+  display: flex;
+  min-height: 24px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.statusRow strong {
+  color: var(--color-ink);
+}
+
+.htmlPanel {
+  display: grid;
+  gap: 5px;
+}
+
+.htmlPanel h3 {
+  margin: 0;
+  font-size: 12px;
+}
+
+.htmlPanel pre {
+  min-height: 62px;
+  overflow: auto;
+  margin: 0;
+  padding: 9px 11px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-canvas);
+  color: var(--color-ink-soft);
+  font-family: var(--font-monospace);
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

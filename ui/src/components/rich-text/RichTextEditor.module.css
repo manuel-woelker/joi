@@ -1,0 +1,132 @@
+.editor {
+  overflow: visible;
+  border: 1px solid var(--color-control-border);
+  border-radius: 6px;
+  background: var(--color-control-background);
+  box-shadow: inset 0 1px 2px var(--color-control-inset-shadow);
+}
+
+.editor:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-soft);
+}
+
+.toolbar {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 5px 5px 0 0;
+  background: var(--color-canvas);
+}
+
+.toolbarButton {
+  position: relative;
+  display: inline-grid;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  place-items: center;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.tooltip {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 6px);
+  left: 50%;
+  display: none;
+  width: max-content;
+  max-width: 180px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  color: var(--color-surface);
+  background: var(--color-ink);
+  font-size: 11px;
+  font-weight: 500;
+  pointer-events: none;
+  text-transform: none;
+  transform: translateX(-50%);
+}
+
+.toolbarButton:hover .tooltip,
+.toolbarButton:focus-visible .tooltip {
+  display: block;
+}
+
+.toolbarButton:hover,
+.toolbarButton:focus-visible,
+.toolbarButton.active {
+  border-color: var(--color-control-border);
+  color: var(--color-primary-dark);
+  background: var(--color-primary-soft);
+  box-shadow: none;
+}
+
+.headingSelect {
+  width: 92px;
+  height: 26px;
+  padding: 0 22px 0 6px;
+  font-size: 11px;
+}
+
+.separator {
+  width: 1px;
+  height: 18px;
+  margin: 0 3px;
+  background: var(--color-border);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.document {
+  min-height: 180px;
+  padding: 14px 16px;
+  outline: 0;
+  color: var(--color-ink);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.document > :first-child {
+  margin-top: 0;
+}
+
+.document > :last-child {
+  margin-bottom: 0;
+}
+
+.document h2 {
+  margin: 14px 0 6px;
+  font-size: 17px;
+}
+
+.document p,
+.document ul,
+.document ol,
+.document blockquote {
+  margin: 7px 0;
+}
+
+.document blockquote {
+  padding-left: 12px;
+  border-left: 3px solid var(--color-primary);
+  color: var(--color-text-muted);
+}
+
+.document code {
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--color-surface-muted);
+  font-family: var(--font-monospace);
+}
+
+.readOnly {
+  background: var(--color-surface-muted);
+}

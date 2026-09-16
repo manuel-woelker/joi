@@ -27,6 +27,12 @@ export default defineConfig({
     __JOI_REVISION__: JSON.stringify(revision),
   },
   plugins: [sourceLocationTransform(repositoryRoot), solidPlugin()],
+  optimizeDeps: {
+    include: ["prosemirror-model", "prosemirror-state", "prosemirror-transform", "prosemirror-view"],
+  },
+  resolve: {
+    dedupe: ["prosemirror-model", "prosemirror-state", "prosemirror-transform", "prosemirror-view"],
+  },
   server: {
     proxy: {
       "/api": "http://127.0.0.1:3000",
