@@ -35,7 +35,7 @@ recipe "default" {
 
   task "cargo-test" description="Run Rust tests" {
     depends-on "codegen"
-    run shell="./t cargo test --workspace"
+    run shell="./t cargo-nextest nextest run --workspace"
   }
 
   task "biome-lint" description="Run Biome linting" {

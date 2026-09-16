@@ -1,4 +1,5 @@
 sha512sums{
+"https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-0.9.144/cargo-nextest-0.9.144-x86_64-unknown-linux-gnu.tar.gz" "ba5a10e0f418041ff1fe662bd6645c4db3cc30f87a6e4d005493b7aaab8238de626bca189fdbd981face690b08a699faae345b3f127c116b9c0b72b1886d4d81"
 "https://github.com/manuel-woelker/nao/releases/download/v0.1.7/nao-v0.1.7-x86_64-unknown-linux-musl.tar.gz" "454640c6621615d8ee642b8004b132303144d0595b84e035794c66e1d40a2aa0db04bf3cd84c1e54c1b60ba596b7640eb09dc8bf444b072c5879b4da6055cfbf"
 "https://github.com/pnpm/pnpm/releases/download/v10.28.0/pnpm-linux-x64" "0d5ae1fb4da25dcd9ede9ffcfe7eb05b5d31ccf14e45f47061c128067d95467b012ca5f9bb8885ff7abd6814007cd4f2580ccc7ef0a9eb7af99fa378ddc44582"
 "https://github.com/pnpm/pnpm/releases/download/v10.28.0/pnpm-win-x64.exe" "3b9a57ffca2e3b6a8f2448c54e7327b78f197155585683372233ebea8d211ea68f17978ae53ca3fdafd7c8bc71ad199bb742edb2ea5cdbd5f0b22bf35fc2a20d"
