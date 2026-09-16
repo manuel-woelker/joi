@@ -1,24 +1,27 @@
-.layout { min-width: 0; container-type: inline-size; }
+.layout { height: 100%; min-width: 0; min-height: 0; overflow: hidden; container-type: inline-size; }
 .layout.withLeadingPanel { display: grid; grid-template-columns: minmax(360px, 500px) minmax(0, 1fr); gap: 16px; }
 .layout.withDetail { display: grid; grid-template-columns: minmax(0, 1fr) minmax(440px, 560px); gap: 24px; }
 .layout.withLeadingPanel.withDetail { grid-template-columns: minmax(360px, 500px) minmax(240px, 1fr) minmax(440px, 560px); gap: 16px; }
-.master { min-width: 0; }
-.leadingPanel { min-width: 0; padding-right: 16px; border-right: 1px solid var(--color-border); overflow-x: auto; }
-.detail { min-width: 0; padding-left: 24px; border-left: 1px solid var(--color-border); }
+.master { display: flex; min-width: 0; min-height: 0; overflow: hidden; flex-direction: column; }
+.leadingPanel { min-width: 0; min-height: 0; padding-right: 16px; border-right: 1px solid var(--color-border); overflow: auto; }
+.detail { min-width: 0; min-height: 0; padding-left: 24px; border-left: 1px solid var(--color-border); overflow: auto; }
 @container (max-width: 1100px) {
   .layout.withLeadingPanel.withDetail {
     grid-template-areas: "filter master" "detail detail";
     grid-template-columns: minmax(360px, 500px) minmax(240px, 1fr);
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
   }
   .layout.withLeadingPanel.withDetail .leadingPanel { grid-area: filter; }
   .layout.withLeadingPanel.withDetail .master { grid-area: master; }
   .layout.withLeadingPanel.withDetail .detail { grid-area: detail; padding: 16px 0 0; border-top: 1px solid var(--color-border); border-left: 0; }
 }
 @container (max-width: 700px) {
-  .layout.withDetail, .layout.withLeadingPanel, .layout.withLeadingPanel.withDetail { display: grid; grid-template-areas: none; grid-template-columns: 1fr; }
+  .layout { height: auto; min-height: 100%; overflow: visible; }
+  .layout.withDetail, .layout.withLeadingPanel, .layout.withLeadingPanel.withDetail { display: grid; grid-template-areas: none; grid-template-columns: 1fr; grid-template-rows: none; }
   .layout.withLeadingPanel.withDetail .leadingPanel,
   .layout.withLeadingPanel.withDetail .master,
   .layout.withLeadingPanel.withDetail .detail { grid-area: auto; }
-  .leadingPanel { padding: 0 0 16px; border-right: 0; border-bottom: 1px solid var(--color-border); }
-  .detail { padding: 24px 0 0; border-top: 1px solid var(--color-border); border-left: 0; }
+  .master { overflow: visible; }
+  .leadingPanel { padding: 0 0 16px; border-right: 0; border-bottom: 1px solid var(--color-border); overflow: visible; }
+  .detail { padding: 24px 0 0; border-top: 1px solid var(--color-border); border-left: 0; overflow: visible; }
 }

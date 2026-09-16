@@ -196,6 +196,7 @@ export function EntityMasterDetailView(props: {
                     result={result()}
                     rows={result().rows}
                     columns={createEntityTableColumns(entity())}
+                    fillHeight
                     fillWidth
                     sorting={sorting()}
                     onSortingChange={setSorting}

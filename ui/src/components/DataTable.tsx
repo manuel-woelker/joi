@@ -32,6 +32,7 @@ export interface DataTableProps {
   readonly columns: readonly DataTableColumn[];
   readonly emptyMessage?: string;
   readonly fillWidth?: boolean;
+  readonly fillHeight?: boolean;
   readonly density?: "compact" | "comfortable";
   readonly rowKey?: QueryColumnHandle;
   readonly selectedRowKey?: QueryValue;
@@ -322,6 +323,7 @@ export function DataTable(props: DataTableProps) {
       class={styles.tableScroll}
       classList={{
         [styles.fillWidth]: props.fillWidth,
+        [styles.fillHeight]: props.fillHeight,
         [styles.virtualized]: Boolean(props.virtualization),
       }}
     >
