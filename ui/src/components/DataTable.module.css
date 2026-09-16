@@ -15,8 +15,30 @@
 }
 
 .fillHeight {
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+  flex: 1 1 auto;
+}
+
+.fillHeight .table {
+  display: flex;
   min-height: 0;
   flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.fillHeight thead {
+  flex: none;
+  width: calc(100% - var(--data-table-scrollbar-width));
+}
+
+.fillHeight tbody {
+  min-height: 0;
+  overflow-y: scroll;
+  flex: 1 1 auto;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
 }
 
 .table {
@@ -32,9 +54,8 @@
 .table tr { display: grid; grid-template-columns: var(--data-table-columns); width: 100%; }
 
 .table th {
-  position: sticky;
+  position: relative;
   z-index: 3;
-  top: 0;
   color: var(--color-text-muted);
   background: var(--color-canvas);
   font-size: 11px;

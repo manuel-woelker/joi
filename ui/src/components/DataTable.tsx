@@ -248,7 +248,7 @@ export function DataTable(props: DataTableProps) {
   });
 
   onMount(() => {
-    if (!props.virtualization || !scrollElement) return;
+    if ((!props.virtualization && !props.fillHeight) || !scrollElement) return;
     const updateScrollbarWidth = () =>
       setScrollbarWidth(Math.max(0, scrollElement!.offsetWidth - scrollElement!.clientWidth));
     updateScrollbarWidth();
@@ -471,7 +471,7 @@ export function DataTable(props: DataTableProps) {
         </thead>
         <tbody
           ref={(element) => {
-            if (props.virtualization) scrollElement = element;
+            if (props.virtualization || props.fillHeight) scrollElement = element;
           }}
           style={{ "max-height": props.virtualization ? `${props.virtualization.height}px` : undefined }}
         >
