@@ -14,6 +14,33 @@ import { RecordEditor } from "./RecordEditor";
 afterEach(cleanup);
 
 describe("RecordEditor", () => {
+  it("uses the rich text editor for HTML fields", async () => {
+    const result = parseQueryResponse({
+      number_of_hits: 1,
+      result_columns: [
+        { attribute: "id", values: { type: "string", values: ["record-1"] } },
+        { attribute: "description", values: { type: "string", values: ["<p><strong>Rich</strong> text</p>"] } },
+      ],
+    });
+    render(() => (
+      <RecordEditor
+        definition={{
+          tableName: "records",
+          identityAttribute: "id",
+          detailTitle: "Record details",
+          fields: [{ attribute: "description", label: "Description", control: "html" }],
+        }}
+        fetchService={new FetchService(async () => ({ ok: true, json: async () => ({}) }) as Response)}
+        mode={{ type: "edit", result, recordId: "record-1" }}
+        onClose={() => undefined}
+      />
+    ));
+
+    const description = await screen.findByRole("textbox", { name: "Description" });
+    expect(description.innerHTML).toContain("<strong>Rich</strong>");
+    expect(screen.getByRole("toolbar", { name: "Text formatting" })).toBeTruthy();
+  });
+
   it("creates a record only after explicit valid submission", async () => {
     const fetcher = vi.fn(async () => ({ ok: true, json: async () => ({}) }) as Response);
     const onCreated = vi.fn();

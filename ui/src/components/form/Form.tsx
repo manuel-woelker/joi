@@ -140,6 +140,8 @@ export interface FormField {
   readonly value: string;
   /** Updates the field value directly. */
   readonly setValue: (value: string) => void;
+  /** Marks the field as touched without requiring a native input event. */
+  readonly setTouched: () => void;
   /** Input handler that updates the field on every typed character. */
   readonly onInput: JSX.EventHandler<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement, InputEvent>;
   /** Blur handler that marks the field as touched. */
@@ -362,6 +364,7 @@ export function useFormField(fieldId: string): FormField {
       return form.state.values[fieldId];
     },
     setValue,
+    setTouched: () => form.setTouched(fieldId),
     onInput,
     onBlur: () => form.setTouched(fieldId),
   };

@@ -3,7 +3,7 @@ import type { QueryResult, QueryResultRow, QueryValue, QueryValueType } from "..
 import type { ValidationFunction } from "../../../validation/validation";
 import type { LookupId } from "../lookups/lookup";
 
-export type EditControl = "text" | "textarea" | "integer" | "lookup";
+export type EditControl = "text" | "textarea" | "html" | "integer" | "lookup";
 
 export interface EditFieldDefinition {
   readonly attribute: string;

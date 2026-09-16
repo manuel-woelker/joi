@@ -19,14 +19,24 @@ export type RichTextHeadingLevel = 1 | 2 | 3 | 4 | 5 | 6;
 
 /** Public properties for editing an HTML document. */
 export interface RichTextEditorProps {
+  /** Optional DOM identifier used to associate an external label. */
+  readonly id?: string;
   /** Accessible name describing the edited document. */
   readonly ariaLabel: string;
   /** Current document encoded as HTML. */
   readonly value: string;
   /** Receives the complete HTML document after each user edit. */
   readonly onChange?: (html: string) => void;
+  /** Called when focus leaves the editable document. */
+  readonly onBlur?: () => void;
   /** Prevents document and formatting changes. */
   readonly readOnly?: boolean;
+  /** Makes the document unavailable for interaction. */
+  readonly disabled?: boolean;
+  /** Marks the document as having validation failures. */
+  readonly invalid?: boolean;
+  /** IDs of elements that describe the editor. */
+  readonly describedBy?: string;
   /** Available heading levels, or `false` to disable headings. Defaults to levels 1 through 3. */
   readonly headingLevels?: readonly RichTextHeadingLevel[] | false;
 }
@@ -38,13 +48,20 @@ export function RichTextEditor(props: RichTextEditorProps) {
   const editor = createEditor({
     extensions: [StarterKit.configure({ heading: headingLevels === false ? false : { levels: headingLevels } })],
     content: props.value,
-    editable: !props.readOnly,
+    editable: !props.readOnly && !props.disabled,
     editorProps: {
       attributes: {
         "aria-label": props.ariaLabel,
         "aria-multiline": "true",
         class: styles.document,
+        id: props.id ?? "",
         role: "textbox",
+      },
+      handleDOMEvents: {
+        blur: () => {
+          props.onBlur?.();
+          return false;
+        },
       },
     },
     onUpdate({ editor: currentEditor }) {
@@ -59,7 +76,10 @@ export function RichTextEditor(props: RichTextEditorProps) {
   createEffect(() => {
     const currentEditor = editor();
     if (!currentEditor) return;
-    currentEditor.setEditable(!props.readOnly);
+    currentEditor.setEditable(!props.readOnly && !props.disabled);
+    setOptionalAttribute(currentEditor.view.dom, "aria-disabled", props.disabled ? "true" : undefined);
+    setOptionalAttribute(currentEditor.view.dom, "aria-invalid", props.invalid ? "true" : undefined);
+    setOptionalAttribute(currentEditor.view.dom, "aria-describedby", props.describedBy);
   });
 
   createEffect(() => {
@@ -80,8 +100,8 @@ export function RichTextEditor(props: RichTextEditorProps) {
   };
 
   return (
-    <div class={styles.editor} classList={{ [styles.readOnly]: props.readOnly }}>
-      <Show when={!props.readOnly}>
+    <div class={styles.editor} classList={{ [styles.readOnly]: props.readOnly, [styles.disabled]: props.disabled }}>
+      <Show when={!props.readOnly && !props.disabled}>
         <div class={styles.toolbar} role="toolbar" aria-label="Text formatting">
           <EditorButton
             label="Paragraph"
@@ -173,6 +193,11 @@ export function RichTextEditor(props: RichTextEditorProps) {
       <EditorContent editor={editor()} />
     </div>
   );
+}
+
+function setOptionalAttribute(element: HTMLElement, name: string, value: string | undefined): void {
+  if (value === undefined) element.removeAttribute(name);
+  else element.setAttribute(name, value);
 }
 
 function normalizeHeadingLevels(

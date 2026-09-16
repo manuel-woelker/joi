@@ -1,4 +1,7 @@
 .editor {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   overflow: visible;
   border: 1px solid var(--color-control-border);
   border-radius: 6px;
@@ -13,8 +16,11 @@
 
 .toolbar {
   display: flex;
+  width: 100%;
+  min-width: 0;
   min-height: 34px;
   align-items: center;
+  flex-wrap: wrap;
   gap: 2px;
   padding: 4px 6px;
   border-bottom: 1px solid var(--color-border);
@@ -82,7 +88,8 @@
 }
 
 .spacer {
-  flex: 1;
+  min-width: 4px;
+  flex: 1 1 4px;
 }
 
 .document {
@@ -129,4 +136,10 @@
 
 .readOnly {
   background: var(--color-surface-muted);
+}
+
+.disabled {
+  color: var(--color-text-muted);
+  background: var(--color-surface-muted);
+  opacity: 0.7;
 }

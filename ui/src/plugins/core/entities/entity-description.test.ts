@@ -126,6 +126,31 @@ describe("entity descriptions", () => {
     expect(create?.attributes[0]?.initialValue()).toMatch(/^[0-9A-Za-z]{27}$/);
   });
 
+  it("derives HTML controls as string-valued editor fields", () => {
+    const richEntity = defineEntity({
+      id: entityId("rich-things"),
+      tableName: "rich_things",
+      label: "Rich thing",
+      pluralLabel: "Rich things",
+      icon: TestIcon,
+      identityAttribute: "id",
+      attributes: [
+        { id: "id", label: "ID", valueType: "string", create: { hidden: true, initialValue: "id-1" } },
+        {
+          id: "description",
+          label: "Description",
+          valueType: "string",
+          edit: { control: "html" },
+          create: {},
+        },
+      ],
+    });
+
+    const editor = createEntityEditorDefinition(richEntity);
+    expect(editor.fields[0]?.control).toBe("html");
+    expect(editor.create?.fields[0]?.control).toBe("html");
+  });
+
   it("rejects partial create definitions", () => {
     expect(() =>
       defineEntity({

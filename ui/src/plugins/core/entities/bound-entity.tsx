@@ -1,4 +1,5 @@
 import type { DataTableColumn } from "../../../components/DataTable";
+import { richTextPlainText } from "../../../components/rich-text/html";
 import type { QueryColumnHandle, QueryResult } from "../query/query-result";
 import { requireEntityAttribute, type AnyEntityAttribute, type EntityDescription } from "./entity-description";
 import { LookupValue } from "../lookups/lookup";
@@ -66,11 +67,14 @@ export function createEntityTableColumns(
     const lookupCell = attribute.lookup
       ? { cell: (value: unknown) => <LookupValue lookup={attribute.lookup!} value={String(value ?? "")} /> }
       : {};
+    const htmlCell =
+      attribute.edit?.control === "html" ? { cell: (value: unknown) => richTextPlainText(String(value ?? "")) } : {};
     return {
       column,
       header: field.label ?? attribute.label,
       width: field.width ?? attribute.table?.width,
       ...lookupCell,
+      ...htmlCell,
       ...overrides[attribute.id],
     };
   });

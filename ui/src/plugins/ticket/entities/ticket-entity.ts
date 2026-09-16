@@ -65,8 +65,8 @@ export const ticketEntity = defineEntity({
       description: "Detailed issue or task description.",
       valueType: "string",
       table: { visibleByDefault: true },
-      edit: { control: "textarea", rows: 10 },
-      create: { rows: 10 },
+      edit: { control: "html" },
+      create: {},
     },
     {
       id: "assignee",

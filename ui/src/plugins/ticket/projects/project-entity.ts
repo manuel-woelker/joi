@@ -47,8 +47,8 @@ export const projectEntity = defineEntity({
       description: "Purpose and scope of the project.",
       valueType: "string",
       table: { visibleByDefault: true },
-      edit: { control: "textarea", required: true, rows: 8 },
-      create: { required: true, rows: 8 },
+      edit: { control: "html", required: true },
+      create: { required: true },
     },
   ],
 });

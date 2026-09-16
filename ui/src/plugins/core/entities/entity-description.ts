@@ -15,7 +15,7 @@ export function entityId(value: string): EntityId {
 }
 
 /** Input control used to edit an entity attribute. */
-export type EntityEditControl = "text" | "textarea" | "integer" | "lookup";
+export type EntityEditControl = "text" | "textarea" | "html" | "integer" | "lookup";
 
 /** Default table presentation for an entity attribute. */
 export interface EntityTableDescription {
@@ -25,7 +25,7 @@ export interface EntityTableDescription {
 
 /** Form presentation for an entity attribute. */
 export interface EntityEditDescription<TValue extends QueryValue> {
-  readonly control: TValue extends string ? "text" | "textarea" | "lookup" : "integer";
+  readonly control: TValue extends string ? "text" | "textarea" | "html" | "lookup" : "integer";
   readonly required?: boolean;
   readonly rows?: number;
   readonly placeholder?: string;
@@ -35,7 +35,7 @@ export interface EntityEditDescription<TValue extends QueryValue> {
 
 /** Form presentation and initial value used when creating an entity attribute. */
 export interface EntityCreateDescription<TValue extends QueryValue> {
-  readonly control?: TValue extends string ? "text" | "textarea" | "lookup" : "integer";
+  readonly control?: TValue extends string ? "text" | "textarea" | "html" | "lookup" : "integer";
   readonly required?: boolean;
   readonly rows?: number;
   readonly placeholder?: string;

@@ -11,6 +11,8 @@ import {
 } from "../../../components/form/Form";
 import { FormValidationMessages } from "../../../components/form/FormValidationMessages";
 import { Select } from "../../../components/Select";
+import { RichTextEditor } from "../../../components/rich-text/RichTextEditor";
+import { richTextPlainText } from "../../../components/rich-text/html";
 import type { QueryResult, QueryResultRow, QueryValue } from "../query/query-result";
 import type { FetchService } from "../../../base/services/fetch-service";
 import type { ValidationFunction } from "../../../validation/validation";
@@ -245,61 +247,78 @@ function EditorField(props: { field: EditFieldDefinition }) {
     <div class={styles.field}>
       <label for={inputId}>{formField.label}</label>
       <Show
-        when={props.field.control !== "lookup"}
+        when={props.field.control === "html"}
         fallback={
-          <Select<LookupEntry>
-            id={inputId}
-            ariaLabel={formField.label}
-            value={formField.value}
-            onChange={formField.setValue}
-            loadEntries={async () => {
-              const entries = await lookupService!.entries(props.field.lookup!);
-              return { entries, total: entries.length };
-            }}
-            entryId={(entry) => entry.id}
-            entryText={(entry) => entry.label}
-            emptyLabel={props.field.optional ? "Unassigned" : undefined}
-            placeholder={`Search ${formField.label.toLowerCase()}`}
-            required={props.field.required}
-            disabled={formField.disabled}
-            invalid={hasValidationMessages()}
-            describedBy={hasValidationMessages() ? messagesId : undefined}
-            onBlur={formField.onBlur}
-          />
+          <Show
+            when={props.field.control !== "lookup"}
+            fallback={
+              <Select<LookupEntry>
+                id={inputId}
+                ariaLabel={formField.label}
+                value={formField.value}
+                onChange={formField.setValue}
+                loadEntries={async () => {
+                  const entries = await lookupService!.entries(props.field.lookup!);
+                  return { entries, total: entries.length };
+                }}
+                entryId={(entry) => entry.id}
+                entryText={(entry) => entry.label}
+                emptyLabel={props.field.optional ? "Unassigned" : undefined}
+                placeholder={`Search ${formField.label.toLowerCase()}`}
+                required={props.field.required}
+                disabled={formField.disabled}
+                invalid={hasValidationMessages()}
+                describedBy={hasValidationMessages() ? messagesId : undefined}
+                onBlur={formField.onBlur}
+              />
+            }
+          >
+            <Show
+              when={props.field.control === "textarea"}
+              fallback={
+                <input
+                  id={inputId}
+                  type={props.field.control === "integer" ? "number" : "text"}
+                  value={formField.value}
+                  placeholder={formField.placeholder}
+                  readOnly={formField.readonly}
+                  disabled={formField.disabled}
+                  required={props.field.required}
+                  aria-invalid={hasValidationMessages()}
+                  aria-describedby={hasValidationMessages() ? messagesId : undefined}
+                  onInput={formField.onInput}
+                  onBlur={formField.onBlur}
+                />
+              }
+            >
+              <textarea
+                id={inputId}
+                value={formField.value}
+                placeholder={formField.placeholder}
+                readOnly={formField.readonly}
+                disabled={formField.disabled}
+                required={props.field.required}
+                rows={props.field.rows ?? 8}
+                aria-invalid={hasValidationMessages()}
+                aria-describedby={hasValidationMessages() ? messagesId : undefined}
+                onInput={formField.onInput}
+                onBlur={formField.onBlur}
+              />
+            </Show>
+          </Show>
         }
       >
-        <Show
-          when={props.field.control === "textarea"}
-          fallback={
-            <input
-              id={inputId}
-              type={props.field.control === "integer" ? "number" : "text"}
-              value={formField.value}
-              placeholder={formField.placeholder}
-              readOnly={formField.readonly}
-              disabled={formField.disabled}
-              required={props.field.required}
-              aria-invalid={hasValidationMessages()}
-              aria-describedby={hasValidationMessages() ? messagesId : undefined}
-              onInput={formField.onInput}
-              onBlur={formField.onBlur}
-            />
-          }
-        >
-          <textarea
-            id={inputId}
-            value={formField.value}
-            placeholder={formField.placeholder}
-            readOnly={formField.readonly}
-            disabled={formField.disabled}
-            required={props.field.required}
-            rows={props.field.rows ?? 8}
-            aria-invalid={hasValidationMessages()}
-            aria-describedby={hasValidationMessages() ? messagesId : undefined}
-            onInput={formField.onInput}
-            onBlur={formField.onBlur}
-          />
-        </Show>
+        <RichTextEditor
+          id={inputId}
+          ariaLabel={formField.label}
+          value={formField.value}
+          onChange={formField.setValue}
+          onBlur={formField.setTouched}
+          readOnly={formField.readonly}
+          disabled={formField.disabled}
+          invalid={hasValidationMessages()}
+          describedBy={hasValidationMessages() ? messagesId : undefined}
+        />
       </Show>
       <FormValidationMessages attribute={formField.id} id={messagesId} />
     </div>
@@ -348,12 +367,22 @@ function createFormModel(
 }
 
 function fieldValidation(field: EditFieldDefinition): ValidationFunction<string> | undefined {
-  const validateRequired = field.required ? notEmpty(`${field.label} is required.`) : undefined;
+  const validateRequired = field.required
+    ? field.control === "html"
+      ? htmlNotEmpty(`${field.label} is required.`)
+      : notEmpty(`${field.label} is required.`)
+    : undefined;
   if (!validateRequired) return field.validation;
   if (!field.validation) return validateRequired;
   return (context) => {
     validateRequired(context);
     field.validation?.(context);
+  };
+}
+
+function htmlNotEmpty(message: string): ValidationFunction<string> {
+  return ({ value, addValidationFailure }) => {
+    if (!richTextPlainText(value).trim()) addValidationFailure({ message });
   };
 }
 
