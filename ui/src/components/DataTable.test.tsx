@@ -44,7 +44,9 @@ describe("DataTable", () => {
     expect(screen.getByText("Jane")).toBeTruthy();
     expect(screen.getByText("34 years").tagName).toBe("STRONG");
     expect(screen.getByText("Jane").closest("tr")?.dataset.rowId).toBe("Jane");
-    expect(screen.getByLabelText("Table status").textContent).toBe("Rows shown: 1Rows selected: 0Total rows: 1");
+    expect(screen.getByLabelText("Table status").textContent).toBe(
+      "Rows shown: 1Rows in view: 1Rows selected: 0Total rows: 1",
+    );
   });
 
   it("reacts to a new result and schema", () => {
@@ -81,8 +83,34 @@ describe("DataTable", () => {
     ));
 
     expect(screen.getByLabelText("Table status").textContent).toBe(
-      "Rows shown: 1Rows selected: 1Total rows: Not requested",
+      "Rows shown: 1Rows in view: 1Rows selected: 1Total rows: Not requested",
     );
+  });
+
+  it("counts only rows intersecting the scroll viewport", async () => {
+    const result = parseQueryResponse({
+      number_of_hits: 3,
+      result_columns: [{ attribute: "name", values: { type: "string", values: ["Jane", "Joe", "Alex"] } }],
+    });
+    render(() => (
+      <DataTable
+        ariaLabel="People"
+        result={result}
+        columns={[{ column: result.requireColumn("name"), header: "Name" }]}
+        fillHeight
+      />
+    ));
+
+    const body = screen.getByRole("table", { name: "People" }).querySelector("tbody")!;
+    vi.spyOn(body, "getBoundingClientRect").mockReturnValue(DOMRect.fromRect({ y: 10, height: 40 }));
+    const rows = Array.from(body.querySelectorAll("tr[data-row-id]"));
+    vi.spyOn(rows[0], "getBoundingClientRect").mockReturnValue(DOMRect.fromRect({ y: -20, height: 20 }));
+    vi.spyOn(rows[1], "getBoundingClientRect").mockReturnValue(DOMRect.fromRect({ y: 20, height: 20 }));
+    vi.spyOn(rows[2], "getBoundingClientRect").mockReturnValue(DOMRect.fromRect({ y: 40, height: 20 }));
+
+    fireEvent.scroll(body);
+
+    await waitFor(() => expect(screen.getByLabelText("Table status").textContent).toContain("Rows in view: 2"));
   });
 
   it("renders an empty result message inside the table body", () => {

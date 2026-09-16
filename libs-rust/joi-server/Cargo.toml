@@ -20,3 +20,7 @@ yaml_serde = "0.10"
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
+
+[[bench]]
+name = "query_total_count"
+harness = false

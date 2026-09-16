@@ -64,6 +64,7 @@ export function DataTable(props: DataTableProps) {
       }
     | undefined;
   const [focusedRowId, setFocusedRowId] = createSignal<string>();
+  const [rowsInView, setRowsInView] = createSignal<number>();
   const [scrollbarWidth, setScrollbarWidth] = createSignal(0);
   const [draggedColumnId, setDraggedColumnId] = createSignal<string>();
   const [columnDragPosition, setColumnDragPosition] = createSignal({ x: 0, y: 0 });
@@ -258,6 +259,41 @@ export function DataTable(props: DataTableProps) {
     onCleanup(() => {
       observer?.disconnect();
       window.removeEventListener("resize", updateScrollbarWidth);
+    });
+  });
+
+  onMount(() => {
+    if (!scrollElement) return;
+    let frame: number | undefined;
+    const updateRowsInView = () => {
+      if (frame !== undefined) window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        frame = undefined;
+        const viewport = scrollElement!.getBoundingClientRect();
+        if (viewport.height <= 0) {
+          setRowsInView(tableRows().length);
+          return;
+        }
+        const visibleRows = Array.from(scrollElement!.querySelectorAll<HTMLTableRowElement>("tr[data-row-id]")).filter(
+          (row) => {
+            const bounds = row.getBoundingClientRect();
+            return bounds.bottom > viewport.top && bounds.top < viewport.bottom;
+          },
+        ).length;
+        setRowsInView(visibleRows);
+      });
+    };
+    const resizeObserver = typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(updateRowsInView);
+    const mutationObserver = new MutationObserver(updateRowsInView);
+    resizeObserver?.observe(scrollElement);
+    mutationObserver.observe(scrollElement, { childList: true, subtree: true });
+    scrollElement.addEventListener("scroll", updateRowsInView, { passive: true });
+    updateRowsInView();
+    onCleanup(() => {
+      if (frame !== undefined) window.cancelAnimationFrame(frame);
+      resizeObserver?.disconnect();
+      mutationObserver.disconnect();
+      scrollElement?.removeEventListener("scroll", updateRowsInView);
     });
   });
 
@@ -511,6 +547,7 @@ export function DataTable(props: DataTableProps) {
       </table>
       <footer class={styles.tableStatus} aria-label="Table status">
         <span>Rows shown: {tableRows().length}</span>
+        <span>Rows in view: {rowsInView() ?? tableRows().length}</span>
         <span>Rows selected: {tableRows().filter((row) => isSelected(props, row.original)).length}</span>
         <span>Total rows: {props.result.numberOfHits ?? "Not requested"}</span>
       </footer>

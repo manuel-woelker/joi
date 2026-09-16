@@ -60,6 +60,21 @@ impl DataStore for SqliteDataStore {
         } else {
             format!(" WHERE {where_clause}")
         };
+        let mut number_of_hits = if return_total_count {
+            let count_sql = format!("SELECT COUNT(*) FROM {table}{where_sql}");
+            let count = self
+                .connection
+                .query_row(
+                    &count_sql,
+                    params_from_iter(criterion_values.iter()),
+                    |row| row.get::<_, i64>(0),
+                )
+                .map_err(report)?;
+            usize::try_from(count)
+                .map_err(|_| joi_error::joi_error!("SQLite returned a negative row count"))?
+        } else {
+            0
+        };
         let schema = table_schema(&self.connection, &query.table_name.0)?;
         let order_sql = order_by_sql(&query.sorting, &schema, &query.table_name.0)?;
         let attributes = if query.attributes.len() == 1 && query.attributes[0].0 == "*" {
@@ -73,7 +88,7 @@ impl DataStore for SqliteDataStore {
 
         if attributes.is_empty() {
             return Ok(DataStoreQueryResult {
-                number_of_hits: 0,
+                number_of_hits,
                 result_columns: attributes
                     .into_iter()
                     .map(|attribute| AttributeColumn {
@@ -111,21 +126,14 @@ impl DataStore for SqliteDataStore {
             .map(|attribute| quote_identifier(&attribute.0))
             .collect::<Vec<_>>()
             .join(", ");
-        let total_count_sql = if return_total_count {
-            ", COUNT(*) OVER()"
-        } else {
-            ""
-        };
-        let select_sql = format!(
-            "SELECT {selected_attributes}{total_count_sql} FROM {table}{where_sql}{order_sql} LIMIT ?"
-        );
+        let select_sql =
+            format!("SELECT {selected_attributes} FROM {table}{where_sql}{order_sql} LIMIT ?");
         let limit = i64::try_from(query.max_results)
             .map_err(|_| joi_error::joi_error!("query result limit is too large"))?;
         let mut statement = self.connection.prepare(&select_sql).map_err(report)?;
         let mut values = criterion_values;
         values.push(Value::Integer(limit));
         let mut rows = statement.query(params_from_iter(values)).map_err(report)?;
-        let mut number_of_hits = 0;
         while let Some(row) = rows.next().map_err(report)? {
             for (index, column) in result_columns.iter_mut().enumerate() {
                 match &mut column.values {
@@ -143,13 +151,7 @@ impl DataStore for SqliteDataStore {
                     Values::Int(values) => values.push(row.get(index).map_err(report)?),
                 }
             }
-            if return_total_count {
-                number_of_hits =
-                    usize::try_from(row.get::<_, i64>(result_columns.len()).map_err(report)?)
-                        .map_err(|_| {
-                            joi_error::joi_error!("SQLite returned a negative row count")
-                        })?;
-            } else {
+            if !return_total_count {
                 number_of_hits += 1;
             }
         }
