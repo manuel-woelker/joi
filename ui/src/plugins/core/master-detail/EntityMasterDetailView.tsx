@@ -45,9 +45,15 @@ export function EntityMasterDetailView(props: {
   const [showLoading, setShowLoading] = createSignal(false);
   createEffect(() => {
     const current = filter();
-    const currentSorting = sorting();
-    const timer = window.setTimeout(() => setQueryParameters({ filter: current, sorting: currentSorting }), 300);
+    const timer = window.setTimeout(
+      () => setQueryParameters((parameters) => ({ ...parameters, filter: current })),
+      300,
+    );
     onCleanup(() => window.clearTimeout(timer));
+  });
+  createEffect(() => {
+    const current = sorting();
+    setQueryParameters((parameters) => ({ ...parameters, sorting: current }));
   });
   let activeFilterIdentity = props.filterIdentity;
   createEffect(() => {
