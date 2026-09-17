@@ -201,6 +201,7 @@ impl CommandHandler for SaveReviewComment {
                 return Err(joi_error!("only the comment author may edit it"));
             }
             store.mutate(DataStoreMutation {
+                return_entities: false,
                 steps: vec![DataStoreMutationStep::Update(DataStoreUpdateMutation {
                     table_name: TableName("review_comments".into()),
                     ids: vec![id.as_str().into()],
@@ -251,6 +252,7 @@ impl CommandHandler for SaveReviewComment {
         let created_at = OffsetDateTime::now_utc().format(&Rfc3339).map_err(report)?;
         let parent_values = Values::NullableString(vec![request.parent_id.clone().map(Into::into)]);
         store.mutate(DataStoreMutation {
+            return_entities: false,
             steps: vec![DataStoreMutationStep::Insert(DataStoreInsertMutation {
                 table_name: TableName("review_comments".into()),
                 columns: vec![

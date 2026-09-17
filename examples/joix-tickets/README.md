@@ -12,7 +12,7 @@ it by calling `joix_tickets::tickets_plugin()`.
 
 The reusable [`joi-server`](../../libs-rust/joi-server/README.md) crate owns
 application startup, HTTP and CLI command execution, generated command
-contracts, SQLite persistence, users, login sessions, and built-in commands.
+contracts, redb entity persistence, Tantivy search, users, login sessions, and built-in commands.
 This keeps transport and infrastructure behavior independent of the ticket
 domain.
 
@@ -23,10 +23,7 @@ prefix. The default development projects are `Test` (`TEST`) and `Demo`
 The ticket table contains an immutable KSUID `id`, a human-readable
 `<PROJECT>-<INTEGER>` key, a `project_id` referencing its project, title,
 description, status, and an optional assignee referencing a server-managed
-user. Fixture keys use the prefix of their associated default project. The
-physical `project_id` column is nullable so existing development databases can
-receive it through additive schema upgrades; fixture initialization associates
-legacy unassigned rows by key prefix.
+user. Fixture keys use the prefix of their associated default project.
 
 ## How do I check it?
 

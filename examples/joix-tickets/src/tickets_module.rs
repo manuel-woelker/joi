@@ -121,6 +121,7 @@ fn insert_representative_tickets(
         .map(|key| project_for_key(projects, key))
         .collect::<joi_error::JoiResult<Vec<_>>>()?;
     data_store.mutate(DataStoreMutation {
+        return_entities: false,
         steps: vec![DataStoreMutationStep::Insert(DataStoreInsertMutation {
             table_name: TableName("tickets".into()),
             columns: vec![
@@ -242,6 +243,7 @@ fn generate_tickets(
         assignees.push(user_ids[index % user_ids.len()].clone());
     }
     data_store.mutate(DataStoreMutation {
+        return_entities: false,
         steps: vec![DataStoreMutationStep::Insert(DataStoreInsertMutation {
             table_name: TableName("tickets".into()),
             columns: vec![
@@ -339,6 +341,7 @@ fn associate_existing_tickets(
     }
     let (ids, project_ids): (Vec<_>, Vec<_>) = assignments.into_iter().unzip();
     data_store.mutate(DataStoreMutation {
+        return_entities: false,
         steps: vec![DataStoreMutationStep::Update(
             joi_server::data_store::DataStoreUpdateMutation {
                 table_name: TableName("tickets".into()),
@@ -360,7 +363,7 @@ mod tests {
         DataStoreMutationStep, DataStoreQuery, QueryCriterion, TableDescriptionProvider, TableName,
         TestDataProvider, Values,
     };
-    use joi_server::sqlite_data_store::SqliteDataStore;
+    use joi_server::storage::IndexedDataStore;
     use joi_server::user_session_command::{UserTableDescriptionProvider, UserTestDataProvider};
 
     use crate::projects_module::{ProjectTableDescriptionProvider, ProjectTestDataProvider};
@@ -414,7 +417,7 @@ mod tests {
 
     #[test]
     fn inserts_test_tickets() {
-        let mut store = SqliteDataStore::in_memory().unwrap();
+        let mut store = IndexedDataStore::in_memory().unwrap();
         store
             .ensure_tables(vec![
                 UserTableDescriptionProvider.table_description(),
@@ -469,6 +472,7 @@ mod tests {
         };
         store
             .mutate(DataStoreMutation {
+                return_entities: false,
                 steps: vec![DataStoreMutationStep::Update(
                     joi_server::data_store::DataStoreUpdateMutation {
                         table_name: TableName("tickets".into()),

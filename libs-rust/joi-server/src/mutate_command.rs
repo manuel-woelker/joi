@@ -94,6 +94,7 @@ impl CommandHandler for MutateCommand {
     ) -> JoiResult<MutateResponse> {
         let mutation = DataStoreMutation {
             steps: request.steps.into_iter().map(mutation_step).collect(),
+            return_entities: false,
         };
         self.data_store
             .lock()
@@ -144,7 +145,7 @@ mod tests {
 
     use crate::command_handler::CommandHandler;
     use crate::data_store::{DataStore, DataStoreQuery, QueryCriterion, TableDescriptionProvider};
-    use crate::sqlite_data_store::SqliteDataStore;
+    use crate::storage::IndexedDataStore;
     use crate::user_session_command::UserTableDescriptionProvider;
 
     use super::{
@@ -154,7 +155,7 @@ mod tests {
 
     #[test]
     fn applies_insert_and_update_steps_atomically() {
-        let mut store = SqliteDataStore::in_memory().unwrap();
+        let mut store = IndexedDataStore::in_memory().unwrap();
         store
             .ensure_tables(vec![UserTableDescriptionProvider.table_description()])
             .unwrap();
@@ -203,7 +204,7 @@ mod tests {
 
     #[test]
     fn rolls_back_earlier_steps_when_an_update_target_is_missing() {
-        let mut store = SqliteDataStore::in_memory().unwrap();
+        let mut store = IndexedDataStore::in_memory().unwrap();
         store
             .ensure_tables(vec![UserTableDescriptionProvider.table_description()])
             .unwrap();
@@ -250,7 +251,7 @@ mod tests {
 
     #[test]
     fn deletes_records_by_primary_key() {
-        let mut store = SqliteDataStore::in_memory().unwrap();
+        let mut store = IndexedDataStore::in_memory().unwrap();
         store
             .ensure_tables(vec![UserTableDescriptionProvider.table_description()])
             .unwrap();

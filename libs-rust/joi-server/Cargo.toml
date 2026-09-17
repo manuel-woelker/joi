@@ -12,16 +12,14 @@ joi-base = { path = "../joi-base" }
 joi-error = { path = "../joi-error" }
 joi-plugin = { path = "../joi-plugin" }
 ksuid = "0.2"
-rusqlite = { version = "0.37", features = ["bundled"] }
+redb = "4.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+tantivy = "0.26"
+tempfile = "3"
 tokio = { version = "1.0", features = ["macros", "net", "rt-multi-thread"] }
 tower-http = { version = "0.6", features = ["compression-zstd"] }
 yaml_serde = "0.10"
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
-
-[[bench]]
-name = "query_total_count"
-harness = false

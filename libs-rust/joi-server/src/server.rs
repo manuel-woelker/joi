@@ -19,7 +19,7 @@ use crate::{
     mutate_command::MutateCommand,
     plugins_command::PluginsCommand,
     query_command::QueryCommand,
-    sqlite_data_store::SqliteDataStore,
+    storage::IndexedDataStore,
     user_session_command::{
         LoginCommand, LogoutCommand, UserInfoCommand, UserSessionTableDescriptionProvider,
         UserTableDescriptionProvider, UserTestDataProvider,
@@ -34,8 +34,10 @@ pub struct ServerConfig {
     pub application_version: JoiString,
     /// Socket address used by the HTTP listener, such as `127.0.0.1:3000`.
     pub listen_address: JoiString,
-    /// Path of the SQLite database opened or created at startup.
-    pub data_store_path: PathBuf,
+    /// Path of the redb entity database opened or created at startup.
+    pub entity_store_path: PathBuf,
+    /// Path of the derived Tantivy search index.
+    pub search_index_path: PathBuf,
     /// Whether registered test-data providers run during startup.
     pub insert_test_data: bool,
     /// Application plugins appended after the built-in server plugin.
@@ -67,7 +69,8 @@ async fn run_async(
     arguments: impl IntoIterator<Item = String>,
 ) -> JoiResult<()> {
     let plugin_registry = create_plugin_registry(&mut config)?;
-    let mut data_store = SqliteDataStore::open(&config.data_store_path)?;
+    let mut data_store =
+        IndexedDataStore::open(&config.entity_store_path, &config.search_index_path)?;
     initialize_data_store(&plugin_registry, &mut data_store, config.insert_test_data)?;
     let data_store: SharedDataStore = Arc::new(Mutex::new(Box::new(data_store)));
     let registry = build_command_registry(plugin_registry, data_store)?;
@@ -266,7 +269,7 @@ mod tests {
         command_registry::CommandRegistry,
         command_service::CommandService,
         data_store::{DataStore, SharedDataStore},
-        sqlite_data_store::SqliteDataStore,
+        storage::IndexedDataStore,
     };
 
     use super::{
@@ -279,12 +282,13 @@ mod tests {
             application_name: "test-application".into(),
             application_version: "1.2.3".into(),
             listen_address: "127.0.0.1:0".into(),
-            data_store_path: PathBuf::new(),
+            entity_store_path: PathBuf::new(),
+            search_index_path: PathBuf::new(),
             insert_test_data: true,
             plugins: Vec::new(),
         };
         let plugins = create_plugin_registry(&mut config).unwrap();
-        let mut store = SqliteDataStore::in_memory().unwrap();
+        let mut store = IndexedDataStore::in_memory().unwrap();
         initialize_data_store(&plugins, &mut store, true).unwrap();
         let store: SharedDataStore = Arc::new(Mutex::new(Box::new(store) as Box<dyn DataStore>));
         build_command_registry(plugins, store).unwrap()

@@ -138,6 +138,7 @@ pub enum DataStoreValue {
 }
 
 /// Describes a table and its required column definition.
+#[derive(Clone)]
 pub struct TableDescription {
     /// The table name.
     pub name: TableName,
@@ -156,6 +157,7 @@ pub trait TableDescriptionProvider: Send + Sync {
 fn _assert_table_description_provider_dyn_compatible(_: &dyn TableDescriptionProvider) {}
 
 /// Describes a named column in a table.
+#[derive(Clone)]
 pub struct ColumnDescription {
     /// The column name.
     pub name: AttributeName,
@@ -170,6 +172,7 @@ pub struct ColumnDescription {
 }
 
 /// Identifies the column referenced by a foreign key.
+#[derive(Clone)]
 pub struct ColumnReference {
     /// Referenced table.
     pub table: TableName,
@@ -190,6 +193,8 @@ pub enum ColumnDataType {
 pub struct DataStoreMutation {
     /// The changes to apply.
     pub steps: Vec<DataStoreMutationStep>,
+    /// Whether to return complete created and updated entities.
+    pub return_entities: bool,
 }
 
 /// A single change within a data-store mutation.
@@ -229,7 +234,10 @@ pub struct DataStoreUpdateMutation {
 }
 
 /// Reports successful completion of a data-store mutation.
-pub struct DataStoreMutationResult {}
+pub struct DataStoreMutationResult {
+    /// Complete created or updated entities when requested by the caller.
+    pub entities: Option<Vec<crate::entity_store::Entity>>,
+}
 
 /// Executes queries and mutations against a data store.
 pub trait DataStore: Send {

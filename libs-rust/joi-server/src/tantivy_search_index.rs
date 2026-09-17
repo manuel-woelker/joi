@@ -1,0 +1,650 @@
+use std::{
+    cmp::Ordering,
+    collections::{HashMap, HashSet},
+    fs,
+    ops::Bound,
+    path::{Path, PathBuf},
+};
+
+use joi_base::JoiString;
+use joi_error::{JoiResult, joi_bail, joi_error, report};
+use serde_json::{Map, Value as JsonValue};
+use tantivy::{
+    Index, IndexReader, ReloadPolicy, TantivyDocument, Term,
+    collector::{Count, DocSetCollector},
+    doc,
+    query::{
+        AllQuery, BooleanQuery, EmptyQuery, ExistsQuery, FastFieldRangeQuery, Occur, Query,
+        RegexQuery, TermQuery,
+    },
+    schema::{FAST, Field, IndexRecordOption, STORED, STRING, Schema, Value},
+};
+
+use crate::{
+    data_store::{
+        AttributeColumn, AttributeName, ColumnDataType, DataStoreCountValue, DataStoreQuery,
+        DataStoreQueryResult, DataStoreValue, QueryCriterion, QuerySortDirection, TableDescription,
+        TableName, Values,
+    },
+    entity_store::{Entity, EntityId},
+    search_index::SearchIndex,
+};
+
+const ENTITY_ID_FIELD: &str = "_joi_entity_id";
+const ENTITY_DATA_FIELD: &str = "_joi_entity_data";
+const SEQUENCE_FIELD: &str = "_joi_sequence";
+const LOWER_SUFFIX: &str = "_joi_lower";
+
+struct IndexedAttribute {
+    field: Field,
+    lower_field: Option<Field>,
+    data_type: ColumnDataType,
+}
+
+struct EntityIndex {
+    index: Index,
+    reader: IndexReader,
+    id_field: Field,
+    data_field: Field,
+    sequence_field: Field,
+    attributes: HashMap<AttributeName, IndexedAttribute>,
+    attribute_order: Vec<AttributeName>,
+    next_sequence: u64,
+    sequences: HashMap<EntityId, u64>,
+}
+
+/// Tantivy-backed secondary index for entity rows and aggregations.
+pub struct TantivySearchIndex {
+    root: PathBuf,
+    indexes: HashMap<TableName, EntityIndex>,
+}
+
+impl TantivySearchIndex {
+    /// Creates an empty derived index at `path`, replacing stale index data.
+    pub fn open(path: impl AsRef<Path>) -> JoiResult<Self> {
+        let root = path.as_ref().to_path_buf();
+        if root.exists() {
+            fs::remove_dir_all(&root).map_err(report)?;
+        }
+        fs::create_dir_all(&root).map_err(report)?;
+        Ok(Self {
+            root,
+            indexes: HashMap::new(),
+        })
+    }
+
+    fn entity_index(&self, entity_type: &TableName) -> JoiResult<&EntityIndex> {
+        self.indexes.get(entity_type).ok_or_else(|| {
+            joi_error!(
+                "entity type `{}` is not registered in the search index",
+                entity_type.0
+            )
+        })
+    }
+
+    fn entity_index_mut(&mut self, entity_type: &TableName) -> JoiResult<&mut EntityIndex> {
+        self.indexes.get_mut(entity_type).ok_or_else(|| {
+            joi_error!(
+                "entity type `{}` is not registered in the search index",
+                entity_type.0
+            )
+        })
+    }
+}
+
+impl SearchIndex for TantivySearchIndex {
+    fn prepare(&mut self, tables: Vec<TableDescription>) -> JoiResult<()> {
+        if !self.indexes.is_empty() {
+            joi_bail!("search index schemas have already been prepared");
+        }
+        for table in tables {
+            validate_table(&table)?;
+            let directory = self.root.join(hex(table.name.0.as_bytes()));
+            fs::create_dir_all(&directory).map_err(report)?;
+            let mut schema = Schema::builder();
+            let id_field = schema.add_text_field(ENTITY_ID_FIELD, STRING | STORED);
+            let data_field = schema.add_bytes_field(ENTITY_DATA_FIELD, STORED);
+            let sequence_field = schema.add_u64_field(SEQUENCE_FIELD, FAST | STORED);
+            let mut attributes = HashMap::new();
+            let mut attribute_order = Vec::with_capacity(table.columns.len());
+            for column in table.columns {
+                let name = column.name.0.as_str();
+                let (field, lower_field) = match column.data_type {
+                    ColumnDataType::String => (
+                        schema.add_text_field(name, STRING | STORED | FAST),
+                        Some(schema.add_text_field(&format!("{name}{LOWER_SUFFIX}"), STRING)),
+                    ),
+                    ColumnDataType::Int => (
+                        schema.add_i64_field(name, tantivy::schema::INDEXED | STORED | FAST),
+                        None,
+                    ),
+                };
+                attribute_order.push(column.name.clone());
+                attributes.insert(
+                    column.name,
+                    IndexedAttribute {
+                        field,
+                        lower_field,
+                        data_type: column.data_type,
+                    },
+                );
+            }
+            let index = Index::create_in_dir(directory, schema.build()).map_err(report)?;
+            let reader = index
+                .reader_builder()
+                .reload_policy(ReloadPolicy::Manual)
+                .try_into()
+                .map_err(report)?;
+            self.indexes.insert(
+                table.name,
+                EntityIndex {
+                    index,
+                    reader,
+                    id_field,
+                    data_field,
+                    sequence_field,
+                    attributes,
+                    attribute_order,
+                    next_sequence: 0,
+                    sequences: HashMap::new(),
+                },
+            );
+        }
+        Ok(())
+    }
+
+    fn rebuild(&mut self, entity_type: &TableName, entities: &[Entity]) -> JoiResult<()> {
+        let index = self.entity_index_mut(entity_type)?;
+        let mut writer = index.index.writer(50_000_000).map_err(report)?;
+        writer.delete_all_documents().map_err(report)?;
+        index.next_sequence = 0;
+        index.sequences.clear();
+        for entity in entities {
+            add_entity(index, &mut writer, entity)?;
+        }
+        writer.commit().map_err(report)?;
+        index.reader.reload().map_err(report)
+    }
+
+    fn upsert(&mut self, entities: &[Entity]) -> JoiResult<()> {
+        let mut by_type: HashMap<TableName, Vec<&Entity>> = HashMap::new();
+        for entity in entities {
+            by_type
+                .entry(entity.entity_type.clone())
+                .or_default()
+                .push(entity);
+        }
+        for (entity_type, entities) in by_type {
+            let index = self.entity_index_mut(&entity_type)?;
+            let mut writer = index.index.writer(50_000_000).map_err(report)?;
+            for entity in entities {
+                writer.delete_term(Term::from_field_text(
+                    index.id_field,
+                    &hex(entity.id.as_bytes()),
+                ));
+                add_entity(index, &mut writer, entity)?;
+            }
+            writer.commit().map_err(report)?;
+            index.reader.reload().map_err(report)?;
+        }
+        Ok(())
+    }
+
+    fn delete(&mut self, entity_type: &TableName, ids: &[EntityId]) -> JoiResult<()> {
+        if ids.is_empty() {
+            return Ok(());
+        }
+        let index = self.entity_index_mut(entity_type)?;
+        let mut writer = index
+            .index
+            .writer::<TantivyDocument>(50_000_000)
+            .map_err(report)?;
+        for id in ids {
+            writer.delete_term(Term::from_field_text(index.id_field, &hex(id.as_bytes())));
+            index.sequences.remove(id);
+        }
+        writer.commit().map_err(report)?;
+        index.reader.reload().map_err(report)
+    }
+
+    fn query_rows(&self, query: DataStoreQuery) -> JoiResult<DataStoreQueryResult> {
+        let index = self.entity_index(&query.table_name)?;
+        let tantivy_query = criterion_query(index, &query.criterion)?;
+        let searcher = index.reader.searcher();
+        if query.max_results == 0 && query.attributes.is_empty() && query.sorting.is_empty() {
+            return Ok(DataStoreQueryResult {
+                number_of_hits: searcher
+                    .search(tantivy_query.as_ref(), &Count)
+                    .map_err(report)?,
+                result_columns: Vec::new(),
+            });
+        }
+        let addresses = searcher
+            .search(tantivy_query.as_ref(), &DocSetCollector)
+            .map_err(report)?;
+        let number_of_hits = addresses.len();
+        let mut rows = addresses
+            .into_iter()
+            .map(|address| {
+                let document: TantivyDocument = searcher.doc(address).map_err(report)?;
+                let sequence = document
+                    .get_first(index.sequence_field)
+                    .and_then(|value| value.as_u64())
+                    .ok_or_else(|| joi_error!("indexed entity has no sequence"))?;
+                let data = document
+                    .get_first(index.data_field)
+                    .and_then(|value| value.as_bytes())
+                    .ok_or_else(|| joi_error!("indexed entity has no payload"))?;
+                let object =
+                    serde_json::from_slice::<Map<String, JsonValue>>(data).map_err(report)?;
+                Ok((sequence, object))
+            })
+            .collect::<JoiResult<Vec<_>>>()?;
+        rows.sort_by(|left, right| compare_rows(left, right, &query.sorting));
+        rows.truncate(query.max_results);
+
+        let attributes = if query.attributes.len() == 1 && query.attributes[0].0 == "*" {
+            index.attribute_order.clone()
+        } else {
+            query.attributes
+        };
+        let mut result_columns = Vec::with_capacity(attributes.len());
+        for attribute in attributes {
+            let indexed = index.attributes.get(&attribute).ok_or_else(|| {
+                joi_error!(
+                    "entity type `{}` has no attribute `{}`",
+                    query.table_name.0,
+                    attribute.0
+                )
+            })?;
+            let values = match indexed.data_type {
+                ColumnDataType::String => Values::String(
+                    rows.iter()
+                        .map(|(_, row)| {
+                            row.get(attribute.0.as_str())
+                                .and_then(JsonValue::as_str)
+                                .unwrap_or_default()
+                                .into()
+                        })
+                        .collect(),
+                ),
+                ColumnDataType::Int => Values::Int(
+                    rows.iter()
+                        .map(|(_, row)| {
+                            row.get(attribute.0.as_str())
+                                .and_then(JsonValue::as_i64)
+                                .unwrap_or_default()
+                        })
+                        .collect(),
+                ),
+            };
+            result_columns.push(AttributeColumn { attribute, values });
+        }
+        Ok(DataStoreQueryResult {
+            number_of_hits,
+            result_columns,
+        })
+    }
+
+    fn count(
+        &self,
+        entity_type: &TableName,
+        criterion: &QueryCriterion,
+        attribute: Option<&AttributeName>,
+        max_results: usize,
+    ) -> JoiResult<Vec<DataStoreCountValue>> {
+        if max_results == 0 {
+            return Ok(Vec::new());
+        }
+        let index = self.entity_index(entity_type)?;
+        let query = criterion_query(index, criterion)?;
+        let searcher = index.reader.searcher();
+        let Some(attribute) = attribute else {
+            return Ok(vec![DataStoreCountValue {
+                value: None,
+                count: searcher.search(query.as_ref(), &Count).map_err(report)?,
+            }]);
+        };
+        let indexed = index.attributes.get(attribute).ok_or_else(|| {
+            joi_error!(
+                "entity type `{}` has no aggregate attribute `{}`",
+                entity_type.0,
+                attribute.0
+            )
+        })?;
+        let addresses = searcher
+            .search(query.as_ref(), &DocSetCollector)
+            .map_err(report)?;
+        let mut counts: HashMap<Option<DataStoreValueKey>, usize> = HashMap::new();
+        for address in addresses {
+            let document: TantivyDocument = searcher.doc(address).map_err(report)?;
+            let value =
+                document
+                    .get_first(indexed.field)
+                    .and_then(|value| match indexed.data_type {
+                        ColumnDataType::String => value
+                            .as_str()
+                            .map(|value| DataStoreValueKey::String(value.to_owned())),
+                        ColumnDataType::Int => value.as_i64().map(DataStoreValueKey::Int),
+                    });
+            *counts.entry(value).or_default() += 1;
+        }
+        let mut counts = counts.into_iter().collect::<Vec<_>>();
+        counts.sort_by(|left, right| right.1.cmp(&left.1).then_with(|| left.0.cmp(&right.0)));
+        counts.truncate(max_results);
+        Ok(counts
+            .into_iter()
+            .map(|(value, count)| DataStoreCountValue {
+                value: value.map(DataStoreValueKey::into_value),
+                count,
+            })
+            .collect())
+    }
+}
+
+#[derive(Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
+enum DataStoreValueKey {
+    String(String),
+    Int(i64),
+}
+
+impl DataStoreValueKey {
+    fn into_value(self) -> DataStoreValue {
+        match self {
+            Self::String(value) => DataStoreValue::String(value.into()),
+            Self::Int(value) => DataStoreValue::Int(value),
+        }
+    }
+}
+
+fn validate_table(table: &TableDescription) -> JoiResult<()> {
+    if table.columns.is_empty() {
+        joi_bail!(
+            "entity type `{}` must define at least one attribute",
+            table.name.0
+        );
+    }
+    let mut names = HashSet::new();
+    for column in &table.columns {
+        if !names.insert(&column.name) {
+            joi_bail!(
+                "entity type `{}` defines duplicate attributes",
+                table.name.0
+            );
+        }
+        if column.name.0.starts_with("_joi_") || column.name.0.ends_with(LOWER_SUFFIX) {
+            joi_bail!(
+                "attribute `{}` uses a reserved search-index name",
+                column.name.0
+            );
+        }
+    }
+    Ok(())
+}
+
+fn add_entity(
+    index: &mut EntityIndex,
+    writer: &mut tantivy::IndexWriter,
+    entity: &Entity,
+) -> JoiResult<()> {
+    let object = serde_json::from_slice::<Map<String, JsonValue>>(&entity.data).map_err(report)?;
+    let sequence = if let Some(sequence) = index.sequences.get(&entity.id) {
+        *sequence
+    } else {
+        let sequence = index.next_sequence;
+        index.next_sequence += 1;
+        index.sequences.insert(entity.id.clone(), sequence);
+        sequence
+    };
+    let mut document = doc!(
+        index.id_field => hex(entity.id.as_bytes()),
+        index.data_field => entity.data.clone(),
+        index.sequence_field => sequence,
+    );
+    for (name, attribute) in &index.attributes {
+        let Some(value) = object.get(name.0.as_str()) else {
+            continue;
+        };
+        match attribute.data_type {
+            ColumnDataType::String => {
+                if let Some(value) = value.as_str() {
+                    document.add_text(attribute.field, value);
+                    document.add_text(attribute.lower_field.unwrap(), value.to_lowercase());
+                }
+            }
+            ColumnDataType::Int => {
+                if let Some(value) = value.as_i64() {
+                    document.add_i64(attribute.field, value);
+                }
+            }
+        }
+    }
+    writer.add_document(document).map_err(report)?;
+    Ok(())
+}
+
+fn criterion_query(index: &EntityIndex, criterion: &QueryCriterion) -> JoiResult<Box<dyn Query>> {
+    match criterion {
+        QueryCriterion::MatchAny => Ok(Box::new(AllQuery)),
+        QueryCriterion::All(criteria) => composite_query(index, criteria, Occur::Must, true),
+        QueryCriterion::One(criteria) => composite_query(index, criteria, Occur::Should, false),
+        QueryCriterion::None(criteria) => {
+            let mut clauses = vec![(Occur::Must, Box::new(AllQuery) as Box<dyn Query>)];
+            for criterion in criteria {
+                clauses.push((Occur::MustNot, criterion_query(index, criterion)?));
+            }
+            Ok(Box::new(BooleanQuery::new(clauses)))
+        }
+        QueryCriterion::Not(criterion) => Ok(Box::new(BooleanQuery::new(vec![
+            (Occur::Must, Box::new(AllQuery)),
+            (Occur::MustNot, criterion_query(index, criterion)?),
+        ]))),
+        QueryCriterion::Equals { attribute, values } => {
+            if values.is_empty() {
+                return Ok(Box::new(EmptyQuery));
+            }
+            let field = indexed_attribute(index, attribute)?;
+            let mut clauses = Vec::with_capacity(values.len());
+            for value in values {
+                clauses.push((Occur::Should, exact_query(field, value)?));
+            }
+            Ok(Box::new(BooleanQuery::new(clauses)))
+        }
+        QueryCriterion::LessThan { attribute, value } => range_query(
+            indexed_attribute(index, attribute)?,
+            Bound::Unbounded,
+            Bound::Excluded(value),
+        ),
+        QueryCriterion::Set(attribute) => {
+            let field = indexed_attribute(index, attribute)?;
+            let exists = Box::new(ExistsQuery::new(field_name(index, attribute)?, false));
+            if field.data_type == ColumnDataType::String {
+                Ok(Box::new(BooleanQuery::new(vec![
+                    (Occur::Must, exists),
+                    (Occur::MustNot, exact_query(field, "")?),
+                ])))
+            } else {
+                Ok(exists)
+            }
+        }
+        QueryCriterion::Unset(attribute) => {
+            let field = indexed_attribute(index, attribute)?;
+            let missing = Box::new(BooleanQuery::new(vec![
+                (Occur::Must, Box::new(AllQuery)),
+                (
+                    Occur::MustNot,
+                    Box::new(ExistsQuery::new(field_name(index, attribute)?, false)),
+                ),
+            ]));
+            if field.data_type == ColumnDataType::String {
+                Ok(Box::new(BooleanQuery::new(vec![
+                    (Occur::Should, missing),
+                    (Occur::Should, exact_query(field, "")?),
+                ])))
+            } else {
+                Ok(missing)
+            }
+        }
+        QueryCriterion::InRange {
+            attribute,
+            minimum,
+            maximum,
+        } => range_query(
+            indexed_attribute(index, attribute)?,
+            minimum.as_ref().map_or(Bound::Unbounded, Bound::Included),
+            maximum.as_ref().map_or(Bound::Unbounded, Bound::Included),
+        ),
+        QueryCriterion::Contains { attribute, value } => {
+            let field = indexed_attribute(index, attribute)?;
+            let Some(lower_field) = field.lower_field else {
+                joi_bail!("contains is only supported for string attributes");
+            };
+            let pattern = format!(".*{}.*", regex_escape(&value.to_lowercase()));
+            Ok(Box::new(
+                RegexQuery::from_pattern(&pattern, lower_field).map_err(report)?,
+            ))
+        }
+    }
+}
+
+fn composite_query(
+    index: &EntityIndex,
+    criteria: &[QueryCriterion],
+    occur: Occur,
+    empty_matches: bool,
+) -> JoiResult<Box<dyn Query>> {
+    if criteria.is_empty() {
+        return if empty_matches {
+            Ok(Box::new(AllQuery))
+        } else {
+            Ok(Box::new(EmptyQuery))
+        };
+    }
+    Ok(Box::new(BooleanQuery::new(
+        criteria
+            .iter()
+            .map(|criterion| Ok((occur, criterion_query(index, criterion)?)))
+            .collect::<JoiResult<Vec<_>>>()?,
+    )))
+}
+
+fn exact_query(field: &IndexedAttribute, value: &str) -> JoiResult<Box<dyn Query>> {
+    let term = match field.data_type {
+        ColumnDataType::String => Term::from_field_text(field.field, value),
+        ColumnDataType::Int => Term::from_field_i64(
+            field.field,
+            value
+                .parse()
+                .map_err(|_| joi_error!("`{value}` is not a valid integer"))?,
+        ),
+    };
+    Ok(Box::new(TermQuery::new(term, IndexRecordOption::Basic)))
+}
+
+fn range_query(
+    field: &IndexedAttribute,
+    minimum: Bound<&JoiString>,
+    maximum: Bound<&JoiString>,
+) -> JoiResult<Box<dyn Query>> {
+    let convert = |bound: Bound<&JoiString>| -> JoiResult<Bound<Term>> {
+        Ok(match bound {
+            Bound::Included(value) => Bound::Included(match field.data_type {
+                ColumnDataType::String => Term::from_field_text(field.field, value),
+                ColumnDataType::Int => Term::from_field_i64(
+                    field.field,
+                    value
+                        .parse()
+                        .map_err(|_| joi_error!("`{value}` is not a valid integer"))?,
+                ),
+            }),
+            Bound::Excluded(value) => Bound::Excluded(match field.data_type {
+                ColumnDataType::String => Term::from_field_text(field.field, value),
+                ColumnDataType::Int => Term::from_field_i64(
+                    field.field,
+                    value
+                        .parse()
+                        .map_err(|_| joi_error!("`{value}` is not a valid integer"))?,
+                ),
+            }),
+            Bound::Unbounded => Bound::Unbounded,
+        })
+    };
+    Ok(Box::new(FastFieldRangeQuery::new(
+        convert(minimum)?,
+        convert(maximum)?,
+    )))
+}
+
+fn indexed_attribute<'a>(
+    index: &'a EntityIndex,
+    attribute: &AttributeName,
+) -> JoiResult<&'a IndexedAttribute> {
+    index
+        .attributes
+        .get(attribute)
+        .ok_or_else(|| joi_error!("search index has no attribute `{}`", attribute.0))
+}
+
+fn field_name(index: &EntityIndex, attribute: &AttributeName) -> JoiResult<String> {
+    let field = indexed_attribute(index, attribute)?.field;
+    Ok(index.index.schema().get_field_name(field).to_owned())
+}
+
+fn compare_rows(
+    left: &(u64, Map<String, JsonValue>),
+    right: &(u64, Map<String, JsonValue>),
+    sorting: &[crate::data_store::QuerySort],
+) -> Ordering {
+    for sort in sorting {
+        let order = compare_json(
+            left.1.get(sort.attribute.0.as_str()),
+            right.1.get(sort.attribute.0.as_str()),
+        );
+        let order = match sort.direction {
+            QuerySortDirection::Ascending => order,
+            QuerySortDirection::Descending => order.reverse(),
+        };
+        if order != Ordering::Equal {
+            return order;
+        }
+    }
+    left.0.cmp(&right.0)
+}
+
+fn compare_json(left: Option<&JsonValue>, right: Option<&JsonValue>) -> Ordering {
+    match (left, right) {
+        (None | Some(JsonValue::Null), None | Some(JsonValue::Null)) => Ordering::Equal,
+        (None | Some(JsonValue::Null), _) => Ordering::Less,
+        (_, None | Some(JsonValue::Null)) => Ordering::Greater,
+        (Some(JsonValue::String(left)), Some(JsonValue::String(right))) => left.cmp(right),
+        (Some(JsonValue::Number(left)), Some(JsonValue::Number(right))) => left
+            .as_i64()
+            .unwrap_or_default()
+            .cmp(&right.as_i64().unwrap_or_default()),
+        (Some(left), Some(right)) => left.to_string().cmp(&right.to_string()),
+    }
+}
+
+fn regex_escape(value: &str) -> String {
+    let mut escaped = String::with_capacity(value.len());
+    for character in value.chars() {
+        if matches!(
+            character,
+            '.' | '+' | '*' | '?' | '(' | ')' | '|' | '[' | ']' | '{' | '}' | '^' | '$' | '\\'
+        ) {
+            escaped.push('\\');
+        }
+        escaped.push(character);
+    }
+    escaped
+}
+
+fn hex(bytes: &[u8]) -> String {
+    const DIGITS: &[u8; 16] = b"0123456789abcdef";
+    let mut result = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        result.push(DIGITS[(byte >> 4) as usize] as char);
+        result.push(DIGITS[(byte & 0x0f) as usize] as char);
+    }
+    result
+}

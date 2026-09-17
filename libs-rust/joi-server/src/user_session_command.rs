@@ -101,6 +101,7 @@ impl CommandHandler for LoginCommand {
             .ok_or_else(|| joi_error!("user `{}` does not exist", request.user_id))?;
         let session_id = generate_session_id()?;
         data_store.mutate(DataStoreMutation {
+            return_entities: false,
             steps: vec![DataStoreMutationStep::Insert(DataStoreInsertMutation {
                 table_name: TableName("user_sessions".into()),
                 columns: vec![
@@ -183,6 +184,7 @@ impl CommandHandler for LogoutCommand {
             .lock()
             .map_err(|_| joi_error!("data store lock is poisoned"))?
             .mutate(DataStoreMutation {
+                return_entities: false,
                 steps: vec![DataStoreMutationStep::Delete(DataStoreDeleteMutation {
                     table_name: TableName("user_sessions".into()),
                     ids: vec![request.session_id],
@@ -333,6 +335,7 @@ impl TestDataProvider for UserTestDataProvider {
         }
 
         data_store.mutate(DataStoreMutation {
+            return_entities: false,
             steps: vec![DataStoreMutationStep::Insert(DataStoreInsertMutation {
                 table_name: TableName("users".into()),
                 columns: vec![
@@ -374,11 +377,11 @@ mod tests {
     use crate::data_store::{
         DataStore, SharedDataStore, TableDescriptionProvider, TestDataProvider,
     };
-    use crate::sqlite_data_store::SqliteDataStore;
+    use crate::storage::IndexedDataStore;
 
     #[test]
     fn creates_a_session_and_resolves_its_user() {
-        let mut store = SqliteDataStore::in_memory().unwrap();
+        let mut store = IndexedDataStore::in_memory().unwrap();
         store
             .ensure_tables(vec![
                 UserTableDescriptionProvider.table_description(),
@@ -387,6 +390,7 @@ mod tests {
             .unwrap();
         UserTestDataProvider.insert_test_data(&mut store).unwrap();
         let invalid_session = store.mutate(crate::data_store::DataStoreMutation {
+            return_entities: false,
             steps: vec![crate::data_store::DataStoreMutationStep::Insert(
                 crate::data_store::DataStoreInsertMutation {
                     table_name: crate::data_store::TableName("user_sessions".into()),

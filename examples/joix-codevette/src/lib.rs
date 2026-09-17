@@ -186,6 +186,7 @@ impl TestDataProvider for CurrentRepositoryProvider {
         })?;
 
         data_store.mutate(DataStoreMutation {
+            return_entities: false,
             steps: [
                 (existing.number_of_hits == 0).then(|| {
                     DataStoreMutationStep::Insert(DataStoreInsertMutation {
@@ -231,7 +232,7 @@ mod tests {
             DataStore, DataStoreQuery, QueryCriterion, TableDescriptionProvider, TableName,
             TestDataProvider, Values,
         },
-        sqlite_data_store::SqliteDataStore,
+        storage::IndexedDataStore,
     };
 
     use super::{
@@ -258,7 +259,7 @@ mod tests {
 
     #[test]
     fn inserts_the_current_repository_once() {
-        let mut store = SqliteDataStore::in_memory().unwrap();
+        let mut store = IndexedDataStore::in_memory().unwrap();
         store
             .ensure_tables(vec![
                 RepositoryTableDescriptionProvider.table_description(),

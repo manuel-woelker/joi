@@ -65,6 +65,7 @@ impl TestDataProvider for ProjectTestDataProvider {
         }
 
         data_store.mutate(DataStoreMutation {
+            return_entities: false,
             steps: vec![DataStoreMutationStep::Insert(DataStoreInsertMutation {
                 table_name: TableName("projects".into()),
                 columns: vec![
@@ -102,7 +103,7 @@ mod tests {
             DataStore, DataStoreQuery, QueryCriterion, TableDescriptionProvider, TableName,
             TestDataProvider, Values,
         },
-        sqlite_data_store::SqliteDataStore,
+        storage::IndexedDataStore,
     };
 
     use super::{ProjectTableDescriptionProvider, ProjectTestDataProvider};
@@ -123,7 +124,7 @@ mod tests {
 
     #[test]
     fn inserts_default_projects_once() {
-        let mut store = SqliteDataStore::in_memory().unwrap();
+        let mut store = IndexedDataStore::in_memory().unwrap();
         store
             .ensure_tables(vec![ProjectTableDescriptionProvider.table_description()])
             .unwrap();

@@ -306,7 +306,7 @@ mod tests {
 
     use crate::command_handler::CommandHandler;
     use crate::data_store::{DataStore, TableDescriptionProvider, TestDataProvider};
-    use crate::sqlite_data_store::SqliteDataStore;
+    use crate::storage::IndexedDataStore;
     use crate::user_session_command::{UserTableDescriptionProvider, UserTestDataProvider};
 
     use super::{
@@ -316,7 +316,7 @@ mod tests {
 
     #[test]
     fn queries_columns() {
-        let mut store = SqliteDataStore::in_memory().unwrap();
+        let mut store = IndexedDataStore::in_memory().unwrap();
         store
             .ensure_tables(vec![UserTableDescriptionProvider.table_description()])
             .unwrap();
@@ -378,7 +378,7 @@ mod tests {
 
     #[test]
     fn executes_composed_criteria() {
-        let mut store = SqliteDataStore::in_memory().unwrap();
+        let mut store = IndexedDataStore::in_memory().unwrap();
         store
             .ensure_tables(vec![UserTableDescriptionProvider.table_description()])
             .unwrap();

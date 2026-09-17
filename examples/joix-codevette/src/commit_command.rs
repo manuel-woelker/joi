@@ -226,6 +226,7 @@ impl GitCommitCommand {
             }),
         );
         store.mutate(DataStoreMutation {
+            return_entities: false,
             steps: vec![DataStoreMutationStep::Insert(DataStoreInsertMutation {
                 table_name: TableName("codevette_commits".into()),
                 columns,

@@ -19,7 +19,8 @@ through the CLI and prints YAML instead of starting HTTP:
 ./t cargo run -p joix -- info
 ```
 
-The SQLite database is stored at `examples/joix/joix.sqlite3` and is ignored by
+The redb entity database is stored at `examples/joix/joix.redb`. The derived
+Tantivy index is stored under `examples/joix/joix.search`. Both are ignored by
 Git.
 
 ## How do I check it?
