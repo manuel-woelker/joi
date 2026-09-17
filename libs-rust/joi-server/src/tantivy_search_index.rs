@@ -11,13 +11,15 @@ use joi_error::{JoiResult, joi_bail, joi_error, report};
 use serde_json::{Map, Value as JsonValue};
 use tantivy::{
     Index, IndexReader, ReloadPolicy, TantivyDocument, Term,
-    collector::{Count, DocSetCollector},
+    aggregation::{AggregationCollector, agg_req::Aggregations},
+    collector::{Count, DocSetCollector, TopDocs},
     doc,
     query::{
         AllQuery, BooleanQuery, EmptyQuery, ExistsQuery, FastFieldRangeQuery, Occur, Query,
         RegexQuery, TermQuery,
     },
     schema::{FAST, Field, IndexRecordOption, STORED, STRING, Schema, Value},
+    Order,
 };
 
 use crate::{
@@ -219,10 +221,49 @@ impl SearchIndex for TantivySearchIndex {
                 result_columns: Vec::new(),
             });
         }
-        let addresses = searcher
-            .search(tantivy_query.as_ref(), &DocSetCollector)
+        let number_of_hits = searcher
+            .search(tantivy_query.as_ref(), &Count)
             .map_err(report)?;
-        let number_of_hits = addresses.len();
+        let addresses = if let Some(sort) = query.sorting.first() {
+            let field = indexed_attribute(index, &sort.attribute)?;
+            let field_name = index.index.schema().get_field_name(field.field).to_owned();
+            match field.data_type {
+                ColumnDataType::String => searcher
+                    .search(
+                        tantivy_query.as_ref(),
+                        &TopDocs::with_limit(query.max_results.max(1)).order_by_string_fast_field(
+                            field_name,
+                            match sort.direction {
+                                QuerySortDirection::Ascending => Order::Asc,
+                                QuerySortDirection::Descending => Order::Desc,
+                            },
+                        ),
+                    )
+                    .map_err(report)?
+                    .into_iter()
+                    .map(|(_, address)| address)
+                    .collect(),
+                ColumnDataType::Int => searcher
+                    .search(
+                        tantivy_query.as_ref(),
+                        &TopDocs::with_limit(query.max_results.max(1)).order_by_fast_field::<i64>(
+                            field_name,
+                            match sort.direction {
+                                QuerySortDirection::Ascending => Order::Asc,
+                                QuerySortDirection::Descending => Order::Desc,
+                            },
+                        ),
+                    )
+                    .map_err(report)?
+                    .into_iter()
+                    .map(|(_, address)| address)
+                    .collect(),
+            }
+        } else {
+            searcher
+                .search(tantivy_query.as_ref(), &DocSetCollector)
+                .map_err(report)?
+        };
         let mut rows = addresses
             .into_iter()
             .map(|address| {
@@ -240,7 +281,11 @@ impl SearchIndex for TantivySearchIndex {
                 Ok((sequence, object))
             })
             .collect::<JoiResult<Vec<_>>>()?;
-        rows.sort_by(|left, right| compare_rows(left, right, &query.sorting));
+        if query.sorting.is_empty() {
+            rows.sort_by(|left, right| compare_rows(left, right, &[]));
+        } else if query.sorting.len() > 1 {
+            rows.sort_by(|left, right| compare_rows(left, right, &query.sorting[1..]));
+        }
         rows.truncate(query.max_results);
 
         let attributes = if query.attributes.len() == 1 && query.attributes[0].0 == "*" {
@@ -312,49 +357,69 @@ impl SearchIndex for TantivySearchIndex {
                 attribute.0
             )
         })?;
-        let addresses = searcher
-            .search(query.as_ref(), &DocSetCollector)
-            .map_err(report)?;
-        let mut counts: HashMap<Option<DataStoreValueKey>, usize> = HashMap::new();
-        for address in addresses {
-            let document: TantivyDocument = searcher.doc(address).map_err(report)?;
-            let value =
-                document
-                    .get_first(indexed.field)
-                    .and_then(|value| match indexed.data_type {
-                        ColumnDataType::String => value
-                            .as_str()
-                            .map(|value| DataStoreValueKey::String(value.to_owned())),
-                        ColumnDataType::Int => value.as_i64().map(DataStoreValueKey::Int),
-                    });
-            *counts.entry(value).or_default() += 1;
+        count_terms(&searcher, query.as_ref(), index, indexed, max_results)
+    }
+}
+
+fn count_terms(
+    searcher: &tantivy::Searcher,
+    query: &dyn Query,
+    index: &EntityIndex,
+    attribute: &IndexedAttribute,
+    max_results: usize,
+) -> JoiResult<Vec<DataStoreCountValue>> {
+    let field_name = index
+        .index
+        .schema()
+        .get_field_name(attribute.field)
+        .to_owned();
+    let request: Aggregations = serde_json::from_value(serde_json::json!({
+        "values": {
+            "terms": {
+                "field": field_name,
+                "size": max_results
+            }
         }
-        let mut counts = counts.into_iter().collect::<Vec<_>>();
-        counts.sort_by(|left, right| right.1.cmp(&left.1).then_with(|| left.0.cmp(&right.0)));
-        counts.truncate(max_results);
-        Ok(counts
-            .into_iter()
-            .map(|(value, count)| DataStoreCountValue {
-                value: value.map(DataStoreValueKey::into_value),
-                count,
+    }))
+    .map_err(report)?;
+    let collector = AggregationCollector::from_aggs(
+        request,
+        tantivy::aggregation::AggContextParams::default(),
+    );
+    let result = searcher.search(query, &collector).map_err(report)?;
+    let json = serde_json::to_value(result).map_err(report)?;
+    let buckets = json
+        .get("values")
+        .and_then(|value| value.get("buckets"))
+        .and_then(JsonValue::as_array)
+        .ok_or_else(|| joi_error!("Tantivy returned an invalid terms aggregation"))?;
+    buckets
+        .iter()
+        .map(|bucket| {
+            Ok(DataStoreCountValue {
+                value: Some(match attribute.data_type {
+                    ColumnDataType::String => DataStoreValue::String(
+                        bucket
+                            .get("key")
+                            .and_then(JsonValue::as_str)
+                            .ok_or_else(|| joi_error!("Tantivy returned an invalid term bucket"))?
+                            .into(),
+                    ),
+                    ColumnDataType::Int => DataStoreValue::Int(
+                        bucket
+                            .get("key")
+                            .and_then(JsonValue::as_i64)
+                            .ok_or_else(|| joi_error!("Tantivy returned an invalid integer bucket"))?,
+                    ),
+                }),
+                count: bucket
+                    .get("doc_count")
+                    .and_then(JsonValue::as_u64)
+                    .ok_or_else(|| joi_error!("Tantivy returned an invalid term count"))?
+                    as usize,
             })
-            .collect())
-    }
-}
-
-#[derive(Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
-enum DataStoreValueKey {
-    String(String),
-    Int(i64),
-}
-
-impl DataStoreValueKey {
-    fn into_value(self) -> DataStoreValue {
-        match self {
-            Self::String(value) => DataStoreValue::String(value.into()),
-            Self::Int(value) => DataStoreValue::Int(value),
-        }
-    }
+        })
+        .collect()
 }
 
 fn validate_table(table: &TableDescription) -> JoiResult<()> {
