@@ -227,42 +227,48 @@ impl SearchIndex for TantivySearchIndex {
         let addresses = if let Some(sort) = query.sorting.first() {
             let field = indexed_attribute(index, &sort.attribute)?;
             let field_name = index.index.schema().get_field_name(field.field).to_owned();
-            match field.data_type {
+            let mut addresses = match field.data_type {
                 ColumnDataType::String => searcher
                     .search(
                         tantivy_query.as_ref(),
                         &TopDocs::with_limit(query.max_results.max(1)).order_by_string_fast_field(
                             field_name,
                             match sort.direction {
-                                QuerySortDirection::Ascending => Order::Asc,
-                                QuerySortDirection::Descending => Order::Desc,
+                                QuerySortDirection::Ascending => Order::Desc,
+                                QuerySortDirection::Descending => Order::Asc,
                             },
                         ),
                     )
                     .map_err(report)?
                     .into_iter()
                     .map(|(_, address)| address)
-                    .collect(),
+                    .collect::<Vec<_>>(),
                 ColumnDataType::Int => searcher
                     .search(
                         tantivy_query.as_ref(),
                         &TopDocs::with_limit(query.max_results.max(1)).order_by_fast_field::<i64>(
                             field_name,
                             match sort.direction {
-                                QuerySortDirection::Ascending => Order::Asc,
-                                QuerySortDirection::Descending => Order::Desc,
+                                QuerySortDirection::Ascending => Order::Desc,
+                                QuerySortDirection::Descending => Order::Asc,
                             },
                         ),
                     )
                     .map_err(report)?
                     .into_iter()
                     .map(|(_, address)| address)
-                    .collect(),
+                    .collect::<Vec<_>>(),
+            };
+            if sort.direction == QuerySortDirection::Descending {
+                addresses.reverse();
             }
+            addresses
         } else {
             searcher
                 .search(tantivy_query.as_ref(), &DocSetCollector)
                 .map_err(report)?
+                .into_iter()
+                .collect()
         };
         let mut rows = addresses
             .into_iter()

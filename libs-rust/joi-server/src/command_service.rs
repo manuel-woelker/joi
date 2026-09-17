@@ -51,16 +51,34 @@ async fn execute(
     Path(command_name): Path<JoiString>,
     headers: HeaderMap,
     Json(request): Json<serde_json::Value>,
-) -> Result<Response, (StatusCode, Json<CommandResponseError>)> {
-    execute_http(&registry, &command_name, request, &headers)
+) -> Response {
+    match execute_http(&registry, &command_name, request, &headers) {
+        Ok(response) => response,
+        Err(error) => http_error_response(error),
+    }
 }
 
 async fn execute_empty_object(
     State(registry): State<CommandRegistry>,
     Path(command_name): Path<JoiString>,
     headers: HeaderMap,
-) -> Result<Response, (StatusCode, Json<CommandResponseError>)> {
-    execute_http(&registry, &command_name, serde_json::json!({}), &headers)
+) -> Response {
+    match execute_http(&registry, &command_name, serde_json::json!({}), &headers) {
+        Ok(response) => response,
+        Err(error) => http_error_response(error),
+    }
+}
+
+fn http_error_response(error: (StatusCode, Json<CommandResponseError>)) -> Response {
+    let (status, body) = error;
+    let mut response = (status, body).into_response();
+    if status == StatusCode::UNAUTHORIZED {
+        response.headers_mut().insert(
+            SET_COOKIE,
+            HeaderValue::from_static("joix_session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0"),
+        );
+    }
+    response
 }
 
 #[derive(Debug, Serialize)]

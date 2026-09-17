@@ -29,6 +29,20 @@ describe("FetchService", () => {
     await expect(new FetchService(fetcher).get("/api/info")).rejects.toThrow("GET /api/info failed with HTTP 503");
   });
 
+  it("notifies listeners when the session is unauthorized", async () => {
+    const fetcher = vi.fn().mockResolvedValue({ ok: false, status: 401 });
+    const unauthorized = vi.fn();
+    const service = new FetchService(fetcher);
+    const unsubscribe = service.onUnauthorized(unauthorized);
+
+    await expect(service.get("/api/info")).rejects.toThrow("HTTP 401");
+    expect(unauthorized).toHaveBeenCalledOnce();
+
+    unsubscribe();
+    await expect(service.get("/api/info")).rejects.toThrow("HTTP 401");
+    expect(unauthorized).toHaveBeenCalledOnce();
+  });
+
   it("applies a configurable artificial delay before requests", async () => {
     vi.useFakeTimers();
     const fetcher = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ value: 1 }) });

@@ -1,4 +1,4 @@
-import { createResource, Match, Switch } from "solid-js";
+import { createResource, Match, Switch, onCleanup } from "solid-js";
 import styles from "./App.module.css";
 import { createApplication } from "./base/application-registry";
 import type { PluginRegistry } from "./base/plugin-registry";
@@ -11,6 +11,15 @@ import { ApplicationShell } from "./plugins/core/shell/ApplicationShell";
 export default function App(props: { pluginRegistry?: PluginRegistry; services?: ApplicationServices }) {
   const application = props.pluginRegistry && props.services ? undefined : createApplication();
   const [user, { refetch }] = createResource(() => loadCurrentUser(fetchService));
+  let refreshingSession = false;
+  const unsubscribeUnauthorized = fetchService.onUnauthorized(() => {
+    if (!user() || refreshingSession) return;
+    refreshingSession = true;
+    void refetch().finally(() => {
+      refreshingSession = false;
+    });
+  });
+  onCleanup(unsubscribeUnauthorized);
   return (
     <Switch>
       <Match when={user.loading}>

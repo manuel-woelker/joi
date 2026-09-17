@@ -4,6 +4,7 @@ export type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<
 /** Performs JSON HTTP requests and rejects responses outside the successful range. */
 export class FetchService {
   private artificialDelay = 0;
+  private unauthorizedListeners = new Set<() => void>();
 
   constructor(private readonly fetcher: Fetcher = (input, init) => fetch(input, init)) {}
 
@@ -16,6 +17,12 @@ export class FetchService {
   setArtificialDelayMs(delay: number): void {
     if (!Number.isFinite(delay) || delay < 0) throw new Error("Artificial fetch delay must be a non-negative number");
     this.artificialDelay = delay;
+  }
+
+  /** Subscribes to expired or invalid session responses. */
+  onUnauthorized(listener: () => void): () => void {
+    this.unauthorizedListeners.add(listener);
+    return () => this.unauthorizedListeners.delete(listener);
   }
 
   /** Fetches and decodes a JSON resource. */
@@ -38,6 +45,9 @@ export class FetchService {
     }
     const response = await this.fetcher(path, init);
     if (!response.ok) {
+      if (response.status === 401) {
+        for (const listener of this.unauthorizedListeners) listener();
+      }
       throw new Error(`${init.method} ${path} failed with HTTP ${response.status}`);
     }
     return response.json();
