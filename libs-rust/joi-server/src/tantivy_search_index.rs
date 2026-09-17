@@ -573,7 +573,9 @@ fn criterion_query(index: &EntityIndex, criterion: &QueryCriterion) -> JoiResult
             let Some(lower_field) = field.lower_field else {
                 joi_bail!("contains is only supported for string attributes");
             };
-            let pattern = format!(".*{}.*", regex_escape(&value.to_lowercase()));
+            // Rich-text descriptions commonly contain newlines. Enable dot-all so a
+            // substring match is not limited to the current line of the raw field.
+            let pattern = format!("(?s).*{}.*", regex_escape(&value.to_lowercase()));
             Ok(Box::new(
                 RegexQuery::from_pattern(&pattern, lower_field).map_err(report)?,
             ))
