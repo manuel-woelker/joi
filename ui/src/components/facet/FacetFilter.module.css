@@ -1,0 +1,128 @@
+.facets {
+  display: grid;
+  align-content: start;
+  width: min(100%, 320px);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.facet + .facet {
+  border-top: 1px solid var(--color-border);
+}
+
+.header {
+  padding: 9px 10px 7px;
+  background: var(--color-surface-muted);
+}
+
+.header h3,
+.header p,
+.empty {
+  margin: 0;
+}
+
+.header h3 {
+  font-size: 0.82rem;
+  line-height: 1.25;
+}
+
+.header p {
+  margin-top: 2px;
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  line-height: 1.3;
+}
+
+.values {
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+}
+
+.value {
+  display: grid;
+  grid-template-columns: 17px minmax(0, 1fr) auto auto;
+  align-items: center;
+  width: 100%;
+  min-height: 28px;
+  padding: 3px 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+}
+
+.value:hover {
+  background: var(--color-surface-hover);
+  box-shadow: none;
+}
+
+.value[data-state="included"] {
+  background: var(--color-secondary-soft);
+  color: var(--color-secondary-dark);
+}
+
+.value[data-state="excluded"] {
+  color: var(--color-text-muted);
+  background: var(--color-surface-muted);
+}
+
+.marker {
+  display: grid;
+  width: 13px;
+  height: 13px;
+  place-items: center;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 3px;
+  color: var(--color-ink-soft);
+  font-size: 0.75rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.value[data-state="included"] .marker {
+  border-color: var(--color-secondary-dark);
+  background: var(--color-secondary);
+  color: white;
+}
+
+.value[data-state="excluded"] .marker {
+  border-color: var(--color-text-muted);
+  background: var(--color-border-soft);
+  color: var(--color-text-muted);
+}
+
+.label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.78rem;
+}
+
+.count {
+  min-width: 2.5ch;
+  margin-left: 10px;
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.state {
+  margin-left: 6px;
+  color: var(--color-text-subtle);
+  font-size: 0.62rem;
+  line-height: 1;
+}
+
+.value[data-state="neutral"] .state {
+  display: none;
+}
+
+.empty {
+  padding: 10px;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
