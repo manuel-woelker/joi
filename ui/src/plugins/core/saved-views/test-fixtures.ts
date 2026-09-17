@@ -18,7 +18,7 @@ export const testEntity = defineEntity({
     { id: "key", label: "Key", valueType: "string" },
     { id: "title", label: "Title", valueType: "string" },
     { id: "description", label: "Description", valueType: "string" },
-    { id: "status", label: "Status", valueType: "string" },
+    { id: "status", label: "Status", valueType: "string", facet: true },
   ],
 });
 

@@ -15,6 +15,7 @@ pub struct TableName(pub JoiString);
 pub struct AttributeName(pub JoiString);
 
 /// Determines which records a query selects.
+#[derive(Clone)]
 pub enum QueryCriterion {
     /// Selects every available record.
     MatchAny,
@@ -72,6 +73,7 @@ pub enum QuerySortDirection {
 }
 
 /// One attribute and direction in an ordered query sort sequence.
+#[derive(Clone)]
 pub struct QuerySort {
     /// The attribute used for sorting.
     pub attribute: AttributeName,
@@ -117,6 +119,22 @@ pub struct DataStoreQueryResult {
     pub number_of_hits: usize,
     /// The requested attribute columns.
     pub result_columns: Vec<AttributeColumn>,
+}
+
+/// One value and its number of occurrences in an aggregate result.
+pub struct DataStoreCountValue {
+    /// Grouped value, or `None` for a total count or null attribute value.
+    pub value: Option<DataStoreValue>,
+    /// Number of matching records.
+    pub count: usize,
+}
+
+/// Scalar values returned by datastore aggregations.
+pub enum DataStoreValue {
+    /// String value.
+    String(JoiString),
+    /// Signed integer value.
+    Int(i64),
 }
 
 /// Describes a table and its required column definition.
@@ -220,15 +238,24 @@ pub trait DataStore: Send {
 
     /// Executes a query and returns its matching records and total count.
     fn query(&self, query: DataStoreQuery) -> JoiResult<DataStoreQueryResult> {
-        self.query_with_total_count(query, true)
+        self.query_rows(query, true)
     }
 
-    /// Executes a query, optionally calculating the total count before limiting rows.
-    fn query_with_total_count(
+    /// Executes a row query, optionally calculating the total count before limiting rows.
+    fn query_rows(
         &self,
         query: DataStoreQuery,
-        return_total_count: bool,
+        count_all_rows: bool,
     ) -> JoiResult<DataStoreQueryResult>;
+
+    /// Counts matching records, optionally grouped by one attribute.
+    fn count(
+        &self,
+        table_name: &TableName,
+        criterion: &QueryCriterion,
+        attribute: Option<&AttributeName>,
+        max_results: usize,
+    ) -> JoiResult<Vec<DataStoreCountValue>>;
 
     /// Applies a mutation and returns its outcome.
     fn mutate(&mut self, mutation: DataStoreMutation) -> JoiResult<DataStoreMutationResult>;

@@ -19,11 +19,15 @@ describe("authentication service", () => {
         ({
           ok: true,
           json: async () => ({
-            number_of_hits: 1,
-            result_columns: [
-              { attribute: "id", values: { type: "string", values: [user.id] } },
-              { attribute: "username", values: { type: "string", values: [user.username] } },
-              { attribute: "name", values: { type: "string", values: [user.name] } },
+            results: [
+              {
+                type: "rows",
+                result_columns: [
+                  { attribute: "id", values: { type: "string", values: [user.id] } },
+                  { attribute: "username", values: { type: "string", values: [user.username] } },
+                  { attribute: "name", values: { type: "string", values: [user.name] } },
+                ],
+              },
             ],
           }),
         }) as Response,
@@ -33,10 +37,7 @@ describe("authentication service", () => {
     expect(JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body))).toEqual({
       table_name: "users",
       criterion: "match_any",
-      sorting: [],
-      max_results: 100,
-      attributes: ["id", "username", "name"],
-      return_total_count: false,
+      results: [{ type: "rows", sorting: [], max_results: 100, attributes: ["id", "username", "name"] }],
     });
   });
 });

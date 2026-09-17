@@ -8,10 +8,11 @@ use joi_error::{JoiResult, joi_bail, report};
 use rusqlite::{Connection, Transaction, params, params_from_iter, types::Value};
 
 use crate::data_store::{
-    AttributeColumn, ColumnDataType, ColumnDescription, DataStore, DataStoreDeleteMutation,
-    DataStoreInsertMutation, DataStoreMutation, DataStoreMutationResult, DataStoreMutationStep,
-    DataStoreQuery, DataStoreQueryResult, DataStoreUpdateMutation, QueryCriterion, QuerySort,
-    QuerySortDirection, TableDescription, Values,
+    AttributeColumn, AttributeName, ColumnDataType, ColumnDescription, DataStore,
+    DataStoreCountValue, DataStoreDeleteMutation, DataStoreInsertMutation, DataStoreMutation,
+    DataStoreMutationResult, DataStoreMutationStep, DataStoreQuery, DataStoreQueryResult,
+    DataStoreUpdateMutation, DataStoreValue, QueryCriterion, QuerySort, QuerySortDirection,
+    TableDescription, TableName, Values,
 };
 
 /// A SQLite-backed [`DataStore`].
@@ -48,10 +49,10 @@ impl DataStore for SqliteDataStore {
         transaction.commit().map_err(report)
     }
 
-    fn query_with_total_count(
+    fn query_rows(
         &self,
         query: DataStoreQuery,
-        return_total_count: bool,
+        count_all_rows: bool,
     ) -> JoiResult<DataStoreQueryResult> {
         let table = quote_identifier(&query.table_name.0);
         let (where_clause, criterion_values) = criterion_sql(&query.criterion);
@@ -60,7 +61,7 @@ impl DataStore for SqliteDataStore {
         } else {
             format!(" WHERE {where_clause}")
         };
-        let mut number_of_hits = if return_total_count {
+        let mut number_of_hits = if count_all_rows {
             let count_sql = format!("SELECT COUNT(*) FROM {table}{where_sql}");
             let count = self
                 .connection
@@ -151,7 +152,7 @@ impl DataStore for SqliteDataStore {
                     Values::Int(values) => values.push(row.get(index).map_err(report)?),
                 }
             }
-            if !return_total_count {
+            if !count_all_rows {
                 number_of_hits += 1;
             }
         }
@@ -160,6 +161,79 @@ impl DataStore for SqliteDataStore {
             number_of_hits,
             result_columns,
         })
+    }
+
+    fn count(
+        &self,
+        table_name: &TableName,
+        criterion: &QueryCriterion,
+        attribute: Option<&AttributeName>,
+        max_results: usize,
+    ) -> JoiResult<Vec<DataStoreCountValue>> {
+        if max_results == 0 {
+            return Ok(Vec::new());
+        }
+        let table = quote_identifier(&table_name.0);
+        let (where_clause, criterion_values) = criterion_sql(criterion);
+        let where_sql = if where_clause.is_empty() {
+            String::new()
+        } else {
+            format!(" WHERE {where_clause}")
+        };
+        let Some(attribute) = attribute else {
+            let sql = format!("SELECT COUNT(*) FROM {table}{where_sql}");
+            let count = self
+                .connection
+                .query_row(&sql, params_from_iter(criterion_values), |row| {
+                    row.get::<_, i64>(0)
+                })
+                .map_err(report)?;
+            return Ok(vec![DataStoreCountValue {
+                value: None,
+                count: count_from_sqlite(count)?,
+            }]);
+        };
+
+        let schema = table_schema(&self.connection, &table_name.0)?;
+        let Some(data_type) = schema
+            .iter()
+            .find(|column| column.description.name == *attribute)
+            .map(|column| column.description.data_type)
+        else {
+            joi_bail!(
+                "table `{}` has no aggregate attribute `{}`",
+                table_name.0,
+                attribute.0
+            );
+        };
+        let column = quote_identifier(&attribute.0);
+        let sql = format!(
+            "SELECT {column}, COUNT(*) AS aggregate_count FROM {table}{where_sql} GROUP BY {column} ORDER BY aggregate_count DESC, {column} ASC LIMIT ?"
+        );
+        let mut statement = self.connection.prepare(&sql).map_err(report)?;
+        let limit = i64::try_from(max_results)
+            .map_err(|_| joi_error::joi_error!("aggregate result limit is too large"))?;
+        let mut values = criterion_values;
+        values.push(Value::Integer(limit));
+        let rows = statement
+            .query_map(params_from_iter(values), |row| {
+                let value = match data_type {
+                    ColumnDataType::String => row
+                        .get::<_, Option<String>>(0)?
+                        .map(|value| DataStoreValue::String(value.into())),
+                    ColumnDataType::Int => row.get::<_, Option<i64>>(0)?.map(DataStoreValue::Int),
+                };
+                Ok((value, row.get::<_, i64>(1)?))
+            })
+            .map_err(report)?;
+        rows.map(|row| {
+            let (value, count) = row.map_err(report)?;
+            Ok(DataStoreCountValue {
+                value,
+                count: count_from_sqlite(count)?,
+            })
+        })
+        .collect()
     }
 
     fn mutate(&mut self, mutation: DataStoreMutation) -> JoiResult<DataStoreMutationResult> {
@@ -174,6 +248,11 @@ impl DataStore for SqliteDataStore {
         transaction.commit().map_err(report)?;
         Ok(DataStoreMutationResult {})
     }
+}
+
+fn count_from_sqlite(count: i64) -> JoiResult<usize> {
+    usize::try_from(count)
+        .map_err(|_| joi_error::joi_error!("SQLite returned a negative row count"))
 }
 
 fn order_by_sql(
@@ -801,6 +880,48 @@ mod tests {
             })
             .unwrap();
         assert_eq!(excluded.number_of_hits, 1);
+    }
+
+    #[test]
+    fn counts_all_rows_and_groups_by_attribute() {
+        let mut store = SqliteDataStore::in_memory().unwrap();
+        store.ensure_tables(vec![record_table()]).unwrap();
+        store
+            .mutate(DataStoreMutation {
+                steps: vec![insert_records(&[("T-1", 2), ("T-2", 5), ("T-3", 2)])],
+            })
+            .unwrap();
+
+        let total = store
+            .count(&table("records"), &QueryCriterion::MatchAny, None, 1)
+            .unwrap();
+        assert_eq!(total.len(), 1);
+        assert_eq!(total[0].count, 3);
+
+        let grouped = store
+            .count(
+                &table("records"),
+                &QueryCriterion::MatchAny,
+                Some(&attribute("priority")),
+                10,
+            )
+            .unwrap();
+        assert_eq!(grouped.len(), 2);
+        assert_eq!(grouped[0].count, 2);
+        assert!(matches!(
+            grouped[0].value,
+            Some(crate::data_store::DataStoreValue::Int(2))
+        ));
+
+        let limited = store
+            .count(
+                &table("records"),
+                &QueryCriterion::MatchAny,
+                Some(&attribute("priority")),
+                1,
+            )
+            .unwrap();
+        assert_eq!(limited.len(), 1);
     }
 
     #[test]

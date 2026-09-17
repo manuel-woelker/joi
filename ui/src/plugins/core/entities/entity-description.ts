@@ -59,6 +59,8 @@ export interface EntityAttributeDescription<
   readonly validation?: ValidationFunction<TValue>;
   readonly lookup?: LookupId;
   readonly optional?: boolean;
+  /** Includes grouped value counts for this attribute in generic entity views. */
+  readonly facet?: boolean;
 }
 
 /** String-valued entity attribute. */

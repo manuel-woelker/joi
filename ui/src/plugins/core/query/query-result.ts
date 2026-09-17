@@ -24,6 +24,17 @@ export interface QueryResponse {
   readonly result_columns: readonly QueryResultColumn[];
 }
 
+export interface QueryAggregateValue {
+  readonly value: QueryValue | null;
+  readonly count: number;
+}
+
+export interface QueryAggregateResult {
+  readonly aggregation: "count";
+  readonly attribute?: string;
+  readonly values: readonly QueryAggregateValue[];
+}
+
 export interface QueryColumnHandle {
   readonly index: QueryColumnIndex;
   readonly attribute: string;
@@ -43,6 +54,7 @@ export interface QueryValueUpdate {
 
 export interface QueryResult {
   readonly numberOfHits?: number;
+  readonly aggregates: readonly QueryAggregateResult[];
   readonly columns: readonly QueryColumnHandle[];
   readonly rows: readonly QueryResultRow[];
   column(attribute: string): QueryColumnHandle | undefined;
@@ -53,7 +65,7 @@ export interface QueryResult {
 const queryColumnIndex = (value: number): QueryColumnIndex => value as QueryColumnIndex;
 const queryRowIndex = (value: number): QueryRowIndex => value as QueryRowIndex;
 
-export function parseQueryResponse(value: unknown): QueryResult {
+export function parseQueryResponse(value: unknown, aggregates: readonly QueryAggregateResult[] = []): QueryResult {
   const response = validateResponse(value);
   const identity = Symbol("query-result");
   const columns = response.result_columns.map(
@@ -81,7 +93,11 @@ export function parseQueryResponse(value: unknown): QueryResult {
   });
 
   return {
-    numberOfHits: response.number_of_hits ?? undefined,
+    numberOfHits:
+      aggregates.find((aggregate) => aggregate.attribute === undefined)?.values[0]?.count ??
+      response.number_of_hits ??
+      undefined,
+    aggregates,
     columns,
     rows,
     column: (attribute) => columnsByAttribute.get(attribute),

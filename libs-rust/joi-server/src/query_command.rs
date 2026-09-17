@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 use crate::command::Command;
 use crate::command_handler::CommandHandler;
 use crate::data_store::{
-    AttributeName, DataStoreQuery, QueryCriterion, QuerySort, QuerySortDirection, SharedDataStore,
-    TableName, Values,
+    AttributeName, DataStoreQuery, DataStoreValue, QueryCriterion, QuerySort, QuerySortDirection,
+    SharedDataStore, TableName, Values,
 };
 
 /// Executes generic table queries against a shared data store.
@@ -27,11 +27,29 @@ impl QueryCommand {
 pub struct QueryRequest {
     table_name: JoiString,
     criterion: QueryRequestCriterion,
-    sorting: Vec<QueryRequestSort>,
-    max_results: usize,
-    attributes: Vec<JoiString>,
-    #[serde(default)]
-    return_total_count: bool,
+    results: Vec<QueryRequestResult>,
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+enum QueryRequestResult {
+    Rows {
+        max_results: usize,
+        sorting: Vec<QueryRequestSort>,
+        attributes: Vec<JoiString>,
+    },
+    Aggregate {
+        aggregation: QueryAggregation,
+        attribute: Option<JoiString>,
+        max_results: usize,
+        criterion: Option<QueryRequestCriterion>,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum QueryAggregation {
+    Count,
 }
 
 #[derive(Deserialize)]
@@ -90,8 +108,26 @@ impl Command for QueryRequest {
 #[derive(Debug, PartialEq, Serialize)]
 /// Columnar result returned by the `query` command.
 pub struct QueryResponse {
-    number_of_hits: Option<usize>,
-    result_columns: Vec<QueryResultColumn>,
+    results: Vec<QueryResponseResult>,
+}
+
+#[derive(Debug, PartialEq, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+enum QueryResponseResult {
+    Rows {
+        result_columns: Vec<QueryResultColumn>,
+    },
+    Aggregate {
+        aggregation: QueryAggregation,
+        attribute: Option<JoiString>,
+        values: Vec<QueryAggregateValue>,
+    },
+}
+
+#[derive(Debug, PartialEq, Serialize)]
+struct QueryAggregateValue {
+    value: Option<serde_json::Value>,
+    count: usize,
 }
 
 #[derive(Debug, PartialEq, Serialize)]
@@ -119,47 +155,103 @@ impl CommandHandler for QueryCommand {
         _context: &crate::command_handler::CommandContext,
         request: Self::Command,
     ) -> JoiResult<QueryResponse> {
-        let return_total_count = request.return_total_count;
-        let query = DataStoreQuery {
-            table_name: TableName(request.table_name),
-            criterion: query_criterion(request.criterion),
-            sorting: request
-                .sorting
-                .into_iter()
-                .map(|sort| QuerySort {
-                    attribute: AttributeName(sort.attribute),
-                    direction: match sort.direction {
-                        QueryRequestSortDirection::Ascending => QuerySortDirection::Ascending,
-                        QueryRequestSortDirection::Descending => QuerySortDirection::Descending,
-                    },
-                })
-                .collect(),
-            max_results: request.max_results,
-            attributes: request.attributes.into_iter().map(AttributeName).collect(),
-        };
-        let result = self
+        let table_name = TableName(request.table_name);
+        let criterion = query_criterion(request.criterion);
+        let store = self
             .data_store
             .lock()
-            .map_err(|_| joi_error!("data store lock is poisoned"))?
-            .query_with_total_count(query, return_total_count)?;
+            .map_err(|_| joi_error!("data store lock is poisoned"))?;
+        let results = request
+            .results
+            .into_iter()
+            .map(|shape| match shape {
+                QueryRequestResult::Rows {
+                    max_results,
+                    sorting,
+                    attributes,
+                } => {
+                    let result = store.query_rows(
+                        DataStoreQuery {
+                            table_name: table_name.clone(),
+                            criterion: criterion.clone(),
+                            sorting: sorting
+                                .into_iter()
+                                .map(|sort| QuerySort {
+                                    attribute: AttributeName(sort.attribute),
+                                    direction: match sort.direction {
+                                        QueryRequestSortDirection::Ascending => {
+                                            QuerySortDirection::Ascending
+                                        }
+                                        QueryRequestSortDirection::Descending => {
+                                            QuerySortDirection::Descending
+                                        }
+                                    },
+                                })
+                                .collect(),
+                            max_results,
+                            attributes: attributes.into_iter().map(AttributeName).collect(),
+                        },
+                        false,
+                    )?;
+                    Ok(QueryResponseResult::Rows {
+                        result_columns: result
+                            .result_columns
+                            .into_iter()
+                            .map(|column| QueryResultColumn {
+                                attribute: column.attribute.0,
+                                values: match column.values {
+                                    Values::String(values) => QueryValues::String(values),
+                                    Values::NullableString(_) => {
+                                        unreachable!("queries never return mutation-only values")
+                                    }
+                                    Values::Int(values) => QueryValues::Int(values),
+                                },
+                            })
+                            .collect(),
+                    })
+                }
+                QueryRequestResult::Aggregate {
+                    aggregation,
+                    attribute,
+                    max_results,
+                    criterion: aggregate_criterion,
+                } => {
+                    let aggregate_criterion = aggregate_criterion
+                        .map(query_criterion)
+                        .unwrap_or_else(|| criterion.clone());
+                    let values = store
+                        .count(
+                            &table_name,
+                            &aggregate_criterion,
+                            attribute
+                                .as_ref()
+                                .map(|value| AttributeName(value.clone()))
+                                .as_ref(),
+                            max_results,
+                        )?
+                        .into_iter()
+                        .map(|entry| QueryAggregateValue {
+                            value: entry.value.map(|value| match value {
+                                DataStoreValue::String(value) => {
+                                    serde_json::Value::String(value.to_string())
+                                }
+                                DataStoreValue::Int(value) => {
+                                    serde_json::Value::Number(value.into())
+                                }
+                            }),
+                            count: entry.count,
+                        })
+                        .collect();
+                    Ok(QueryResponseResult::Aggregate {
+                        aggregation,
+                        attribute,
+                        values,
+                    })
+                }
+            })
+            .collect::<JoiResult<Vec<_>>>()?;
 
-        Ok(QueryResponse {
-            number_of_hits: return_total_count.then_some(result.number_of_hits),
-            result_columns: result
-                .result_columns
-                .into_iter()
-                .map(|column| QueryResultColumn {
-                    attribute: column.attribute.0,
-                    values: match column.values {
-                        Values::String(values) => QueryValues::String(values),
-                        Values::NullableString(_) => {
-                            unreachable!("queries never return mutation-only values")
-                        }
-                        Values::Int(values) => QueryValues::Int(values),
-                    },
-                })
-                .collect(),
-        })
+        Ok(QueryResponse { results })
     }
 }
 
@@ -218,8 +310,8 @@ mod tests {
     use crate::user_session_command::{UserTableDescriptionProvider, UserTestDataProvider};
 
     use super::{
-        QueryCommand, QueryRequest, QueryRequestCriterion, QueryRequestSort,
-        QueryRequestSortDirection, QueryValues,
+        QueryAggregation, QueryCommand, QueryRequest, QueryRequestCriterion, QueryRequestResult,
+        QueryRequestSort, QueryRequestSortDirection, QueryResponseResult, QueryValues,
     };
 
     #[test]
@@ -237,22 +329,50 @@ mod tests {
                 QueryRequest {
                     table_name: "users".into(),
                     criterion: QueryRequestCriterion::MatchAny,
-                    sorting: vec![QueryRequestSort {
-                        attribute: "username".into(),
-                        direction: QueryRequestSortDirection::Descending,
-                    }],
-                    max_results: 2,
-                    attributes: vec!["username".into(), "name".into()],
-                    return_total_count: true,
+                    results: vec![
+                        QueryRequestResult::Rows {
+                            sorting: vec![QueryRequestSort {
+                                attribute: "username".into(),
+                                direction: QueryRequestSortDirection::Descending,
+                            }],
+                            max_results: 2,
+                            attributes: vec!["username".into(), "name".into()],
+                        },
+                        QueryRequestResult::Aggregate {
+                            aggregation: QueryAggregation::Count,
+                            attribute: None,
+                            max_results: 1,
+                            criterion: None,
+                        },
+                        QueryRequestResult::Aggregate {
+                            aggregation: QueryAggregation::Count,
+                            attribute: Some("username".into()),
+                            max_results: 10,
+                            criterion: Some(QueryRequestCriterion::Contains {
+                                attribute: "name".into(),
+                                value: "developer".into(),
+                            }),
+                        },
+                    ],
                 },
             )
             .unwrap();
 
-        assert_eq!(response.number_of_hits, Some(2));
-        assert_eq!(response.result_columns.len(), 2);
+        let QueryResponseResult::Rows { result_columns } = &response.results[0] else {
+            panic!("expected rows")
+        };
+        assert_eq!(result_columns.len(), 2);
         assert!(matches!(
-            &response.result_columns[0].values,
+            &result_columns[0].values,
             QueryValues::String(values) if values.len() == 2 && values[0] == "joe.tester"
+        ));
+        assert!(matches!(
+            &response.results[1],
+            QueryResponseResult::Aggregate { values, .. } if values.len() == 1 && values[0].count == 2
+        ));
+        assert!(matches!(
+            &response.results[2],
+            QueryResponseResult::Aggregate { values, .. } if values.len() == 1 && values[0].count == 1
         ));
     }
 
@@ -289,17 +409,20 @@ mod tests {
                             attribute: "name".into(),
                         },
                     ]),
-                    sorting: Vec::new(),
-                    max_results: 10,
-                    attributes: vec!["username".into()],
-                    return_total_count: false,
+                    results: vec![QueryRequestResult::Rows {
+                        sorting: Vec::new(),
+                        max_results: 10,
+                        attributes: vec!["username".into()],
+                    }],
                 },
             )
             .unwrap();
 
-        assert_eq!(response.number_of_hits, None);
+        let QueryResponseResult::Rows { result_columns } = &response.results[0] else {
+            panic!("expected rows")
+        };
         assert!(matches!(
-            &response.result_columns[0].values,
+            &result_columns[0].values,
             QueryValues::String(values) if values == &[JoiString::from("jane.developer")]
         ));
     }

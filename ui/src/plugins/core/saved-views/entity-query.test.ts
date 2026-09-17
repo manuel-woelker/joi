@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { loadEntityRecords } from "./entity-query";
+import { loadEntityRecords, loadEntityRecordsWithFacets } from "./entity-query";
 import { FetchService } from "../../../base/services/fetch-service";
 import type { QueryDefinition } from "./model";
 import { testEntity } from "./test-fixtures";
@@ -10,13 +10,19 @@ describe("loadEntityRecords", () => {
     const fetcher = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        number_of_hits: 1,
-        result_columns: [
-          { attribute: "id", values: { type: "string", values: ["0o5Fs0EELR0fUjHjbCnEtdUwQe3"] } },
-          { attribute: "key", values: { type: "string", values: ["TEST-1"] } },
-          { attribute: "title", values: { type: "string", values: ["Fix navigation bug"] } },
-          { attribute: "description", values: { type: "string", values: ["Selection is lost"] } },
-          { attribute: "status", values: { type: "string", values: ["open"] } },
+        results: [
+          {
+            type: "rows",
+            result_columns: [
+              { attribute: "id", values: { type: "string", values: ["0o5Fs0EELR0fUjHjbCnEtdUwQe3"] } },
+              { attribute: "key", values: { type: "string", values: ["TEST-1"] } },
+              { attribute: "title", values: { type: "string", values: ["Fix navigation bug"] } },
+              { attribute: "description", values: { type: "string", values: ["Selection is lost"] } },
+              { attribute: "status", values: { type: "string", values: ["open"] } },
+            ],
+          },
+          { type: "aggregate", aggregation: "count", attribute: null, values: [{ value: null, count: 1 }] },
+          { type: "aggregate", aggregation: "count", attribute: "status", values: [{ value: "open", count: 1 }] },
         ],
       }),
     });
@@ -51,7 +57,7 @@ describe("loadEntityRecords", () => {
         { field: "title" as never, direction: "descending" },
       ],
     };
-    const result = await loadEntityRecords(testEntity, new FetchService(fetcher), query);
+    const result = await loadEntityRecordsWithFacets(testEntity, new FetchService(fetcher), query);
     expect(result.rows[0].value(result.requireColumn("key"))).toBe("TEST-1");
     expect(fetcher).toHaveBeenCalledWith("/api/query", expect.objectContaining({ method: "POST" }));
     expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({
@@ -62,18 +68,43 @@ describe("loadEntityRecords", () => {
           { contains: { attribute: "title", value: "navigation" } },
         ],
       },
-      sorting: [
-        { attribute: "status", direction: "ascending" },
-        { attribute: "title", direction: "descending" },
+      results: [
+        {
+          type: "rows",
+          sorting: [
+            { attribute: "status", direction: "ascending" },
+            { attribute: "title", direction: "descending" },
+          ],
+          max_results: 100,
+          attributes: ["*"],
+        },
+        { type: "aggregate", aggregation: "count", max_results: 100 },
+        {
+          type: "aggregate",
+          aggregation: "count",
+          max_results: 100,
+          attribute: "status",
+          criterion: { contains: { attribute: "title", value: "navigation" } },
+        },
       ],
-      max_results: 100,
-      attributes: ["*"],
-      return_total_count: true,
     });
   });
 
+  it("does not request aggregates when only entity rows are loaded", async () => {
+    const fetcher = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ results: [{ type: "rows", result_columns: [] }] }),
+    });
+
+    await loadEntityRecords(testEntity, new FetchService(fetcher));
+
+    expect(JSON.parse(fetcher.mock.calls[0][1].body).results).toEqual([
+      { type: "rows", sorting: [], max_results: 100, attributes: ["*"] },
+    ]);
+  });
+
   it("rejects malformed responses", async () => {
-    const fetcher = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ result_columns: [] }) });
-    await expect(loadEntityRecords(testEntity, new FetchService(fetcher))).rejects.toThrow("invalid number_of_hits");
+    const fetcher = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ results: [] }) });
+    await expect(loadEntityRecords(testEntity, new FetchService(fetcher))).rejects.toThrow("does not start");
   });
 });

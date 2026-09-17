@@ -130,11 +130,15 @@ describe("dynamic domain plugins", () => {
       return {
         ok: true,
         json: async () => ({
-          number_of_hits: 0,
-          result_columns: attributes.map((attribute) => ({
-            attribute,
-            values: { type: "string", values: [] },
-          })),
+          results: [
+            {
+              type: "rows",
+              result_columns: attributes.map((attribute) => ({
+                attribute,
+                values: { type: "string", values: [] },
+              })),
+            },
+          ],
         }),
       } as Response;
     });

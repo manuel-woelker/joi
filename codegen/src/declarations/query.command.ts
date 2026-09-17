@@ -1,14 +1,4 @@
-import {
-  defineCommand,
-  defineEnum,
-  defineStruct,
-  booleanType,
-  integerType,
-  jsonType,
-  list,
-  optional,
-  stringType,
-} from "../engine/model/declarations.ts";
+import { defineCommand, defineEnum, defineStruct, jsonType, list, stringType } from "../engine/model/declarations.ts";
 
 export const QuerySortDirection = defineEnum({
   name: "QuerySortDirection",
@@ -48,14 +38,9 @@ export const QueryResultColumn = defineStruct({
 
 export const QueryResponse = defineStruct({
   name: "QueryResponse",
-  description: "The column-oriented result of querying a table.",
+  description: "The requested row and aggregate query results in request order.",
   fields: [
-    {
-      name: "numberOfHits",
-      type: optional(integerType),
-      description: "The total number of matching rows when requested.",
-    },
-    { name: "resultColumns", type: list(QueryResultColumn), description: "The requested result columns." },
+    { name: "results", type: list(jsonType), description: "Results corresponding to the requested result shapes." },
   ],
 });
 
@@ -64,17 +49,14 @@ export default defineCommand({
   description: "Query records from a registered data table.",
   request: defineStruct({
     name: "QueryRequest",
-    description: "The table, filtering, limit, and attributes for a query.",
+    description: "The table, filtering, and result shapes for a query.",
     fields: [
       { name: "tableName", type: stringType, description: "The table to query." },
       { name: "criterion", type: jsonType, description: "The recursive query criterion." },
-      { name: "sorting", type: list(QuerySort), description: "Sort criteria applied in priority order." },
-      { name: "maxResults", type: integerType, description: "The maximum number of rows to return." },
-      { name: "attributes", type: list(stringType), description: "The attributes to return, or `*` for all." },
       {
-        name: "returnTotalCount",
-        type: booleanType,
-        description: "Whether to include the total number of matching rows in the response.",
+        name: "results",
+        type: list(jsonType),
+        description: "Row and aggregate result shapes to execute against the filtered table.",
       },
     ],
   }),

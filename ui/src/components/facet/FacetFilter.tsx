@@ -1,4 +1,4 @@
-import { For, Show } from "solid-js";
+import { For, Show, type JSX } from "solid-js";
 
 import styles from "./FacetFilter.module.css";
 
@@ -22,6 +22,8 @@ export interface FacetFilterProps {
   readonly facets: readonly Facet[];
   readonly onValueChange: (facetId: string, value: string, state: FacetValueState) => void;
   readonly emptyLabel?: string;
+  readonly renderValue?: (facet: Facet, value: FacetValue) => JSX.Element;
+  readonly class?: string;
 }
 
 const nextState = (state: FacetValueState | undefined): FacetValueState => {
@@ -45,7 +47,7 @@ const sortedValues = (values: readonly FacetValue[]) =>
 /** Displays discrete filter values and cycles each through neutral, included, and excluded states. */
 export function FacetFilter(props: FacetFilterProps) {
   return (
-    <div class={styles.facets} aria-label="Result facets">
+    <div class={`${styles.facets} ${props.class ?? ""}`} aria-label="Result facets">
       <For each={props.facets}>
         {(facet) => (
           <section class={styles.facet} aria-labelledby={`facet-${facet.id}`}>
@@ -76,7 +78,7 @@ export function FacetFilter(props: FacetFilterProps) {
                           <span class={styles.marker} aria-hidden="true">
                             {state() === "included" ? "+" : state() === "excluded" ? "−" : ""}
                           </span>
-                          <span class={styles.label}>{entry.label}</span>
+                          <span class={styles.label}>{props.renderValue?.(facet, entry) ?? entry.label}</span>
                           <span class={styles.state} aria-hidden="true">
                             {stateLabel(state())}
                           </span>

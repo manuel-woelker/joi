@@ -8,10 +8,14 @@ describe("loadUsers", () => {
     const fetcher = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        number_of_hits: 2,
-        result_columns: [
-          { attribute: "username", values: { type: "string", values: ["jane.developer", "joe.tester"] } },
-          { attribute: "name", values: { type: "string", values: ["Jane Developer", "Joe Tester"] } },
+        results: [
+          {
+            type: "rows",
+            result_columns: [
+              { attribute: "username", values: { type: "string", values: ["jane.developer", "joe.tester"] } },
+              { attribute: "name", values: { type: "string", values: ["Jane Developer", "Joe Tester"] } },
+            ],
+          },
         ],
       }),
     });
@@ -29,10 +33,7 @@ describe("loadUsers", () => {
       body: JSON.stringify({
         table_name: "users",
         criterion: "match_any",
-        sorting: [],
-        max_results: 100,
-        attributes: ["*"],
-        return_total_count: true,
+        results: [{ type: "rows", sorting: [], max_results: 100, attributes: ["*"] }],
       }),
     });
   });

@@ -328,14 +328,17 @@ mod tests {
                 json!({
                     "table_name": "users",
                     "criterion": "match_any",
-                    "sorting": [],
-                    "max_results": 1,
-                    "attributes": ["id"]
+                    "results": [{
+                        "type": "rows",
+                        "sorting": [],
+                        "max_results": 1,
+                        "attributes": ["id"]
+                    }]
                 }),
             )
             .unwrap()
             .unwrap();
-        let user_id = users["result_columns"][0]["values"]["values"][0]
+        let user_id = users["results"][0]["result_columns"][0]["values"]["values"][0]
             .as_str()
             .unwrap();
         let router = CommandService::new(registry).into_router();
