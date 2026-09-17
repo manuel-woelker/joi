@@ -12,7 +12,7 @@ use serde_json::{Map, Value as JsonValue};
 use tantivy::{
     Index, IndexReader, ReloadPolicy, TantivyDocument, Term,
     aggregation::{AggregationCollector, agg_req::Aggregations},
-    collector::{Count, DocSetCollector, TopDocs},
+    collector::{Count, TopDocs},
     doc,
     query::{
         AllQuery, BooleanQuery, EmptyQuery, ExistsQuery, FastFieldRangeQuery, Occur, Query,
@@ -265,9 +265,14 @@ impl SearchIndex for TantivySearchIndex {
             addresses
         } else {
             searcher
-                .search(tantivy_query.as_ref(), &DocSetCollector)
+                .search(
+                    tantivy_query.as_ref(),
+                    &TopDocs::with_limit(query.max_results.max(1))
+                        .order_by_fast_field::<u64>(SEQUENCE_FIELD, Order::Desc),
+                )
                 .map_err(report)?
                 .into_iter()
+                .map(|(_, address)| address)
                 .collect()
         };
         let mut rows = addresses
@@ -287,9 +292,7 @@ impl SearchIndex for TantivySearchIndex {
                 Ok((sequence, object))
             })
             .collect::<JoiResult<Vec<_>>>()?;
-        if query.sorting.is_empty() {
-            rows.sort_by(|left, right| compare_rows(left, right, &[]));
-        } else if query.sorting.len() > 1 {
+        if query.sorting.len() > 1 {
             rows.sort_by(|left, right| compare_rows(left, right, &query.sorting[1..]));
         }
         rows.truncate(query.max_results);
