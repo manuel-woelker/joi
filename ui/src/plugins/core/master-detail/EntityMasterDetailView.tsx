@@ -19,8 +19,13 @@ import { createEntityEditorDefinition } from "../entities/entity-editor";
 import type { EntityDescription, EntityId } from "../entities/entity-description";
 import { useEntityRegistry } from "../entities/entity-registry";
 import { LookupValue, useLookupService } from "../lookups/lookup";
-import type { QueryResult, QueryResultRow, QueryValue } from "../query/query-result";
-import { loadEntityRecordsWithFacets, type FacetSelection } from "../saved-views/entity-query";
+import type { QueryAggregateResult, QueryResult, QueryResultRow, QueryValue } from "../query/query-result";
+import {
+  loadEntityFacet,
+  loadEntityRecordCount,
+  loadEntityRecords,
+  type FacetSelection,
+} from "../saved-views/entity-query";
 import { useApplicationServices } from "../../../base/services/application-services";
 import { MasterDetailView } from "./MasterDetailView";
 import styles from "./EntityMasterDetailView.module.css";
@@ -43,27 +48,25 @@ export function EntityMasterDetailView(props: {
   const [filter, setFilter] = createSignal<FilterDefinition>(cloneFilter(props.initialFilter));
   const [sorting, setSorting] = createSignal<readonly DataTableSort[]>(cloneSorting(props.initialSorting));
   const [facetSelections, setFacetSelections] = createSignal<readonly FacetSelection[]>([]);
-  const [queryParameters, setQueryParameters] = createSignal({
+  const [filterParameters, setFilterParameters] = createSignal({
     filter: filter(),
-    sorting: sorting(),
     facets: facetSelections(),
   });
+  const rowParameters = createMemo(() => ({ ...filterParameters(), sorting: sorting() }));
   const [showLoading, setShowLoading] = createSignal(false);
   createEffect(() => {
     const current = filter();
+    if (current === filterParameters().filter) return;
     const timer = window.setTimeout(
-      () => setQueryParameters((parameters) => ({ ...parameters, filter: current })),
+      () => setFilterParameters((parameters) => ({ ...parameters, filter: current })),
       300,
     );
     onCleanup(() => window.clearTimeout(timer));
   });
   createEffect(() => {
-    const current = sorting();
-    setQueryParameters((parameters) => ({ ...parameters, sorting: current }));
-  });
-  createEffect(() => {
     const current = facetSelections();
-    setQueryParameters((parameters) => ({ ...parameters, facets: current }));
+    if (current === filterParameters().facets) return;
+    setFilterParameters((parameters) => ({ ...parameters, facets: current }));
   });
   let activeFilterIdentity = props.filterIdentity;
   createEffect(() => {
@@ -74,13 +77,30 @@ export function EntityMasterDetailView(props: {
     setFilter(next);
     setSorting(nextSorting);
     setFacetSelections([]);
-    setQueryParameters({ filter: next, sorting: nextSorting, facets: [] });
+    setFilterParameters({ filter: next, facets: [] });
   });
-  const [records, { refetch }] = createResource(queryParameters, (query) =>
-    loadEntityRecordsWithFacets(description, fetchService, query),
+  const [records, { refetch }] = createResource(rowParameters, (query) =>
+    loadEntityRecords(description, fetchService, query),
   );
+  const [totalCount, { refetch: refetchTotalCount }] = createResource(filterParameters, (query) =>
+    loadEntityRecordCount(description, fetchService, query),
+  );
+  const facetResources = description.attributes
+    .filter((attribute) => attribute.facet)
+    .map((attribute) => {
+      const [result, controls] = createResource(filterParameters, (query) =>
+        loadEntityFacet(description, attribute.id, fetchService, query),
+      );
+      return { attribute: attribute.id, result, refetch: controls.refetch };
+    });
+  const displayedRecords = createMemo<QueryResult | undefined>(() => {
+    const result = records();
+    const count = totalCount();
+    return result && count !== undefined ? { ...result, numberOfHits: count } : result;
+  });
   createEffect(() => {
-    if (!records.loading) {
+    const loading = records.loading || totalCount.loading || facetResources.some((resource) => resource.result.loading);
+    if (!loading) {
       setShowLoading(false);
       return;
     }
@@ -102,9 +122,11 @@ export function EntityMasterDetailView(props: {
   });
   onCleanup(unsubscribe);
 
-  const facets = createMemo(() => entityFacets(records(), description, facetSelections()));
+  const aggregateResults = () =>
+    new Map(facetResources.map((resource) => [resource.attribute, resource.result()] as const));
+  const facets = createMemo(() => entityFacets(aggregateResults(), description, facetSelections()));
   const changeFacet = (facetId: string, valueKey: string, state: FacetValueState) => {
-    const value = facetValue(records(), facetId, valueKey, facetSelections());
+    const value = facetValue(aggregateResults(), facetId, valueKey, facetSelections());
     if (value === undefined) return;
     setFacetSelections((current) => {
       const remaining = current.filter(
@@ -195,7 +217,7 @@ export function EntityMasterDetailView(props: {
                         onValueChange={changeFacet}
                         renderValue={(facet, value) => {
                           const attribute = description.attributes.find((candidate) => candidate.id === facet.id);
-                          const raw = facetValue(records(), facet.id, value.value, facetSelections());
+                          const raw = facetValue(aggregateResults(), facet.id, value.value, facetSelections());
                           return attribute?.lookup && typeof raw === "string" && raw ? (
                             <LookupValue lookup={attribute.lookup} value={raw} />
                           ) : (
@@ -239,7 +261,7 @@ export function EntityMasterDetailView(props: {
                   </div>
                   <DataTable
                     ariaLabel={description.pluralLabel}
-                    result={result()}
+                    result={displayedRecords()!}
                     rows={result().rows}
                     columns={createEntityTableColumns(entity())}
                     fillHeight
@@ -265,6 +287,8 @@ export function EntityMasterDetailView(props: {
               creating={navigation.creatingRecord()}
               onCreated={async (id) => {
                 const refreshed = await refetch();
+                void refetchTotalCount();
+                for (const resource of facetResources) void resource.refetch();
                 const identity = refreshed?.column(description.identityAttribute);
                 if (identity && refreshed?.rows.some((row) => row.value(identity) === id)) {
                   navigation.finishCreatingRecord(id);
@@ -282,14 +306,13 @@ export function EntityMasterDetailView(props: {
 }
 
 function entityFacets(
-  result: QueryResult | undefined,
+  aggregates: ReadonlyMap<string, QueryAggregateResult | undefined>,
   description: EntityDescription,
   selections: readonly FacetSelection[],
 ): readonly Facet[] {
-  if (!result) return [];
   return description.attributes.flatMap((attribute) => {
     if (!attribute.facet) return [];
-    const aggregate = result.aggregates.find((candidate) => candidate.attribute === attribute.id);
+    const aggregate = aggregates.get(attribute.id);
     const values = new Map(
       (aggregate?.values ?? []).map((entry) => [
         facetValueKey(entry.value),
@@ -317,7 +340,7 @@ function entityFacets(
 }
 
 function facetValue(
-  result: QueryResult | undefined,
+  aggregates: ReadonlyMap<string, QueryAggregateResult | undefined>,
   attribute: string,
   key: string,
   selections: readonly FacetSelection[],
@@ -326,9 +349,7 @@ function facetValue(
     (selection) => selection.attribute === attribute && facetValueKey(selection.value) === key,
   );
   if (selected) return selected.value;
-  return result?.aggregates
-    .find((aggregate) => aggregate.attribute === attribute)
-    ?.values.find((entry) => facetValueKey(entry.value) === key)?.value;
+  return aggregates.get(attribute)?.values.find((entry) => facetValueKey(entry.value) === key)?.value;
 }
 
 function facetValueKey(value: QueryValue | null): string {

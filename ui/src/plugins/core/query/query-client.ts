@@ -31,15 +31,15 @@ export interface QueryRowsRequest {
 }
 
 export interface QueryCountRequest {
+  readonly tableName: string;
+  readonly criterion: QueryCriterionRequest;
   readonly attribute?: string;
-  readonly criterion?: QueryCriterionRequest;
+  readonly maxResults: number;
 }
 
 export type QueryRequest = Omit<GeneratedQueryRequest, "criterion" | "results"> &
   QueryRowsRequest & {
     readonly criterion: QueryCriterionRequest;
-    readonly count?: readonly QueryCountRequest[];
-    readonly aggregateMaxResults?: number;
   };
 
 export async function executeDataQuery(service: FetchService, request: QueryRequest): Promise<QueryResult> {
@@ -53,26 +53,40 @@ export async function executeDataQuery(service: FetchService, request: QueryRequ
         max_results: request.maxResults,
         attributes: request.attributes,
       },
-      ...(request.count ?? []).map((count) => ({
-        type: "aggregate",
-        aggregation: "count",
-        max_results: request.aggregateMaxResults ?? 100,
-        ...(count.attribute === undefined ? {} : { attribute: count.attribute }),
-        ...(count.criterion === undefined ? {} : { criterion: count.criterion }),
-      })),
     ],
   });
-  return parseQueryResults(response.results);
+  return parseRowResult(response.results);
 }
 
-function parseQueryResults(value: readonly unknown[]): QueryResult {
+/** Executes one count aggregate independently so callers can render it as soon as it resolves. */
+export async function executeCountQuery(
+  service: FetchService,
+  request: QueryCountRequest,
+): Promise<QueryAggregateResult> {
+  const response = await new CommandService(service).query({
+    tableName: request.tableName,
+    criterion: request.criterion,
+    results: [
+      {
+        type: "aggregate",
+        aggregation: "count",
+        max_results: request.maxResults,
+        ...(request.attribute === undefined ? {} : { attribute: request.attribute }),
+      },
+    ],
+  });
+  if (response.results.length !== 1) throw new Error("Count query returned an unexpected number of results");
+  return parseAggregateResult(response.results[0]);
+}
+
+function parseRowResult(value: readonly unknown[]): QueryResult {
   const [rows, ...additional] = value;
   if (!rows || typeof rows !== "object" || (rows as { type?: unknown }).type !== "rows") {
     throw new Error("Query response does not start with a row result");
   }
+  if (additional.length) throw new Error("Row query returned unexpected additional results");
   const resultColumns = (rows as { result_columns?: unknown }).result_columns;
-  const aggregates = additional.map(parseAggregateResult);
-  return parseQueryResponse({ number_of_hits: null, result_columns: resultColumns }, aggregates);
+  return parseQueryResponse({ number_of_hits: null, result_columns: resultColumns });
 }
 
 function parseAggregateResult(value: unknown): QueryAggregateResult {

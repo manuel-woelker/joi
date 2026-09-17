@@ -1,5 +1,5 @@
-import { executeDataQuery, type QueryCriterionRequest } from "../query/query-client";
-import type { QueryResult, QueryValue } from "../query/query-result";
+import { executeCountQuery, executeDataQuery, type QueryCriterionRequest } from "../query/query-client";
+import type { QueryAggregateResult, QueryResult, QueryValue } from "../query/query-result";
 import { fetchService, type FetchService } from "../../../base/services/fetch-service";
 import type { EntityDescription } from "../entities/entity-description";
 import type { FilterDefinition } from "../../../components/filter-definition/filter-model";
@@ -27,22 +27,32 @@ export function loadEntityRecords(
   return executeDataQuery(service, queryRequest(entity, query));
 }
 
-/** Loads rows, total count, and facet counts in one command request for master-detail views. */
-export function loadEntityRecordsWithFacets(
+/** Loads the total matching row count independently from row data. */
+export async function loadEntityRecordCount(
   entity: EntityDescription,
   service: FetchService = fetchService,
   query?: EntityQuery,
-): Promise<QueryResult> {
-  const facetAttributes = entity.attributes.filter((attribute) => attribute.facet).map((attribute) => attribute.id);
-  return executeDataQuery(service, {
-    ...queryRequest(entity, query),
-    count: [
-      {},
-      ...facetAttributes.map((attribute) => ({
-        attribute,
-        criterion: queryCriterion(query, attribute),
-      })),
-    ],
+): Promise<number> {
+  const aggregate = await executeCountQuery(service, {
+    tableName: entity.tableName,
+    criterion: queryCriterion(query),
+    maxResults: 1,
+  });
+  return aggregate.values[0]?.count ?? 0;
+}
+
+/** Loads one facet independently, excluding that attribute from its criterion. */
+export function loadEntityFacet(
+  entity: EntityDescription,
+  attribute: string,
+  service: FetchService = fetchService,
+  query?: EntityQuery,
+): Promise<QueryAggregateResult> {
+  return executeCountQuery(service, {
+    tableName: entity.tableName,
+    criterion: queryCriterion(query, attribute),
+    attribute,
+    maxResults: 100,
   });
 }
 
