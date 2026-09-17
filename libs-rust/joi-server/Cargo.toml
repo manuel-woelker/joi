@@ -20,14 +20,8 @@ tower-http = { version = "0.6", features = ["compression-zstd"] }
 yaml_serde = "0.10"
 
 [dev-dependencies]
-tantivy = "0.26"
-tempfile = "3"
 tower = { version = "0.5", features = ["util"] }
 
 [[bench]]
 name = "query_total_count"
-harness = false
-
-[[bench]]
-name = "query_backends"
 harness = false
