@@ -82,6 +82,15 @@ export function EntityMasterDetailView(props: {
   const [records, { refetch }] = createResource(rowParameters, (query) =>
     loadEntityRecords(description, fetchService, query),
   );
+  createEffect(() => {
+    const result = records();
+    const recordId = navigation.selectedRecordId();
+    if (!result || !recordId) return;
+    const identity = result.column(description.identityAttribute);
+    if (identity && !result.rows.some((row) => row.value(identity) === recordId)) {
+      navigation.closeRecord();
+    }
+  });
   const [totalCount, { refetch: refetchTotalCount }] = createResource(filterParameters, (query) =>
     loadEntityRecordCount(description, fetchService, query),
   );

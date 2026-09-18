@@ -123,8 +123,13 @@ export function SavedViewContent() {
   });
   createEffect(() => {
     const id = selectedRecordId();
-    const identity = editor() ? queryResult()?.column(editor()!.identityAttribute) : undefined;
-    if (id && identity && !records().some((row) => row.value(identity) === id)) setSelectedRecordId(undefined);
+    const result = queryResult();
+    const currentEditor = editor();
+    const identity = currentEditor ? result?.column(currentEditor.identityAttribute) : undefined;
+    if (id && result && identity && !result.rows.some((row) => row.value(identity) === id)) {
+      setSelectedRecordId(undefined);
+      if (controller.navigation.selectedRecordId() === id) controller.navigation.closeRecord();
+    }
   });
 
   const actionTarget = (): EntityRecordActionTarget | undefined => {

@@ -15,7 +15,7 @@ export default function App(props: { pluginRegistry?: PluginRegistry; services?:
   const unsubscribeUnauthorized = fetchService.onUnauthorized(() => {
     if (!user() || refreshingSession) return;
     refreshingSession = true;
-    void refetch().finally(() => {
+    void Promise.resolve(refetch()).finally(() => {
       refreshingSession = false;
     });
   });
