@@ -41,7 +41,6 @@ export function TicketTestDataDebugContribution(props: { fetchService: FetchServ
           type="number"
           min="1"
           max="100000"
-          step="100"
           value={count()}
           disabled={running()}
           onInput={(event) => setCount(event.currentTarget.valueAsNumber)}
