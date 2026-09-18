@@ -1,5 +1,6 @@
 import { createEffect, createMemo, createResource, createSignal, Match, onCleanup, Show, Switch } from "solid-js";
 import FunnelIcon from "lucide-solid/icons/funnel";
+import ListFilterIcon from "lucide-solid/icons/list-filter";
 import XIcon from "lucide-solid/icons/x";
 
 import { useNavigation } from "../../../base/navigation";
@@ -45,6 +46,7 @@ export function EntityMasterDetailView(props: {
   const description = useEntityRegistry().require(props.entityId);
   const editor = createEntityEditorDefinition(description);
   const [filterOpen, setFilterOpen] = createSignal(false);
+  const [facetsOpen, setFacetsOpen] = createSignal(false);
   const [filter, setFilter] = createSignal<FilterDefinition>(cloneFilter(props.initialFilter));
   const [sorting, setSorting] = createSignal<readonly DataTableSort[]>(cloneSorting(props.initialSorting));
   const [facetSelections, setFacetSelections] = createSignal<readonly FacetSelection[]>([]);
@@ -219,6 +221,23 @@ export function EntityMasterDetailView(props: {
                         onClick={() => setFilterOpen(false)}
                       />
                     </header>
+                    <FilterDefinitionEditor
+                      attributes={entityFilterAttributes(description)}
+                      value={filter()}
+                      onChange={setFilter}
+                      ariaLabel={`Filter ${description.pluralLabel}`}
+                    />
+                  </div>
+                ) : facetsOpen() ? (
+                  <div class={styles.filterPanel} aria-label={`${description.pluralLabel} facets`}>
+                    <header class={styles.filterHeader}>
+                      <h2>{description.pluralLabel} facets</h2>
+                      <IconButton
+                        label="Close facets"
+                        icon={<XIcon size={16} />}
+                        onClick={() => setFacetsOpen(false)}
+                      />
+                    </header>
                     <Show when={facets().length}>
                       <FacetFilter
                         class={styles.facets}
@@ -235,13 +254,6 @@ export function EntityMasterDetailView(props: {
                         }}
                       />
                     </Show>
-                    <h3 class={styles.advancedFilterHeading}>Advanced filters</h3>
-                    <FilterDefinitionEditor
-                      attributes={entityFilterAttributes(description)}
-                      value={filter()}
-                      onChange={setFilter}
-                      ariaLabel={`Filter ${description.pluralLabel}`}
-                    />
                   </div>
                 ) : undefined
               }
@@ -253,7 +265,20 @@ export function EntityMasterDetailView(props: {
                       icon={<FunnelIcon size={17} />}
                       aria-expanded={filterOpen()}
                       class={`${styles.filterButton} ${filterOpen() ? styles.activeFilter : ""}`}
-                      onClick={() => setFilterOpen((open) => !open)}
+                      onClick={() => {
+                        setFilterOpen((open) => !open);
+                        setFacetsOpen(false);
+                      }}
+                    />
+                    <IconButton
+                      label={facetsOpen() ? "Close facets" : `Show ${description.pluralLabel.toLowerCase()} facets`}
+                      icon={<ListFilterIcon size={17} />}
+                      aria-expanded={facetsOpen()}
+                      class={`${styles.facetButton} ${facetsOpen() ? styles.activeFilter : ""}`}
+                      onClick={() => {
+                        setFacetsOpen((open) => !open);
+                        setFilterOpen(false);
+                      }}
                     />
                     <Show when={showLoading()}>
                       <span class={styles.queryLoading} role="status">

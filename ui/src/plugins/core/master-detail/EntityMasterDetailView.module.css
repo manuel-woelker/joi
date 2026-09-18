@@ -10,26 +10,27 @@
 }
 
 .toolbar {
-  display: grid;
+  display: flex;
   width: 100%;
-  grid-template-columns: 1fr auto 1fr;
   align-items: center;
+  gap: 4px;
   margin: 0 0 8px;
 }
 
 .filterButton {
-  grid-column: 1;
-  justify-self: start;
+  flex: 0 0 auto;
+}
+
+.facetButton {
+  flex: 0 0 auto;
 }
 
 .createButton {
-  grid-column: 3;
-  justify-self: end;
+  margin-left: auto;
 }
 
 .queryLoading {
   display: inline-flex;
-  grid-column: 2;
   align-items: center;
   gap: 6px;
   color: var(--color-text-muted);
