@@ -58,7 +58,7 @@ describe("entity queries", () => {
 
     const result = await loadEntityRecords(testEntity, new FetchService(fetcher), query);
     expect(result.rows[0].value(result.requireColumn("key"))).toBe("TEST-1");
-    expect(fetcher).toHaveBeenCalledWith("/api/query", expect.objectContaining({ method: "POST" }));
+    expect(fetcher).toHaveBeenCalledWith("/api/query?i=things%2Frows", expect.objectContaining({ method: "POST" }));
     expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({
       table_name: "things",
       criterion: {
@@ -109,6 +109,10 @@ describe("entity queries", () => {
     expect(total).toBe(12);
     expect(facet.values).toEqual([{ value: "open", count: 7 }]);
     expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher.mock.calls.map((call) => call[0])).toEqual([
+      "/api/query?i=things%2Fcount-total",
+      "/api/query?i=things%2Ffacet-status",
+    ]);
     const requests = fetcher.mock.calls.map((call) => JSON.parse(String(call[1]?.body)));
     expect(requests[0].criterion).toEqual({
       all: [

@@ -16,8 +16,8 @@ describe("language generators", () => {
     expect(first[0]?.contents).toContain('readonly "query": QueryRequest;');
     expect(first[1]?.relativePath).toBe("api/command-service.ts");
     expect(first[1]?.contents).toContain("export class CommandService");
-    expect(first[1]?.contents).toContain("async query(request: QueryRequest)");
-    expect(first[1]?.contents).toContain('this.fetchService.post("/api/query"');
+    expect(first[1]?.contents).toContain("async query(request: QueryRequest, info?: string)");
+    expect(first[1]?.contents).toContain('this.fetchService.post(withInfo("/api/query", info)');
   });
 
   it("generates deterministic Rust serde contracts", () => {

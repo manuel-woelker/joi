@@ -27,7 +27,7 @@ describe("loadUsers", () => {
       ["jane.developer", "Jane Developer"],
       ["joe.tester", "Joe Tester"],
     ]);
-    expect(fetcher).toHaveBeenCalledWith("/api/query", {
+    expect(fetcher).toHaveBeenCalledWith("/api/query?i=users%2Frows", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({

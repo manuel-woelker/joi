@@ -43,18 +43,21 @@ export type QueryRequest = Omit<GeneratedQueryRequest, "criterion" | "results"> 
   };
 
 export async function executeDataQuery(service: FetchService, request: QueryRequest): Promise<QueryResult> {
-  const response = await new CommandService(service).query({
-    tableName: request.tableName,
-    criterion: request.criterion,
-    results: [
-      {
-        type: "rows",
-        sorting: request.sorting,
-        max_results: request.maxResults,
-        attributes: request.attributes,
-      },
-    ],
-  });
+  const response = await new CommandService(service).query(
+    {
+      tableName: request.tableName,
+      criterion: request.criterion,
+      results: [
+        {
+          type: "rows",
+          sorting: request.sorting,
+          max_results: request.maxResults,
+          attributes: request.attributes,
+        },
+      ],
+    },
+    `${request.tableName}/rows`,
+  );
   return parseRowResult(response.results);
 }
 
@@ -63,18 +66,21 @@ export async function executeCountQuery(
   service: FetchService,
   request: QueryCountRequest,
 ): Promise<QueryAggregateResult> {
-  const response = await new CommandService(service).query({
-    tableName: request.tableName,
-    criterion: request.criterion,
-    results: [
-      {
-        type: "aggregate",
-        aggregation: "count",
-        max_results: request.maxResults,
-        ...(request.attribute === undefined ? {} : { attribute: request.attribute }),
-      },
-    ],
-  });
+  const response = await new CommandService(service).query(
+    {
+      tableName: request.tableName,
+      criterion: request.criterion,
+      results: [
+        {
+          type: "aggregate",
+          aggregation: "count",
+          max_results: request.maxResults,
+          ...(request.attribute === undefined ? {} : { attribute: request.attribute }),
+        },
+      ],
+    },
+    `${request.tableName}/${request.attribute === undefined ? "count-total" : `facet-${request.attribute}`}`,
+  );
   if (response.results.length !== 1) throw new Error("Count query returned an unexpected number of results");
   return parseAggregateResult(response.results[0]);
 }

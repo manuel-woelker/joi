@@ -164,13 +164,16 @@ export default defineGenerator({
         const methodName = camelCase(command.id);
         const requestName = pascalCase(command.request.id);
         const responseName = typeName(command.response);
+        const informationalParameter = command.id === "query" ? ", info?: string" : "";
+        const path = JSON.stringify(`/api/${command.id}`);
+        const requestPath = command.id === "query" ? `withInfo(${path}, info)` : path;
         const invocation =
           command.request.fields.length === 0
-            ? `this.fetchService.get(${JSON.stringify(`/api/${command.id}`)})`
-            : `this.fetchService.post(${JSON.stringify(`/api/${command.id}`)}, encode${requestName}(request))`;
+            ? `this.fetchService.get(${requestPath})`
+            : `this.fetchService.post(${requestPath}, encode${requestName}(request))`;
         return source`
           ${doc(command.description)}
-          async ${methodName}(request: ${requestName}): Promise<${responseName}> {
+          async ${methodName}(request: ${requestName}${informationalParameter}): Promise<${responseName}> {
               const response = await ${invocation};
               return ${decodeExpression(command.response, "response")};
           }
@@ -208,6 +211,10 @@ export default defineGenerator({
             .join(", ")} } from "./api";
 
           ${codecs}
+
+          function withInfo(path: string, info: string | undefined): string {
+              return info === undefined ? path : path + "?i=" + encodeURIComponent(info);
+          }
 
           export class CommandService {
               constructor(private readonly fetchService: FetchService) {}
