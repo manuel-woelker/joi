@@ -337,12 +337,6 @@ export function EntityMasterDetailView(props: {
                         setFilterOpen(false);
                       }}
                     />
-                    <Show when={showLoading()}>
-                      <span class={styles.queryLoading} role="status">
-                        <span class={styles.spinner} aria-hidden="true" />
-                        Loading...
-                      </span>
-                    </Show>
                     <IconButton
                       label={`New ${description.label.toLowerCase()}`}
                       icon="+"
@@ -361,6 +355,8 @@ export function EntityMasterDetailView(props: {
                     result={displayedRecords()!}
                     rows={result().rows}
                     columns={createEntityTableColumns(entity())}
+                    loading={showLoading()}
+                    loadingMessage="Loading..."
                     fillHeight
                     fillWidth
                     sorting={sorting()}
