@@ -64,7 +64,7 @@ function queryRequest(entity: EntityDescription, query: EntityQuery | undefined)
       attribute: "attribute" in sort ? sort.attribute : sort.field,
       direction: sort.direction,
     })),
-    maxResults: 100,
+    maxResults: 1000,
     attributes: ["*"],
   } as const;
 }

@@ -29,7 +29,7 @@ export default plugin({
             label: entry.name,
             description: entry.description,
             icon: entry.icon,
-            selection: { type: "view" as const, id: entry.id },
+            selection: { type: "view" as const, id: `system:administration:${entry.id}` },
             copyToWorkspace: () => ({
               type: "shortcut" as const,
               shortcut: {
@@ -50,11 +50,13 @@ export default plugin({
         id: shellContributionId("administration-views"),
         order: 100,
         resolve(selection) {
+          const owner = selection.type === "record" || selection.type === "create" ? selection.owner : selection;
+          const route = owner.type === "view" ? owner.route : undefined;
           const id =
-            selection.type === "view"
-              ? selection.id
-              : selection.type === "record" || selection.type === "create"
-                ? selection.owner.id
+            route?.section === "administration" && route.source !== "workspace"
+              ? route.id
+              : owner.type === "view"
+                ? owner.id
                 : undefined;
           return id ? administrationEntries(registry).find((entry) => entry.id === id) : undefined;
         },

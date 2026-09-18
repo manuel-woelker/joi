@@ -51,10 +51,21 @@ function TicketViewCommands() {
 
 function TicketMasterDetailView() {
   const controller = useWorkspace();
-  const view = () => controller.selectedView();
+  const defaults = createTicketDefaultWorkspace();
+  const view = () => {
+    const route = controller.navigation.activeRoute();
+    return route?.section === "tickets" && route.source !== "workspace"
+      ? defaults.views[route.id]
+      : controller.selectedView();
+  };
   const query = () => {
     const current = view();
-    return current ? controller.workspace.queries[current.queryId] : undefined;
+    const route = controller.navigation.activeRoute();
+    return current
+      ? route?.section === "tickets" && route.source !== "workspace"
+        ? defaults.queries[current.queryId]
+        : controller.workspace.queries[current.queryId]
+      : undefined;
   };
   return (
     <EntityMasterDetailView
@@ -102,7 +113,7 @@ export default plugin({
               label: view.name,
               description: view.description,
               icon: ticketEntity.icon,
-              selection: { type: "view" as const, id: viewId },
+              selection: { type: "view" as const, id: `system:tickets:${viewId}` },
               copyToWorkspace: () => ({
                 type: "view" as const,
                 view: {
@@ -147,16 +158,19 @@ export default plugin({
         order: 0,
         resolve(selection) {
           const controller = useWorkspace();
-          const id =
-            selection.type === "view"
-              ? selection.id
-              : (selection.type === "record" || selection.type === "create") && selection.owner.type === "view"
-                ? selection.owner.id
-                : undefined;
-          const view = id ? controller.workspace.views[id] : undefined;
+          const owner = selection.type === "record" || selection.type === "create" ? selection.owner : selection;
+          const route = owner.type === "view" ? owner.route : undefined;
+          const systemView = route?.section === "tickets" && route.source !== "workspace";
+          const id = systemView ? route.id : owner.type === "view" ? owner.id : undefined;
+          const view = id
+            ? systemView
+              ? createTicketDefaultWorkspace().views[id]
+              : controller.workspace.views[id]
+            : undefined;
           return view
             ? {
                 ...view,
+                id: systemView ? `tickets/${id}` : view.id,
                 section: "Saved view",
                 icon: ticketEntity.icon,
                 content: TicketMasterDetailView,
