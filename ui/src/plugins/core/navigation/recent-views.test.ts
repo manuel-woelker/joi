@@ -47,4 +47,33 @@ describe("recent views", () => {
     expect(recent[0]).toEqual({ type: "workspace", viewId: "view-4" });
     expect(recent.filter((entry) => entry.type === "workspace" && entry.viewId === "view-4")).toHaveLength(1);
   });
+
+  it("resolves workspace shortcuts back to their system view", () => {
+    const shortcutWorkspace = structuredClone(workspace);
+    shortcutWorkspace.navigation.projects = {
+      id: "projects",
+      type: "shortcut",
+      name: "Projects",
+      selection: { type: "view", id: "projects" },
+      sourceNavigationEntryId: "administration/projects",
+    };
+    const systemLeaf = {
+      id: navigationEntryId("projects"),
+      type: "leaf" as const,
+      label: "Projects",
+      selection: { type: "view" as const, id: "system:administration:projects" },
+    };
+
+    expect(
+      referenceForSelection(
+        {
+          type: "view",
+          id: "projects",
+          route: { source: "workspace", section: "workspace", id: "projects" },
+        },
+        [systemLeaf],
+        shortcutWorkspace,
+      ),
+    ).toEqual({ type: "system", section: "administration", entryId: navigationEntryId("projects") });
+  });
 });

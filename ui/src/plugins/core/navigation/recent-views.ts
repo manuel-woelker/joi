@@ -27,6 +27,14 @@ export function referenceForSelection(
 ): RecentViewReference | undefined {
   const owner = selectionOwner(selection);
   if (owner.type !== "view") return undefined;
+  if (owner.route?.source === "workspace") {
+    const item = workspace.navigation[owner.route.id];
+    if (item?.type === "shortcut") {
+      const [section, entryId] = item.sourceNavigationEntryId.split("/", 2);
+      const system = systemLeaves.find((entry) => entry.id === entryId);
+      if (system && section && entryId) return { type: "system", section, entryId: system.id };
+    }
+  }
   if ((!owner.route || owner.route.section === "workspace") && owner.type === "view" && workspace.views[owner.id]) {
     return { type: "workspace", viewId: owner.id };
   }

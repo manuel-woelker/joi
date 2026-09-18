@@ -24,6 +24,7 @@ import {
   treeNodeKind,
 } from "../../../components/tree/tree-model";
 import { useWorkspace } from "../saved-views/controller";
+import { useEntityRegistry } from "../entities/entity-registry";
 import { SavedViewNavigation } from "../saved-views/SavedViewNavigation";
 import type { NavigationEntryId, NavigationLeafContribution, NavigationRootContribution } from "./contribution";
 import { navigationSection, validateNavigationRoots } from "./contribution";
@@ -50,6 +51,7 @@ type ResolvedRecent = {
 
 export function ApplicationNavigation(props: { registry: PluginRegistry; userId: string }) {
   const workspace = useWorkspace();
+  const entities = useEntityRegistry();
   const contextMenu = useContextMenu();
   const sections = [...props.registry.extensions(navigationSection)].sort(
     (left, right) => left.order - right.order || left.label.localeCompare(right.label),
@@ -122,7 +124,9 @@ export function ApplicationNavigation(props: { registry: PluginRegistry; userId:
       const view = workspace.workspace.views[reference.viewId];
       const copy = copyForWorkspaceView(workspace.workspace, reference.viewId);
       if (view && copy) {
-        resolved.push({ reference, label: view.name, selection: { type: "view", id: view.id }, copy });
+        const query = workspace.workspace.queries[view.queryId];
+        const icon = query ? entities.require(query.entityId).icon : undefined;
+        resolved.push({ reference, label: view.name, icon, selection: { type: "view", id: view.id }, copy });
       }
     }
     return resolved;
