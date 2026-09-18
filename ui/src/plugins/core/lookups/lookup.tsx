@@ -102,11 +102,11 @@ export function useLookupService(): LookupService {
 }
 
 /** Renders a lookup value and updates when its cached source has loaded. */
-export function LookupValue(props: { lookup: LookupId; value: string }) {
+export function LookupValue(props: { lookup: LookupId; value: string; format?: (label: string) => string }) {
   const service = useLookupService();
   const [label] = createResource(
     () => [props.lookup, props.value] as const,
     ([lookup, value]) => (value ? service.label(lookup, lookupEntryId(value)) : Promise.resolve("Unassigned")),
   );
-  return <>{label() ?? props.value}</>;
+  return <>{props.format?.(label() ?? props.value) ?? label() ?? props.value}</>;
 }

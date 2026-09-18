@@ -64,8 +64,17 @@ export function createEntityTableColumns(
   return selected.map((field) => {
     const attribute = requireEntityAttribute(entity.description, field.attribute);
     const column = entity.attribute(attribute.id).column;
+    const hideProjectPrefix = entity.description.tableName === "tickets" && attribute.id === "project_id";
     const lookupCell = attribute.lookup
-      ? { cell: (value: unknown) => <LookupValue lookup={attribute.lookup!} value={String(value ?? "")} /> }
+      ? {
+          cell: (value: unknown) => (
+            <LookupValue
+              lookup={attribute.lookup!}
+              value={String(value ?? "")}
+              format={hideProjectPrefix ? (label) => label.replace(/\s+\([^)]*\)$/, "") : undefined}
+            />
+          ),
+        }
       : {};
     const htmlCell =
       attribute.edit?.control === "html" ? { cell: (value: unknown) => richTextPlainText(String(value ?? "")) } : {};
