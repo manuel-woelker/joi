@@ -60,10 +60,26 @@ pub struct EntityMutation {
 pub struct EntityMutationResult {
     /// Complete created and updated entities when requested.
     pub entities: Option<Vec<Entity>>,
+    /// Dirty queue entries written by this mutation transaction.
+    pub dirty_batches: Vec<DirtyBatch>,
+}
+
+/// A durable search-index work item written alongside entity mutations.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DirtyBatch {
+    /// Entity type whose search index needs updating.
+    pub entity_type: TableName,
+    /// Monotonic queue sequence for this entity type.
+    pub sequence: u64,
+    /// Entity IDs affected by the mutation.
+    pub ids: Vec<EntityId>,
 }
 
 /// Primary storage for opaque entities.
 pub trait EntityStore: Send {
+    /// Creates the durable dirty queue for each entity type.
+    fn prepare_dirty_tables(&mut self, entity_types: &[TableName]) -> JoiResult<()>;
+
     /// Creates an entity, failing if its key already exists.
     fn create(&mut self, entity: Entity) -> JoiResult<()>;
 
@@ -78,6 +94,19 @@ pub trait EntityStore: Send {
 
     /// Returns all entities of one type for index reconstruction.
     fn read_all(&self, entity_type: &TableName) -> JoiResult<Vec<Entity>>;
+
+    /// Returns the requested entities that currently exist.
+    fn read_many(&self, entity_type: &TableName, ids: &[EntityId]) -> JoiResult<Vec<Entity>>;
+
+    /// Returns the oldest dirty queue entries up to the supplied ID count.
+    fn read_dirty_batches(
+        &self,
+        entity_type: &TableName,
+        max_ids: usize,
+    ) -> JoiResult<Vec<DirtyBatch>>;
+
+    /// Removes exactly the dirty queue entries that were indexed successfully.
+    fn clear_dirty_batches(&mut self, batches: &[DirtyBatch]) -> JoiResult<()>;
 
     /// Applies several operations atomically.
     fn mutate(&mut self, mutation: EntityMutation) -> JoiResult<EntityMutationResult>;

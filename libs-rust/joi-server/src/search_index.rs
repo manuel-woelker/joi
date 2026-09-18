@@ -13,6 +13,9 @@ pub trait SearchIndex: Send {
     /// Creates searchable schemas for the supplied entity types.
     fn prepare(&mut self, tables: Vec<TableDescription>) -> JoiResult<()>;
 
+    /// Returns whether an entity type has no indexed documents.
+    fn is_empty(&self, entity_type: &TableName) -> JoiResult<bool>;
+
     /// Replaces the complete index contents for one entity type.
     fn rebuild(&mut self, entity_type: &TableName, entities: &[Entity]) -> JoiResult<()>;
 

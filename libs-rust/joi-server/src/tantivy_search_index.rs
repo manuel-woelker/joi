@@ -61,12 +61,9 @@ pub struct TantivySearchIndex {
 }
 
 impl TantivySearchIndex {
-    /// Creates an empty derived index at `path`, replacing stale index data.
+    /// Opens or creates a derived index at `path`.
     pub fn open(path: impl AsRef<Path>) -> JoiResult<Self> {
         let root = path.as_ref().to_path_buf();
-        if root.exists() {
-            fs::remove_dir_all(&root).map_err(report)?;
-        }
         fs::create_dir_all(&root).map_err(report)?;
         Ok(Self {
             root,
@@ -102,23 +99,47 @@ impl SearchIndex for TantivySearchIndex {
             validate_table(&table)?;
             let directory = self.root.join(hex(table.name.0.as_bytes()));
             fs::create_dir_all(&directory).map_err(report)?;
-            let mut schema = Schema::builder();
-            let id_field = schema.add_text_field(ENTITY_ID_FIELD, STRING | STORED);
-            let data_field = schema.add_bytes_field(ENTITY_DATA_FIELD, STORED);
-            let sequence_field = schema.add_u64_field(SEQUENCE_FIELD, FAST | STORED);
+            let (index, schema) = if directory.join("meta.json").exists() {
+                let index = Index::open_in_dir(&directory).map_err(report)?;
+                let schema = index.schema();
+                (index, schema)
+            } else {
+                let mut schema = Schema::builder();
+                schema.add_text_field(ENTITY_ID_FIELD, STRING | STORED);
+                schema.add_bytes_field(ENTITY_DATA_FIELD, STORED);
+                schema.add_u64_field(SEQUENCE_FIELD, FAST | STORED);
+                for column in &table.columns {
+                    let name = column.name.0.as_str();
+                    match column.data_type {
+                        ColumnDataType::String => {
+                            schema.add_text_field(name, STRING | STORED | FAST);
+                            schema.add_text_field(&format!("{name}{LOWER_SUFFIX}"), STRING);
+                        }
+                        ColumnDataType::Int => {
+                            schema.add_i64_field(name, tantivy::schema::INDEXED | STORED | FAST);
+                        }
+                    };
+                }
+                let schema = schema.build();
+                let index = Index::create_in_dir(&directory, schema.clone()).map_err(report)?;
+                (index, schema)
+            };
+            let id_field = schema.get_field(ENTITY_ID_FIELD).map_err(report)?;
+            let data_field = schema.get_field(ENTITY_DATA_FIELD).map_err(report)?;
+            let sequence_field = schema.get_field(SEQUENCE_FIELD).map_err(report)?;
             let mut attributes = HashMap::new();
             let mut attribute_order = Vec::with_capacity(table.columns.len());
             for column in table.columns {
                 let name = column.name.0.as_str();
                 let (field, lower_field) = match column.data_type {
-                    ColumnDataType::String => (
-                        schema.add_text_field(name, STRING | STORED | FAST),
-                        Some(schema.add_text_field(&format!("{name}{LOWER_SUFFIX}"), STRING)),
-                    ),
-                    ColumnDataType::Int => (
-                        schema.add_i64_field(name, tantivy::schema::INDEXED | STORED | FAST),
-                        None,
-                    ),
+                    ColumnDataType::String => {
+                        let lower_name = format!("{name}{LOWER_SUFFIX}");
+                        (
+                            schema.get_field(name).map_err(report)?,
+                            Some(schema.get_field(&lower_name).map_err(report)?),
+                        )
+                    }
+                    ColumnDataType::Int => (schema.get_field(name).map_err(report)?, None),
                 };
                 attribute_order.push(column.name.clone());
                 attributes.insert(
@@ -130,7 +151,6 @@ impl SearchIndex for TantivySearchIndex {
                     },
                 );
             }
-            let index = Index::create_in_dir(directory, schema.build()).map_err(report)?;
             let reader = index
                 .reader_builder()
                 .reload_policy(ReloadPolicy::Manual)
@@ -152,6 +172,10 @@ impl SearchIndex for TantivySearchIndex {
             );
         }
         Ok(())
+    }
+
+    fn is_empty(&self, entity_type: &TableName) -> JoiResult<bool> {
+        Ok(self.entity_index(entity_type)?.reader.searcher().num_docs() == 0)
     }
 
     fn rebuild(&mut self, entity_type: &TableName, entities: &[Entity]) -> JoiResult<()> {

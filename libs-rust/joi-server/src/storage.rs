@@ -74,10 +74,15 @@ impl DataStore for IndexedDataStore {
                 joi_bail!("entity type `{}` is defined more than once", table.name.0);
             }
         }
+        let entity_types = schemas.keys().cloned().collect::<Vec<_>>();
+        self.entity_store.prepare_dirty_tables(&entity_types)?;
         self.search_index.prepare(tables)?;
-        for entity_type in schemas.keys() {
-            let entities = self.entity_store.read_all(entity_type)?;
-            self.search_index.rebuild(entity_type, &entities)?;
+        for entity_type in &entity_types {
+            if self.search_index.is_empty(entity_type)? {
+                let entities = self.entity_store.read_all(entity_type)?;
+                self.search_index.rebuild(entity_type, &entities)?;
+            }
+            self.reindex_dirty(entity_type)?;
         }
         self.schemas = schemas;
         Ok(())
@@ -111,6 +116,7 @@ impl DataStore for IndexedDataStore {
         })?;
 
         let changed = result.entities.unwrap_or_default();
+        let dirty_batches = result.dirty_batches;
         let changed_keys = changed
             .iter()
             .map(|entity| (entity.entity_type.clone(), entity.id.clone()))
@@ -125,6 +131,7 @@ impl DataStore for IndexedDataStore {
         for (entity_type, ids) in deleted {
             self.search_index.delete(&entity_type, &ids)?;
         }
+        self.entity_store.clear_dirty_batches(&dirty_batches)?;
         Ok(DataStoreMutationResult {
             entities: return_entities.then_some(changed),
         })
@@ -132,6 +139,33 @@ impl DataStore for IndexedDataStore {
 }
 
 impl IndexedDataStore {
+    fn reindex_dirty(&mut self, entity_type: &TableName) -> JoiResult<()> {
+        loop {
+            let batches = self.entity_store.read_dirty_batches(entity_type, 10_000)?;
+            if batches.is_empty() {
+                return Ok(());
+            }
+            let ids = batches
+                .iter()
+                .flat_map(|batch| batch.ids.iter().cloned())
+                .collect::<Vec<_>>();
+            let entities = self.entity_store.read_many(entity_type, &ids)?;
+            self.search_index.upsert(&entities)?;
+            let present = entities
+                .iter()
+                .map(|entity| entity.id.clone())
+                .collect::<HashSet<_>>();
+            let missing = ids
+                .into_iter()
+                .filter(|id| !present.contains(id))
+                .collect::<Vec<_>>();
+            if !missing.is_empty() {
+                self.search_index.delete(entity_type, &missing)?;
+            }
+            self.entity_store.clear_dirty_batches(&batches)?;
+        }
+    }
+
     fn entity_mutation(
         &self,
         mutation: DataStoreMutation,
