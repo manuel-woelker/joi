@@ -1,5 +1,7 @@
 import { For, Show, type JSX } from "solid-js";
+import Trash2Icon from "lucide-solid/icons/trash-2";
 
+import { IconButton } from "../IconButton";
 import styles from "./FacetFilter.module.css";
 
 export type FacetValueState = "neutral" | "included" | "excluded";
@@ -21,6 +23,7 @@ export interface Facet {
 export interface FacetFilterProps {
   readonly facets: readonly Facet[];
   readonly onValueChange: (facetId: string, value: string, state: FacetValueState) => void;
+  readonly onRemoveFacet?: (facetId: string) => void;
   readonly emptyLabel?: string;
   readonly renderValue?: (facet: Facet, value: FacetValue) => JSX.Element;
   readonly class?: string;
@@ -52,10 +55,22 @@ export function FacetFilter(props: FacetFilterProps) {
         {(facet) => (
           <section class={styles.facet} aria-labelledby={`facet-${facet.id}`}>
             <header class={styles.header}>
-              <h3 id={`facet-${facet.id}`}>{facet.label}</h3>
-              <Show when={facet.description}>
-                <p>{facet.description}</p>
-              </Show>
+              <div class={styles.heading}>
+                <div>
+                  <h3 id={`facet-${facet.id}`}>{facet.label}</h3>
+                  <Show when={facet.description}>
+                    <p>{facet.description}</p>
+                  </Show>
+                </div>
+                <Show when={props.onRemoveFacet}>
+                  <IconButton
+                    label={`Remove ${facet.label} facet`}
+                    icon={<Trash2Icon size={13} />}
+                    class={styles.remove}
+                    onClick={() => props.onRemoveFacet?.(facet.id)}
+                  />
+                </Show>
+              </div>
             </header>
             <Show
               when={facet.values.length > 0}

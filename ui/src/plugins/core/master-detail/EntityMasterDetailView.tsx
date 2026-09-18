@@ -1,6 +1,6 @@
 import { createEffect, createMemo, createResource, createSignal, Match, onCleanup, Show, Switch } from "solid-js";
 import FunnelIcon from "lucide-solid/icons/funnel";
-import ListFilterIcon from "lucide-solid/icons/list-filter";
+import GemIcon from "lucide-solid/icons/gem";
 import XIcon from "lucide-solid/icons/x";
 
 import { useNavigation } from "../../../base/navigation";
@@ -10,6 +10,7 @@ import { entityFilterAttributes } from "../../../components/filter-definition/en
 import { FilterDefinitionEditor } from "../../../components/filter-definition/FilterDefinitionEditor";
 import { createCompositeFilter, type FilterDefinition } from "../../../components/filter-definition/filter-model";
 import { IconButton } from "../../../components/IconButton";
+import { Select } from "../../../components/Select";
 import { useContextMenu } from "../../../components/context-menu/ContextMenuProvider";
 import { contextMenuGroupId } from "../../../components/context-menu/context-menu";
 import { useActions } from "../actions/ActionProvider";
@@ -47,6 +48,9 @@ export function EntityMasterDetailView(props: {
   const editor = createEntityEditorDefinition(description);
   const [filterOpen, setFilterOpen] = createSignal(false);
   const [facetsOpen, setFacetsOpen] = createSignal(false);
+  const [visibleFacetIds, setVisibleFacetIds] = createSignal<readonly string[]>(
+    description.attributes.filter((attribute) => attribute.facet).map((attribute) => attribute.id),
+  );
   const [filter, setFilter] = createSignal<FilterDefinition>(cloneFilter(props.initialFilter));
   const [sorting, setSorting] = createSignal<readonly DataTableSort[]>(cloneSorting(props.initialSorting));
   const [facetSelections, setFacetSelections] = createSignal<readonly FacetSelection[]>([]);
@@ -136,6 +140,11 @@ export function EntityMasterDetailView(props: {
   const aggregateResults = () =>
     new Map(facetResources.map((resource) => [resource.attribute, resource.result()] as const));
   const facets = createMemo(() => entityFacets(aggregateResults(), description, facetSelections()));
+  const visibleFacets = createMemo(() => facets().filter((facet) => visibleFacetIds().includes(facet.id)));
+  const availableFacets = createMemo(() =>
+    description.attributes.filter((attribute) => attribute.facet && !visibleFacetIds().includes(attribute.id)),
+  );
+  const availableFacetKey = createMemo(() => availableFacets().map((attribute) => attribute.id).join(","));
   const changeFacet = (facetId: string, valueKey: string, state: FacetValueState) => {
     const value = facetValue(aggregateResults(), facetId, valueKey, facetSelections());
     if (value === undefined) return;
@@ -214,7 +223,10 @@ export function EntityMasterDetailView(props: {
                 filterOpen() ? (
                   <div class={styles.filterPanel} aria-label={`Filter ${description.pluralLabel}`}>
                     <header class={styles.filterHeader}>
-                      <h2>Filter {description.pluralLabel}</h2>
+                      <h2 class={styles.panelTitle}>
+                        <FunnelIcon size={15} />
+                        Filter {description.pluralLabel}
+                      </h2>
                       <IconButton
                         label="Close filter"
                         icon={<XIcon size={16} />}
@@ -231,18 +243,47 @@ export function EntityMasterDetailView(props: {
                 ) : facetsOpen() ? (
                   <div class={styles.filterPanel} aria-label={`${description.pluralLabel} facets`}>
                     <header class={styles.filterHeader}>
-                      <h2>{description.pluralLabel} facets</h2>
+                      <h2 class={styles.panelTitle}>
+                        <GemIcon size={15} />
+                        {description.pluralLabel} facets
+                      </h2>
                       <IconButton
                         label="Close facets"
                         icon={<XIcon size={16} />}
                         onClick={() => setFacetsOpen(false)}
                       />
                     </header>
-                    <Show when={facets().length}>
+                    <Show
+                      keyed
+                      when={availableFacetKey()}
+                      fallback={<p class={styles.noFacets}>All available facets are shown.</p>}
+                    >
+                      <Select
+                          ariaLabel="Add facet"
+                          value=""
+                          placeholder="Add facet..."
+                          density="compact"
+                          loadEntries={async (query) => {
+                            const normalized = query.trim().toLocaleLowerCase();
+                            const entries = availableFacets()
+                              .filter((attribute) => !normalized || attribute.label.toLocaleLowerCase().includes(normalized))
+                              .map((attribute) => ({ id: attribute.id, label: attribute.label }));
+                            return { entries, total: entries.length };
+                          }}
+                          entryId={(entry) => entry.id}
+                          entryText={(entry) => entry.label}
+                          onChange={(id) => {
+                            if (!id) return;
+                            setVisibleFacetIds((current) => [...current, id]);
+                          }}
+                        />
+                    </Show>
+                    <Show when={visibleFacets().length}>
                       <FacetFilter
                         class={styles.facets}
-                        facets={facets()}
+                        facets={visibleFacets()}
                         onValueChange={changeFacet}
+                        onRemoveFacet={(id) => setVisibleFacetIds((current) => current.filter((value) => value !== id))}
                         renderValue={(facet, value) => {
                           const attribute = description.attributes.find((candidate) => candidate.id === facet.id);
                           const raw = facetValue(aggregateResults(), facet.id, value.value, facetSelections());
@@ -253,6 +294,9 @@ export function EntityMasterDetailView(props: {
                           );
                         }}
                       />
+                    </Show>
+                    <Show when={!visibleFacets().length && availableFacetKey()}>
+                      <p class={styles.noFacets}>Select a facet from the dropdown above.</p>
                     </Show>
                   </div>
                 ) : undefined
@@ -272,7 +316,7 @@ export function EntityMasterDetailView(props: {
                     />
                     <IconButton
                       label={facetsOpen() ? "Close facets" : `Show ${description.pluralLabel.toLowerCase()} facets`}
-                      icon={<ListFilterIcon size={17} />}
+                      icon={<GemIcon size={17} />}
                       aria-expanded={facetsOpen()}
                       class={`${styles.facetButton} ${facetsOpen() ? styles.activeFilter : ""}`}
                       onClick={() => {
