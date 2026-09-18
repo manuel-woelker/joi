@@ -3,14 +3,14 @@ import styles from "./App.module.css";
 import { createApplication } from "./base/application-registry";
 import type { PluginRegistry } from "./base/plugin-registry";
 import type { ApplicationServices } from "./base/services/application-services";
-import { fetchService } from "./base/services/fetch-service";
+import { FetchError, fetchService } from "./base/services/fetch-service";
 import { loadCurrentUser, logout } from "./plugins/core/authentication/authentication-service";
 import { Login } from "./plugins/core/authentication/Login";
 import { ApplicationShell } from "./plugins/core/shell/ApplicationShell";
 
 export default function App(props: { pluginRegistry?: PluginRegistry; services?: ApplicationServices }) {
   const application = props.pluginRegistry && props.services ? undefined : createApplication();
-  const [user, { refetch }] = createResource(() => loadCurrentUser(fetchService));
+  const [user, { refetch }] = createResource(() => loadCurrentUserWithRetry());
   let refreshingSession = false;
   const unsubscribeUnauthorized = fetchService.onUnauthorized(() => {
     if (!user() || refreshingSession) return;
@@ -43,4 +43,15 @@ export default function App(props: { pluginRegistry?: PluginRegistry; services?:
       </Match>
     </Switch>
   );
+}
+
+async function loadCurrentUserWithRetry(): Promise<Awaited<ReturnType<typeof loadCurrentUser>>> {
+  for (;;) {
+    try {
+      return await loadCurrentUser(fetchService);
+    } catch (error) {
+      if (!(error instanceof FetchError) || error.status !== 502) throw error;
+      await new Promise((resolve) => window.setTimeout(resolve, 3_000));
+    }
+  }
 }

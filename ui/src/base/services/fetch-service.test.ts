@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { FetchService } from "./fetch-service";
+import { FetchError, FetchService } from "./fetch-service";
 
 afterEach(() => vi.useRealTimers());
 
@@ -27,6 +27,14 @@ describe("FetchService", () => {
     const fetcher = vi.fn().mockResolvedValue({ ok: false, status: 503 });
 
     await expect(new FetchService(fetcher).get("/api/info")).rejects.toThrow("GET /api/info failed with HTTP 503");
+  });
+
+  it("exposes the HTTP status for failed requests", async () => {
+    const service = new FetchService(async () => new Response(null, { status: 502 }));
+
+    await expect(service.get("/api/user-info")).rejects.toEqual(
+      expect.objectContaining<Partial<FetchError>>({ status: 502, method: "GET", path: "/api/user-info" }),
+    );
   });
 
   it("notifies listeners when the session is unauthorized", async () => {

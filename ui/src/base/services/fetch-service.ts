@@ -1,6 +1,18 @@
 /** Fetch-compatible function accepted by {@link FetchService}. */
 export type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
+/** Error raised for an unsuccessful HTTP response. */
+export class FetchError extends Error {
+  constructor(
+    readonly method: string,
+    readonly path: string,
+    readonly status: number,
+  ) {
+    super(`${method} ${path} failed with HTTP ${status}`);
+    this.name = "FetchError";
+  }
+}
+
 /** Performs JSON HTTP requests and rejects responses outside the successful range. */
 export class FetchService {
   private artificialDelay = 0;
@@ -48,7 +60,7 @@ export class FetchService {
       if (response.status === 401) {
         for (const listener of this.unauthorizedListeners) listener();
       }
-      throw new Error(`${init.method} ${path} failed with HTTP ${response.status}`);
+      throw new FetchError(init.method ?? "GET", path, response.status);
     }
     return response.json();
   }
