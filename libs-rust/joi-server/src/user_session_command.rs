@@ -327,10 +327,28 @@ impl TestDataProvider for UserTestDataProvider {
             table_name: TableName("users".into()),
             criterion: QueryCriterion::MatchAny,
             sorting: Vec::new(),
-            max_results: 0,
-            attributes: Vec::new(),
+            max_results: 1_000,
+            attributes: vec![AttributeName("username".into())],
         })?;
-        if existing.number_of_hits > 0 {
+
+        let existing_usernames: &[JoiString] =
+            match existing.result_columns.first().map(|column| &column.values) {
+                Some(Values::String(usernames)) => usernames,
+                Some(_) => return Err(joi_error!("usernames must be strings")),
+                None => &[],
+            };
+        let users = [
+            ("jane.developer", "Jane Developer"),
+            ("joe.tester", "Joe Tester"),
+            ("ollie.owner", "Ollie Owner"),
+            ("uma.user", "Uma User"),
+            ("marla.manager", "Marla Manager"),
+        ];
+        let missing = users
+            .into_iter()
+            .filter(|(username, _)| !existing_usernames.iter().any(|value| value == username))
+            .collect::<Vec<_>>();
+        if missing.is_empty() {
             return Ok(());
         }
 
@@ -341,13 +359,22 @@ impl TestDataProvider for UserTestDataProvider {
                 columns: vec![
                     string_values_column(
                         "id",
-                        [
-                            ksuid::Ksuid::generate().to_base62(),
-                            ksuid::Ksuid::generate().to_base62(),
-                        ],
+                        missing
+                            .iter()
+                            .map(|_| ksuid::Ksuid::generate().to_base62())
+                            .collect::<Vec<_>>(),
                     ),
-                    string_values_column("username", ["jane.developer", "joe.tester"]),
-                    string_values_column("name", ["Jane Developer", "Joe Tester"]),
+                    string_values_column(
+                        "username",
+                        missing
+                            .iter()
+                            .map(|(username, _)| *username)
+                            .collect::<Vec<_>>(),
+                    ),
+                    string_values_column(
+                        "name",
+                        missing.iter().map(|(_, name)| *name).collect::<Vec<_>>(),
+                    ),
                 ],
             })],
         })?;
@@ -355,9 +382,9 @@ impl TestDataProvider for UserTestDataProvider {
     }
 }
 
-fn string_values_column<T: Into<JoiString>, const N: usize>(
+fn string_values_column<T: Into<JoiString>, I: IntoIterator<Item = T>>(
     attribute: &'static str,
-    values: [T; N],
+    values: I,
 ) -> AttributeColumn {
     AttributeColumn {
         attribute: AttributeName(attribute.into()),

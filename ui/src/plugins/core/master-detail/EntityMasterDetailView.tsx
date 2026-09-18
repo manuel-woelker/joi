@@ -1,6 +1,7 @@
 import { createEffect, createMemo, createResource, createSignal, Match, onCleanup, Show, Switch } from "solid-js";
 import FunnelIcon from "lucide-solid/icons/funnel";
 import GemIcon from "lucide-solid/icons/gem";
+import RefreshCwIcon from "lucide-solid/icons/refresh-cw";
 import XIcon from "lucide-solid/icons/x";
 
 import { useNavigation } from "../../../base/navigation";
@@ -144,7 +145,11 @@ export function EntityMasterDetailView(props: {
   const availableFacets = createMemo(() =>
     description.attributes.filter((attribute) => attribute.facet && !visibleFacetIds().includes(attribute.id)),
   );
-  const availableFacetKey = createMemo(() => availableFacets().map((attribute) => attribute.id).join(","));
+  const availableFacetKey = createMemo(() =>
+    availableFacets()
+      .map((attribute) => attribute.id)
+      .join(","),
+  );
   const changeFacet = (facetId: string, valueKey: string, state: FacetValueState) => {
     const value = facetValue(aggregateResults(), facetId, valueKey, facetSelections());
     if (value === undefined) return;
@@ -154,6 +159,12 @@ export function EntityMasterDetailView(props: {
       );
       return state === "neutral" ? remaining : [...remaining, { attribute: facetId, value, state }];
     });
+  };
+
+  const refresh = () => {
+    void refetch();
+    void refetchTotalCount();
+    for (const resource of facetResources) void resource.refetch();
   };
 
   const actionTarget = (): EntityRecordActionTarget | undefined => {
@@ -259,24 +270,26 @@ export function EntityMasterDetailView(props: {
                       fallback={<p class={styles.noFacets}>All available facets are shown.</p>}
                     >
                       <Select
-                          ariaLabel="Add facet"
-                          value=""
-                          placeholder="Add facet..."
-                          density="compact"
-                          loadEntries={async (query) => {
-                            const normalized = query.trim().toLocaleLowerCase();
-                            const entries = availableFacets()
-                              .filter((attribute) => !normalized || attribute.label.toLocaleLowerCase().includes(normalized))
-                              .map((attribute) => ({ id: attribute.id, label: attribute.label }));
-                            return { entries, total: entries.length };
-                          }}
-                          entryId={(entry) => entry.id}
-                          entryText={(entry) => entry.label}
-                          onChange={(id) => {
-                            if (!id) return;
-                            setVisibleFacetIds((current) => [...current, id]);
-                          }}
-                        />
+                        ariaLabel="Add facet"
+                        value=""
+                        placeholder="Add facet..."
+                        density="compact"
+                        loadEntries={async (query) => {
+                          const normalized = query.trim().toLocaleLowerCase();
+                          const entries = availableFacets()
+                            .filter(
+                              (attribute) => !normalized || attribute.label.toLocaleLowerCase().includes(normalized),
+                            )
+                            .map((attribute) => ({ id: attribute.id, label: attribute.label }));
+                          return { entries, total: entries.length };
+                        }}
+                        entryId={(entry) => entry.id}
+                        entryText={(entry) => entry.label}
+                        onChange={(id) => {
+                          if (!id) return;
+                          setVisibleFacetIds((current) => [...current, id]);
+                        }}
+                      />
                     </Show>
                     <Show when={visibleFacets().length}>
                       <FacetFilter
@@ -335,6 +348,12 @@ export function EntityMasterDetailView(props: {
                       icon="+"
                       class={styles.createButton}
                       onClick={() => navigation.createRecord()}
+                    />
+                    <IconButton
+                      label={`Refresh ${description.pluralLabel.toLowerCase()}`}
+                      icon={<RefreshCwIcon size={17} />}
+                      class={styles.refreshButton}
+                      onClick={refresh}
                     />
                   </div>
                   <DataTable

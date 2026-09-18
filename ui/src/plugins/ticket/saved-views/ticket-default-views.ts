@@ -1,7 +1,7 @@
 import { entityId } from "../../core/entities/entity-description";
 import type { WorkspaceDocument } from "../../core/saved-views/model";
 import { filterAttributeId, filterNodeId } from "../../../components/filter-definition/filter-model";
-import { equalsFilterOperator, inSetFilterOperator } from "../../../components/filter-definition/filter-operators";
+import { inSetFilterOperator } from "../../../components/filter-definition/filter-operators";
 
 export function createTicketDefaultWorkspace(): WorkspaceDocument {
   return {
@@ -34,8 +34,8 @@ export function createTicketDefaultWorkspace(): WorkspaceDocument {
           id: filterNodeId("ticket-closed-status"),
           type: "criterion",
           attribute: filterAttributeId("status"),
-          operator: equalsFilterOperator,
-          operand: { type: "value", value: "closed" },
+          operator: inSetFilterOperator,
+          operand: { type: "set", values: ["closed", "wontfix"] },
         },
         sorting: [{ field: "id", direction: "ascending" }],
       },

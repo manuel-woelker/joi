@@ -96,7 +96,7 @@ impl TestDataProvider for TicketTestDataProvider {
             .number_of_hits;
         if existing_count == 0 {
             insert_representative_tickets(data_store, &projects, user_ids)?;
-            existing_count = 3;
+            existing_count = 4;
         }
         associate_existing_tickets(data_store, &projects)?;
         generate_tickets(
@@ -115,7 +115,7 @@ fn insert_representative_tickets(
     projects: &HashMap<JoiString, JoiString>,
     user_ids: &[JoiString],
 ) -> joi_error::JoiResult<()> {
-    let keys = ["TEST-1", "TEST-2", "DEMO-1"];
+    let keys = ["TEST-1", "TEST-2", "DEMO-1", "TEST-3"];
     let project_ids = keys
         .iter()
         .map(|key| project_for_key(projects, key))
@@ -127,7 +127,7 @@ fn insert_representative_tickets(
             columns: vec![
                 string_values_column(
                     "id",
-                    (0..3)
+                    (0..4)
                         .map(|_| ksuid::Ksuid::generate().to_base62().into())
                         .collect(),
                 ),
@@ -139,6 +139,7 @@ fn insert_representative_tickets(
                         "Fix navigation bug",
                         "Add issue filters",
                         "Review table schema",
+                        "Document ticket workflows",
                     ]
                     .into_iter()
                     .map(Into::into)
@@ -150,6 +151,7 @@ fn insert_representative_tickets(
                         "Navigation loses the selected view after reload",
                         "Allow views to filter issues by workflow status",
                         "Check the initial ticket storage definition",
+                        "Explain how ticket states are used",
                     ]
                     .into_iter()
                     .map(Into::into)
@@ -157,14 +159,14 @@ fn insert_representative_tickets(
                 ),
                 string_values_column(
                     "status",
-                    ["open", "in-progress", "closed"]
+                    ["open", "in-progress", "closed", "wontfix"]
                         .into_iter()
                         .map(Into::into)
                         .collect(),
                 ),
                 string_values_column(
                     "assignee",
-                    (0..3)
+                    (0..4)
                         .map(|index| user_ids[index % user_ids.len()].clone())
                         .collect(),
                 ),
@@ -231,7 +233,7 @@ fn generate_tickets(
     let mut descriptions = Vec::with_capacity(count);
     let mut statuses = Vec::with_capacity(count);
     let mut assignees = Vec::with_capacity(count);
-    let statuses_available = ["open", "in-progress", "closed"];
+    let statuses_available = ["open", "in-progress", "closed", "wontfix"];
     for index in 0..count {
         ids.push(ksuid::Ksuid::generate().to_base62().into());
         keys.push(format!("TEST-{}", offset + index + 1).into());

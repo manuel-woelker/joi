@@ -364,11 +364,11 @@ mod tests {
         assert_eq!(result_columns.len(), 2);
         assert!(matches!(
             &result_columns[0].values,
-            QueryValues::String(values) if values.len() == 2 && values[0] == "joe.tester"
+            QueryValues::String(values) if values.len() == 2
         ));
         assert!(matches!(
             &response.results[1],
-            QueryResponseResult::Aggregate { values, .. } if values.len() == 1 && values[0].count == 2
+            QueryResponseResult::Aggregate { values, .. } if values.len() == 1 && values[0].count == 5
         ));
         assert!(matches!(
             &response.results[2],

@@ -55,6 +55,7 @@ export function ViewEditor() {
             { value: "open", label: "Open" },
             { value: "in-progress", label: "In progress" },
             { value: "closed", label: "Closed" },
+            { value: "wontfix", label: "Won't fix" },
           ],
         }
       : attribute,

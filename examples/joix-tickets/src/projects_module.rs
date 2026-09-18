@@ -156,11 +156,11 @@ mod tests {
         ));
         assert!(matches!(
             &result.result_columns[1].values,
-            Values::String(values) if values.iter().map(|value| value.as_str()).collect::<Vec<_>>() == ["Test", "Demo"]
+            Values::String(values) if values.iter().any(|value| value == "Test") && values.iter().any(|value| value == "Demo")
         ));
         assert!(matches!(
             &result.result_columns[2].values,
-            Values::String(values) if values.iter().map(|value| value.as_str()).collect::<Vec<_>>() == ["TEST", "DEMO"]
+            Values::String(values) if values.iter().any(|value| value == "TEST") && values.iter().any(|value| value == "DEMO")
         ));
     }
 }

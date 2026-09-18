@@ -26,6 +26,10 @@
 }
 
 .createButton {
+  flex: 0 0 auto;
+}
+
+.refreshButton {
   margin-left: auto;
 }
 

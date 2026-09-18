@@ -26,7 +26,7 @@ export const ticketEntity = defineEntity({
       label: "Key",
       description: "Human-readable project-prefixed ticket key.",
       valueType: "string",
-      table: { visibleByDefault: true, width: 100 },
+      table: { visibleByDefault: true, width: 120 },
       create: { control: "text", required: true, placeholder: "PROJECT-1" },
       validation: ({ value, addValidationFailure }) => {
         if (!ticketKey.test(value)) addValidationFailure({ message: "Use a key such as PROJECT-1." });

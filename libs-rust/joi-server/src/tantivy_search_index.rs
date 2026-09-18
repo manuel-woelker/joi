@@ -10,7 +10,7 @@ use joi_base::JoiString;
 use joi_error::{JoiResult, joi_bail, joi_error, report};
 use serde_json::{Map, Value as JsonValue};
 use tantivy::{
-    Index, IndexReader, ReloadPolicy, TantivyDocument, Term,
+    Index, IndexReader, Order, ReloadPolicy, TantivyDocument, Term,
     aggregation::{AggregationCollector, agg_req::Aggregations},
     collector::{Count, TopDocs},
     doc,
@@ -19,7 +19,6 @@ use tantivy::{
         RegexQuery, TermQuery,
     },
     schema::{FAST, Field, IndexRecordOption, STORED, STRING, Schema, Value},
-    Order,
 };
 
 use crate::{
@@ -391,10 +390,8 @@ fn count_terms(
         }
     }))
     .map_err(report)?;
-    let collector = AggregationCollector::from_aggs(
-        request,
-        tantivy::aggregation::AggContextParams::default(),
-    );
+    let collector =
+        AggregationCollector::from_aggs(request, tantivy::aggregation::AggContextParams::default());
     let result = searcher.search(query, &collector).map_err(report)?;
     let json = serde_json::to_value(result).map_err(report)?;
     let buckets = json
@@ -418,7 +415,9 @@ fn count_terms(
                         bucket
                             .get("key")
                             .and_then(JsonValue::as_i64)
-                            .ok_or_else(|| joi_error!("Tantivy returned an invalid integer bucket"))?,
+                            .ok_or_else(|| {
+                                joi_error!("Tantivy returned an invalid integer bucket")
+                            })?,
                     ),
                 }),
                 count: bucket
