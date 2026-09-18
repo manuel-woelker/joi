@@ -74,7 +74,7 @@ describe("entity queries", () => {
             { attribute: "status", direction: "ascending" },
             { attribute: "title", direction: "descending" },
           ],
-          max_results: 100,
+          max_results: 1000,
           attributes: ["*"],
         },
       ],

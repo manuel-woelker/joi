@@ -33,7 +33,7 @@ describe("loadUsers", () => {
       body: JSON.stringify({
         table_name: "users",
         criterion: "match_any",
-        results: [{ type: "rows", sorting: [], max_results: 100, attributes: ["*"] }],
+        results: [{ type: "rows", sorting: [], max_results: 1000, attributes: ["*"] }],
       }),
     });
   });
