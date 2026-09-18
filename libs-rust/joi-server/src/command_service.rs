@@ -99,7 +99,12 @@ fn command_error(
     } else {
         StatusCode::INTERNAL_SERVER_ERROR
     };
-    eprintln!("HTTP command `{command_name}` failed with {status}: {error:?}");
+    tracing::error!(
+        command = command_name,
+        status = status.as_u16(),
+        error = ?error,
+        "HTTP command failed"
+    );
     (
         status,
         Json(CommandResponseError {

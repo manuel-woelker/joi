@@ -46,10 +46,16 @@ pub struct ServerConfig {
 
 /// Runs a configured server application using process command-line arguments.
 pub fn application_main(config: ServerConfig) -> ExitCode {
+    let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"))
+        .add_directive("tantivy=warn".parse().expect("valid Tantivy log directive"));
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(env_filter)
+        .try_init();
     match run(config, std::env::args().skip(1)) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
-            eprintln!("{error}");
+            tracing::error!(error = %error, "Server terminated with an error");
             ExitCode::FAILURE
         }
     }
@@ -68,17 +74,37 @@ async fn run_async(
     mut config: ServerConfig,
     arguments: impl IntoIterator<Item = String>,
 ) -> JoiResult<()> {
+    tracing::info!(
+        application = %config.application_name,
+        version = %config.application_version,
+        listen_address = %config.listen_address,
+        "Starting server"
+    );
+    tracing::info!("Registering plugins");
     let plugin_registry = create_plugin_registry(&mut config)?;
+    tracing::info!(
+        entity_store = %config.entity_store_path.display(),
+        search_index = %config.search_index_path.display(),
+        "Opening entity and search stores"
+    );
     let mut data_store =
         IndexedDataStore::open(&config.entity_store_path, &config.search_index_path)?;
+    tracing::info!(
+        insert_test_data = config.insert_test_data,
+        "Initializing data store"
+    );
     initialize_data_store(&plugin_registry, &mut data_store, config.insert_test_data)?;
     let data_store: SharedDataStore = Arc::new(Mutex::new(Box::new(data_store)));
+    tracing::info!("Building command registry");
     let registry = build_command_registry(plugin_registry, data_store)?;
     if let Some(command_name) = parse_command_name(arguments)? {
+        tracing::info!(command = %command_name, "Executing command-line command");
         print!("{}", execute_cli_command(&registry, &command_name)?);
+        tracing::info!(command = %command_name, "Command-line command completed");
         return Ok(());
     }
 
+    tracing::info!("Starting HTTP service");
     run_service(registry, &config.listen_address).await
 }
 
@@ -205,10 +231,15 @@ fn execute_cli_command(registry: &CommandRegistry, command_name: &str) -> JoiRes
 }
 
 async fn run_service(registry: CommandRegistry, listen_address: &str) -> JoiResult<()> {
+    tracing::info!(listen_address, "Binding HTTP listener");
     let listener = tokio::net::TcpListener::bind(listen_address)
         .await
         .map_err(report)?;
-    println!("HTTP commands available at http://{listen_address}/api/<command-name>");
+    tracing::info!(listen_address, "HTTP service listening");
+    tracing::info!(
+        url = %format!("http://{listen_address}/api/<command-name>"),
+        "HTTP commands available"
+    );
     axum::serve(listener, CommandService::new(registry).into_router())
         .await
         .map_err(report)

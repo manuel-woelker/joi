@@ -9,6 +9,7 @@ import { Login } from "./plugins/core/authentication/Login";
 import { ApplicationShell } from "./plugins/core/shell/ApplicationShell";
 
 export default function App(props: { pluginRegistry?: PluginRegistry; services?: ApplicationServices }) {
+  console.info("[Startup] Initializing application");
   const application = props.pluginRegistry && props.services ? undefined : createApplication();
   const [user, { refetch }] = createResource(() => loadCurrentUserWithRetry());
   let refreshingSession = false;
@@ -46,11 +47,21 @@ export default function App(props: { pluginRegistry?: PluginRegistry; services?:
 }
 
 async function loadCurrentUserWithRetry(): Promise<Awaited<ReturnType<typeof loadCurrentUser>>> {
+  let attempt = 0;
+  console.info("[Startup] Loading user session");
   for (;;) {
+    attempt += 1;
+    console.info(`[Startup] Loading user session (attempt ${attempt})`);
     try {
-      return await loadCurrentUser(fetchService);
+      const user = await loadCurrentUser(fetchService);
+      console.info("[Startup] User session loaded");
+      return user;
     } catch (error) {
-      if (!(error instanceof FetchError) || error.status !== 502) throw error;
+      if (!(error instanceof FetchError) || error.status !== 502) {
+        console.error("[Startup] User session loading failed", error);
+        throw error;
+      }
+      console.warn("[Startup] User session backend unavailable (HTTP 502); retrying in 3 seconds");
       await new Promise((resolve) => window.setTimeout(resolve, 3_000));
     }
   }
