@@ -104,4 +104,76 @@ describe("NavigationController", () => {
     });
     expect(remove).toHaveBeenCalledWith("hashchange", expect.any(Function));
   });
+
+  it("supports view ids that span multiple segments", () => {
+    window.location.hash = "#/codevette/branches/joi/main";
+    createRoot((dispose) => {
+      const navigation = createNavigationController();
+      expect(navigation.selection()).toEqual({
+        type: "view",
+        id: "branches/joi/main",
+        route: { source: "system", section: "codevette", id: "branches/joi/main" },
+      });
+      expect(navigation.selectedViewId()).toBe("branches/joi/main");
+      dispose();
+    });
+  });
+
+  it("treats encoded and literal nested view ids the same", () => {
+    window.location.hash = "#/codevette/branches%2Fjoi%2Fmain";
+    createRoot((dispose) => {
+      expect(createNavigationController().selection()).toEqual({
+        type: "view",
+        id: "branches/joi/main",
+        route: { source: "system", section: "codevette", id: "branches/joi/main" },
+      });
+      dispose();
+    });
+  });
+
+  it("writes nested view ids with literal separators", () => {
+    window.location.hash = "";
+    createRoot((dispose) => {
+      const navigation = createNavigationController();
+      navigation.selectView("branches/joi/main", { source: "system", section: "codevette", id: "branches/joi/main" });
+      expect(window.location.hash).toBe("#/codevette/branches/joi/main");
+      expect(navigation.selection()).toEqual({
+        type: "view",
+        id: "branches/joi/main",
+        route: { source: "system", section: "codevette", id: "branches/joi/main" },
+      });
+      dispose();
+    });
+  });
+
+  it("still detects record and create suffixes after nested view ids", () => {
+    window.location.hash = "#/workspace/presence/records/a%2Fb";
+    createRoot((dispose) => {
+      const navigation = createNavigationController();
+      expect(navigation.selection()).toEqual({
+        type: "record",
+        owner: {
+          type: "view",
+          id: "presence",
+          route: { source: "workspace", section: "workspace", id: "presence" },
+        },
+        recordId: "a/b",
+      });
+      dispose();
+    });
+
+    window.location.hash = "#/workspace/presence/new";
+    createRoot((dispose) => {
+      const navigation = createNavigationController();
+      expect(navigation.selection()).toEqual({
+        type: "create",
+        owner: {
+          type: "view",
+          id: "presence",
+          route: { source: "workspace", section: "workspace", id: "presence" },
+        },
+      });
+      dispose();
+    });
+  });
 });

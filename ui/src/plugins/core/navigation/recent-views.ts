@@ -1,6 +1,6 @@
 import type { NavigationSelection } from "../../../base/navigation";
-import type { NavigationEntryId, NavigationLeafContribution, NavigationRootContribution } from "./contribution";
 import type { ViewId, WorkspaceDocument } from "../saved-views/model";
+import type { NavigationEntryId, NavigationLeafContribution, NavigationRootContribution } from "./contribution";
 
 export type RecentViewReference =
   | { readonly type: "workspace"; readonly viewId: ViewId }
@@ -30,8 +30,12 @@ export function referenceForSelection(
   if (owner.route?.source === "workspace") {
     const item = workspace.navigation[owner.route.id];
     if (item?.type === "shortcut") {
-      const [section, entryId] = item.sourceNavigationEntryId.split("/", 2);
-      const system = systemLeaves.find((entry) => entry.id === entryId);
+      // Entry ids may contain slashes (for example Codevette branch paths),
+      // so only the first segment separates the section from the entry id.
+      const separator = item.sourceNavigationEntryId.indexOf("/");
+      const section = separator === -1 ? "" : item.sourceNavigationEntryId.slice(0, separator);
+      const entryId = separator === -1 ? "" : item.sourceNavigationEntryId.slice(separator + 1);
+      const system = section && entryId ? systemLeaves.find((entry) => entry.id === entryId) : undefined;
       if (system && section && entryId) return { type: "system", section, entryId: system.id };
     }
   }

@@ -3,7 +3,7 @@ import GitPullRequestIcon from "lucide-solid/icons/git-pull-request";
 import { createSignal } from "solid-js";
 
 import { plugin } from "../../base/plugin-registry";
-import { fetchServiceKey, type FetchService } from "../../base/services/fetch-service";
+import { type FetchService, fetchServiceKey } from "../../base/services/fetch-service";
 import { GitHistory } from "../../components/git-history/GitHistory";
 import type { GitHistorySource } from "../../components/git-history/git-history";
 import { CommandService } from "../../generated/api/command-service";
@@ -11,25 +11,42 @@ import { administrationContributions } from "../core/administration/contribution
 import { entityDescriptions } from "../core/entities/entity-registry";
 import { EntityMasterDetailView } from "../core/master-detail/EntityMasterDetailView";
 import {
+  type NavigationRootContribution,
   navigationEntryId,
   navigationSection,
   navigationSectionId,
-  type NavigationRootContribution,
 } from "../core/navigation/contribution";
 import { executeDataQuery } from "../core/query/query-client";
-import { shellContributionId, viewResolvers } from "../core/shell/contribution";
 import { useWorkspace } from "../core/saved-views/controller";
+import { shellContributionId, viewResolvers } from "../core/shell/contribution";
 import { CommitReviewView } from "./commit-review/CommitReviewView";
 import { repositoryEntity } from "./repository-entity";
 
 interface RepositoryBranch {
   readonly id: string;
   readonly repositoryId: string;
+  readonly repositoryKey: string;
   readonly repositoryName: string;
   readonly name: string;
 }
 
-const branchViewPrefix = "codevette-branch/";
+export const branchPathPrefix = "branches/";
+
+/** Canonical view id for a branch, used in tree selections and URLs. */
+export function branchViewId(repositoryKey: string, branchName: string): string {
+  return `${branchPathPrefix}${repositoryKey}/${branchName}`;
+}
+
+/** Parses a branch view id back into its repository key and branch name. */
+export function parseBranchViewId(id: string): { repositoryKey: string; branchName: string } | undefined {
+  if (!id.startsWith(branchPathPrefix)) return undefined;
+  const rest = id.slice(branchPathPrefix.length);
+  const separator = rest.indexOf("/");
+  if (separator <= 0 || separator === rest.length - 1) return undefined;
+  return { repositoryKey: rest.slice(0, separator), branchName: rest.slice(separator + 1) };
+}
+
+const legacyBranchViewPrefix = "codevette-branch/";
 const commitViewPrefix = "codevette-commit/";
 
 export default plugin({
@@ -97,12 +114,10 @@ export default plugin({
               ),
             };
           }
-          const branch = id?.startsWith(branchViewPrefix)
-            ? branches.byId(id.slice(branchViewPrefix.length))
-            : undefined;
+          const branch = id ? (branches.byPath(id) ?? branches.byLegacyId(id)) : undefined;
           return branch
             ? {
-                id: `${branchViewPrefix}${branch.id}`,
+                id: branchViewId(branch.repositoryKey, branch.name),
                 name: branch.name,
                 description: `${branch.repositoryName} branch`,
                 section: "Codevette",
@@ -119,6 +134,8 @@ export default plugin({
 function createRepositoryNavigation(service: FetchService): {
   readonly roots: () => readonly NavigationRootContribution[];
   readonly byId: (id: string) => RepositoryBranch | undefined;
+  readonly byPath: (path: string) => RepositoryBranch | undefined;
+  readonly byLegacyId: (id: string) => RepositoryBranch | undefined;
 } {
   const [items, setItems] = createSignal<RepositoryBranch[]>([]);
   let loading: Promise<void> | undefined;
@@ -129,7 +146,7 @@ function createRepositoryNavigation(service: FetchService): {
         criterion: "match_any",
         sorting: [],
         maxResults: 1_000,
-        attributes: ["id", "name"],
+        attributes: ["id", "key", "name"],
       }),
       executeDataQuery(service, {
         tableName: "repository_branches",
@@ -141,9 +158,16 @@ function createRepositoryNavigation(service: FetchService): {
     ])
       .then(([repositories, branchResult]) => {
         const repositoryId = repositories.requireColumn("id");
+        const repositoryKey = repositories.requireColumn("key");
         const repositoryName = repositories.requireColumn("name");
-        const names = new Map(
-          repositories.rows.map((row) => [String(row.value(repositoryId)), String(row.value(repositoryName))]),
+        const repositoriesById = new Map(
+          repositories.rows.map((row) => [
+            String(row.value(repositoryId)),
+            {
+              key: String(row.value(repositoryKey)),
+              name: String(row.value(repositoryName)),
+            },
+          ]),
         );
         const branchId = branchResult.requireColumn("id");
         const branchRepositoryId = branchResult.requireColumn("repository_id");
@@ -151,13 +175,14 @@ function createRepositoryNavigation(service: FetchService): {
         setItems(
           branchResult.rows.flatMap((row) => {
             const repositoryIdValue = String(row.value(branchRepositoryId));
-            const name = names.get(repositoryIdValue);
-            return name
+            const repository = repositoriesById.get(repositoryIdValue);
+            return repository
               ? [
                   {
                     id: String(row.value(branchId)),
                     repositoryId: repositoryIdValue,
-                    repositoryName: name,
+                    repositoryKey: repository.key,
+                    repositoryName: repository.name,
                     name: String(row.value(branchName)),
                   },
                 ]
@@ -167,6 +192,7 @@ function createRepositoryNavigation(service: FetchService): {
       })
       .catch((error: unknown) => console.error("Failed to load Codevette repository navigation", error));
   };
+  const byId = (id: string) => items().find((branch) => branch.id === id);
   return {
     roots: () => {
       void load();
@@ -181,17 +207,28 @@ function createRepositoryNavigation(service: FetchService): {
         type: "folder" as const,
         label: repositoryBranches[0].repositoryName,
         icon: GitPullRequestIcon,
-        children: repositoryBranches.map((branch) => ({
-          id: navigationEntryId(`branch-${branch.id}`),
-          type: "leaf" as const,
-          label: branch.name,
-          description: `${branch.repositoryName} branch`,
-          icon: GitBranchIcon,
-          selection: { type: "view" as const, id: `${branchViewPrefix}${branch.id}` },
-        })),
+        children: repositoryBranches.map((branch) => {
+          const viewId = branchViewId(branch.repositoryKey, branch.name);
+          return {
+            id: navigationEntryId(viewId),
+            type: "leaf" as const,
+            label: branch.name,
+            description: `${branch.repositoryName} branch`,
+            icon: GitBranchIcon,
+            selection: { type: "view" as const, id: viewId },
+          };
+        }),
       }));
     },
-    byId: (id) => items().find((branch) => branch.id === id),
+    byId,
+    byPath: (path) => {
+      const parsed = parseBranchViewId(path);
+      return parsed
+        ? items().find((branch) => branch.repositoryKey === parsed.repositoryKey && branch.name === parsed.branchName)
+        : undefined;
+    },
+    byLegacyId: (id) =>
+      id.startsWith(legacyBranchViewPrefix) ? byId(id.slice(legacyBranchViewPrefix.length)) : undefined,
   };
 }
 

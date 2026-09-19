@@ -6,18 +6,17 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createApplication, discoveredApplicationPlugins } from "../../../base/application-registry";
 import { PluginRegistryBuilder, plugin } from "../../../base/plugin-registry";
 import { FetchService } from "../../../base/services/fetch-service";
-import { entityDescriptions } from "../entities/entity-registry";
-import { defineEntity, entityId } from "../entities/entity-description";
 import entitiesPlugin from "../entities/entities.plugin";
+import { defineEntity, entityId } from "../entities/entity-description";
+import { entityDescriptions } from "../entities/entity-registry";
+import { navigationEntryId, navigationSection, navigationSectionId } from "../navigation/contribution";
+import navigationPlugin from "../navigation/navigation.plugin";
 import { savedViewDefaults, savedViewDefaultsContributionId } from "../saved-views/contribution";
 import savedViewsPlugin from "../saved-views/saved-views.plugin";
-import navigationPlugin from "../navigation/navigation.plugin";
-import { navigationEntryId, navigationSection, navigationSectionId } from "../navigation/contribution";
 import { createTestWorkspace } from "../saved-views/test-fixtures";
-import shellPlugin from "./shell.plugin";
+import { ApplicationShell, resolveApplicationView } from "./ApplicationShell";
 import { shellContributionId, shellOverlays, viewResolvers } from "./contribution";
-import { resolveApplicationView } from "./ApplicationShell";
-import { ApplicationShell } from "./ApplicationShell";
+import shellPlugin from "./shell.plugin";
 
 const ExampleIcon = () => null;
 
@@ -126,7 +125,8 @@ describe("dynamic domain plugins", () => {
 
     const fetchService = new FetchService(async (_input, init) => {
       const request = JSON.parse(String(init?.body)) as { table_name: string };
-      const attributes = request.table_name === "repositories" ? ["id", "name"] : ["id", "repository_id", "name"];
+      const attributes =
+        request.table_name === "repositories" ? ["id", "key", "name"] : ["id", "repository_id", "name"];
       return {
         ok: true,
         json: async () => ({

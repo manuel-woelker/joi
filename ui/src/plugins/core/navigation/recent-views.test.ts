@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { entityId } from "../entities/entity-description";
 import type { WorkspaceDocument } from "../saved-views/model";
 import { navigationEntryId } from "./contribution";
-import { addRecent, referenceForSelection, type RecentViewReference } from "./recent-views";
+import { addRecent, type RecentViewReference, referenceForSelection } from "./recent-views";
 
 const workspace: WorkspaceDocument = {
   version: 5,
@@ -75,5 +75,34 @@ describe("recent views", () => {
         shortcutWorkspace,
       ),
     ).toEqual({ type: "system", section: "administration", entryId: navigationEntryId("projects") });
+  });
+
+  it("resolves shortcuts whose entry ids contain slashes", () => {
+    const shortcutWorkspace = structuredClone(workspace);
+    shortcutWorkspace.navigation.main = {
+      id: "main",
+      type: "shortcut",
+      name: "main",
+      selection: { type: "view", id: "branches/joi/main" },
+      sourceNavigationEntryId: "codevette/branches/joi/main",
+    };
+    const systemLeaf = {
+      id: navigationEntryId("branches/joi/main"),
+      type: "leaf" as const,
+      label: "main",
+      selection: { type: "view" as const, id: "branches/joi/main" },
+    };
+
+    expect(
+      referenceForSelection(
+        {
+          type: "view",
+          id: "main",
+          route: { source: "workspace", section: "workspace", id: "main" },
+        },
+        [systemLeaf],
+        shortcutWorkspace,
+      ),
+    ).toEqual({ type: "system", section: "codevette", entryId: navigationEntryId("branches/joi/main") });
   });
 });
