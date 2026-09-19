@@ -5,14 +5,15 @@ import ReplyIcon from "lucide-solid/icons/reply";
 import XIcon from "lucide-solid/icons/x";
 import { createEffect, createMemo, createResource, createSignal, For, onMount, Show } from "solid-js";
 import type { ReviewComment } from "../../generated/api/api";
+import { DateTime } from "../DateTime";
 import { Tree } from "../tree/Tree";
 import type { CommentThreadEntry, ReviewCommentSource } from "./comment-model";
-import { createDiffViewerStore, type CommentEditor as CommentEditorState } from "./diff-viewer-store";
+import styles from "./DiffViewer.module.css";
 import { type DiffFileId, type DiffLine, type DiffLocation } from "./diff-model";
+import { type CommentEditor as CommentEditorState, createDiffViewerStore } from "./diff-viewer-store";
 import { buildDiffFileTree, diffFileTreeDefinition } from "./file-tree";
 import { parsePatch } from "./patch-parser";
 import { highlightLine, type SyntaxToken } from "./syntax-highlighter";
-import styles from "./DiffViewer.module.css";
 import { flattenCommentRows, flattenDiffRows, type VirtualDiffRow } from "./virtual-rows";
 import { diffWords, type WordDiffFragment } from "./word-diff";
 
@@ -431,7 +432,7 @@ function Comment(props: {
             <p>{props.entry.comment.comment}</p>
             <footer>
               <span>
-                @{props.entry.comment.authorUsername} · {new Date(props.entry.comment.createdAt).toLocaleString()}
+                @{props.entry.comment.authorUsername} · <DateTime value={props.entry.comment.createdAt} />
               </span>
               <Show when={props.currentUserId === props.entry.comment.authorId}>
                 <IconAction label="Edit comment" onClick={() => props.edit(props.entry.comment.id)}>

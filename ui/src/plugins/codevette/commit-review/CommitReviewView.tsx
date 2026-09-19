@@ -3,9 +3,10 @@ import { createResource, Match, Show, Switch } from "solid-js";
 
 import { useNavigation } from "../../../base/navigation";
 import type { FetchService } from "../../../base/services/fetch-service";
-import { DiffViewer } from "../../../components/diff-viewer/DiffViewer";
+import { DateTime } from "../../../components/DateTime";
 import type { ReviewCommentSource } from "../../../components/diff-viewer/comment-model";
-import { Tabs, type TabDefinition } from "../../../components/tabs/Tabs";
+import { DiffViewer } from "../../../components/diff-viewer/DiffViewer";
+import { type TabDefinition, Tabs } from "../../../components/tabs/Tabs";
 import type { GitCommitDetails, UserInfo } from "../../../generated/api/api";
 import { CommandService } from "../../../generated/api/command-service";
 import styles from "./CommitReviewView.module.css";
@@ -84,7 +85,7 @@ function commitTabs(
               <div>
                 <dt>Authored</dt>
                 <dd>
-                  <time dateTime={details.authoredAt}>{new Date(details.authoredAt).toLocaleString()}</time>
+                  <DateTime value={details.authoredAt} />
                 </dd>
               </div>
               <div>
