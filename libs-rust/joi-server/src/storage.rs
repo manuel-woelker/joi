@@ -116,6 +116,8 @@ impl DataStore for IndexedDataStore {
         let mutation_steps = mutation.steps;
         let mut returned_entities = Vec::new();
 
+        self.validate_mutation_steps(&mutation_steps)?;
+
         // Every chunk follows the same durable indexing workflow:
         //
         // 1. Compute each entity's final state in the chunk in memory.
@@ -142,7 +144,6 @@ impl DataStore for IndexedDataStore {
                 DataStoreMutationStep::Insert(mutation) => {
                     is_delete = false;
                     let schema = self.schema(&mutation.table_name)?;
-                    validate_columns(schema, &mutation.columns, true)?;
                     let mut entries = vec![];
                     for row in chunk.rows.clone() {
                         let object = object_from_columns(&mutation.columns, row);
@@ -162,16 +163,6 @@ impl DataStore for IndexedDataStore {
                 }
                 DataStoreMutationStep::Update(mutation) => {
                     is_delete = false;
-                    let schema = self.schema(&mutation.table_name)?;
-                    validate_columns(schema, &mutation.columns, false)?;
-                    if mutation
-                        .columns
-                        .iter()
-                        .any(|column| column.attribute == schema.columns[0].name)
-                    {
-                        joi_bail!("primary-key attribute is immutable");
-                    }
-                    validate_unique_ids(&mutation.ids)?;
                     let mut entries = vec![];
                     for row in chunk.rows.clone() {
                         let id = &mutation.ids[row];
@@ -212,8 +203,6 @@ impl DataStore for IndexedDataStore {
                 }
                 DataStoreMutationStep::Delete(mutation) => {
                     is_delete = true;
-                    self.schema(&mutation.table_name)?;
-                    validate_unique_ids(&mutation.ids)?;
                     let mut keys = vec![];
                     for row in chunk.rows.clone() {
                         let id = &mutation.ids[row];
@@ -364,6 +353,34 @@ impl IndexedDataStore {
         self.schemas
             .get(table_name)
             .ok_or_else(|| joi_error!("entity type `{}` has not been registered", table_name.0))
+    }
+
+    /// Validates all mutation declarations before any chunk can be persisted.
+    fn validate_mutation_steps(&self, steps: &[DataStoreMutationStep]) -> JoiResult<()> {
+        for step in steps {
+            match step {
+                DataStoreMutationStep::Insert(mutation) => {
+                    validate_columns(self.schema(&mutation.table_name)?, &mutation.columns, true)?;
+                }
+                DataStoreMutationStep::Update(mutation) => {
+                    let schema = self.schema(&mutation.table_name)?;
+                    validate_columns(schema, &mutation.columns, false)?;
+                    if mutation
+                        .columns
+                        .iter()
+                        .any(|column| column.attribute == schema.columns[0].name)
+                    {
+                        joi_bail!("primary-key attribute is immutable");
+                    }
+                    validate_unique_ids(&mutation.ids)?;
+                }
+                DataStoreMutationStep::Delete(mutation) => {
+                    self.schema(&mutation.table_name)?;
+                    validate_unique_ids(&mutation.ids)?;
+                }
+            }
+        }
+        Ok(())
     }
 }
 
