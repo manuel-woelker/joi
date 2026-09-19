@@ -100,6 +100,30 @@ impl KeyValueStore for RedbKeyValueStore {
             })
             .collect()
     }
+
+    fn query_first(
+        &self,
+        table: &TableName,
+        range: std::ops::Range<&[u8]>,
+    ) -> JoiResult<Option<KeyValue>> {
+        let transaction = self.database.begin_read().map_err(report)?;
+        let name = Self::table_name(table);
+        let table = match transaction.open_table(TableDefinition::<&[u8], &[u8]>::new(&name)) {
+            Ok(table) => table,
+            Err(error) if error.to_string().contains("does not exist") => return Ok(None),
+            Err(error) => return Err(report(error)),
+        };
+        let entry = table
+            .range(range)
+            .map_err(report)?
+            .next()
+            .transpose()
+            .map_err(report)?;
+        Ok(entry.map(|(key, value)| KeyValue {
+            key: key.value().to_vec(),
+            value: value.value().to_vec(),
+        }))
+    }
 }
 
 #[cfg(test)]

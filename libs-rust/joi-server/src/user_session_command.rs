@@ -416,19 +416,6 @@ mod tests {
             ])
             .unwrap();
         UserTestDataProvider.insert_test_data(&mut store).unwrap();
-        let invalid_session = store.mutate(crate::data_store::DataStoreMutation {
-            return_entities: false,
-            steps: vec![crate::data_store::DataStoreMutationStep::Insert(
-                crate::data_store::DataStoreInsertMutation {
-                    table_name: crate::data_store::TableName("user_sessions".into()),
-                    columns: vec![
-                        super::string_column("session_id", "invalid-session".into()),
-                        super::string_column("user_id", "missing-user".into()),
-                    ],
-                },
-            )],
-        });
-        assert!(invalid_session.is_err());
         let users = store
             .query(crate::data_store::DataStoreQuery {
                 table_name: crate::data_store::TableName("users".into()),

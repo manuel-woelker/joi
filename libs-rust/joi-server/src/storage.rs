@@ -116,8 +116,6 @@ impl DataStore for IndexedDataStore {
         let mutation_steps = mutation.steps;
         let mut returned_entities = Vec::new();
 
-        let mut staged = HashMap::new();
-
         // Every chunk follows the same durable indexing workflow:
         //
         // 1. Compute each entity's final state in the chunk in memory.
@@ -148,15 +146,9 @@ impl DataStore for IndexedDataStore {
                     let mut entries = vec![];
                     for row in chunk.rows.clone() {
                         let object = object_from_columns(&mutation.columns, row);
-                        self.validate_references(schema, &object, &staged)?;
                         let entity = entity_from_object(&mutation.table_name, schema, object)?;
-                        let key = (entity.entity_type.clone(), entity.id.clone());
-                        if current_entity(self.key_value_store.as_ref(), &staged, &key)?.is_some() {
-                            joi_bail!("entity `{}` already exists", display_id(&entity.id));
-                        }
                         ids.push(entity.id.clone());
                         dirty_keys.push(entity.id.0.clone());
-                        staged.insert(key, Some(entity.clone()));
                         entities.push(entity.clone());
                         entries.push(KeyValue {
                             key: entity.id.0.clone(),
@@ -184,15 +176,17 @@ impl DataStore for IndexedDataStore {
                     for row in chunk.rows.clone() {
                         let id = &mutation.ids[row];
                         let entity_id = EntityId::new(id.as_bytes());
-                        let key = (mutation.table_name.clone(), entity_id.clone());
-                        let mut entity =
-                            current_entity(self.key_value_store.as_ref(), &staged, &key)?
-                                .ok_or_else(|| {
-                                    joi_error!(
-                                        "table `{}` has no record with ID `{id}`",
-                                        mutation.table_name.0
-                                    )
-                                })?;
+                        let mut entity = read_entity(
+                            self.key_value_store.as_ref(),
+                            &mutation.table_name,
+                            &entity_id,
+                        )?
+                        .ok_or_else(|| {
+                            joi_error!(
+                                "table `{}` has no record with ID `{id}`",
+                                mutation.table_name.0
+                            )
+                        })?;
                         let mut object =
                             serde_json::from_slice::<Map<String, JsonValue>>(&entity.data)
                                 .map_err(report)?;
@@ -202,11 +196,9 @@ impl DataStore for IndexedDataStore {
                                 json_value_at(&column.values, row),
                             );
                         }
-                        self.validate_references(schema, &object, &staged)?;
                         entity.data = serde_json::to_vec(&object).map_err(report)?;
                         ids.push(entity.id.clone());
                         dirty_keys.push(entity.id.0.clone());
-                        staged.insert(key, Some(entity.clone()));
                         entities.push(entity.clone());
                         entries.push(KeyValue {
                             key: entity.id.0.clone(),
@@ -226,13 +218,8 @@ impl DataStore for IndexedDataStore {
                     for row in chunk.rows.clone() {
                         let id = &mutation.ids[row];
                         let entity_id = EntityId::new(id.as_bytes());
-                        let key = (mutation.table_name.clone(), entity_id.clone());
-                        if current_entity(self.key_value_store.as_ref(), &staged, &key)?.is_none() {
-                            joi_bail!("entity `{id}` does not exist");
-                        }
                         ids.push(entity_id.clone());
                         dirty_keys.push(entity_id.0.clone());
-                        staged.insert(key, None);
                         keys.push(entity_id.0.clone());
                     }
                     entity_mutation = KeyValueMutation::Remove(KeyValueRemoveMutation {
@@ -262,10 +249,10 @@ impl DataStore for IndexedDataStore {
             if is_delete {
                 self.search_index.delete(&table, &ids)?;
             }
-            self.clear_dirty_batches(&[DirtyEntry {
+            self.clear_dirty_entry(DirtyEntry {
                 table: dirty_table,
                 key: dirty_key,
-            }])?;
+            })?;
 
             if return_entities {
                 for entity in entities {
@@ -321,23 +308,11 @@ impl IndexedDataStore {
             .collect())
     }
 
-    fn clear_dirty_batches(&mut self, batches: &[DirtyEntry]) -> JoiResult<()> {
-        let mut by_table: HashMap<TableName, Vec<Vec<u8>>> = HashMap::new();
-        for batch in batches {
-            by_table
-                .entry(batch.table.clone())
-                .or_default()
-                .push(batch.key.clone());
-        }
-        let mutations = by_table
-            .into_iter()
-            .map(|(table, keys)| {
-                KeyValueMutation::Remove(crate::key_value_store::KeyValueRemoveMutation {
-                    table,
-                    keys,
-                })
-            })
-            .collect();
+    fn clear_dirty_entry(&mut self, entry: DirtyEntry) -> JoiResult<()> {
+        let mutations = vec![KeyValueMutation::Remove(KeyValueRemoveMutation {
+            table: entry.table,
+            keys: vec![entry.key],
+        })];
         self.key_value_store.mutate(KeyValueMutations {
             mutations: &mutations,
         })
@@ -358,17 +333,13 @@ impl IndexedDataStore {
     fn reindex_dirty(&mut self, entity_type: &TableName) -> JoiResult<()> {
         loop {
             let dirty_table = dirty_table_name(entity_type);
-            let entries = self
+            let Some(entry) = self
                 .key_value_store
-                .query_range(&dirty_table, &[]..&[u8::MAX; 8])?;
-            let batches = entries.into_iter().take(10_000).collect::<Vec<_>>();
-            if batches.is_empty() {
+                .query_first(&dirty_table, &[]..&[u8::MAX; 8])?
+            else {
                 return Ok(());
-            }
-            let mut ids = Vec::new();
-            for batch in &batches {
-                ids.extend(decode_ids(&batch.value)?);
-            }
+            };
+            let ids = decode_ids(&entry.value)?;
             let entities = self.read_many(entity_type, &ids)?;
             self.search_index.upsert(&entities)?;
             let present = entities
@@ -382,14 +353,10 @@ impl IndexedDataStore {
             if !missing.is_empty() {
                 self.search_index.delete(entity_type, &missing)?;
             }
-            let dirty_entries = batches
-                .iter()
-                .map(|entry| DirtyEntry {
-                    table: dirty_table.clone(),
-                    key: entry.key.clone(),
-                })
-                .collect::<Vec<_>>();
-            self.clear_dirty_batches(&dirty_entries)?;
+            self.clear_dirty_entry(DirtyEntry {
+                table: dirty_table,
+                key: entry.key,
+            })?;
         }
     }
 
@@ -397,37 +364,6 @@ impl IndexedDataStore {
         self.schemas
             .get(table_name)
             .ok_or_else(|| joi_error!("entity type `{}` has not been registered", table_name.0))
-    }
-
-    fn validate_references(
-        &self,
-        schema: &TableDescription,
-        object: &Map<String, JsonValue>,
-        staged: &HashMap<(TableName, EntityId), Option<Entity>>,
-    ) -> JoiResult<()> {
-        for column in &schema.columns {
-            let Some(reference) = &column.references else {
-                continue;
-            };
-            let Some(value) = object
-                .get(column.name.0.as_str())
-                .and_then(JsonValue::as_str)
-            else {
-                continue;
-            };
-            if value.is_empty() {
-                continue;
-            }
-            let key = (reference.table.clone(), EntityId::new(value.as_bytes()));
-            if current_entity(self.key_value_store.as_ref(), staged, &key)?.is_none() {
-                joi_bail!(
-                    "attribute `{}` references missing entity `{value}` in `{}`",
-                    column.name.0,
-                    reference.table.0
-                );
-            }
-        }
-        Ok(())
     }
 }
 
@@ -565,22 +501,17 @@ fn value_data_type(values: &Values) -> ColumnDataType {
     }
 }
 
-fn current_entity(
+fn read_entity(
     store: &dyn KeyValueStore,
-    staged: &HashMap<(TableName, EntityId), Option<Entity>>,
-    key: &(TableName, EntityId),
+    entity_type: &TableName,
+    id: &EntityId,
 ) -> JoiResult<Option<Entity>> {
-    staged.get(key).cloned().map_or_else(
-        || {
-            let values = store.query_ids(&key.0, &[key.1.as_bytes()])?;
-            Ok(values.into_iter().next().map(|value| Entity {
-                entity_type: key.0.clone(),
-                id: key.1.clone(),
-                data: value.value,
-            }))
-        },
-        Ok,
-    )
+    let values = store.query_ids(entity_type, &[id.as_bytes()])?;
+    Ok(values.into_iter().next().map(|value| Entity {
+        entity_type: entity_type.clone(),
+        id: id.clone(),
+        data: value.value,
+    }))
 }
 
 struct DirtyEntry {
@@ -691,8 +622,4 @@ fn validate_unique_ids(ids: &[joi_base::JoiString]) -> JoiResult<()> {
         }
     }
     Ok(())
-}
-
-fn display_id(id: &EntityId) -> String {
-    String::from_utf8_lossy(id.as_bytes()).into_owned()
 }
