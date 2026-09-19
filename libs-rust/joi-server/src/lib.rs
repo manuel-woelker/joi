@@ -17,12 +17,13 @@ pub mod command_registry;
 pub mod command_service;
 /// Generic table descriptions, queries, and mutations.
 pub mod data_store;
-/// Opaque entities and the primary entity-storage contract.
-pub mod entity_store;
+mod entity_store;
 /// Code-generated command declarations.
 pub mod generated;
 /// Application information collection and command handling.
 pub mod info_command;
+/// Key value store for the underlying entity storage
+pub mod key_value_store;
 /// Application model inspection command handling.
 pub mod model_info_command;
 /// Generic data mutation command handling.
@@ -31,8 +32,8 @@ pub mod mutate_command;
 pub mod plugins_command;
 /// Generic data query command handling.
 pub mod query_command;
-/// redb implementation of binary entity storage.
-pub mod redb_entity_store;
+/// redb implementation of the generic key/value store.
+pub mod redb_key_value_store;
 /// Search and aggregation contracts implemented independently from entity storage.
 pub mod search_index;
 /// Runtime assembly, CLI dispatch, and HTTP server startup.
@@ -44,4 +45,5 @@ pub mod tantivy_search_index;
 /// User identity, login sessions, and authentication commands.
 pub mod user_session_command;
 
+pub use entity_store::{Entity, EntityId};
 pub use server::{ServerConfig, application_main, run};

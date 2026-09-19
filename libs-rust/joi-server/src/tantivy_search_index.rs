@@ -22,12 +22,13 @@ use tantivy::{
 };
 
 use crate::{
+    Entity,
     data_store::{
         AttributeColumn, AttributeName, ColumnDataType, DataStoreCountValue, DataStoreQuery,
         DataStoreQueryResult, DataStoreValue, QueryCriterion, QuerySortDirection, TableDescription,
         TableName, Values,
     },
-    entity_store::{Entity, EntityId},
+    entity_store::EntityId,
     search_index::SearchIndex,
 };
 

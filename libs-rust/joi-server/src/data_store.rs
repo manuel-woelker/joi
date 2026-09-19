@@ -236,7 +236,7 @@ pub struct DataStoreUpdateMutation {
 /// Reports successful completion of a data-store mutation.
 pub struct DataStoreMutationResult {
     /// Complete created or updated entities when requested by the caller.
-    pub entities: Option<Vec<crate::entity_store::Entity>>,
+    pub entities: Option<Vec<crate::Entity>>,
 }
 
 /// Executes queries and mutations against a data store.

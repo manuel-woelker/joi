@@ -1,11 +1,12 @@
 use joi_error::JoiResult;
 
 use crate::{
+    Entity,
     data_store::{
         AttributeName, DataStoreCountValue, DataStoreQuery, DataStoreQueryResult, QueryCriterion,
         TableDescription, TableName,
     },
-    entity_store::{Entity, EntityId},
+    entity_store::EntityId,
 };
 
 /// Secondary index responsible for all entity queries and aggregations.
