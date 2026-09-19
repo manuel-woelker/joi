@@ -49,18 +49,16 @@ export function flattenDiffRows(
         const pair = pairs[pairIndex];
         const missingSide = missingSideFor(pair);
         const group = [pair];
-        // Split runs around annotated lines so threads and editors land on
-        // the exact line; unannotated runs stay joined for one continuous
-        // placeholder.
-        if (!hasAnnotations(file, pair, byLocation, editor)) {
-          while (
-            missingSide &&
-            pairIndex + 1 < pairs.length &&
-            missingSideFor(pairs[pairIndex + 1]) === missingSide &&
-            !hasAnnotations(file, pairs[pairIndex + 1], byLocation, editor)
-          ) {
-            group.push(pairs[++pairIndex]);
-          }
+        // Split runs after annotated lines so threads and editors land on
+        // the exact line; runs stay joined everywhere else for one
+        // continuous placeholder.
+        while (
+          missingSide &&
+          !hasAnnotations(file, pairs[pairIndex], byLocation, editor) &&
+          pairIndex + 1 < pairs.length &&
+          missingSideFor(pairs[pairIndex + 1]) === missingSide
+        ) {
+          group.push(pairs[++pairIndex]);
         }
         rows.push({ id: pair.id, kind: "code", file, pairs: group });
         for (const groupedPair of group) {
