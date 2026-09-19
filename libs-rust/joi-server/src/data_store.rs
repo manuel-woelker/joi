@@ -2,6 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use joi_base::JoiString;
 use joi_error::JoiResult;
+use serde_json::Value as JsonValue;
 
 /// A data store shared by commands that query or mutate application data.
 pub type SharedDataStore = Arc<Mutex<Box<dyn DataStore>>>;
@@ -113,6 +114,46 @@ pub enum Values {
     Int(Vec<i64>),
 }
 
+impl Values {
+    /// The number of values in this column.
+    pub fn len(&self) -> usize {
+        match self {
+            Values::String(values) => values.len(),
+            Values::NullableString(values) => values.len(),
+            Values::Int(values) => values.len(),
+        }
+    }
+
+    /// Whether this column contains no values.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// The column type these values belong to.
+    pub fn data_type(&self) -> ColumnDataType {
+        match self {
+            Values::String(_) | Values::NullableString(_) => ColumnDataType::String,
+            Values::Int(_) => ColumnDataType::Int,
+        }
+    }
+
+    /// The JSON representation of the value at `index`.
+    ///
+    /// Entity bytes are stored as JSON objects, so this is the single place
+    /// where columnar values meet that encoding.
+    pub fn value_at(&self, index: usize) -> JsonValue {
+        match self {
+            Values::String(values) => JsonValue::String(values[index].to_string()),
+            Values::NullableString(values) => {
+                values[index].as_ref().map_or(JsonValue::Null, |value| {
+                    JsonValue::String(value.to_string())
+                })
+            }
+            Values::Int(values) => JsonValue::Number(values[index].into()),
+        }
+    }
+}
+
 /// Contains records returned by a data-store query in columnar form.
 pub struct DataStoreQueryResult {
     /// The total number of records matching the query.
@@ -205,6 +246,37 @@ pub enum DataStoreMutationStep {
     Update(DataStoreUpdateMutation),
     /// Deletes records by primary-key ID.
     Delete(DataStoreDeleteMutation),
+}
+
+impl DataStoreMutationStep {
+    /// The table this step reads or writes.
+    pub fn table(&self) -> &TableName {
+        match self {
+            DataStoreMutationStep::Insert(insert) => &insert.table_name,
+            DataStoreMutationStep::Update(update) => &update.table_name,
+            DataStoreMutationStep::Delete(delete) => &delete.table_name,
+        }
+    }
+
+    /// The number of rows this step addresses.
+    ///
+    /// Insert steps address one row per column value; update and delete
+    /// steps address one row per ID.
+    pub fn len(&self) -> usize {
+        match self {
+            DataStoreMutationStep::Insert(insert) => insert
+                .columns
+                .first()
+                .map_or(0, |column| column.values.len()),
+            DataStoreMutationStep::Update(update) => update.ids.len(),
+            DataStoreMutationStep::Delete(delete) => delete.ids.len(),
+        }
+    }
+
+    /// Whether this step addresses no rows.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 /// Describes records to delete from one table by primary-key ID.
