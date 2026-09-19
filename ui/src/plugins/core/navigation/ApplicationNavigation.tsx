@@ -9,8 +9,8 @@ import { Dynamic } from "solid-js/web";
 
 import type { NavigationRoute, NavigationSelection } from "../../../base/navigation";
 import type { PluginRegistry } from "../../../base/plugin-registry";
-import { contextMenuEntryId, contextMenuGroupId } from "../../../components/context-menu/context-menu";
 import { useContextMenu } from "../../../components/context-menu/ContextMenuProvider";
+import { contextMenuEntryId, contextMenuGroupId } from "../../../components/context-menu/context-menu";
 import { IconButton } from "../../../components/IconButton";
 import { Tree } from "../../../components/tree/Tree";
 import { createTreeRendererRegistry, type TreeDefinition } from "../../../components/tree/tree-definition";
@@ -19,16 +19,18 @@ import {
   defineTreeModel,
   defineTreeNode,
   folderTreeNodeKind,
-  type TreeModel,
   type TreeNode,
+  type TreeNodeId,
   treeNodeKind,
 } from "../../../components/tree/tree-model";
-import { useWorkspace } from "../saved-views/controller";
 import { useEntityRegistry } from "../entities/entity-registry";
+import { useWorkspace } from "../saved-views/controller";
+import type { WorkspaceEntryDraft } from "../saved-views/model";
 import { SavedViewNavigation } from "../saved-views/SavedViewNavigation";
+import styles from "./ApplicationNavigation.module.css";
 import type { NavigationEntryId, NavigationLeafContribution, NavigationRootContribution } from "./contribution";
 import { navigationSection, validateNavigationRoots } from "./contribution";
-import { addRecent, leafEntries, referenceForSelection, type RecentViewReference } from "./recent-views";
+import { addRecent, leafEntries, type RecentViewReference, referenceForSelection } from "./recent-views";
 import {
   copyForLeaf,
   copyForWorkspaceView,
@@ -36,8 +38,6 @@ import {
   workspaceEntryMimeType,
   writeWorkspaceCopy,
 } from "./workspace-copy";
-import type { WorkspaceEntryDraft } from "../saved-views/model";
-import styles from "./ApplicationNavigation.module.css";
 
 const systemLeafKind = treeNodeKind("system-navigation-leaf");
 const recentLeafKind = treeNodeKind("recent-navigation-leaf");
@@ -253,31 +253,45 @@ export function ApplicationNavigation(props: { registry: PluginRegistry; userId:
   );
 }
 
-function SystemTree(props: {
+export function SystemTree(props: {
   roots: readonly NavigationRootContribution[];
   sectionId: string;
   activeRoute?: NavigationRoute;
   onActivate: (selection: NavigationSelection, route: NavigationRoute) => void;
   openContextMenu: (event: MouseEvent, leaf: NavigationLeafContribution) => void;
 }) {
-  const entries = new Map<NavigationEntryId, NavigationRootContribution>();
-  const nodes: ReturnType<typeof defineTreeNode>[] = [];
-  const visit = (entry: NavigationRootContribution) => {
-    entries.set(entry.id, entry);
-    nodes.push(
-      entry.type === "folder"
-        ? defineTreeFolder({
-            id: entry.id,
-            children: entry.children.map((child) => child.id),
-            data: { label: entry.label },
-          })
-        : defineTreeNode({ id: entry.id, kind: systemLeafKind, data: { label: entry.label } }),
-    );
-    if (entry.type === "folder") entry.children.forEach(visit);
-  };
-  props.roots.forEach(visit);
-  const model = defineTreeModel({ roots: props.roots.map((root) => root.id), nodes });
-  const entryFor = (node: TreeNode) => entries.get(node.id as unknown as NavigationEntryId)!;
+  // Roots can arrive asynchronously (Codevette loads repositories and
+  // branches over the network), so the model is derived in a memo: a section
+  // opened before its data arrives renders an empty tree and then rebuilds
+  // once the roots resolve.
+  const modelState = createMemo(() => {
+    const entries = new Map<NavigationEntryId, NavigationRootContribution>();
+    const nodes: ReturnType<typeof defineTreeNode>[] = [];
+    const visit = (entry: NavigationRootContribution) => {
+      entries.set(entry.id, entry);
+      nodes.push(
+        entry.type === "folder"
+          ? defineTreeFolder({
+              id: entry.id,
+              children: entry.children.map((child) => child.id),
+              data: { label: entry.label },
+            })
+          : defineTreeNode({ id: entry.id, kind: systemLeafKind, data: { label: entry.label } }),
+      );
+      if (entry.type === "folder") entry.children.forEach(visit);
+    };
+    props.roots.forEach(visit);
+    return {
+      entries,
+      model: defineTreeModel({ roots: props.roots.map((root) => root.id), nodes }),
+    };
+  });
+  // Folders default to expanded, matching the previous defaultExpanded
+  // behavior, but tracked as a controlled set so roots that load after
+  // mount also open. The first toggle hands over to the user's choices.
+  const [expandedOverride, setExpandedOverride] = createSignal<ReadonlySet<TreeNodeId>>();
+  const expanded = createMemo(() => expandedOverride() ?? new Set(modelState().model.roots));
+  const entryFor = (node: TreeNode) => modelState().entries.get(node.id as unknown as NavigationEntryId)!;
   const label = (node: TreeNode) => entryFor(node).label;
   const renderers = createTreeRendererRegistry(label)
     .replace(folderTreeNodeKind, (node, context) => {
@@ -328,7 +342,15 @@ function SystemTree(props: {
     },
     canDrag: (node) => entryFor(node).type === "leaf",
   };
-  return <Tree ariaLabel="System views" model={model} definition={definition} defaultExpanded={new Set(model.roots)} />;
+  return (
+    <Tree
+      ariaLabel="System views"
+      model={modelState().model}
+      definition={definition}
+      expanded={expanded()}
+      onExpandedChange={setExpandedOverride}
+    />
+  );
 }
 
 function RecentTree(props: {
@@ -345,12 +367,19 @@ function RecentTree(props: {
 }) {
   const contextMenu = useContextMenu();
   const workspace = useWorkspace();
-  const byId = new Map(props.entries.map((entry, index) => [`recent-${index}`, entry]));
-  const model: TreeModel = defineTreeModel({
-    roots: [...byId.keys()],
-    nodes: [...byId.keys()].map((id) => defineTreeNode({ id, kind: recentLeafKind })),
+  // Derived in a memo so entries updated while the panel is open (for
+  // example removing a view from the list) rebuild the tree immediately.
+  const state = createMemo(() => {
+    const byId = new Map(props.entries.map((entry, index) => [`recent-${index}`, entry]));
+    return {
+      byId,
+      model: defineTreeModel({
+        roots: [...byId.keys()],
+        nodes: [...byId.keys()].map((id) => defineTreeNode({ id, kind: recentLeafKind })),
+      }),
+    };
   });
-  const entryFor = (node: TreeNode) => byId.get(node.id)!;
+  const entryFor = (node: TreeNode) => state().byId.get(node.id)!;
   const renderers = createTreeRendererRegistry(() => "")
     .register(recentLeafKind, (node) => (
       <>
@@ -364,7 +393,7 @@ function RecentTree(props: {
   return (
     <Tree
       ariaLabel="Recently used views"
-      model={model}
+      model={state().model}
       definition={{
         renderers,
         isSelected: (node) => {
