@@ -17,6 +17,7 @@ describe("DateTime", () => {
     const time = screen.getByText("2 hours ago").closest("time")!;
     expect(time.tagName).toBe("TIME");
     expect(time.textContent).toContain(formatAbsoluteDateTime(date));
+    expect(time.textContent).toContain(`(${formatAbsoluteDateTime(date)})`);
     expect(time.getAttribute("datetime")).toBe(date.toISOString());
     expect(time.getAttribute("title")).toBe(formatAbsoluteDateTime(date));
   });

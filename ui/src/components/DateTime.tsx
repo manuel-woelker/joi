@@ -69,7 +69,7 @@ export function DateTime(props: DateTimeProps) {
       </span>
       <Show when={showAbsolute()}>
         <span ref={absolutePart} class={styles.absolute}>
-          {absolute()}
+          ({absolute()})
         </span>
       </Show>
     </time>
