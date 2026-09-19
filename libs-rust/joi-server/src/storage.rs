@@ -137,7 +137,7 @@ impl DataStore for IndexedDataStore {
             let table = mutation_step_table(chunk.step).clone();
             let mut entities = Vec::new();
             let dirty_table = dirty_table_name(&table);
-            let dirty_key = self.next_dirty_key(&dirty_table)?;
+            let dirty_key = new_dirty_key();
             let mut ids = Vec::new();
             let is_delete;
             match chunk.step {
@@ -307,25 +307,10 @@ impl IndexedDataStore {
         })
     }
 
-    fn next_dirty_key(&self, dirty_table: &TableName) -> JoiResult<Vec<u8>> {
-        let current = self
-            .key_value_store
-            .query_range(dirty_table, &[]..&[u8::MAX; 8])?;
-        let next = current
-            .last()
-            .map_or(Ok(0), |entry| dirty_sequence(&entry.key))?
-            .checked_add(1)
-            .ok_or_else(|| joi_error!("dirty sequence exhausted for `{}`", dirty_table.0))?;
-        Ok(next.to_be_bytes().to_vec())
-    }
-
     fn reindex_dirty(&mut self, entity_type: &TableName) -> JoiResult<()> {
         loop {
             let dirty_table = dirty_table_name(entity_type);
-            let Some(entry) = self
-                .key_value_store
-                .query_first(&dirty_table, &[]..&[u8::MAX; 8])?
-            else {
+            let Some(entry) = self.key_value_store.query_oldest(&dirty_table)? else {
                 return Ok(());
             };
             let ids = decode_ids(&entry.value)?;
@@ -589,6 +574,14 @@ fn dirty_table_name(entity_type: &TableName) -> TableName {
     TableName(format!("dirty_{}", entity_type.0).into())
 }
 
+/// Generates a unique, roughly time-ordered dirty-entry key.
+///
+/// KSUIDs sort by creation time and need no coordination, so key allocation
+/// is a pure function: no store scan and no read-then-write race.
+fn new_dirty_key() -> Vec<u8> {
+    ksuid::Ksuid::generate().as_bytes().to_vec()
+}
+
 fn encode_ids(ids: &[Vec<u8>]) -> Vec<u8> {
     let mut encoded = (ids.len() as u32).to_be_bytes().to_vec();
     for id in ids {
@@ -622,13 +615,6 @@ fn read_u32(bytes: &mut &[u8]) -> JoiResult<u32> {
     let (head, tail) = bytes.split_at(4);
     *bytes = tail;
     Ok(u32::from_be_bytes(head.try_into().expect("length checked")))
-}
-
-fn dirty_sequence(key: &[u8]) -> JoiResult<u64> {
-    let bytes: [u8; 8] = key
-        .try_into()
-        .map_err(|_| joi_error!("dirty entry has an invalid sequence key"))?;
-    Ok(u64::from_be_bytes(bytes))
 }
 
 fn validate_unique_ids(ids: &[joi_base::JoiString]) -> JoiResult<()> {

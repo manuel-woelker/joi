@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use joi_error::{JoiResult, report};
-use redb::{Database, ReadableDatabase, TableDefinition};
+use redb::{Database, ReadableDatabase, ReadableTable, TableDefinition};
 
 use crate::{
     data_store::TableName,
@@ -101,11 +101,7 @@ impl KeyValueStore for RedbKeyValueStore {
             .collect()
     }
 
-    fn query_first(
-        &self,
-        table: &TableName,
-        range: std::ops::Range<&[u8]>,
-    ) -> JoiResult<Option<KeyValue>> {
+    fn query_oldest(&self, table: &TableName) -> JoiResult<Option<KeyValue>> {
         let transaction = self.database.begin_read().map_err(report)?;
         let name = Self::table_name(table);
         let table = match transaction.open_table(TableDefinition::<&[u8], &[u8]>::new(&name)) {
@@ -113,12 +109,7 @@ impl KeyValueStore for RedbKeyValueStore {
             Err(error) if error.to_string().contains("does not exist") => return Ok(None),
             Err(error) => return Err(report(error)),
         };
-        let entry = table
-            .range(range)
-            .map_err(report)?
-            .next()
-            .transpose()
-            .map_err(report)?;
+        let entry = table.first().map_err(report)?;
         Ok(entry.map(|(key, value)| KeyValue {
             key: key.value().to_vec(),
             value: value.value().to_vec(),
@@ -179,6 +170,45 @@ mod tests {
                 .query_range(&TableName("missing".into()), &[]..&[u8::MAX])
                 .unwrap()
                 .is_empty()
+        );
+        assert!(
+            store
+                .query_oldest(&TableName("missing".into()))
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn oldest_returns_the_smallest_key() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut store = RedbKeyValueStore::open(directory.path().join("store.redb")).unwrap();
+        let table = TableName("values".into());
+        let mutations = vec![KeyValueMutation::Set(KeyValueSetMutation {
+            table: table.clone(),
+            entries: vec![
+                KeyValue {
+                    key: vec![0, 2],
+                    value: vec![9],
+                },
+                KeyValue {
+                    key: vec![0, 1],
+                    value: vec![8],
+                },
+            ],
+        })];
+        store
+            .mutate(KeyValueMutations {
+                mutations: &mutations,
+            })
+            .unwrap();
+
+        assert_eq!(
+            store.query_oldest(&table).unwrap(),
+            Some(KeyValue {
+                key: vec![0, 1],
+                value: vec![8]
+            })
         );
     }
 }

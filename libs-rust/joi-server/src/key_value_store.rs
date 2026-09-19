@@ -60,8 +60,8 @@ pub trait KeyValueStore: Send {
     /// Returns entries whose keys fall within `range`, in key order.
     fn query_range(&self, table: &TableName, range: Range<&[u8]>) -> JoiResult<Vec<KeyValue>>;
 
-    /// Returns the first entry whose key falls within `range`.
-    fn query_first(&self, table: &TableName, range: Range<&[u8]>) -> JoiResult<Option<KeyValue>>;
+    /// Returns the oldest entry in `table`, i.e. the one with the smallest key.
+    fn query_oldest(&self, table: &TableName) -> JoiResult<Option<KeyValue>>;
 }
 
 /// A shareable key/value store handle.
