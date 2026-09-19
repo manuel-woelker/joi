@@ -1,37 +1,38 @@
-import { createEffect, createMemo, createResource, createSignal, Match, onCleanup, Show, Switch } from "solid-js";
 import FunnelIcon from "lucide-solid/icons/funnel";
 import GemIcon from "lucide-solid/icons/gem";
 import RefreshCwIcon from "lucide-solid/icons/refresh-cw";
 import XIcon from "lucide-solid/icons/x";
+import { createEffect, createMemo, createResource, createSignal, Match, onCleanup, Show, Switch } from "solid-js";
 
 import { useNavigation } from "../../../base/navigation";
+import { useApplicationServices } from "../../../base/services/application-services";
+import { useContextMenu } from "../../../components/context-menu/ContextMenuProvider";
+import { contextMenuGroupId } from "../../../components/context-menu/context-menu";
 import { DataTable, type DataTableSort } from "../../../components/DataTable";
-import { FacetFilter, type Facet, type FacetValueState } from "../../../components/facet/FacetFilter";
+import { type Facet, FacetFilter, type FacetValueState } from "../../../components/facet/FacetFilter";
 import { entityFilterAttributes } from "../../../components/filter-definition/entity-filter-attributes";
 import { FilterDefinitionEditor } from "../../../components/filter-definition/FilterDefinitionEditor";
 import { createCompositeFilter, type FilterDefinition } from "../../../components/filter-definition/filter-model";
 import { IconButton } from "../../../components/IconButton";
 import { Select } from "../../../components/Select";
-import { useContextMenu } from "../../../components/context-menu/ContextMenuProvider";
-import { contextMenuGroupId } from "../../../components/context-menu/context-menu";
 import { useActions } from "../actions/ActionProvider";
 import type { EntityRecordActionTarget } from "../actions/action";
 import { actionsToContextMenuEntries } from "../actions/action-context-menu";
 import { bindEntity, createEntityTableColumns } from "../entities/bound-entity";
-import { createEntityEditorDefinition } from "../entities/entity-editor";
 import type { EntityDescription, EntityId } from "../entities/entity-description";
+import { createEntityEditorDefinition } from "../entities/entity-editor";
 import { useEntityRegistry } from "../entities/entity-registry";
 import { LookupValue, useLookupService } from "../lookups/lookup";
 import type { QueryAggregateResult, QueryResult, QueryResultRow, QueryValue } from "../query/query-result";
 import {
+  type FacetSelection,
   loadEntityFacet,
   loadEntityRecordCount,
   loadEntityRecords,
-  type FacetSelection,
 } from "../saved-views/entity-query";
-import { useApplicationServices } from "../../../base/services/application-services";
-import { MasterDetailView } from "./MasterDetailView";
 import styles from "./EntityMasterDetailView.module.css";
+import { MasterDetailView } from "./MasterDetailView";
+import { recordTablePerformance } from "./table-performance";
 
 /** Generic create, filter, list, and edit view driven by one entity description. */
 export function EntityMasterDetailView(props: {
@@ -86,9 +87,17 @@ export function EntityMasterDetailView(props: {
     setFacetSelections([]);
     setFilterParameters({ filter: next, facets: [] });
   });
-  const [records, { refetch }] = createResource(rowParameters, (query) =>
-    loadEntityRecords(description, fetchService, query),
-  );
+  let pendingFetch: { fetchMs: number; rowCount: number; columnCount: number } | undefined;
+  const [records, { refetch }] = createResource(rowParameters, async (query) => {
+    const started = performance.now();
+    const result = await loadEntityRecords(description, fetchService, query);
+    pendingFetch = {
+      fetchMs: performance.now() - started,
+      rowCount: result.rows.length,
+      columnCount: result.columns.length,
+    };
+    return result;
+  });
   createEffect(() => {
     const result = records();
     const recordId = navigation.selectedRecordId();
@@ -113,6 +122,40 @@ export function EntityMasterDetailView(props: {
     const result = records();
     const count = totalCount();
     return result && count !== undefined ? { ...result, numberOfHits: count } : result;
+  });
+  // Derivation cost is timed into a plain local so rendering stays pure;
+  // the publish effect below reads it after the memo settles.
+  let lastProcessMs = 0;
+  const boundEntity = createMemo(() => {
+    const result = records();
+    if (!result) return undefined;
+    const started = performance.now();
+    const bound = bindEntity(result, description);
+    lastProcessMs = performance.now() - started;
+    return bound;
+  });
+  createEffect(() => {
+    const result = displayedRecords();
+    const fetch = pendingFetch;
+    const bound = boundEntity();
+    if (!result || !fetch || !bound) return;
+    const processMs = lastProcessMs;
+    const paintStarted = performance.now();
+    const publish = () =>
+      recordTablePerformance({
+        entityId: description.id,
+        entityLabel: description.label,
+        tableName: description.tableName,
+        fetchMs: fetch.fetchMs,
+        processMs,
+        displayMs: performance.now() - paintStarted,
+        rowCount: fetch.rowCount,
+        totalCount: result.numberOfHits ?? fetch.rowCount,
+        columnCount: fetch.columnCount,
+        measuredAt: Date.now(),
+      });
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(publish);
+    else publish();
   });
   createEffect(() => {
     const loading = records.loading || totalCount.loading || facetResources.some((resource) => resource.result.loading);
@@ -227,7 +270,8 @@ export function EntityMasterDetailView(props: {
       </Match>
       <Match when={records()}>
         {(result) => {
-          const entity = createMemo(() => bindEntity(result(), description));
+          // `records()` is truthy inside this branch, so the hoisted memo is settled.
+          const entity = () => boundEntity()!;
           return (
             <MasterDetailView
               leadingPanel={
