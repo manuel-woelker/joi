@@ -24,11 +24,4 @@ tower-http = { version = "0.6", features = ["compression-zstd"] }
 yaml_serde = "0.10"
 
 [dev-dependencies]
-bincode = { version = "2", features = ["serde"] }
-criterion = "0.8.2"
-flatbuffers = "25"
 tower = { version = "0.5", features = ["util"] }
-
-[[bench]]
-name = "attribute_columns"
-harness = false
