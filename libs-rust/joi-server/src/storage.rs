@@ -1,23 +1,27 @@
 use std::{
     collections::{HashMap, HashSet},
+    ops::Range,
     path::Path,
 };
 
 use joi_error::{JoiResult, joi_bail, joi_error, report};
 use serde_json::{Map, Value as JsonValue};
 
+use crate::key_value_store::{KeyValueRemoveMutation, KeyValueSetMutation};
 use crate::{
     data_store::{
         AttributeColumn, ColumnDataType, DataStore, DataStoreCountValue, DataStoreMutation,
         DataStoreMutationResult, DataStoreMutationStep, DataStoreQuery, DataStoreQueryResult,
         QueryCriterion, TableDescription, TableName, Values,
     },
-    entity_store::{Entity, EntityId, EntityKey, EntityMutationStep},
+    entity_store::{Entity, EntityId},
     key_value_store::{KeyValue, KeyValueMutation, KeyValueMutations, KeyValueStore},
     redb_key_value_store::RedbKeyValueStore,
     search_index::SearchIndex,
     tantivy_search_index::TantivySearchIndex,
 };
+
+const MUTATION_CHUNK_SIZE: usize = 10_000;
 
 /// Coordinates authoritative entity storage with a derived search index.
 pub struct IndexedDataStore {
@@ -109,160 +113,212 @@ impl DataStore for IndexedDataStore {
 
     fn mutate(&mut self, mutation: DataStoreMutation) -> JoiResult<DataStoreMutationResult> {
         let return_entities = mutation.return_entities;
-        let (steps, affected) = self.entity_mutation(mutation)?;
-        let dirty_batches = self.dirty_mutations(&affected)?;
-        let mut mutations = Self::entity_mutations(steps)?;
-        mutations
-            .mutations
-            .extend(dirty_batches.iter().map(|batch| {
-                KeyValueMutation::Set(crate::key_value_store::KeyValueSetMutation {
-                    table: batch.table.clone(),
+        let mutation_steps = mutation.steps;
+        let mut returned_entities = Vec::new();
+
+        let mut staged = HashMap::new();
+
+        // Every chunk follows the same durable indexing workflow:
+        //
+        // 1. Compute each entity's final state in the chunk in memory.
+        // 2. Commit those entity mutations and the corresponding dirty entry
+        //    in one key/value transaction.
+        // 3. Index the entities from step 1 directly; no reread is necessary.
+        // 4. Remove the dirty entry only after indexing succeeds. If indexing
+        //    or cleanup fails, the entry remains available for startup replay.
+        //
+        // Chunking bounds transaction size and keeps the index work responsive
+        // for large imports. A later failed chunk can therefore leave earlier
+        // chunks committed and recoverable, rather than rolling back the whole
+        // request after work has already been indexed.
+        for chunk in mutation_chunks(&mutation_steps) {
+            let mut dirty_keys = Vec::new();
+            let entity_mutation: KeyValueMutation;
+            let table = mutation_step_table(chunk.step).clone();
+            let mut entities = Vec::new();
+            let dirty_table = dirty_table_name(&table);
+            let dirty_key = self.next_dirty_key(&dirty_table)?;
+            let mut ids = Vec::new();
+            let is_delete;
+            match chunk.step {
+                DataStoreMutationStep::Insert(mutation) => {
+                    is_delete = false;
+                    let schema = self.schema(&mutation.table_name)?;
+                    validate_columns(schema, &mutation.columns, true)?;
+                    let mut entries = vec![];
+                    for row in chunk.rows.clone() {
+                        let object = object_from_columns(&mutation.columns, row);
+                        self.validate_references(schema, &object, &staged)?;
+                        let entity = entity_from_object(&mutation.table_name, schema, object)?;
+                        let key = (entity.entity_type.clone(), entity.id.clone());
+                        if current_entity(self.key_value_store.as_ref(), &staged, &key)?.is_some() {
+                            joi_bail!("entity `{}` already exists", display_id(&entity.id));
+                        }
+                        ids.push(entity.id.clone());
+                        dirty_keys.push(entity.id.0.clone());
+                        staged.insert(key, Some(entity.clone()));
+                        entities.push(entity.clone());
+                        entries.push(KeyValue {
+                            key: entity.id.0.clone(),
+                            value: entity.data,
+                        });
+                    }
+                    entity_mutation = KeyValueMutation::Set(KeyValueSetMutation {
+                        table: table.clone(),
+                        entries,
+                    });
+                }
+                DataStoreMutationStep::Update(mutation) => {
+                    is_delete = false;
+                    let schema = self.schema(&mutation.table_name)?;
+                    validate_columns(schema, &mutation.columns, false)?;
+                    if mutation
+                        .columns
+                        .iter()
+                        .any(|column| column.attribute == schema.columns[0].name)
+                    {
+                        joi_bail!("primary-key attribute is immutable");
+                    }
+                    validate_unique_ids(&mutation.ids)?;
+                    let mut entries = vec![];
+                    for row in chunk.rows.clone() {
+                        let id = &mutation.ids[row];
+                        let entity_id = EntityId::new(id.as_bytes());
+                        let key = (mutation.table_name.clone(), entity_id.clone());
+                        let mut entity =
+                            current_entity(self.key_value_store.as_ref(), &staged, &key)?
+                                .ok_or_else(|| {
+                                    joi_error!(
+                                        "table `{}` has no record with ID `{id}`",
+                                        mutation.table_name.0
+                                    )
+                                })?;
+                        let mut object =
+                            serde_json::from_slice::<Map<String, JsonValue>>(&entity.data)
+                                .map_err(report)?;
+                        for column in &mutation.columns {
+                            object.insert(
+                                column.attribute.0.to_string(),
+                                json_value_at(&column.values, row),
+                            );
+                        }
+                        self.validate_references(schema, &object, &staged)?;
+                        entity.data = serde_json::to_vec(&object).map_err(report)?;
+                        ids.push(entity.id.clone());
+                        dirty_keys.push(entity.id.0.clone());
+                        staged.insert(key, Some(entity.clone()));
+                        entities.push(entity.clone());
+                        entries.push(KeyValue {
+                            key: entity.id.0.clone(),
+                            value: entity.data,
+                        });
+                    }
+                    entity_mutation = KeyValueMutation::Set(KeyValueSetMutation {
+                        table: table.clone(),
+                        entries,
+                    });
+                }
+                DataStoreMutationStep::Delete(mutation) => {
+                    is_delete = true;
+                    self.schema(&mutation.table_name)?;
+                    validate_unique_ids(&mutation.ids)?;
+                    let mut keys = vec![];
+                    for row in chunk.rows.clone() {
+                        let id = &mutation.ids[row];
+                        let entity_id = EntityId::new(id.as_bytes());
+                        let key = (mutation.table_name.clone(), entity_id.clone());
+                        if current_entity(self.key_value_store.as_ref(), &staged, &key)?.is_none() {
+                            joi_bail!("entity `{id}` does not exist");
+                        }
+                        ids.push(entity_id.clone());
+                        dirty_keys.push(entity_id.0.clone());
+                        staged.insert(key, None);
+                        keys.push(entity_id.0.clone());
+                    }
+                    entity_mutation = KeyValueMutation::Remove(KeyValueRemoveMutation {
+                        table: table.clone(),
+                        keys,
+                    });
+                }
+            }
+            // Exactly two operations are committed for every chunk: the
+            // entity Set/Remove and the single dirty-entry Set.
+            let mutations = vec![
+                entity_mutation,
+                KeyValueMutation::Set(KeyValueSetMutation {
+                    table: dirty_table.clone(),
                     entries: vec![KeyValue {
-                        key: batch.key.clone(),
-                        value: batch.value.clone(),
+                        key: dirty_key.clone(),
+                        value: encode_ids(&dirty_keys),
                     }],
-                })
-            }));
-        self.key_value_store.mutate(mutations)?;
-        let mut changed = Vec::new();
-        for key in &affected {
-            if let Some(entity) = self.read(&key.entity_type, &key.id)? {
-                changed.push(entity);
+                }),
+            ];
+            self.key_value_store.mutate(KeyValueMutations {
+                mutations: &mutations,
+            })?;
+            if !entities.is_empty() {
+                self.search_index.upsert(&entities)?;
+            }
+            if is_delete {
+                self.search_index.delete(&table, &ids)?;
+            }
+            self.clear_dirty_batches(&[DirtyEntry {
+                table: dirty_table,
+                key: dirty_key,
+            }])?;
+
+            if return_entities {
+                for entity in entities {
+                    if let Some(existing) =
+                        returned_entities.iter_mut().find(|existing: &&mut Entity| {
+                            existing.entity_type == entity.entity_type && existing.id == entity.id
+                        })
+                    {
+                        *existing = entity;
+                    } else {
+                        returned_entities.push(entity);
+                    }
+                }
+                if is_delete {
+                    returned_entities
+                        .retain(|entity| entity.entity_type != table || !ids.contains(&entity.id));
+                }
             }
         }
-        let changed_keys = changed
-            .iter()
-            .map(|entity| (entity.entity_type.clone(), entity.id.clone()))
-            .collect::<HashSet<_>>();
-        let mut deleted: HashMap<TableName, Vec<EntityId>> = HashMap::new();
-        for key in affected {
-            if !changed_keys.contains(&(key.entity_type.clone(), key.id.clone())) {
-                deleted.entry(key.entity_type).or_default().push(key.id);
-            }
-        }
-        self.search_index.upsert(&changed)?;
-        for (entity_type, ids) in deleted {
-            self.search_index.delete(&entity_type, &ids)?;
-        }
-        self.clear_dirty_batches(&dirty_batches)?;
         Ok(DataStoreMutationResult {
-            entities: return_entities.then_some(changed),
+            entities: return_entities.then_some(returned_entities),
         })
     }
 }
 
 impl IndexedDataStore {
-    fn read(&self, entity_type: &TableName, id: &EntityId) -> JoiResult<Option<Entity>> {
-        let key = storage_key(entity_type, id);
-        Ok(self
-            .key_value_store
-            .query_ids(&entities_table(), &[key.as_slice()])?
-            .into_iter()
-            .next()
-            .map(|entry| Entity {
-                entity_type: entity_type.clone(),
-                id: id.clone(),
-                data: entry.value,
-            }))
-    }
-
     fn read_many(&self, entity_type: &TableName, ids: &[EntityId]) -> JoiResult<Vec<Entity>> {
-        let keys = ids
-            .iter()
-            .map(|id| storage_key(entity_type, id))
-            .collect::<Vec<_>>();
+        let keys = ids.iter().map(|id| id.0.clone()).collect::<Vec<_>>();
         let references = keys.iter().map(Vec::as_slice).collect::<Vec<_>>();
         Ok(self
             .key_value_store
-            .query_ids(&entities_table(), &references)?
+            .query_ids(entity_type, &references)?
             .into_iter()
-            .filter_map(|entry| {
-                let prefix = storage_prefix(entity_type);
-                let id = entry.key.strip_prefix(prefix.as_slice())?;
-                Some(Entity {
-                    entity_type: entity_type.clone(),
-                    id: EntityId::new(id),
-                    data: entry.value,
-                })
+            .map(|entry| Entity {
+                entity_type: entity_type.clone(),
+                id: EntityId::new(entry.key),
+                data: entry.value,
             })
             .collect())
     }
 
     fn read_all(&self, entity_type: &TableName) -> JoiResult<Vec<Entity>> {
-        let prefix = storage_prefix(entity_type);
-        let upper = prefix_upper_bound(&prefix);
         let entries = self
             .key_value_store
-            .query_range(&entities_table(), prefix.as_slice()..upper.as_slice())?;
+            .query_range(entity_type, &[]..&[u8::MAX])?;
         Ok(entries
             .into_iter()
-            .filter_map(|entry| {
-                Some(Entity {
-                    entity_type: entity_type.clone(),
-                    id: EntityId::new(entry.key.strip_prefix(prefix.as_slice())?.to_vec()),
-                    data: entry.value,
-                })
+            .map(|entry| Entity {
+                entity_type: entity_type.clone(),
+                id: EntityId::new(entry.key),
+                data: entry.value,
             })
             .collect())
-    }
-
-    fn entity_mutations(steps: Vec<EntityMutationStep>) -> JoiResult<KeyValueMutations> {
-        let mut mutations = Vec::new();
-        for step in steps {
-            match step {
-                EntityMutationStep::Create(entity) | EntityMutationStep::Update(entity) => {
-                    mutations.push(KeyValueMutation::Set(
-                        crate::key_value_store::KeyValueSetMutation {
-                            table: entities_table(),
-                            entries: vec![KeyValue {
-                                key: storage_key(&entity.entity_type, &entity.id),
-                                value: entity.data,
-                            }],
-                        },
-                    ));
-                }
-                EntityMutationStep::Delete(key) => {
-                    let encoded = storage_key(&key.entity_type, &key.id);
-                    mutations.push(KeyValueMutation::Remove(
-                        crate::key_value_store::KeyValueRemoveMutation {
-                            table: entities_table(),
-                            keys: vec![encoded],
-                        },
-                    ));
-                }
-            }
-        }
-        Ok(KeyValueMutations { mutations })
-    }
-
-    fn dirty_mutations(&self, affected: &[EntityKey]) -> JoiResult<Vec<DirtyEntry>> {
-        let mut by_type: HashMap<TableName, Vec<Vec<u8>>> = HashMap::new();
-        for key in affected {
-            by_type
-                .entry(key.entity_type.clone())
-                .or_default()
-                .push(key.id.0.clone());
-        }
-        let mut result = Vec::new();
-        for (entity_type, ids) in by_type {
-            let table = dirty_table_name(&entity_type);
-            let current = self
-                .key_value_store
-                .query_range(&table, &[]..&[u8::MAX; 8])?;
-            let next = current
-                .last()
-                .map_or(Ok(0), |entry| dirty_sequence(&entry.key))?
-                .checked_add(1)
-                .ok_or_else(|| joi_error!("dirty sequence exhausted for `{}`", entity_type.0))?;
-            for (offset, chunk) in ids.chunks(10_000).enumerate() {
-                result.push(DirtyEntry {
-                    table: table.clone(),
-                    key: (next + offset as u64).to_be_bytes().to_vec(),
-                    value: encode_ids(chunk),
-                });
-            }
-        }
-        Ok(result)
     }
 
     fn clear_dirty_batches(&mut self, batches: &[DirtyEntry]) -> JoiResult<()> {
@@ -282,7 +338,21 @@ impl IndexedDataStore {
                 })
             })
             .collect();
-        self.key_value_store.mutate(KeyValueMutations { mutations })
+        self.key_value_store.mutate(KeyValueMutations {
+            mutations: &mutations,
+        })
+    }
+
+    fn next_dirty_key(&self, dirty_table: &TableName) -> JoiResult<Vec<u8>> {
+        let current = self
+            .key_value_store
+            .query_range(dirty_table, &[]..&[u8::MAX; 8])?;
+        let next = current
+            .last()
+            .map_or(Ok(0), |entry| dirty_sequence(&entry.key))?
+            .checked_add(1)
+            .ok_or_else(|| joi_error!("dirty sequence exhausted for `{}`", dirty_table.0))?;
+        Ok(next.to_be_bytes().to_vec())
     }
 
     fn reindex_dirty(&mut self, entity_type: &TableName) -> JoiResult<()> {
@@ -317,110 +387,10 @@ impl IndexedDataStore {
                 .map(|entry| DirtyEntry {
                     table: dirty_table.clone(),
                     key: entry.key.clone(),
-                    value: entry.value.clone(),
                 })
                 .collect::<Vec<_>>();
             self.clear_dirty_batches(&dirty_entries)?;
         }
-    }
-
-    fn entity_mutation(
-        &self,
-        mutation: DataStoreMutation,
-    ) -> JoiResult<(Vec<EntityMutationStep>, Vec<EntityKey>)> {
-        let mut steps = Vec::new();
-        let mut affected = Vec::new();
-        let mut staged: HashMap<(TableName, EntityId), Option<Entity>> = HashMap::new();
-        for step in mutation.steps {
-            match step {
-                DataStoreMutationStep::Insert(insert) => {
-                    let schema = self.schema(&insert.table_name)?;
-                    validate_columns(schema, &insert.columns, true)?;
-                    let row_count = insert
-                        .columns
-                        .first()
-                        .map_or(0, |column| value_count(&column.values));
-                    for row in 0..row_count {
-                        let object = object_from_columns(&insert.columns, row);
-                        self.validate_references(schema, &object, &staged)?;
-                        let entity = entity_from_object(&insert.table_name, schema, object)?;
-                        let key = (entity.entity_type.clone(), entity.id.clone());
-                        if current_entity(self.key_value_store.as_ref(), &staged, &key)?.is_some() {
-                            joi_bail!("entity `{}` already exists", display_id(&entity.id));
-                        }
-                        staged.insert(key.clone(), Some(entity.clone()));
-                        affected.push(EntityKey {
-                            entity_type: key.0,
-                            id: key.1,
-                        });
-                        steps.push(EntityMutationStep::Create(entity));
-                    }
-                }
-                DataStoreMutationStep::Update(update) => {
-                    let schema = self.schema(&update.table_name)?;
-                    validate_columns(schema, &update.columns, false)?;
-                    if update
-                        .columns
-                        .iter()
-                        .any(|column| column.attribute == schema.columns[0].name)
-                    {
-                        joi_bail!("primary-key attribute is immutable");
-                    }
-                    validate_unique_ids(&update.ids)?;
-                    for (row, id) in update.ids.iter().enumerate() {
-                        let entity_id = EntityId::new(id.as_bytes());
-                        let key = (update.table_name.clone(), entity_id.clone());
-                        let mut entity =
-                            current_entity(self.key_value_store.as_ref(), &staged, &key)?
-                                .ok_or_else(|| {
-                                    joi_error!(
-                                        "table `{}` has no record with ID `{id}`",
-                                        update.table_name.0
-                                    )
-                                })?;
-                        let mut object =
-                            serde_json::from_slice::<Map<String, JsonValue>>(&entity.data)
-                                .map_err(report)?;
-                        for column in &update.columns {
-                            object.insert(
-                                column.attribute.0.to_string(),
-                                json_value_at(&column.values, row),
-                            );
-                        }
-                        self.validate_references(schema, &object, &staged)?;
-                        entity.data = serde_json::to_vec(&object).map_err(report)?;
-                        staged.insert(key.clone(), Some(entity.clone()));
-                        affected.push(EntityKey {
-                            entity_type: key.0,
-                            id: key.1,
-                        });
-                        steps.push(EntityMutationStep::Update(entity));
-                    }
-                }
-                DataStoreMutationStep::Delete(delete) => {
-                    self.schema(&delete.table_name)?;
-                    validate_unique_ids(&delete.ids)?;
-                    for id in delete.ids {
-                        let entity_id = EntityId::new(id.as_bytes());
-                        let key = (delete.table_name.clone(), entity_id.clone());
-                        if current_entity(self.key_value_store.as_ref(), &staged, &key)?.is_none() {
-                            joi_bail!("entity `{id}` does not exist");
-                        }
-                        staged.insert(key.clone(), None);
-                        affected.push(EntityKey {
-                            entity_type: key.0.clone(),
-                            id: key.1.clone(),
-                        });
-                        steps.push(EntityMutationStep::Delete(EntityKey {
-                            entity_type: key.0,
-                            id: key.1,
-                        }));
-                    }
-                }
-            }
-        }
-        deduplicate_keys(&mut affected);
-        Ok((steps, affected))
     }
 
     fn schema(&self, table_name: &TableName) -> JoiResult<&TableDescription> {
@@ -602,16 +572,12 @@ fn current_entity(
 ) -> JoiResult<Option<Entity>> {
     staged.get(key).cloned().map_or_else(
         || {
-            let encoded = storage_key(&key.0, &key.1);
-            Ok(store
-                .query_ids(&entities_table(), &[encoded.as_slice()])?
-                .into_iter()
-                .next()
-                .map(|value| Entity {
-                    entity_type: key.0.clone(),
-                    id: key.1.clone(),
-                    data: value.value,
-                }))
+            let values = store.query_ids(&key.0, &[key.1.as_bytes()])?;
+            Ok(values.into_iter().next().map(|value| Entity {
+                entity_type: key.0.clone(),
+                id: key.1.clone(),
+                data: value.value,
+            }))
         },
         Ok,
     )
@@ -620,42 +586,59 @@ fn current_entity(
 struct DirtyEntry {
     table: TableName,
     key: Vec<u8>,
-    value: Vec<u8>,
+}
+
+/// A zero-copy view of one planned mutation chunk.
+///
+/// The chunk references its original [`DataStoreMutationStep`] and a row
+/// range within the step's contained vector. A chunk therefore always covers
+/// one table type and at most [`MUTATION_CHUNK_SIZE`] rows.
+struct MutationChunk<'a> {
+    /// The original high-level mutation step.
+    step: &'a DataStoreMutationStep,
+    /// The rows from the step processed by this chunk.
+    rows: Range<usize>,
+}
+
+/// Splits [`DataStoreMutationStep`] values into row-bounded views.
+fn mutation_chunks<'a>(steps: &'a [DataStoreMutationStep]) -> Vec<MutationChunk<'a>> {
+    let mut chunks = Vec::new();
+    for step in steps {
+        let length = mutation_step_len(step);
+        let mut start = 0;
+        while start < length {
+            let end = (start + MUTATION_CHUNK_SIZE).min(length);
+            chunks.push(MutationChunk {
+                step,
+                rows: start..end,
+            });
+            start = end;
+        }
+    }
+    chunks
+}
+
+fn mutation_step_len(step: &DataStoreMutationStep) -> usize {
+    match step {
+        DataStoreMutationStep::Insert(insert) => insert
+            .columns
+            .first()
+            .map_or(0, |column| value_count(&column.values)),
+        DataStoreMutationStep::Update(update) => update.ids.len(),
+        DataStoreMutationStep::Delete(delete) => delete.ids.len(),
+    }
+}
+
+fn mutation_step_table(step: &DataStoreMutationStep) -> &TableName {
+    match step {
+        DataStoreMutationStep::Insert(insert) => &insert.table_name,
+        DataStoreMutationStep::Update(update) => &update.table_name,
+        DataStoreMutationStep::Delete(delete) => &delete.table_name,
+    }
 }
 
 fn dirty_table_name(entity_type: &TableName) -> TableName {
     TableName(format!("dirty_{}", entity_type.0).into())
-}
-
-fn entities_table() -> TableName {
-    TableName("entities".into())
-}
-
-fn storage_prefix(entity_type: &TableName) -> Vec<u8> {
-    let bytes = entity_type.0.as_bytes();
-    let mut prefix = Vec::with_capacity(4 + bytes.len());
-    prefix.extend_from_slice(&(bytes.len() as u32).to_be_bytes());
-    prefix.extend_from_slice(bytes);
-    prefix
-}
-
-fn storage_key(entity_type: &TableName, id: &EntityId) -> Vec<u8> {
-    let mut key = storage_prefix(entity_type);
-    key.extend_from_slice(id.as_bytes());
-    key
-}
-
-fn prefix_upper_bound(prefix: &[u8]) -> Vec<u8> {
-    let mut upper = prefix.to_vec();
-    for byte in upper.iter_mut().rev() {
-        if *byte != u8::MAX {
-            *byte += 1;
-            return upper;
-        }
-        *byte = 0;
-    }
-    upper.push(0);
-    upper
 }
 
 fn encode_ids(ids: &[Vec<u8>]) -> Vec<u8> {
@@ -708,11 +691,6 @@ fn validate_unique_ids(ids: &[joi_base::JoiString]) -> JoiResult<()> {
         }
     }
     Ok(())
-}
-
-fn deduplicate_keys(keys: &mut Vec<EntityKey>) {
-    let mut seen = HashSet::new();
-    keys.retain(|key| seen.insert((key.entity_type.clone(), key.id.clone())));
 }
 
 fn display_id(id: &EntityId) -> String {

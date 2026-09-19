@@ -203,7 +203,7 @@ mod tests {
     }
 
     #[test]
-    fn rolls_back_earlier_steps_when_an_update_target_is_missing() {
+    fn preserves_completed_chunks_when_a_later_step_fails() {
         let mut store = IndexedDataStore::in_memory().unwrap();
         store
             .ensure_tables(vec![UserTableDescriptionProvider.table_description()])
@@ -246,7 +246,7 @@ mod tests {
                 attributes: Vec::new(),
             })
             .unwrap();
-        assert_eq!(result.number_of_hits, 0);
+        assert_eq!(result.number_of_hits, 1);
     }
 
     #[test]

@@ -17,15 +17,7 @@ impl RedbKeyValueStore {
     /// Opens or creates a redb key/value store at `path`.
     pub fn open(path: impl AsRef<Path>) -> JoiResult<Self> {
         Ok(Self {
-            database: {
-                let database = Database::create(path).map_err(report)?;
-                let transaction = database.begin_write().map_err(report)?;
-                transaction
-                    .open_table(TableDefinition::<&[u8], &[u8]>::new("entities"))
-                    .map_err(report)?;
-                transaction.commit().map_err(report)?;
-                database
-            },
+            database: Database::create(path).map_err(report)?,
         })
     }
 
@@ -35,7 +27,7 @@ impl RedbKeyValueStore {
 }
 
 impl KeyValueStore for RedbKeyValueStore {
-    fn mutate(&mut self, mutations: KeyValueMutations) -> JoiResult<()> {
+    fn mutate(&mut self, mutations: KeyValueMutations<'_>) -> JoiResult<()> {
         let transaction = self.database.begin_write().map_err(report)?;
         for mutation in mutations.mutations {
             match mutation {
@@ -44,7 +36,7 @@ impl KeyValueStore for RedbKeyValueStore {
                     let mut table = transaction
                         .open_table(TableDefinition::<&[u8], &[u8]>::new(&name))
                         .map_err(report)?;
-                    for entry in set.entries {
+                    for entry in &set.entries {
                         table
                             .insert(entry.key.as_slice(), entry.value.as_slice())
                             .map_err(report)?;
@@ -55,7 +47,7 @@ impl KeyValueStore for RedbKeyValueStore {
                     let mut table = transaction
                         .open_table(TableDefinition::<&[u8], &[u8]>::new(&name))
                         .map_err(report)?;
-                    for key in remove.keys {
+                    for key in &remove.keys {
                         table.remove(key.as_slice()).map_err(report)?;
                     }
                 }
@@ -125,21 +117,22 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let mut store = RedbKeyValueStore::open(directory.path().join("store.redb")).unwrap();
         let table = TableName("values".into());
+        let mutations = vec![KeyValueMutation::Set(KeyValueSetMutation {
+            table: table.clone(),
+            entries: vec![
+                KeyValue {
+                    key: vec![0, 2],
+                    value: vec![9],
+                },
+                KeyValue {
+                    key: vec![0, 1],
+                    value: vec![8],
+                },
+            ],
+        })];
         store
             .mutate(KeyValueMutations {
-                mutations: vec![KeyValueMutation::Set(KeyValueSetMutation {
-                    table: table.clone(),
-                    entries: vec![
-                        KeyValue {
-                            key: vec![0, 2],
-                            value: vec![9],
-                        },
-                        KeyValue {
-                            key: vec![0, 1],
-                            value: vec![8],
-                        },
-                    ],
-                })],
+                mutations: &mutations,
             })
             .unwrap();
 

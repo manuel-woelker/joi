@@ -14,10 +14,9 @@ pub struct KeyValue {
 }
 
 /// A group of operations committed atomically.
-#[derive(Default)]
-pub struct KeyValueMutations {
+pub struct KeyValueMutations<'a> {
     /// Operations applied in declaration order.
-    pub mutations: Vec<KeyValueMutation>,
+    pub mutations: &'a Vec<KeyValueMutation>,
 }
 
 /// One atomic key/value operation.
@@ -53,7 +52,7 @@ pub struct KeyValueRemoveMutation {
 /// transaction.
 pub trait KeyValueStore: Send {
     /// Applies all operations atomically.
-    fn mutate(&mut self, mutations: KeyValueMutations) -> JoiResult<()>;
+    fn mutate(&mut self, mutations: KeyValueMutations<'_>) -> JoiResult<()>;
 
     /// Looks up keys, returning only entries that exist.
     fn query_ids(&self, table: &TableName, ids: &[&[u8]]) -> JoiResult<Vec<KeyValue>>;
