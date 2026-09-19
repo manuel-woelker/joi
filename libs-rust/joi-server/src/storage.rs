@@ -87,9 +87,8 @@ impl DataStore for IndexedDataStore {
         let entity_types = schemas.keys().cloned().collect::<Vec<_>>();
         self.search_index.prepare(tables)?;
         for entity_type in &entity_types {
-            if self.search_index.is_empty(entity_type)? {
-                let entities = self.read_all(entity_type)?;
-                self.search_index.rebuild(entity_type, &entities)?;
+            if self.search_index.is_empty(entity_type)? || self.rebuild_in_progress(entity_type)? {
+                self.rebuild_index(entity_type)?;
             }
             self.reindex_dirty(entity_type)?;
         }
@@ -168,18 +167,77 @@ impl IndexedDataStore {
             .collect())
     }
 
-    fn read_all(&self, entity_type: &TableName) -> JoiResult<Vec<Entity>> {
-        let entries = self
+    /// Indexes every stored entity in bounded pages.
+    ///
+    /// The search index starts empty here, so accumulated upserts converge
+    /// to the same state as one bulk rebuild without holding the whole
+    /// table in memory. Each page is one index commit, sized like a
+    /// mutation chunk.
+    ///
+    /// The start marker lands before the first page and the completion
+    /// marker after the last one, so an interrupted rebuild restarts on the
+    /// next boot instead of trusting a partial index. Restarting is safe
+    /// because page upserts are idempotent.
+    fn rebuild_index(&mut self, entity_type: &TableName) -> JoiResult<()> {
+        self.mark_rebuild_started(entity_type)?;
+        let mut after: Option<Vec<u8>> = None;
+        loop {
+            let entries = self.key_value_store.query_page(
+                entity_type,
+                after.as_deref(),
+                MUTATION_CHUNK_SIZE,
+            )?;
+            if entries.is_empty() {
+                break;
+            }
+            let entities = entries
+                .into_iter()
+                .map(|entry| Entity {
+                    entity_type: entity_type.clone(),
+                    id: EntityId::new(entry.key),
+                    data: entry.value,
+                })
+                .collect::<Vec<_>>();
+            after = entities.last().map(|entity| entity.id.0.clone());
+            self.search_index.upsert(&entities)?;
+        }
+        self.mark_rebuild_finished(entity_type)
+    }
+
+    /// Whether a rebuild started but never finished.
+    ///
+    /// The marker lives in the key/value store because that is the durable
+    /// source of truth; the search index is derived and can always be
+    /// rebuilt from it.
+    fn rebuild_in_progress(&self, entity_type: &TableName) -> JoiResult<bool> {
+        let key = index_state_key(entity_type);
+        let found = self
             .key_value_store
-            .query_range(entity_type, &[]..&[u8::MAX])?;
-        Ok(entries
-            .into_iter()
-            .map(|entry| Entity {
-                entity_type: entity_type.clone(),
-                id: EntityId::new(entry.key),
-                data: entry.value,
-            })
-            .collect())
+            .query_ids(&index_state_table(), &[key.as_slice()])?;
+        Ok(!found.is_empty())
+    }
+
+    fn mark_rebuild_started(&mut self, entity_type: &TableName) -> JoiResult<()> {
+        let mutations = vec![KeyValueMutation::Set(KeyValueSetMutation {
+            table: index_state_table(),
+            entries: vec![KeyValue {
+                key: index_state_key(entity_type),
+                value: Vec::new(),
+            }],
+        })];
+        self.key_value_store.mutate(KeyValueMutations {
+            mutations: &mutations,
+        })
+    }
+
+    fn mark_rebuild_finished(&mut self, entity_type: &TableName) -> JoiResult<()> {
+        let mutations = vec![KeyValueMutation::Remove(KeyValueRemoveMutation {
+            table: index_state_table(),
+            keys: vec![index_state_key(entity_type)],
+        })];
+        self.key_value_store.mutate(KeyValueMutations {
+            mutations: &mutations,
+        })
     }
 
     /// Computes one chunk's final row states without persisting anything.
@@ -632,6 +690,18 @@ fn dirty_table_name(entity_type: &TableName) -> TableName {
     TableName(format!("dirty_{}", entity_type.0).into())
 }
 
+/// Durable rebuild bookkeeping.
+///
+/// One entry per entity type records that a rebuild started; its absence
+/// means no rebuild is in flight.
+fn index_state_table() -> TableName {
+    TableName("index_state".into())
+}
+
+fn index_state_key(entity_type: &TableName) -> Vec<u8> {
+    entity_type.0.as_bytes().to_vec()
+}
+
 /// Generates a unique, roughly time-ordered dirty-entry key.
 ///
 /// KSUIDs sort by creation time and need no coordination, so key allocation
@@ -687,4 +757,124 @@ fn validate_unique_ids(ids: &[joi_base::JoiString]) -> JoiResult<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::data_store::{AttributeName, ColumnDescription, QueryCriterion};
+
+    fn users_table() -> TableDescription {
+        let column = |name: &'static str| ColumnDescription {
+            name: AttributeName(name.into()),
+            description: name.into(),
+            data_type: ColumnDataType::String,
+            optional: false,
+            references: None,
+        };
+        TableDescription {
+            name: TableName("users".into()),
+            discoverable: true,
+            columns: vec![column("id"), column("name")],
+        }
+    }
+
+    fn user_row(id: &str, name: &str) -> KeyValue {
+        KeyValue {
+            key: id.as_bytes().to_vec(),
+            value: serde_json::json!({"id": id, "name": name})
+                .to_string()
+                .into_bytes(),
+        }
+    }
+
+    fn user_entity(table: &TableName, id: &str, name: &str) -> Entity {
+        let row = user_row(id, name);
+        Entity {
+            entity_type: table.clone(),
+            id: EntityId::new(row.key),
+            data: row.value,
+        }
+    }
+
+    #[test]
+    fn interrupted_rebuild_restarts_on_next_boot() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut key_value_store =
+            RedbKeyValueStore::open(directory.path().join("entities.redb")).unwrap();
+        // Seed entity rows directly so the search index starts out stale.
+        let table = TableName("users".into());
+        let mutations = vec![KeyValueMutation::Set(KeyValueSetMutation {
+            table: table.clone(),
+            entries: vec![user_row("user-1", "Ada"), user_row("user-2", "Grace")],
+        })];
+        key_value_store
+            .mutate(KeyValueMutations {
+                mutations: &mutations,
+            })
+            .unwrap();
+        let search_index = TantivySearchIndex::open(directory.path().join("search")).unwrap();
+        let mut store = IndexedDataStore::from_parts(
+            Box::new(key_value_store) as Box<dyn KeyValueStore>,
+            Box::new(search_index) as Box<dyn SearchIndex>,
+        );
+        // Simulate a crash before any page landed: marker set, index empty.
+        store.mark_rebuild_started(&table).unwrap();
+
+        store.ensure_tables(vec![users_table()]).unwrap();
+
+        assert_eq!(hits(&store, &table), 2);
+        assert!(!store.rebuild_in_progress(&table).unwrap());
+    }
+
+    #[test]
+    fn restarted_rebuild_converges_without_duplicates() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut key_value_store =
+            RedbKeyValueStore::open(directory.path().join("entities.redb")).unwrap();
+        let table = TableName("users".into());
+        let mutations = vec![KeyValueMutation::Set(KeyValueSetMutation {
+            table: table.clone(),
+            entries: vec![user_row("user-1", "Ada"), user_row("user-2", "Grace")],
+        })];
+        key_value_store
+            .mutate(KeyValueMutations {
+                mutations: &mutations,
+            })
+            .unwrap();
+        let mut search_index = TantivySearchIndex::open(directory.path().join("search")).unwrap();
+        search_index.prepare(vec![users_table()]).unwrap();
+        let mut store = IndexedDataStore::from_parts(
+            Box::new(key_value_store) as Box<dyn KeyValueStore>,
+            Box::new(search_index) as Box<dyn SearchIndex>,
+        );
+        // Simulate a crash halfway through: one page indexed, marker left set.
+        store
+            .search_index
+            .upsert(&[user_entity(&table, "user-1", "Ada")])
+            .unwrap();
+        store.mark_rebuild_started(&table).unwrap();
+
+        store.rebuild_index(&table).unwrap();
+
+        // Re-upserting the first page must not duplicate it.
+        assert_eq!(hits(&store, &table), 2);
+        assert!(!store.rebuild_in_progress(&table).unwrap());
+    }
+
+    fn hits(store: &IndexedDataStore, table: &TableName) -> usize {
+        store
+            .query_rows(
+                DataStoreQuery {
+                    table_name: table.clone(),
+                    criterion: QueryCriterion::MatchAny,
+                    sorting: Vec::new(),
+                    max_results: 10,
+                    attributes: vec![AttributeName("name".into())],
+                },
+                false,
+            )
+            .unwrap()
+            .number_of_hits
+    }
 }

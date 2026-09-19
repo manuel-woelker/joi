@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{ops::Bound, path::Path};
 
 use joi_error::{JoiResult, report};
 use redb::{Database, ReadableDatabase, ReadableTable, TableDefinition};
@@ -91,6 +91,35 @@ impl KeyValueStore for RedbKeyValueStore {
         table
             .range(range)
             .map_err(report)?
+            .map(|entry| {
+                let (key, value) = entry.map_err(report)?;
+                Ok(KeyValue {
+                    key: key.value().to_vec(),
+                    value: value.value().to_vec(),
+                })
+            })
+            .collect()
+    }
+
+    fn query_page(
+        &self,
+        table: &TableName,
+        after: Option<&[u8]>,
+        limit: usize,
+    ) -> JoiResult<Vec<KeyValue>> {
+        debug_assert!(limit > 0, "paged scans need a nonzero page size");
+        let transaction = self.database.begin_read().map_err(report)?;
+        let name = Self::table_name(table);
+        let table = match transaction.open_table(TableDefinition::<&[u8], &[u8]>::new(&name)) {
+            Ok(table) => table,
+            Err(error) if error.to_string().contains("does not exist") => return Ok(Vec::new()),
+            Err(error) => return Err(report(error)),
+        };
+        let lower = after.map_or(Bound::Unbounded, Bound::Excluded);
+        table
+            .range::<&[u8]>((lower, Bound::Unbounded))
+            .map_err(report)?
+            .take(limit)
             .map(|entry| {
                 let (key, value) = entry.map_err(report)?;
                 Ok(KeyValue {
@@ -209,6 +238,64 @@ mod tests {
                 key: vec![0, 1],
                 value: vec![8]
             })
+        );
+    }
+
+    #[test]
+    fn pages_walk_a_table_without_gaps_or_repeats() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut store = RedbKeyValueStore::open(directory.path().join("store.redb")).unwrap();
+        let table = TableName("values".into());
+        let mutations = vec![KeyValueMutation::Set(KeyValueSetMutation {
+            table: table.clone(),
+            entries: vec![
+                KeyValue {
+                    key: vec![0, 3],
+                    value: vec![3],
+                },
+                KeyValue {
+                    key: vec![0, 1],
+                    value: vec![1],
+                },
+                KeyValue {
+                    key: vec![0, 2],
+                    value: vec![2],
+                },
+            ],
+        })];
+        store
+            .mutate(KeyValueMutations {
+                mutations: &mutations,
+            })
+            .unwrap();
+
+        let first = store.query_page(&table, None, 2).unwrap();
+        assert_eq!(
+            first
+                .iter()
+                .map(|entry| entry.key.clone())
+                .collect::<Vec<_>>(),
+            vec![vec![0, 1], vec![0, 2]]
+        );
+        let second = store.query_page(&table, Some(&first[1].key), 2).unwrap();
+        assert_eq!(
+            second
+                .iter()
+                .map(|entry| entry.key.clone())
+                .collect::<Vec<_>>(),
+            vec![vec![0, 3]]
+        );
+        assert!(
+            store
+                .query_page(&table, Some(&second[0].key), 2)
+                .unwrap()
+                .is_empty()
+        );
+        assert!(
+            store
+                .query_page(&TableName("missing".into()), None, 2)
+                .unwrap()
+                .is_empty()
         );
     }
 }

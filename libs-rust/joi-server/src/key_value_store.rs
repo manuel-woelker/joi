@@ -60,6 +60,17 @@ pub trait KeyValueStore: Send {
     /// Returns entries whose keys fall within `range`, in key order.
     fn query_range(&self, table: &TableName, range: Range<&[u8]>) -> JoiResult<Vec<KeyValue>>;
 
+    /// Returns up to `limit` entries with keys strictly after `after`, in key order.
+    ///
+    /// A `None` cursor starts at the beginning. The open-ended scan lets
+    /// callers page through a table without loading it into memory.
+    fn query_page(
+        &self,
+        table: &TableName,
+        after: Option<&[u8]>,
+        limit: usize,
+    ) -> JoiResult<Vec<KeyValue>>;
+
     /// Returns the oldest entry in `table`, i.e. the one with the smallest key.
     fn query_oldest(&self, table: &TableName) -> JoiResult<Option<KeyValue>>;
 }
