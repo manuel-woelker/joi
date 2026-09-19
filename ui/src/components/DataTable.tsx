@@ -1,8 +1,8 @@
 import { type ColumnDef, createSolidTable, flexRender, getCoreRowModel, type Row } from "@tanstack/solid-table";
 import { createVirtualizer } from "@tanstack/solid-virtual";
+import ArrowDownIcon from "lucide-solid/icons/arrow-down";
 import { createEffect, createMemo, createSignal, For, type JSX, onCleanup, onMount, Show } from "solid-js";
 import { Portal } from "solid-js/web";
-import ArrowDownIcon from "lucide-solid/icons/arrow-down";
 
 import type { QueryColumnHandle, QueryResult, QueryResultRow, QueryValue } from "../plugins/core/query/query-result";
 import styles from "./DataTable.module.css";
@@ -123,6 +123,15 @@ export function DataTable(props: DataTableProps) {
     },
   });
   const virtualItems = () => virtualizer.getVirtualItems();
+  // Pairs each virtual window item with its current row so the list
+  // refreshes on data changes even when the window itself is unchanged.
+  // Without this, the For below never re-runs on data-only updates: the
+  // virtualizer memoizes by index, Solid skips referentially stable items,
+  // and stale rows keep rendering against fresh column definitions.
+  const virtualRows = createMemo(() => {
+    const rows = tableRows();
+    return virtualItems().map((item) => ({ item, row: rows[item.index] }));
+  });
   const paddingTop = () => virtualItems()[0]?.start ?? 0;
   const paddingBottom = () => {
     const last = virtualItems().at(-1);
@@ -536,7 +545,9 @@ export function DataTable(props: DataTableProps) {
                       />
                     </tr>
                   </Show>
-                  <For each={virtualItems()}>{(item) => renderRow(tableRows()[item.index], item.index)}</For>
+                  <For each={virtualRows()}>
+                    {(entry) => (entry.row ? renderRow(entry.row, entry.item.index) : undefined)}
+                  </For>
                   <Show when={paddingBottom() > 0}>
                     <tr aria-hidden="true">
                       <td

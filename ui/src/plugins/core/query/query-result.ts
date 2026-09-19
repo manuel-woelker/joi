@@ -86,7 +86,8 @@ export function parseQueryResponse(value: unknown, aggregates: readonly QueryAgg
     return {
       index: rowIndex,
       value(column) {
-        if (column[resultBrand] !== identity) throw new Error("Query column belongs to a different result");
+        if (column[resultBrand] !== identity)
+          throw new Error(`Query column '${column.attribute}' at row ${rowIndex} belongs to a different result`);
         return cells[column.index]?.[rowIndex]?.[0]();
       },
     };

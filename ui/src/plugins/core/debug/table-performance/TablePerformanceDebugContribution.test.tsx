@@ -18,7 +18,9 @@ const ticketMetrics = {
   tableName: "tickets",
   fetchMs: 12.345,
   processMs: 1.234,
+  commitMs: 2.345,
   displayMs: 5.678,
+  virtualized: true,
   rowCount: 25,
   totalCount: 100,
   columnCount: 6,
@@ -36,7 +38,7 @@ describe("TablePerformanceDebugContribution", () => {
     render(() => <TablePerformanceDebugContribution />);
 
     expect(await screen.findByText("Tickets")).toBeDefined();
-    for (const label of ["Fetch", "Process", "Display", "Rows", "Columns", "Measured"]) {
+    for (const label of ["Fetch", "Process", "Commit", "Display", "Virtualized", "Rows", "Columns", "Measured"]) {
       expect(screen.getByText(label)).toBeDefined();
     }
     expect(screen.getByText("25 of 100")).toBeDefined();

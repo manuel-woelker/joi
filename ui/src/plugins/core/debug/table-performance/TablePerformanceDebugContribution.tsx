@@ -34,7 +34,9 @@ function EntityMetrics(props: { metrics: TablePerformanceMetrics }) {
       <dl>
         <MetricRow label="Fetch" value={formatMs(metrics().fetchMs)} />
         <MetricRow label="Process" value={formatMs(metrics().processMs)} />
+        <MetricRow label="Commit" value={formatMs(metrics().commitMs)} />
         <MetricRow label="Display" value={formatMs(metrics().displayMs)} />
+        <MetricRow label="Virtualized" value={metrics().virtualized ? "yes" : "no"} />
         <MetricRow label="Rows" value={`${metrics().rowCount} of ${metrics().totalCount}`} />
         <MetricRow label="Columns" value={String(metrics().columnCount)} />
         <MetricRow label="Measured" value={formatTime(metrics().measuredAt)} />

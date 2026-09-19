@@ -62,6 +62,22 @@ export function EntityMasterDetailView(props: {
   });
   const rowParameters = createMemo(() => ({ ...filterParameters(), sorting: sorting() }));
   const [showLoading, setShowLoading] = createSignal(false);
+  // Viewport height drives table virtualization so only visible rows mount.
+  // It is measured rather than fixed because the master pane flex-fills
+  // the available shell space. Observation starts from the element ref
+  // rather than onMount because the table branch only renders once records
+  // arrive, which is after component mount. Until the first measurement
+  // lands, the table renders unvirtualized so content is never hidden
+  // behind an empty virtual window.
+  const [viewportHeight, setViewportHeight] = createSignal(0);
+  const observeViewportHeight = (element: HTMLDivElement) => {
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver((entries) => {
+      setViewportHeight(entries[0]?.contentRect.height ?? 0);
+    });
+    observer.observe(element);
+    onCleanup(() => observer.disconnect());
+  };
   createEffect(() => {
     const current = filter();
     if (current === filterParameters().filter) return;
@@ -87,12 +103,14 @@ export function EntityMasterDetailView(props: {
     setFacetSelections([]);
     setFilterParameters({ filter: next, facets: [] });
   });
-  let pendingFetch: { fetchMs: number; rowCount: number; columnCount: number } | undefined;
+  let pendingFetch: { fetchMs: number; settledAt: number; rowCount: number; columnCount: number } | undefined;
   const [records, { refetch }] = createResource(rowParameters, async (query) => {
     const started = performance.now();
     const result = await loadEntityRecords(description, fetchService, query);
+    const settledAt = performance.now();
     pendingFetch = {
-      fetchMs: performance.now() - started,
+      fetchMs: settledAt - started,
+      settledAt,
       rowCount: result.rows.length,
       columnCount: result.columns.length,
     };
@@ -148,7 +166,9 @@ export function EntityMasterDetailView(props: {
         tableName: description.tableName,
         fetchMs: fetch.fetchMs,
         processMs,
+        commitMs: paintStarted - fetch.settledAt,
         displayMs: performance.now() - paintStarted,
+        virtualized: viewportHeight() > 0,
         rowCount: fetch.rowCount,
         totalCount: result.numberOfHits ?? fetch.rowCount,
         columnCount: fetch.columnCount,
@@ -394,27 +414,30 @@ export function EntityMasterDetailView(props: {
                       onClick={refresh}
                     />
                   </div>
-                  <DataTable
-                    ariaLabel={description.pluralLabel}
-                    result={displayedRecords()!}
-                    rows={result().rows}
-                    columns={createEntityTableColumns(entity())}
-                    loading={showLoading()}
-                    loadingMessage="Loading..."
-                    fillHeight
-                    fillWidth
-                    sorting={sorting()}
-                    onSortingChange={setSorting}
-                    rowKey={entity().identity}
-                    selectedRowKey={navigation.selectedRecordId()}
-                    density="compact"
-                    emptyMessage={`No matching ${description.pluralLabel.toLowerCase()} found.`}
-                    onRowSelect={(row) => {
-                      const id = row.value(entity().identity);
-                      if (typeof id === "string") navigation.selectRecord(id);
-                    }}
-                    onRowContextMenu={openContextMenu}
-                  />
+                  <div ref={observeViewportHeight} class={styles.tableViewport}>
+                    <DataTable
+                      ariaLabel={description.pluralLabel}
+                      result={displayedRecords()!}
+                      rows={result().rows}
+                      columns={createEntityTableColumns(entity())}
+                      loading={showLoading()}
+                      loadingMessage="Loading..."
+                      fillHeight
+                      fillWidth
+                      virtualization={viewportHeight() > 0 ? { height: viewportHeight() } : undefined}
+                      sorting={sorting()}
+                      onSortingChange={setSorting}
+                      rowKey={entity().identity}
+                      selectedRowKey={navigation.selectedRecordId()}
+                      density="compact"
+                      emptyMessage={`No matching ${description.pluralLabel.toLowerCase()} found.`}
+                      onRowSelect={(row) => {
+                        const id = row.value(entity().identity);
+                        if (typeof id === "string") navigation.selectRecord(id);
+                      }}
+                      onRowContextMenu={openContextMenu}
+                    />
+                  </div>
                 </>
               }
               definition={editor}

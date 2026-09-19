@@ -12,8 +12,12 @@ export interface TablePerformanceMetrics {
   readonly fetchMs: number;
   /** Wall time of deriving display state from the result, in milliseconds. */
   readonly processMs: number;
-  /** Time from settled data to the painted frame, in milliseconds. */
+  /** Time from settled data to the publish effect running, in milliseconds. */
+  readonly commitMs: number;
+  /** Time from the publish effect to the painted frame, in milliseconds. */
   readonly displayMs: number;
+  /** Whether row virtualization was active for this load. */
+  readonly virtualized: boolean;
   /** Rows returned by the fetch. */
   readonly rowCount: number;
   /** Total matching rows reported by the count query. */

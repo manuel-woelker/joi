@@ -17,6 +17,13 @@
   margin: 0 0 8px;
 }
 
+.tableViewport {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
 .filterButton {
   flex: 0 0 auto;
 }
