@@ -41,10 +41,18 @@ Features should be covered by automated tests where practical.
 
 ## Checks and Formatting
 
-Before completing a unit of work, run the most relevant checks for the packages touched.
-If repository-wide tooling exists, prefer that over ad hoc commands.
-After completing a unit of work, run `nao check` and request active development
-tasks to restart with `nao --restart`.
+All repository tooling runs through the `./n` wrapper at the repository root
+(it bootstraps the pinned `nao` toolchain via `t`; bare `nao` is not on PATH).
+Run `./n --list` to see the available tasks.
+
+Follow this checklist for every unit of work:
+
+1. While working, run the most relevant checks for the packages touched
+   (for example `cargo test -p <package>`).
+2. After completing the unit of work, run the repository-wide checks with
+   `./n check` from the repository root and fix any failures.
+3. Then run `./n --restart` so active development tasks
+   (watchers, dev servers) pick up the changes.
 
 When adding a new package, document its standard commands in the package README and wire it into shared checks when appropriate.
 
