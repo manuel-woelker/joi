@@ -48,4 +48,7 @@ export default defineConfig({
   experimental: {
     bundledDev: !process.env.VITEST,
   },
+  dev: {
+    sourcemap: true,
+  },
 });
