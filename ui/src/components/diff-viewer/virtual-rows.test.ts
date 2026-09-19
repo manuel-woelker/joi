@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
+import type { ReviewComment } from "../../generated/api/api";
 import { multipleFilesPatch } from "./diff-fixtures";
 import { parsePatch } from "./patch-parser";
-import type { ReviewComment } from "../../generated/api/api";
 import { flattenCommentRows, flattenDiffRows } from "./virtual-rows";
 
 describe("flattenDiffRows", () => {
@@ -9,11 +9,17 @@ describe("flattenDiffRows", () => {
     const document = parsePatch(multipleFilesPatch);
     const rows = flattenDiffRows(document, document.files, [], {
       kind: "new",
-      location: { file: "src/review.ts", line: 4, side: "additions" },
+      location: { file: "src/review.ts", line: 5, side: "additions" },
     });
     const editor = rows.findIndex((row) => row.kind === "editor");
     expect(editor).toBeGreaterThan(0);
-    expect(rows[editor - 1].kind).toBe("code");
+    // The editor follows the exact commented line, not the end of the run.
+    const preceding = rows[editor - 1];
+    expect(preceding.kind).toBe("code");
+    expect(preceding.kind === "code" && preceding.pairs.map((pair) => pair.addition?.newLine)).toEqual([5]);
+    const following = rows[editor + 1];
+    expect(following.kind).toBe("code");
+    expect(following.kind === "code" && following.pairs.map((pair) => pair.addition?.newLine)).toEqual([6, 7]);
   });
 
   it("groups consecutive missing lines into one code block", () => {
@@ -22,7 +28,7 @@ describe("flattenDiffRows", () => {
     expect(rows.some((row) => row.kind === "code" && row.pairs.length > 1)).toBe(true);
   });
 
-  it("keeps a missing-line section grouped when one of its lines has a comment", () => {
+  it("splits a missing-line run around a commented line", () => {
     const document = parsePatch(multipleFilesPatch);
     const comment: ReviewComment = {
       id: "comment-1",
@@ -41,7 +47,10 @@ describe("flattenDiffRows", () => {
     const preceding = rows[threadIndex - 1];
 
     expect(preceding.kind).toBe("code");
-    expect(preceding.kind === "code" && preceding.pairs).toHaveLength(3);
+    expect(preceding.kind === "code" && preceding.pairs.map((pair) => pair.addition?.newLine)).toEqual([5]);
+    const following = rows[threadIndex + 1];
+    expect(following.kind).toBe("code");
+    expect(following.kind === "code" && following.pairs.map((pair) => pair.addition?.newLine)).toEqual([6, 7]);
   });
 
   it("keeps comment editors inline instead of emitting a separate row", () => {

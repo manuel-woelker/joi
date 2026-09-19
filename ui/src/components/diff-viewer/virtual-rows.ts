@@ -1,16 +1,16 @@
 import type { ReviewComment } from "../../generated/api/api";
-import { commentLocation, commentThreads, type CommentThreadEntry } from "./comment-model";
-import type { CommentEditor } from "./diff-viewer-store";
+import { type CommentThreadEntry, commentLocation, commentThreads } from "./comment-model";
 import {
-  diffRowId,
-  locationKey,
   type DiffDocument,
   type DiffFile,
   type DiffFileId,
   type DiffLocation,
   type DiffRowId,
+  diffRowId,
+  locationKey,
 } from "./diff-model";
-import { pairHunkLines, type PairedDiffLine } from "./line-pairing";
+import type { CommentEditor } from "./diff-viewer-store";
+import { type PairedDiffLine, pairHunkLines } from "./line-pairing";
 
 export type VirtualDiffRow =
   | { readonly id: DiffRowId; readonly kind: "file"; readonly file: DiffFile }
@@ -49,8 +49,18 @@ export function flattenDiffRows(
         const pair = pairs[pairIndex];
         const missingSide = missingSideFor(pair);
         const group = [pair];
-        while (missingSide && pairIndex + 1 < pairs.length && missingSideFor(pairs[pairIndex + 1]) === missingSide) {
-          group.push(pairs[++pairIndex]);
+        // Split runs around annotated lines so threads and editors land on
+        // the exact line; unannotated runs stay joined for one continuous
+        // placeholder.
+        if (!hasAnnotations(file, pair, byLocation, editor)) {
+          while (
+            missingSide &&
+            pairIndex + 1 < pairs.length &&
+            missingSideFor(pairs[pairIndex + 1]) === missingSide &&
+            !hasAnnotations(file, pairs[pairIndex + 1], byLocation, editor)
+          ) {
+            group.push(pairs[++pairIndex]);
+          }
         }
         rows.push({ id: pair.id, kind: "code", file, pairs: group });
         for (const groupedPair of group) {
@@ -128,6 +138,19 @@ function missingSideFor(pair: PairedDiffLine): "additions" | "deletions" | undef
   if (!pair.addition) return "additions";
   if (!pair.deletion) return "deletions";
   return undefined;
+}
+
+function hasAnnotations(
+  file: DiffFile,
+  pair: PairedDiffLine,
+  comments: ReadonlyMap<string, readonly ReviewComment[]>,
+  editor: CommentEditor | undefined,
+): boolean {
+  return pairLocations(file, pair).some(
+    (location) =>
+      comments.has(locationKey(location)) ||
+      (editor?.kind === "new" && locationKey(editor.location) === locationKey(location)),
+  );
 }
 
 function pairLocations(file: DiffFile, pair: PairedDiffLine): DiffLocation[] {
