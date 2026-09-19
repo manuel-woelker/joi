@@ -39,4 +39,7 @@ query results (speed and encoded size, using ticket-shaped data) run with:
 ./t cargo bench -p joi-server --bench attribute_columns
 ```
 
+Setup, results, and reading notes live in
+[`benches/attribute_columns.md`](benches/attribute_columns.md).
+
 Repository-wide checks are available through `./t nao check`.
