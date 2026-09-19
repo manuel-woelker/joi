@@ -78,7 +78,34 @@ function renderView(fetcher: Fetcher) {
   ));
 }
 
-describe("EntityMasterDetailView sorting", () => {
+describe("EntityMasterDetailView master table", () => {
+  it("renders the table shell while the first page loads", async () => {
+    let resolveRows!: (response: Response) => void;
+    const fetcher: Fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as {
+        results?: readonly [{ type?: string }];
+      };
+      if (body.results?.[0]?.type === "rows") {
+        // Hold the rows open so the loading state stays observable.
+        return new Promise<Response>((resolve) => {
+          resolveRows = resolve;
+        });
+      }
+      return { ok: true, json: async () => countResponse(2) } as Response;
+    });
+    renderView(fetcher);
+
+    // Headers and the tbody render from the first paint, so the viewport
+    // can be measured before any records arrive.
+    expect(await screen.findByRole("columnheader", { name: "ID" })).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "Name" })).toBeTruthy();
+    expect(screen.getByRole("table", { name: "Tickets" }).querySelector("tbody")).toBeTruthy();
+    expect(screen.queryByText("Name a")).toBeNull();
+
+    resolveRows({ ok: true, json: async () => rowsResponse(["a", "b"]) } as Response);
+    expect(await screen.findByText("Name a")).toBeDefined();
+  });
+
   it("survives sort, reverse, and reset cycles with fresh results", async () => {
     const fetcher: Fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as {

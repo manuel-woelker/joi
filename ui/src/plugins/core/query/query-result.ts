@@ -35,6 +35,22 @@ export interface QueryAggregateResult {
   readonly values: readonly QueryAggregateValue[];
 }
 
+/// Builds an empty result with the given columns.
+///
+/// Binding against it behaves exactly like binding against a loaded but
+/// empty result, so tables can render their shell (headers and an empty
+/// body) before the first rows arrive.
+export function emptyResultFor(columns: readonly { attribute: string; type: QueryValueType }[]): QueryResult {
+  return parseQueryResponse({
+    number_of_hits: 0,
+    result_columns: columns.map((column) =>
+      column.type === "int"
+        ? { attribute: column.attribute, values: { type: "int" as const, values: [] as number[] } }
+        : { attribute: column.attribute, values: { type: "string" as const, values: [] as string[] } },
+    ),
+  });
+}
+
 export interface QueryColumnHandle {
   readonly index: QueryColumnIndex;
   readonly attribute: string;

@@ -23,7 +23,13 @@ import type { EntityDescription, EntityId } from "../entities/entity-description
 import { createEntityEditorDefinition } from "../entities/entity-editor";
 import { useEntityRegistry } from "../entities/entity-registry";
 import { LookupValue, useLookupService } from "../lookups/lookup";
-import type { QueryAggregateResult, QueryResult, QueryResultRow, QueryValue } from "../query/query-result";
+import {
+  emptyResultFor,
+  type QueryAggregateResult,
+  type QueryResult,
+  type QueryResultRow,
+  type QueryValue,
+} from "../query/query-result";
 import {
   type FacetSelection,
   loadEntityFacet,
@@ -48,6 +54,13 @@ export function EntityMasterDetailView(props: {
   const lookups = useLookupService();
   const description = useEntityRegistry().require(props.entityId);
   const editor = createEntityEditorDefinition(description);
+  // The master table always renders while the first page loads, so the
+  // viewport can be measured before records arrive. It is fed an empty
+  // result with the same columns: binding succeeds and the headers match,
+  // only the body is empty instead of carrying placeholder rows.
+  const emptyResult = emptyResultFor(
+    description.attributes.map((attribute) => ({ attribute: attribute.id, type: attribute.valueType })),
+  );
   const [filterOpen, setFilterOpen] = createSignal(false);
   const [facetsOpen, setFacetsOpen] = createSignal(false);
   const [visibleFacetIds, setVisibleFacetIds] = createSignal<readonly string[]>(
@@ -64,11 +77,9 @@ export function EntityMasterDetailView(props: {
   const [showLoading, setShowLoading] = createSignal(false);
   // Viewport height drives table virtualization so only visible rows mount.
   // It is measured rather than fixed because the master pane flex-fills
-  // the available shell space. Observation starts from the element ref
-  // rather than onMount because the table branch only renders once records
-  // arrive, which is after component mount. Until the first measurement
-  // lands, the table renders unvirtualized so content is never hidden
-  // behind an empty virtual window.
+  // the available shell space. The table renders from the first paint with
+  // an empty body while the first page loads, so the viewport is measured
+  // during the fetch and the first data paint is already virtualized.
   const [viewportHeight, setViewportHeight] = createSignal(0);
   const observeViewportHeight = (element: HTMLDivElement) => {
     if (typeof ResizeObserver === "undefined") return;
@@ -142,16 +153,19 @@ export function EntityMasterDetailView(props: {
     return result && count !== undefined ? { ...result, numberOfHits: count } : result;
   });
   // Derivation cost is timed into a plain local so rendering stays pure;
-  // the publish effect below reads it after the memo settles.
+  // the publish effect below reads it after the memo settles. Binding runs
+  // against the empty result while the first page loads so the table can
+  // render its shell from the first paint.
   let lastProcessMs = 0;
   const boundEntity = createMemo(() => {
-    const result = records();
-    if (!result) return undefined;
+    const loaded = records();
+    const result = loaded ?? emptyResult;
     const started = performance.now();
     const bound = bindEntity(result, description);
-    lastProcessMs = performance.now() - started;
+    if (loaded) lastProcessMs = performance.now() - started;
     return bound;
   });
+  const entity = () => boundEntity();
   createEffect(() => {
     const result = displayedRecords();
     const fetch = pendingFetch;
@@ -283,183 +297,162 @@ export function EntityMasterDetailView(props: {
           {records.error.message}
         </p>
       </Match>
-      <Match when={records.loading && !records()}>
-        <Show when={showLoading()}>
-          <p class={styles.loading}>Loading {description.pluralLabel.toLowerCase()}...</p>
-        </Show>
-      </Match>
-      <Match when={records()}>
-        {(result) => {
-          // `records()` is truthy inside this branch, so the hoisted memo is settled.
-          const entity = () => boundEntity()!;
-          return (
-            <MasterDetailView
-              leadingPanel={
-                filterOpen() ? (
-                  <div class={styles.filterPanel} aria-label={`Filter ${description.pluralLabel}`}>
-                    <header class={styles.filterHeader}>
-                      <h2 class={styles.panelTitle}>
-                        <FunnelIcon size={15} />
-                        Filter {description.pluralLabel}
-                      </h2>
-                      <IconButton
-                        label="Close filter"
-                        icon={<XIcon size={16} />}
-                        onClick={() => setFilterOpen(false)}
-                      />
-                    </header>
-                    <FilterDefinitionEditor
-                      attributes={entityFilterAttributes(description)}
-                      value={filter()}
-                      onChange={setFilter}
-                      ariaLabel={`Filter ${description.pluralLabel}`}
-                    />
-                  </div>
-                ) : facetsOpen() ? (
-                  <div class={styles.filterPanel} aria-label={`${description.pluralLabel} facets`}>
-                    <header class={styles.filterHeader}>
-                      <h2 class={styles.panelTitle}>
-                        <GemIcon size={15} />
-                        {description.pluralLabel} facets
-                      </h2>
-                      <IconButton
-                        label="Close facets"
-                        icon={<XIcon size={16} />}
-                        onClick={() => setFacetsOpen(false)}
-                      />
-                    </header>
-                    <Show
-                      keyed
-                      when={availableFacetKey()}
-                      fallback={<p class={styles.noFacets}>All available facets are shown.</p>}
-                    >
-                      <Select
-                        ariaLabel="Add facet"
-                        value=""
-                        placeholder="Add facet..."
-                        density="compact"
-                        loadEntries={async (query) => {
-                          const normalized = query.trim().toLocaleLowerCase();
-                          const entries = availableFacets()
-                            .filter(
-                              (attribute) => !normalized || attribute.label.toLocaleLowerCase().includes(normalized),
-                            )
-                            .map((attribute) => ({ id: attribute.id, label: attribute.label }));
-                          return { entries, total: entries.length };
-                        }}
-                        entryId={(entry) => entry.id}
-                        entryText={(entry) => entry.label}
-                        onChange={(id) => {
-                          if (!id) return;
-                          setVisibleFacetIds((current) => [...current, id]);
-                        }}
-                      />
-                    </Show>
-                    <Show when={visibleFacets().length}>
-                      <FacetFilter
-                        class={styles.facets}
-                        facets={visibleFacets()}
-                        onValueChange={changeFacet}
-                        onRemoveFacet={(id) => setVisibleFacetIds((current) => current.filter((value) => value !== id))}
-                        renderValue={(facet, value) => {
-                          const attribute = description.attributes.find((candidate) => candidate.id === facet.id);
-                          const raw = facetValue(aggregateResults(), facet.id, value.value, facetSelections());
-                          return attribute?.lookup && typeof raw === "string" && raw ? (
-                            <LookupValue lookup={attribute.lookup} value={raw} />
-                          ) : (
-                            value.label
-                          );
-                        }}
-                      />
-                    </Show>
-                    <Show when={!visibleFacets().length && availableFacetKey()}>
-                      <p class={styles.noFacets}>Select a facet from the dropdown above.</p>
-                    </Show>
-                  </div>
-                ) : undefined
-              }
-              master={
-                <>
-                  <div class={styles.toolbar}>
-                    <IconButton
-                      label={filterOpen() ? "Close filter" : `Filter ${description.pluralLabel.toLowerCase()}`}
-                      icon={<FunnelIcon size={17} />}
-                      aria-expanded={filterOpen()}
-                      class={`${styles.filterButton} ${filterOpen() ? styles.activeFilter : ""}`}
-                      onClick={() => {
-                        setFilterOpen((open) => !open);
-                        setFacetsOpen(false);
-                      }}
-                    />
-                    <IconButton
-                      label={facetsOpen() ? "Close facets" : `Show ${description.pluralLabel.toLowerCase()} facets`}
-                      icon={<GemIcon size={17} />}
-                      aria-expanded={facetsOpen()}
-                      class={`${styles.facetButton} ${facetsOpen() ? styles.activeFilter : ""}`}
-                      onClick={() => {
-                        setFacetsOpen((open) => !open);
-                        setFilterOpen(false);
-                      }}
-                    />
-                    <IconButton
-                      label={`New ${description.label.toLowerCase()}`}
-                      icon="+"
-                      class={styles.createButton}
-                      onClick={() => navigation.createRecord()}
-                    />
-                    <IconButton
-                      label={`Refresh ${description.pluralLabel.toLowerCase()}`}
-                      icon={<RefreshCwIcon size={17} />}
-                      class={styles.refreshButton}
-                      onClick={refresh}
-                    />
-                  </div>
-                  <div ref={observeViewportHeight} class={styles.tableViewport}>
-                    <DataTable
-                      ariaLabel={description.pluralLabel}
-                      result={displayedRecords()!}
-                      rows={result().rows}
-                      columns={createEntityTableColumns(entity())}
-                      loading={showLoading()}
-                      loadingMessage="Loading..."
-                      fillHeight
-                      fillWidth
-                      virtualization={viewportHeight() > 0 ? { height: viewportHeight() } : undefined}
-                      sorting={sorting()}
-                      onSortingChange={setSorting}
-                      rowKey={entity().identity}
-                      selectedRowKey={navigation.selectedRecordId()}
-                      density="compact"
-                      emptyMessage={`No matching ${description.pluralLabel.toLowerCase()} found.`}
-                      onRowSelect={(row) => {
-                        const id = row.value(entity().identity);
-                        if (typeof id === "string") navigation.selectRecord(id);
-                      }}
-                      onRowContextMenu={openContextMenu}
-                    />
-                  </div>
-                </>
-              }
-              definition={editor}
-              fetchService={fetchService}
-              result={result()}
-              selectedRecordId={navigation.selectedRecordId()}
-              creating={navigation.creatingRecord()}
-              onCreated={async (id) => {
-                const refreshed = await refetch();
-                void refetchTotalCount();
-                for (const resource of facetResources) void resource.refetch();
-                const identity = refreshed?.column(description.identityAttribute);
-                if (identity && refreshed?.rows.some((row) => row.value(identity) === id)) {
-                  navigation.finishCreatingRecord(id);
-                } else {
-                  navigation.closeRecord();
-                }
-              }}
-              onClose={() => navigation.closeRecord()}
-            />
-          );
-        }}
+      <Match when={records() || records.loading}>
+        <MasterDetailView
+          leadingPanel={
+            filterOpen() ? (
+              <div class={styles.filterPanel} aria-label={`Filter ${description.pluralLabel}`}>
+                <header class={styles.filterHeader}>
+                  <h2 class={styles.panelTitle}>
+                    <FunnelIcon size={15} />
+                    Filter {description.pluralLabel}
+                  </h2>
+                  <IconButton label="Close filter" icon={<XIcon size={16} />} onClick={() => setFilterOpen(false)} />
+                </header>
+                <FilterDefinitionEditor
+                  attributes={entityFilterAttributes(description)}
+                  value={filter()}
+                  onChange={setFilter}
+                  ariaLabel={`Filter ${description.pluralLabel}`}
+                />
+              </div>
+            ) : facetsOpen() ? (
+              <div class={styles.filterPanel} aria-label={`${description.pluralLabel} facets`}>
+                <header class={styles.filterHeader}>
+                  <h2 class={styles.panelTitle}>
+                    <GemIcon size={15} />
+                    {description.pluralLabel} facets
+                  </h2>
+                  <IconButton label="Close facets" icon={<XIcon size={16} />} onClick={() => setFacetsOpen(false)} />
+                </header>
+                <Show
+                  keyed
+                  when={availableFacetKey()}
+                  fallback={<p class={styles.noFacets}>All available facets are shown.</p>}
+                >
+                  <Select
+                    ariaLabel="Add facet"
+                    value=""
+                    placeholder="Add facet..."
+                    density="compact"
+                    loadEntries={async (query) => {
+                      const normalized = query.trim().toLocaleLowerCase();
+                      const entries = availableFacets()
+                        .filter((attribute) => !normalized || attribute.label.toLocaleLowerCase().includes(normalized))
+                        .map((attribute) => ({ id: attribute.id, label: attribute.label }));
+                      return { entries, total: entries.length };
+                    }}
+                    entryId={(entry) => entry.id}
+                    entryText={(entry) => entry.label}
+                    onChange={(id) => {
+                      if (!id) return;
+                      setVisibleFacetIds((current) => [...current, id]);
+                    }}
+                  />
+                </Show>
+                <Show when={visibleFacets().length}>
+                  <FacetFilter
+                    class={styles.facets}
+                    facets={visibleFacets()}
+                    onValueChange={changeFacet}
+                    onRemoveFacet={(id) => setVisibleFacetIds((current) => current.filter((value) => value !== id))}
+                    renderValue={(facet, value) => {
+                      const attribute = description.attributes.find((candidate) => candidate.id === facet.id);
+                      const raw = facetValue(aggregateResults(), facet.id, value.value, facetSelections());
+                      return attribute?.lookup && typeof raw === "string" && raw ? (
+                        <LookupValue lookup={attribute.lookup} value={raw} />
+                      ) : (
+                        value.label
+                      );
+                    }}
+                  />
+                </Show>
+                <Show when={!visibleFacets().length && availableFacetKey()}>
+                  <p class={styles.noFacets}>Select a facet from the dropdown above.</p>
+                </Show>
+              </div>
+            ) : undefined
+          }
+          master={
+            <>
+              <div class={styles.toolbar}>
+                <IconButton
+                  label={filterOpen() ? "Close filter" : `Filter ${description.pluralLabel.toLowerCase()}`}
+                  icon={<FunnelIcon size={17} />}
+                  aria-expanded={filterOpen()}
+                  class={`${styles.filterButton} ${filterOpen() ? styles.activeFilter : ""}`}
+                  onClick={() => {
+                    setFilterOpen((open) => !open);
+                    setFacetsOpen(false);
+                  }}
+                />
+                <IconButton
+                  label={facetsOpen() ? "Close facets" : `Show ${description.pluralLabel.toLowerCase()} facets`}
+                  icon={<GemIcon size={17} />}
+                  aria-expanded={facetsOpen()}
+                  class={`${styles.facetButton} ${facetsOpen() ? styles.activeFilter : ""}`}
+                  onClick={() => {
+                    setFacetsOpen((open) => !open);
+                    setFilterOpen(false);
+                  }}
+                />
+                <IconButton
+                  label={`New ${description.label.toLowerCase()}`}
+                  icon="+"
+                  class={styles.createButton}
+                  onClick={() => navigation.createRecord()}
+                />
+                <IconButton
+                  label={`Refresh ${description.pluralLabel.toLowerCase()}`}
+                  icon={<RefreshCwIcon size={17} />}
+                  class={styles.refreshButton}
+                  onClick={refresh}
+                />
+              </div>
+              <div ref={observeViewportHeight} class={styles.tableViewport}>
+                <DataTable
+                  ariaLabel={description.pluralLabel}
+                  result={displayedRecords() ?? emptyResult}
+                  rows={records()?.rows}
+                  columns={createEntityTableColumns(entity())}
+                  loading={showLoading() || (records.loading && !records())}
+                  loadingMessage="Loading..."
+                  fillHeight
+                  fillWidth
+                  virtualization={viewportHeight() > 0 ? { height: viewportHeight() } : undefined}
+                  sorting={sorting()}
+                  onSortingChange={setSorting}
+                  rowKey={entity().identity}
+                  selectedRowKey={navigation.selectedRecordId()}
+                  density="compact"
+                  emptyMessage={`No matching ${description.pluralLabel.toLowerCase()} found.`}
+                  onRowSelect={(row) => {
+                    const id = row.value(entity().identity);
+                    if (typeof id === "string") navigation.selectRecord(id);
+                  }}
+                  onRowContextMenu={openContextMenu}
+                />
+              </div>
+            </>
+          }
+          definition={editor}
+          fetchService={fetchService}
+          result={records()}
+          selectedRecordId={navigation.selectedRecordId()}
+          creating={navigation.creatingRecord()}
+          onCreated={async (id) => {
+            const refreshed = await refetch();
+            void refetchTotalCount();
+            for (const resource of facetResources) void resource.refetch();
+            const identity = refreshed?.column(description.identityAttribute);
+            if (identity && refreshed?.rows.some((row) => row.value(identity) === id)) {
+              navigation.finishCreatingRecord(id);
+            } else {
+              navigation.closeRecord();
+            }
+          }}
+          onClose={() => navigation.closeRecord()}
+        />
       </Match>
     </Switch>
   );
