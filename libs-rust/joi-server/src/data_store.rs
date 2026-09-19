@@ -2,6 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use joi_base::JoiString;
 use joi_error::JoiResult;
+use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 
 /// A data store shared by commands that query or mutate application data.
@@ -12,7 +13,7 @@ pub type SharedDataStore = Arc<Mutex<Box<dyn DataStore>>>;
 pub struct TableName(pub JoiString);
 
 /// Identifies an attribute within a table.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct AttributeName(pub JoiString);
 
 /// Determines which records a query selects.
@@ -97,6 +98,7 @@ pub struct DataStoreQuery {
 }
 
 /// Contains the values returned for one attribute.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AttributeColumn {
     /// The attribute represented by this column.
     pub attribute: AttributeName,
@@ -105,6 +107,7 @@ pub struct AttributeColumn {
 }
 
 /// A homogeneous sequence of attribute values.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Values {
     /// String values.
     String(Vec<JoiString>),

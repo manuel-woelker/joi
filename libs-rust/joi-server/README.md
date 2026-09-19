@@ -32,4 +32,11 @@ From the repository root, run:
 ./t cargo clippy -p joi-server --all-targets -- -D warnings
 ```
 
+Benchmarks comparing JSON, bincode, and FlatBuffers encoding of columnar
+query results (speed and encoded size, using ticket-shaped data) run with:
+
+```bash
+./t cargo bench -p joi-server --bench attribute_columns
+```
+
 Repository-wide checks are available through `./t nao check`.
