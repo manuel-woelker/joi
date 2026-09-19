@@ -1,8 +1,8 @@
 import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
-
-import type { GitHistoryCommit, GitHistoryCursor, GitHistorySource } from "./git-history";
-import { layoutGitHistory, type GitHistoryGraphRow } from "./git-history-layout";
+import { formatRelativeTime } from "../relative-time";
 import styles from "./GitHistory.module.css";
+import type { GitHistoryCommit, GitHistoryCursor, GitHistorySource } from "./git-history";
+import { type GitHistoryGraphRow, layoutGitHistory } from "./git-history-layout";
 
 export interface GitHistoryProps {
   readonly source: GitHistorySource;
@@ -165,17 +165,5 @@ export function shortCommitId(id: string): string {
 }
 
 export function relativeTime(value: string, now: Date): string {
-  const deltaSeconds = Math.round((new Date(value).getTime() - now.getTime()) / 1_000);
-  const units = [
-    ["year", 31_536_000],
-    ["month", 2_592_000],
-    ["day", 86_400],
-    ["hour", 3_600],
-    ["minute", 60],
-  ] as const;
-  const formatter = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
-  for (const [unit, seconds] of units) {
-    if (Math.abs(deltaSeconds) >= seconds) return formatter.format(Math.round(deltaSeconds / seconds), unit);
-  }
-  return formatter.format(deltaSeconds, "second");
+  return formatRelativeTime(value, now);
 }

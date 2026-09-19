@@ -1,7 +1,20 @@
 .datetime {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5em;
+  max-width: 100%;
+  overflow: hidden;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.85rem;
   letter-spacing: 0.02em;
   color: var(--color-text-secondary);
   white-space: nowrap;
+}
+
+.relative {
+  flex: none;
+}
+
+.absolute {
+  flex: none;
 }
