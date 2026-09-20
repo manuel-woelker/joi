@@ -53,55 +53,55 @@
   list-style: none;
 }
 
-.value {
+.values > li {
   display: grid;
-  grid-template-columns: 17px minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   align-items: center;
-  width: 100%;
+  gap: 4px;
   min-height: 28px;
-  padding: 3px 10px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  text-align: left;
+  padding: 3px 6px 3px 10px;
 }
 
-.value:hover {
-  background: var(--color-surface-hover);
-  box-shadow: none;
-}
-
-.value[data-state="included"] {
+.values > li[data-state="included"] {
   background: var(--color-secondary-soft);
   color: var(--color-secondary-dark);
 }
 
-.value[data-state="excluded"] {
-  color: var(--color-text-muted);
+.values > li[data-state="excluded"] {
   background: var(--color-surface-muted);
+  color: var(--color-text-muted);
 }
 
-.marker {
+.toggle {
   display: grid;
-  width: 13px;
-  height: 13px;
+  width: 22px;
+  height: 22px;
   place-items: center;
-  border: 1px solid var(--color-border-strong);
-  border-radius: 3px;
-  color: var(--color-ink-soft);
-  font-size: 0.75rem;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
   font-weight: 800;
   line-height: 1;
+  cursor: pointer;
 }
 
-.value[data-state="included"] .marker {
+.toggle:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-hover);
+  color: var(--color-ink);
+}
+
+.toggle[data-active="true"] {
   border-color: var(--color-secondary-dark);
   background: var(--color-secondary);
   color: white;
 }
 
-.value[data-state="excluded"] .marker {
+.values > li[data-state="excluded"] .toggle[data-active="true"] {
   border-color: var(--color-text-muted);
   background: var(--color-border-soft);
   color: var(--color-text-muted);
@@ -122,17 +122,6 @@
   font-size: 0.7rem;
   font-variant-numeric: tabular-nums;
   text-align: right;
-}
-
-.state {
-  margin-left: 6px;
-  color: var(--color-text-subtle);
-  font-size: 0.62rem;
-  line-height: 1;
-}
-
-.value[data-state="neutral"] .state {
-  display: none;
 }
 
 .empty {

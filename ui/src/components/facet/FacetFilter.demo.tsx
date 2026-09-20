@@ -54,7 +54,7 @@ export default {
   scenarios: [
     {
       name: "Multiple facets",
-      description: "Values are ordered by match count and cycle through included, excluded, and neutral states.",
+      description: "Values are ordered by match count and toggle include or exclude per value.",
       render: () => <InteractiveFacets />,
     },
     {

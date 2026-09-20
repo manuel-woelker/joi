@@ -29,25 +29,13 @@ export interface FacetFilterProps {
   readonly class?: string;
 }
 
-const nextState = (state: FacetValueState | undefined): FacetValueState => {
-  if (!state || state === "neutral") return "included";
-  if (state === "included") return "excluded";
-  return "neutral";
-};
-
-const stateLabel = (state: FacetValueState | undefined) => {
-  if (state === "included") return "Included";
-  if (state === "excluded") return "Excluded";
-  return "Not filtered";
-};
-
 const sortedValues = (values: readonly FacetValue[]) =>
   values
     .map((value, index) => ({ value, index }))
     .sort((left, right) => right.value.count - left.value.count || left.index - right.index)
     .map(({ value }) => value);
 
-/** Displays discrete filter values and cycles each through neutral, included, and excluded states. */
+/** Displays discrete filter values with separate include and exclude toggles. */
 export function FacetFilter(props: FacetFilterProps) {
   return (
     <div class={`${styles.facets} ${props.class ?? ""}`} aria-label="Result facets">
@@ -80,24 +68,31 @@ export function FacetFilter(props: FacetFilterProps) {
                 <For each={sortedValues(facet.values)}>
                   {(entry) => {
                     const state = () => entry.state ?? "neutral";
+                    const toggle = (next: FacetValueState) =>
+                      props.onValueChange(facet.id, entry.value, state() === next ? "neutral" : next);
                     return (
-                      <li>
+                      <li data-state={state()}>
+                        <span class={styles.label}>{props.renderValue?.(facet, entry) ?? entry.label}</span>
+                        <span class={styles.count}>{entry.count.toLocaleString()}</span>
                         <button
                           type="button"
-                          class={styles.value}
-                          data-state={state()}
-                          aria-label={`${facet.label}: ${entry.label}. ${state() === "included" ? "Included" : state() === "excluded" ? "Excluded" : "Not filtered"}. ${entry.count} matches.`}
-                          aria-pressed={state() === "included" ? "true" : state() === "excluded" ? "mixed" : "false"}
-                          onClick={() => props.onValueChange(facet.id, entry.value, nextState(state()))}
+                          class={styles.toggle}
+                          data-active={state() === "included"}
+                          aria-label={`Include ${entry.label} in ${facet.label}`}
+                          aria-pressed={state() === "included"}
+                          onClick={() => toggle("included")}
                         >
-                          <span class={styles.marker} aria-hidden="true">
-                            {state() === "included" ? "+" : state() === "excluded" ? "−" : ""}
-                          </span>
-                          <span class={styles.label}>{props.renderValue?.(facet, entry) ?? entry.label}</span>
-                          <span class={styles.state} aria-hidden="true">
-                            {stateLabel(state())}
-                          </span>
-                          <span class={styles.count}>{entry.count.toLocaleString()}</span>
+                          <span aria-hidden="true">+</span>
+                        </button>
+                        <button
+                          type="button"
+                          class={styles.toggle}
+                          data-active={state() === "excluded"}
+                          aria-label={`Exclude ${entry.label} from ${facet.label}`}
+                          aria-pressed={state() === "excluded"}
+                          onClick={() => toggle("excluded")}
+                        >
+                          <span aria-hidden="true">−</span>
                         </button>
                       </li>
                     );
