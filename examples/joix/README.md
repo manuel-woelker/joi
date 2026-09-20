@@ -19,9 +19,9 @@ through the CLI and prints YAML instead of starting HTTP:
 ./t cargo run -p joix -- info
 ```
 
-The redb entity database is stored at `examples/joix/joix.redb`. The derived
-Tantivy index is stored under `examples/joix/joix.search`. Both are ignored by
-Git.
+The redb entity database is stored at `examples/joix/data/joix.redb`. The derived
+Tantivy index is stored under `examples/joix/data/joix.search`. Both live under
+the git-ignored `data/` directory; delete it to reset local state.
 
 ## How do I check it?
 

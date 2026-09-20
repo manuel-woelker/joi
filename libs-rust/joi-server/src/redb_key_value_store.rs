@@ -1,4 +1,4 @@
-use std::{ops::Bound, path::Path};
+use std::{fs, ops::Bound, path::Path};
 
 use joi_error::{JoiResult, report};
 use redb::{Database, ReadableDatabase, ReadableTable, TableDefinition};
@@ -14,8 +14,15 @@ pub struct RedbKeyValueStore {
 }
 
 impl RedbKeyValueStore {
-    /// Opens or creates a redb key/value store at `path`.
+    /// Opens or creates a redb key/value store at `path`, creating parent
+    /// directories when they do not exist yet.
     pub fn open(path: impl AsRef<Path>) -> JoiResult<Self> {
+        let path = path.as_ref();
+        if let Some(parent) = path.parent()
+            && !parent.as_os_str().is_empty()
+        {
+            fs::create_dir_all(parent).map_err(report)?;
+        }
         Ok(Self {
             database: Database::create(path).map_err(report)?,
         })
