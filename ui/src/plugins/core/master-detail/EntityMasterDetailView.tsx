@@ -69,9 +69,11 @@ export function EntityMasterDetailView(props: {
   const [filter, setFilter] = createSignal<FilterDefinition>(cloneFilter(props.initialFilter));
   const [sorting, setSorting] = createSignal<readonly DataTableSort[]>(cloneSorting(props.initialSorting));
   const [facetSelections, setFacetSelections] = createSignal<readonly FacetSelection[]>([]);
+  const [search, setSearch] = createSignal("");
   const [filterParameters, setFilterParameters] = createSignal({
     filter: filter(),
     facets: facetSelections(),
+    search: search(),
   });
   const rowParameters = createMemo(() => ({ ...filterParameters(), sorting: sorting() }));
   const [showLoading, setShowLoading] = createSignal(false);
@@ -103,6 +105,15 @@ export function EntityMasterDetailView(props: {
     if (current === filterParameters().facets) return;
     setFilterParameters((parameters) => ({ ...parameters, facets: current }));
   });
+  createEffect(() => {
+    const current = search().trim();
+    if (current === filterParameters().search) return;
+    const timer = window.setTimeout(
+      () => setFilterParameters((parameters) => ({ ...parameters, search: current })),
+      300,
+    );
+    onCleanup(() => window.clearTimeout(timer));
+  });
   let activeFilterIdentity = props.filterIdentity;
   createEffect(() => {
     if (props.filterIdentity === activeFilterIdentity) return;
@@ -112,7 +123,8 @@ export function EntityMasterDetailView(props: {
     setFilter(next);
     setSorting(nextSorting);
     setFacetSelections([]);
-    setFilterParameters({ filter: next, facets: [] });
+    setSearch("");
+    setFilterParameters({ filter: next, facets: [], search: "" });
   });
   let pendingFetch: { fetchMs: number; settledAt: number; rowCount: number; columnCount: number } | undefined;
   const [records, { refetch }] = createResource(rowParameters, async (query) => {
@@ -376,6 +388,19 @@ export function EntityMasterDetailView(props: {
           master={
             <>
               <div class={styles.toolbar}>
+                <label class={styles.searchField}>
+                  <span class={styles.searchIcon} aria-hidden="true">
+                    ⌕
+                  </span>
+                  <span class={styles.srOnly}>Search {description.pluralLabel.toLowerCase()}</span>
+                  <input
+                    type="search"
+                    value={search()}
+                    onInput={(event) => setSearch(event.currentTarget.value)}
+                    placeholder={`Search ${description.pluralLabel.toLowerCase()}`}
+                    aria-label={`Search ${description.pluralLabel.toLowerCase()}`}
+                  />
+                </label>
                 <IconButton
                   label={filterOpen() ? "Close filter" : `Filter ${description.pluralLabel.toLowerCase()}`}
                   icon={<FunnelIcon size={17} />}

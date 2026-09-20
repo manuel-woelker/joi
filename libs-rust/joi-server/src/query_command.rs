@@ -97,6 +97,9 @@ enum QueryRequestCriterion {
         attribute: JoiString,
         value: JoiString,
     },
+    Term {
+        value: JoiString,
+    },
 }
 
 impl Command for QueryRequest {
@@ -295,6 +298,7 @@ fn query_criterion(criterion: QueryRequestCriterion) -> QueryCriterion {
             attribute: AttributeName(attribute),
             value,
         },
+        QueryRequestCriterion::Term { value } => QueryCriterion::Term { value },
     }
 }
 
@@ -374,6 +378,56 @@ mod tests {
             &response.results[2],
             QueryResponseResult::Aggregate { values, .. } if values.len() == 1 && values[0].count == 1
         ));
+    }
+
+    #[test]
+    fn matches_search_term_across_attributes() {
+        let mut store = IndexedDataStore::in_memory().unwrap();
+        store
+            .ensure_tables(vec![UserTableDescriptionProvider.table_description()])
+            .unwrap();
+        UserTestDataProvider.insert_test_data(&mut store).unwrap();
+        let command = QueryCommand::new(Arc::new(Mutex::new(Box::new(store))));
+
+        let search = |value: &str| {
+            command
+                .execute(
+                    &Default::default(),
+                    QueryRequest {
+                        table_name: "users".into(),
+                        criterion: QueryRequestCriterion::Term {
+                            value: value.into(),
+                        },
+                        results: vec![QueryRequestResult::Rows {
+                            sorting: Vec::new(),
+                            max_results: 10,
+                            attributes: vec!["username".into()],
+                        }],
+                    },
+                )
+                .unwrap()
+        };
+        let usernames = |response: &super::QueryResponse| {
+            let QueryResponseResult::Rows { result_columns } = &response.results[0] else {
+                panic!("expected rows")
+            };
+            let QueryValues::String(values) = &result_columns[0].values else {
+                panic!("expected string values")
+            };
+            values.clone()
+        };
+
+        // Matches the display name as well as the login name.
+        assert_eq!(
+            usernames(&search("developer")),
+            vec![JoiString::from("jane.developer")]
+        );
+        // Matching is case-insensitive.
+        assert_eq!(
+            usernames(&search("JOE.TESTER")),
+            vec![JoiString::from("joe.tester")]
+        );
+        assert!(usernames(&search("no-such-user")).is_empty());
     }
 
     #[test]

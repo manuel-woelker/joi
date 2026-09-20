@@ -19,7 +19,8 @@ export type QueryCriterionRequest =
   | { set: { attribute: string } }
   | { unset: { attribute: string } }
   | { in_range: { attribute: string; minimum?: string; maximum?: string } }
-  | { contains: { attribute: string; value: string } };
+  | { contains: { attribute: string; value: string } }
+  | { term: { value: string } };
 
 export interface QueryRowsRequest {
   readonly maxResults: number;

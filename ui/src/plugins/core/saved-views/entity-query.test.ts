@@ -124,6 +124,39 @@ describe("entity queries", () => {
     expect(requests.every((request) => request.results.length === 1)).toBe(true);
   });
 
+  it("sends the quicksearch term alongside filters", async () => {
+    const fetcher = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        results: [
+          {
+            type: "rows",
+            result_columns: [
+              { attribute: "id", values: { type: "string", values: [] } },
+              { attribute: "key", values: { type: "string", values: [] } },
+              { attribute: "title", values: { type: "string", values: [] } },
+              { attribute: "description", values: { type: "string", values: [] } },
+              { attribute: "status", values: { type: "string", values: [] } },
+            ],
+          },
+        ],
+      }),
+    });
+
+    await loadEntityRecords(testEntity, new FetchService(fetcher), { ...query, search: "  navigation " });
+    expect(JSON.parse(fetcher.mock.calls[0][1].body).criterion).toEqual({
+      all: [
+        { term: { value: "navigation" } },
+        {
+          all: [
+            { equals: { attribute: "status", values: ["open", "in-progress"] } },
+            { contains: { attribute: "title", value: "navigation" } },
+          ],
+        },
+      ],
+    });
+  });
+
   it("rejects malformed responses", async () => {
     const fetcher = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ results: [] }) });
     await expect(loadEntityRecords(testEntity, new FetchService(fetcher))).rejects.toThrow("does not start");

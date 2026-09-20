@@ -604,7 +604,45 @@ fn criterion_query(index: &EntityIndex, criterion: &QueryCriterion) -> JoiResult
                 RegexQuery::from_pattern(&pattern, lower_field).map_err(report)?,
             ))
         }
+        QueryCriterion::Term { value } => term_query(index, value),
     }
+}
+
+fn term_query(index: &EntityIndex, value: &JoiString) -> JoiResult<Box<dyn Query>> {
+    let term = value.to_lowercase();
+    if term.is_empty() {
+        return Ok(Box::new(AllQuery));
+    }
+    let mut clauses = Vec::new();
+    for attribute in &index.attribute_order {
+        let Some(field) = index.attributes.get(attribute) else {
+            continue;
+        };
+        match field.data_type {
+            ColumnDataType::String => {
+                let Some(lower_field) = field.lower_field else {
+                    continue;
+                };
+                // Same case-insensitive substring matching as `Contains`,
+                // applied to every string attribute.
+                let pattern = format!("(?s).*{}.*", regex_escape(&term));
+                clauses.push((
+                    Occur::Should,
+                    Box::new(RegexQuery::from_pattern(&pattern, lower_field).map_err(report)?)
+                        as Box<dyn Query>,
+                ));
+            }
+            ColumnDataType::Int => {
+                if term.parse::<i64>().is_ok() {
+                    clauses.push((Occur::Should, exact_query(field, &term)?));
+                }
+            }
+        }
+    }
+    if clauses.is_empty() {
+        return Ok(Box::new(EmptyQuery));
+    }
+    Ok(Box::new(BooleanQuery::new(clauses)))
 }
 
 fn composite_query(

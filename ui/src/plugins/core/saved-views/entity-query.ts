@@ -11,6 +11,8 @@ type EntityQuery = Pick<QueryDefinition, "filter"> & {
     | { readonly attribute: string; readonly direction: "ascending" | "descending" }
   )[];
   readonly facets?: readonly FacetSelection[];
+  /** Quicksearch term matched against every attribute through a term criterion. */
+  readonly search?: string;
 };
 
 export interface FacetSelection {
@@ -71,6 +73,11 @@ function queryRequest(entity: EntityDescription, query: EntityQuery | undefined)
 
 function queryCriterion(query: EntityQuery | undefined, excludedAttribute?: string): QueryCriterionRequest {
   const criteria: QueryCriterionRequest[] = [];
+  // The quicksearch term covers every attribute, so it stays applied even
+  // when one attribute's own filter is excluded for its facet counts: facet
+  // panels reflect the current search instead of ignoring it.
+  const search = query?.search?.trim();
+  if (search) criteria.push({ term: { value: search } });
   const base = filterCriterion(query?.filter, excludedAttribute);
   if (base) criteria.push(base);
   const facets = new Map<string, FacetSelection[]>();

@@ -106,6 +106,33 @@ describe("EntityMasterDetailView master table", () => {
     expect(await screen.findByText("Name a")).toBeDefined();
   });
 
+  it("sends the quicksearch term after debouncing", async () => {
+    const criteria: unknown[] = [];
+    const fetcher: Fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as {
+        criterion?: unknown;
+        results?: readonly [{ type?: string }];
+      };
+      if (body.results?.[0]?.type === "rows") {
+        criteria.push(body.criterion);
+        return { ok: true, json: async () => rowsResponse(["a"]) } as Response;
+      }
+      return { ok: true, json: async () => countResponse(1) } as Response;
+    });
+    renderView(fetcher);
+
+    expect(await screen.findByText("Name a")).toBeDefined();
+    expect(criteria[0]).toBe("match_any");
+
+    await userEvent.type(screen.getByRole("searchbox", { name: "Search tickets" }), "name a");
+    await waitFor(() => {
+      if (!criteria.some((criterion) => JSON.stringify(criterion).includes('"term"'))) {
+        throw new Error("quicksearch term not sent yet");
+      }
+    });
+    expect(criteria.at(-1)).toEqual({ term: { value: "name a" } });
+  });
+
   it("survives sort, reverse, and reset cycles with fresh results", async () => {
     const fetcher: Fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as {
