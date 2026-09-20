@@ -45,7 +45,10 @@ impl CommandHandler for ModelInfoCommand {
                         name: column.name.0.to_string(),
                         description: column.description.to_string(),
                         data_type: match column.data_type {
-                            ColumnDataType::String => ModelAttributeType::String,
+                            // Text is physically stored as strings.
+                            ColumnDataType::String | ColumnDataType::Text => {
+                                ModelAttributeType::String
+                            }
                             ColumnDataType::Int => ModelAttributeType::Int,
                         },
                         optional: column.optional,

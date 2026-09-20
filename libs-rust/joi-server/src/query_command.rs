@@ -309,7 +309,11 @@ mod tests {
     use joi_base::JoiString;
 
     use crate::command_handler::CommandHandler;
-    use crate::data_store::{DataStore, TableDescriptionProvider, TestDataProvider};
+    use crate::data_store::{
+        AttributeColumn, AttributeName, ColumnDataType, ColumnDescription, DataStore,
+        DataStoreInsertMutation, DataStoreMutation, DataStoreMutationStep, TableDescription,
+        TableDescriptionProvider, TableName, TestDataProvider, Values,
+    };
     use crate::storage::IndexedDataStore;
     use crate::user_session_command::{UserTableDescriptionProvider, UserTestDataProvider};
 
@@ -433,6 +437,168 @@ mod tests {
             vec![JoiString::from("jane.developer")]
         );
         assert!(usernames(&search("no-such-user")).is_empty());
+    }
+
+    #[test]
+    fn queries_text_attributes_through_tokens() {
+        struct NoteTable;
+        impl TableDescriptionProvider for NoteTable {
+            fn table_description(&self) -> TableDescription {
+                let column = |name: &'static str, data_type: ColumnDataType| ColumnDescription {
+                    name: AttributeName(name.into()),
+                    description: name.into(),
+                    data_type,
+                    optional: false,
+                    references: None,
+                };
+                TableDescription {
+                    name: TableName("notes".into()),
+                    discoverable: false,
+                    columns: vec![
+                        column("id", ColumnDataType::String),
+                        column("title", ColumnDataType::Text),
+                    ],
+                }
+            }
+        }
+        let mut store = IndexedDataStore::in_memory().unwrap();
+        store
+            .ensure_tables(vec![NoteTable.table_description()])
+            .unwrap();
+        store
+            .mutate(DataStoreMutation {
+                return_entities: false,
+                steps: vec![DataStoreMutationStep::Insert(DataStoreInsertMutation {
+                    table_name: TableName("notes".into()),
+                    columns: vec![
+                        AttributeColumn {
+                            attribute: AttributeName("id".into()),
+                            values: Values::String(vec!["a".into(), "b".into()]),
+                        },
+                        AttributeColumn {
+                            attribute: AttributeName("title".into()),
+                            values: Values::String(vec![
+                                JoiString::from("Fix navigation bug"),
+                                JoiString::from("Navigation redesign"),
+                            ]),
+                        },
+                    ],
+                })],
+            })
+            .unwrap();
+        let command = QueryCommand::new(Arc::new(Mutex::new(Box::new(store))));
+
+        let titles = |criterion: QueryRequestCriterion| {
+            let response = command
+                .execute(
+                    &Default::default(),
+                    QueryRequest {
+                        table_name: "notes".into(),
+                        criterion,
+                        results: vec![QueryRequestResult::Rows {
+                            sorting: Vec::new(),
+                            max_results: 10,
+                            attributes: vec!["title".into()],
+                        }],
+                    },
+                )
+                .unwrap();
+            let QueryResponseResult::Rows { result_columns } = &response.results[0] else {
+                panic!("expected rows")
+            };
+            let QueryValues::String(values) = &result_columns[0].values else {
+                panic!("expected string values")
+            };
+            let mut values = values.clone();
+            values.sort();
+            values
+        };
+
+        // Single tokens match whole words; phrases match word sequences.
+        assert_eq!(
+            titles(QueryRequestCriterion::Contains {
+                attribute: "title".into(),
+                value: "navigation".into(),
+            }),
+            vec![
+                JoiString::from("Fix navigation bug"),
+                JoiString::from("Navigation redesign"),
+            ]
+        );
+        assert_eq!(
+            titles(QueryRequestCriterion::Contains {
+                attribute: "title".into(),
+                value: "fix navigation".into(),
+            }),
+            vec![JoiString::from("Fix navigation bug")]
+        );
+        // Equality on prose is word-based rather than exact.
+        assert_eq!(
+            titles(QueryRequestCriterion::Equals {
+                attribute: "title".into(),
+                values: vec!["navigation fix".into()],
+            }),
+            vec![JoiString::from("Fix navigation bug")]
+        );
+        // Quicksearch reaches text columns through the same tokens.
+        assert_eq!(
+            titles(QueryRequestCriterion::Term {
+                value: "redesign".into(),
+            }),
+            vec![JoiString::from("Navigation redesign")]
+        );
+
+        // Ordering, ranges, and aggregations need exact terms or fast fields.
+        let unsupported = [
+            QueryRequestResult::Rows {
+                sorting: vec![QueryRequestSort {
+                    attribute: "title".into(),
+                    direction: QueryRequestSortDirection::Ascending,
+                }],
+                max_results: 10,
+                attributes: vec!["title".into()],
+            },
+            QueryRequestResult::Aggregate {
+                aggregation: QueryAggregation::Count,
+                attribute: Some("title".into()),
+                max_results: 10,
+                criterion: None,
+            },
+        ];
+        for shape in unsupported {
+            assert!(
+                command
+                    .execute(
+                        &Default::default(),
+                        QueryRequest {
+                            table_name: "notes".into(),
+                            criterion: QueryRequestCriterion::MatchAny,
+                            results: vec![shape],
+                        },
+                    )
+                    .is_err()
+            );
+        }
+        assert!(
+            command
+                .execute(
+                    &Default::default(),
+                    QueryRequest {
+                        table_name: "notes".into(),
+                        criterion: QueryRequestCriterion::LessThan {
+                            attribute: "title".into(),
+                            value: "m".into(),
+                        },
+                        results: vec![QueryRequestResult::Aggregate {
+                            aggregation: QueryAggregation::Count,
+                            attribute: None,
+                            max_results: 1,
+                            criterion: None,
+                        }],
+                    },
+                )
+                .is_err()
+        );
     }
 
     #[test]

@@ -34,8 +34,8 @@ impl TableDescriptionProvider for TicketTableDescriptionProvider {
                         attribute: AttributeName("id".into()),
                     }),
                 },
-                ticket_column("title", "Short summary of the ticket"),
-                ticket_column("description", "Detailed ticket description"),
+                ticket_text_column("title", "Short summary of the ticket"),
+                ticket_text_column("description", "Detailed ticket description"),
                 ticket_column("status", "Current workflow status"),
                 ColumnDescription {
                     name: AttributeName("assignee".into()),
@@ -57,6 +57,16 @@ fn ticket_column(name: &'static str, description: &'static str) -> ColumnDescrip
         name: AttributeName(name.into()),
         description: description.into(),
         data_type: ColumnDataType::String,
+        optional: false,
+        references: None,
+    }
+}
+
+fn ticket_text_column(name: &'static str, description: &'static str) -> ColumnDescription {
+    ColumnDescription {
+        name: AttributeName(name.into()),
+        description: description.into(),
+        data_type: ColumnDataType::Text,
         optional: false,
         references: None,
     }
@@ -397,6 +407,14 @@ mod tests {
             table
                 .columns
                 .iter()
+                .filter(|column| column.name.0 == "title" || column.name.0 == "description")
+                .all(|column| column.data_type == ColumnDataType::Text)
+        );
+        assert!(
+            table
+                .columns
+                .iter()
+                .filter(|column| column.name.0 != "title" && column.name.0 != "description")
                 .all(|column| column.data_type == ColumnDataType::String)
         );
         let assignee = table

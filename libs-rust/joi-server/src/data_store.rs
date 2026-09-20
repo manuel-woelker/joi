@@ -234,10 +234,26 @@ pub struct ColumnReference {
 /// The value type supported by a table column.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ColumnDataType {
-    /// String values.
+    /// String values with exact matching, sorting, and faceting.
     String,
+    /// Prose values stored as strings but indexed as tokenized text only.
+    /// Equality is word-based, and sorting, ranges, and aggregations are
+    /// not supported.
+    Text,
     /// Integer values.
     Int,
+}
+
+impl ColumnDataType {
+    /// Whether column values of this physical representation fit the type.
+    /// Text is physically represented as strings.
+    pub fn accepts(&self, values: &Values) -> bool {
+        let strings = matches!(values, Values::String(_) | Values::NullableString(_));
+        match self {
+            ColumnDataType::String | ColumnDataType::Text => strings,
+            ColumnDataType::Int => matches!(values, Values::Int(_)),
+        }
+    }
 }
 
 /// Describes a sequence of changes to apply to a data store.

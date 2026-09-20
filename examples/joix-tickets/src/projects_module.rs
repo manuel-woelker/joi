@@ -16,7 +16,13 @@ impl TableDescriptionProvider for ProjectTableDescriptionProvider {
             columns: vec![
                 project_column("id", "Immutable KSUID project identifier"),
                 project_column("name", "Human-readable project name"),
-                project_column("description", "Detailed project description"),
+                ColumnDescription {
+                    name: AttributeName("description".into()),
+                    description: "Detailed project description".into(),
+                    data_type: ColumnDataType::Text,
+                    optional: false,
+                    references: None,
+                },
                 project_column("prefix", "Uppercase prefix used for associated ticket keys"),
             ],
         }

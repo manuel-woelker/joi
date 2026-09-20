@@ -15,8 +15,8 @@ use tantivy::{
     collector::{Count, TopDocs},
     doc,
     query::{
-        AllQuery, BooleanQuery, EmptyQuery, ExistsQuery, FastFieldRangeQuery, Occur, Query,
-        RegexQuery, TermQuery,
+        AllQuery, BooleanQuery, EmptyQuery, ExistsQuery, FastFieldRangeQuery, Occur, PhraseQuery,
+        Query, RegexQuery, TermQuery,
     },
     schema::{FAST, Field, IndexRecordOption, STORED, STRING, Schema, TEXT, Value},
 };
@@ -42,7 +42,7 @@ const TOKEN_SUFFIX: &str = "_joi_token";
 const TOKENIZER: &str = "default";
 /// Search-index schema generation. Bump after any index-layout change; older
 /// on-disk indexes are derived data and rebuild from the entity store.
-const SCHEMA_VERSION: &str = "3";
+const SCHEMA_VERSION: &str = "4";
 const SCHEMA_VERSION_FILE: &str = "joi_schema_version";
 
 struct IndexedAttribute {
@@ -127,6 +127,11 @@ impl SearchIndex for TantivySearchIndex {
                             schema.add_text_field(&format!("{name}{LOWER_SUFFIX}"), STRING);
                             schema.add_text_field(&format!("{name}{TOKEN_SUFFIX}"), TEXT);
                         }
+                        // Prose is only indexed as tokenized text; row values
+                        // come from the stored entity payload.
+                        ColumnDataType::Text => {
+                            schema.add_text_field(name, TEXT);
+                        }
                         ColumnDataType::Int => {
                             schema.add_i64_field(name, tantivy::schema::INDEXED | STORED | FAST);
                         }
@@ -153,6 +158,7 @@ impl SearchIndex for TantivySearchIndex {
                             Some(schema.get_field(&token_name).map_err(report)?),
                         )
                     }
+                    ColumnDataType::Text => (schema.get_field(name).map_err(report)?, None, None),
                     ColumnDataType::Int => (schema.get_field(name).map_err(report)?, None, None),
                 };
                 attribute_order.push(column.name.clone());
@@ -296,6 +302,12 @@ impl SearchIndex for TantivySearchIndex {
                     .into_iter()
                     .map(|(_, address)| address)
                     .collect::<Vec<_>>(),
+                ColumnDataType::Text => {
+                    return Err(joi_error!(
+                        "sorting is not supported for text attribute `{}`",
+                        sort.attribute.0
+                    ));
+                }
             };
             if sort.direction == QuerySortDirection::Descending {
                 addresses.reverse();
@@ -350,7 +362,8 @@ impl SearchIndex for TantivySearchIndex {
                 )
             })?;
             let values = match indexed.data_type {
-                ColumnDataType::String => Values::String(
+                // Text is physically stored as strings in the entity payload.
+                ColumnDataType::String | ColumnDataType::Text => Values::String(
                     rows.iter()
                         .map(|(_, row)| {
                             row.get(attribute.0.as_str())
@@ -404,6 +417,12 @@ impl SearchIndex for TantivySearchIndex {
                 attribute.0
             )
         })?;
+        if indexed.data_type == ColumnDataType::Text {
+            joi_bail!(
+                "aggregations are not supported for text attribute `{}`",
+                attribute.0
+            );
+        }
         count_terms(&searcher, query.as_ref(), index, indexed, max_results)
     }
 }
@@ -477,6 +496,12 @@ fn count_terms(
                                 joi_error!("Tantivy returned an invalid integer bucket")
                             })?,
                     ),
+                    // Rejected in `count` before aggregating.
+                    ColumnDataType::Text => {
+                        return Err(joi_error!(
+                            "aggregations are not supported for text attributes"
+                        ));
+                    }
                 }),
                 count: bucket
                     .get("doc_count")
@@ -557,6 +582,12 @@ fn add_entity(
                     document.add_i64(attribute.field, value);
                 }
             }
+            // The analyzer tokenizes prose; the raw value stays in the payload.
+            ColumnDataType::Text => {
+                if let Some(value) = value.as_str() {
+                    document.add_text(attribute.field, value);
+                }
+            }
         }
     }
     writer.add_document(document).map_err(report)?;
@@ -584,17 +615,37 @@ fn criterion_query(index: &EntityIndex, criterion: &QueryCriterion) -> JoiResult
                 return Ok(Box::new(EmptyQuery));
             }
             let field = indexed_attribute(index, attribute)?;
+            if field.data_type == ColumnDataType::Text {
+                // Prose has no exact terms: every word of each value must occur.
+                let mut clauses = Vec::with_capacity(values.len());
+                for value in values {
+                    let tokens = tokenize(index, value.as_str());
+                    if tokens.is_empty() {
+                        continue;
+                    }
+                    clauses.push((Occur::Should, token_conjunction(field.field, &tokens)));
+                }
+                if clauses.is_empty() {
+                    return Ok(Box::new(EmptyQuery));
+                }
+                return Ok(Box::new(BooleanQuery::new(clauses)));
+            }
             let mut clauses = Vec::with_capacity(values.len());
             for value in values {
                 clauses.push((Occur::Should, exact_query(field, value)?));
             }
             Ok(Box::new(BooleanQuery::new(clauses)))
         }
-        QueryCriterion::LessThan { attribute, value } => range_query(
-            indexed_attribute(index, attribute)?,
-            Bound::Unbounded,
-            Bound::Excluded(value),
-        ),
+        QueryCriterion::LessThan { attribute, value } => {
+            let field = indexed_attribute(index, attribute)?;
+            if field.data_type == ColumnDataType::Text {
+                joi_bail!(
+                    "less-than is not supported for text attribute `{}`",
+                    attribute.0
+                );
+            }
+            range_query(field, Bound::Unbounded, Bound::Excluded(value))
+        }
         QueryCriterion::Set(attribute) => {
             let field = indexed_attribute(index, attribute)?;
             let exists = Box::new(ExistsQuery::new(field_name(index, attribute)?, false));
@@ -629,13 +680,45 @@ fn criterion_query(index: &EntityIndex, criterion: &QueryCriterion) -> JoiResult
             attribute,
             minimum,
             maximum,
-        } => range_query(
-            indexed_attribute(index, attribute)?,
-            minimum.as_ref().map_or(Bound::Unbounded, Bound::Included),
-            maximum.as_ref().map_or(Bound::Unbounded, Bound::Included),
-        ),
+        } => {
+            let field = indexed_attribute(index, attribute)?;
+            if field.data_type == ColumnDataType::Text {
+                joi_bail!(
+                    "ranges are not supported for text attribute `{}`",
+                    attribute.0
+                );
+            }
+            range_query(
+                field,
+                minimum.as_ref().map_or(Bound::Unbounded, Bound::Included),
+                maximum.as_ref().map_or(Bound::Unbounded, Bound::Included),
+            )
+        }
         QueryCriterion::Contains { attribute, value } => {
             let field = indexed_attribute(index, attribute)?;
+            if field.data_type == ColumnDataType::Text {
+                // Prose matches whole words: one token queries directly, longer
+                // input must occur as an exact phrase.
+                let tokens = tokenize(index, value.as_str());
+                if tokens.is_empty() {
+                    if value.as_str().is_empty() {
+                        return Ok(Box::new(AllQuery));
+                    }
+                    return Ok(Box::new(EmptyQuery));
+                }
+                if tokens.len() == 1 {
+                    return Ok(Box::new(TermQuery::new(
+                        Term::from_field_text(field.field, &tokens[0]),
+                        IndexRecordOption::Basic,
+                    )));
+                }
+                return Ok(Box::new(PhraseQuery::new(
+                    tokens
+                        .iter()
+                        .map(|token| Term::from_field_text(field.field, token))
+                        .collect(),
+                )));
+            }
             let Some(lower_field) = field.lower_field else {
                 joi_bail!("contains is only supported for string attributes");
             };
@@ -653,10 +736,11 @@ fn criterion_query(index: &EntityIndex, criterion: &QueryCriterion) -> JoiResult
 /// Matches one search term against every indexed attribute with native
 /// term-dictionary lookups: the term runs through the index tokenizer, and
 /// every token must occur in at least one attribute. String attributes
-/// contribute a [`TermQuery`] per token, combined with `Should` so one
-/// matching attribute satisfies the token; integer attributes contribute an
-/// exact [`TermQuery`] for tokens that parse as integers. An empty term
-/// matches every record, while a term without word tokens matches none.
+/// contribute a [`TermQuery`] per token over their token field, text
+/// attributes over their text field, combined with `Should` so one matching
+/// attribute satisfies the token; integer attributes contribute an exact
+/// [`TermQuery`] for tokens that parse as integers. An empty term matches
+/// every record, while a term without word tokens matches none.
 fn term_query(index: &EntityIndex, value: &JoiString) -> JoiResult<Box<dyn Query>> {
     let tokens = tokenize(index, value.as_str());
     if tokens.is_empty() {
@@ -685,6 +769,16 @@ fn term_query(index: &EntityIndex, value: &JoiString) -> JoiResult<Box<dyn Query
                         )) as Box<dyn Query>,
                     ));
                 }
+                // Prose is already tokenized in its own field.
+                ColumnDataType::Text => {
+                    disjunction.push((
+                        Occur::Should,
+                        Box::new(TermQuery::new(
+                            Term::from_field_text(field.field, &token),
+                            IndexRecordOption::Basic,
+                        )) as Box<dyn Query>,
+                    ));
+                }
                 ColumnDataType::Int => {
                     if token.parse::<i64>().is_ok() {
                         disjunction.push((Occur::Should, exact_query(field, &token)?));
@@ -701,6 +795,24 @@ fn term_query(index: &EntityIndex, value: &JoiString) -> JoiResult<Box<dyn Query
         ));
     }
     Ok(Box::new(BooleanQuery::new(conjunction)))
+}
+
+/// Requires every token in the same field.
+fn token_conjunction(field: Field, tokens: &[String]) -> Box<dyn Query> {
+    Box::new(BooleanQuery::new(
+        tokens
+            .iter()
+            .map(|token| {
+                (
+                    Occur::Must,
+                    Box::new(TermQuery::new(
+                        Term::from_field_text(field, token),
+                        IndexRecordOption::Basic,
+                    )) as Box<dyn Query>,
+                )
+            })
+            .collect(),
+    ))
 }
 
 /// Runs a search term through the index tokenizer so query tokens follow the
@@ -741,6 +853,8 @@ fn composite_query(
 fn exact_query(field: &IndexedAttribute, value: &str) -> JoiResult<Box<dyn Query>> {
     let term = match field.data_type {
         ColumnDataType::String => Term::from_field_text(field.field, value),
+        // Rejected in `criterion_query` before exact matching.
+        ColumnDataType::Text => joi_bail!("equality is word-based for text attributes"),
         ColumnDataType::Int => Term::from_field_i64(
             field.field,
             value
@@ -760,6 +874,8 @@ fn range_query(
         Ok(match bound {
             Bound::Included(value) => Bound::Included(match field.data_type {
                 ColumnDataType::String => Term::from_field_text(field.field, value),
+                // Rejected in `criterion_query` before ranging.
+                ColumnDataType::Text => joi_bail!("ranges are not supported for text attributes"),
                 ColumnDataType::Int => Term::from_field_i64(
                     field.field,
                     value
@@ -769,6 +885,8 @@ fn range_query(
             }),
             Bound::Excluded(value) => Bound::Excluded(match field.data_type {
                 ColumnDataType::String => Term::from_field_text(field.field, value),
+                // Rejected in `criterion_query` before ranging.
+                ColumnDataType::Text => joi_bail!("ranges are not supported for text attributes"),
                 ColumnDataType::Int => Term::from_field_i64(
                     field.field,
                     value

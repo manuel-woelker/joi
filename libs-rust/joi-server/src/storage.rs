@@ -516,7 +516,7 @@ fn validate_columns(
                     column.attribute.0
                 )
             })?;
-        if column.values.data_type() != description.data_type {
+        if !description.data_type.accepts(&column.values) {
             joi_bail!(
                 "attribute `{}` has values of the wrong type",
                 column.attribute.0
