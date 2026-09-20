@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 
 import { cleanup, fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
+import userEvent from "@testing-library/user-event";
 import { createSignal } from "solid-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -184,6 +185,57 @@ describe("DataTable", () => {
     ));
 
     expect(await screen.findByText("Test", { selector: "mark" })).toBeTruthy();
+  });
+
+  it("keeps filter inputs stable across column updates", async () => {
+    const result = parseQueryResponse({
+      number_of_hits: 1,
+      result_columns: [{ attribute: "title", values: { type: "string", values: ["Fix navigation bug"] } }],
+    });
+    const [columns, setColumns] = createSignal<DataTableColumn[]>([
+      { column: result.requireColumn("title"), header: "Title" },
+    ]);
+    const filters = new Map([["title", { value: () => "", onInput: () => {}, placeholder: "Filter Title" }]]);
+    render(() => <DataTable ariaLabel="Tickets" result={result} columns={columns()} columnFilters={filters} />);
+    const input = screen.getByRole("searchbox", { name: "Filter Title" });
+    await userEvent.click(input);
+    await userEvent.keyboard("ab");
+    // New column identities, as produced after every refetch.
+    setColumns([{ column: result.requireColumn("title"), header: "Title" }]);
+    await waitFor(() => {
+      const current = screen.getByRole("searchbox", { name: "Filter Title" });
+      expect(current).toBe(input);
+      expect(document.activeElement).toBe(input);
+      expect((current as HTMLInputElement).value).toBe("ab");
+    });
+  });
+
+  it("preserves the caret while typing and syncs external value changes", async () => {
+    const result = parseQueryResponse({
+      number_of_hits: 1,
+      result_columns: [{ attribute: "title", values: { type: "string", values: ["Fix"] } }],
+    });
+    const [external, setExternal] = createSignal("");
+    const filters = new Map([["title", { value: () => external(), onInput: (value: string) => setExternal(value) }]]);
+    render(() => (
+      <DataTable
+        ariaLabel="Tickets"
+        result={result}
+        columns={[{ column: result.requireColumn("title"), header: "Title" }]}
+        columnFilters={filters}
+      />
+    ));
+    const input = screen.getByRole("searchbox", { name: "Filter Title" }) as HTMLInputElement;
+    await userEvent.click(input);
+    await userEvent.keyboard("ab");
+    await userEvent.keyboard("{ArrowLeft}X");
+    expect(input.value).toBe("aXb");
+    expect(input.selectionStart).toBe(2);
+    // External changes (view resets) still clear the input.
+    setExternal("cd");
+    await waitFor(() => expect(input.value).toBe("cd"));
+    setExternal("");
+    await waitFor(() => expect(input.value).toBe(""));
   });
 
   it("reacts to a new result and schema", () => {

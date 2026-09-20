@@ -33,7 +33,8 @@ export interface DataTableSort {
 }
 
 export interface DataTableColumnFilter {
-  readonly value: string;
+  /** Reactive current value; entries stay identical while their column exists. */
+  readonly value: () => string;
   readonly onInput: (value: string) => void;
   readonly placeholder?: string;
   readonly ariaLabel?: string;
@@ -541,19 +542,20 @@ export function DataTable(props: DataTableProps) {
           </For>
           <Show when={props.columnFilters}>
             <tr class={styles.columnFilterRow}>
-              <For each={table.getVisibleLeafColumns()}>
-                {(column) => (
-                  <th data-column-id={column.id} aria-label={`${String(column.columnDef.header)} filter`}>
-                    <Show when={props.columnFilters?.get(column.id)}>
+              {/*
+                Iterate primitive ids, not column objects: For recreates DOM
+                for changed object identities, which would drop input focus
+                on every refetch. Equal primitives skip mapper re-runs, so
+                inputs survive while their column exists.
+              */}
+              <For each={table.getVisibleLeafColumns().map((column) => column.id)}>
+                {(id) => (
+                  <th data-column-id={id}>
+                    <Show when={props.columnFilters?.get(id)}>
                       {(filter) => (
-                        <input
-                          type="search"
-                          class={styles.columnFilter}
-                          aria-label={filter().ariaLabel ?? `Filter ${String(column.columnDef.header)}`}
-                          placeholder={filter().placeholder ?? "Filter"}
-                          value={filter().value}
-                          onInput={(event) => filter().onInput(event.currentTarget.value)}
-                          onPointerDown={(event) => event.stopPropagation()}
+                        <ColumnFilterInput
+                          filter={filter}
+                          label={props.columns.find((column) => column.column.attribute === id)?.header}
                         />
                       )}
                     </Show>
@@ -749,6 +751,32 @@ function DataTableCell(props: {
         {(resolved) => <HighlightedSegments segments={resolved()} />}
       </Show>
     </>
+  );
+}
+
+function ColumnFilterInput(props: { filter: () => DataTableColumnFilter; label?: string }) {
+  let element!: HTMLInputElement;
+  // Sync external value changes (view resets) without touching the caret
+  // on own keystrokes: the DOM already holds typed text then.
+  createEffect(() => {
+    const next = props.filter().value();
+    if (element.value !== next) element.value = next;
+  });
+  return (
+    <input
+      ref={element}
+      type="search"
+      class={styles.columnFilter}
+      aria-label={props.filter().ariaLabel ?? (props.label ? `Filter ${props.label}` : "Filter")}
+      placeholder={props.filter().placeholder ?? "Filter"}
+      onInput={(event) => props.filter().onInput(event.currentTarget.value)}
+      onPointerDown={(event) => event.stopPropagation()}
+      onKeyDown={(event) => {
+        if (event.altKey && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
+          event.stopPropagation();
+        }
+      }}
+    />
   );
 }
 

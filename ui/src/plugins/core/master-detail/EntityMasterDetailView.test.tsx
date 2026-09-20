@@ -162,6 +162,70 @@ describe("EntityMasterDetailView master table", () => {
     expect(screen.getByText("Name", { selector: "mark" })).toBeTruthy();
   });
 
+  it("keeps focus in the column input across searches", async () => {
+    const criteria: unknown[] = [];
+    const fetcher: Fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as {
+        criterion?: unknown;
+        results?: readonly [{ type?: string }];
+      };
+      if (body.results?.[0]?.type === "rows") {
+        criteria.push(body.criterion);
+        return { ok: true, json: async () => rowsResponse(["a"]) } as Response;
+      }
+      return { ok: true, json: async () => countResponse(1) } as Response;
+    });
+    renderView(fetcher);
+
+    expect(await screen.findByText("Name a")).toBeDefined();
+    const settled = criteria.length;
+    const input = screen.getByRole("searchbox", { name: "Filter Name" });
+    await userEvent.click(input);
+    await userEvent.keyboard("x");
+    const afterFirst = screen.getByRole("searchbox", { name: "Filter Name" });
+    expect(afterFirst).toBe(input);
+    await userEvent.keyboard("yz");
+    await waitFor(() => {
+      if (criteria.length <= settled) throw new Error("search not committed yet");
+    });
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByRole("searchbox", { name: "Filter Name" }));
+    });
+  });
+
+  it("keeps editing state while a search is in flight", async () => {
+    let resolveRows!: (response: Response) => void;
+    const fetcher: Fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as {
+        results?: readonly [{ type?: string }];
+      };
+      if (body.results?.[0]?.type === "rows") {
+        return new Promise<Response>((resolve) => {
+          resolveRows = resolve;
+        });
+      }
+      return { ok: true, json: async () => countResponse(1) } as Response;
+    });
+    renderView(fetcher);
+
+    resolveRows({ ok: true, json: async () => rowsResponse(["a"]) } as Response);
+    expect(await screen.findByText("Name a")).toBeDefined();
+    const input = screen.getByRole("searchbox", { name: "Filter Name" });
+    await userEvent.click(input);
+    await userEvent.keyboard("x");
+    // Commit fires while the rows request is still open; keep typing through it.
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    const midFlight = screen.getByRole("searchbox", { name: "Filter Name" });
+    expect(midFlight).toBe(input);
+    expect(document.activeElement).toBe(input);
+    await userEvent.keyboard("y");
+    resolveRows({ ok: true, json: async () => rowsResponse(["a"]) } as Response);
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByRole("searchbox", { name: "Filter Name" }));
+    });
+    expect((screen.getByRole("searchbox", { name: "Filter Name" }) as HTMLInputElement).value).toBe("xy");
+  });
+
   it("survives sort, reverse, and reset cycles with fresh results", async () => {
     const fetcher: Fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as {

@@ -91,17 +91,18 @@ export function EntityMasterDetailView(props: {
     return deriveColumnHighlights(parameters.filter, parameters.search, searchAttributes(), parameters.columnSearch);
   });
   // Lookup columns resolve ids to labels with no searchable text of their
-  // own, so they offer no column input.
+  // own, so they offer no column input. Values are live thunks so inputs
+  // always read current state even though entries outlive their creation.
   const columnFilters = createMemo(() => {
-    const live = columnSearch();
     return new Map(
       description.attributes
         .filter((attribute) => !attribute.lookup)
         .map((attribute) => [
           attribute.id,
           {
-            value: live[attribute.id] ?? "",
+            value: () => columnSearch()[attribute.id] ?? "",
             placeholder: `Filter ${attribute.label}`,
+            ariaLabel: `Filter ${attribute.label}`,
             onInput: (value: string) => setColumnSearch((current) => ({ ...current, [attribute.id]: value })),
           },
         ]),
