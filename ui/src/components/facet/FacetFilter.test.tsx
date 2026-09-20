@@ -23,7 +23,7 @@ describe("FacetFilter", () => {
     render(() => <FacetFilter facets={[facet]} onValueChange={() => undefined} />);
 
     const items = within(screen.getByRole("list")).getAllByRole("listitem");
-    expect(items.map((item) => item.textContent)).toEqual(["Open12+−", "In review5+−", "Closed2+−"]);
+    expect(items.map((item) => item.textContent)).toEqual(["+−Open12", "+−In review5", "+−Closed2"]);
     expect(facet.values.map((entry) => entry.label)).toEqual(["Closed", "Open", "In review"]);
   });
 

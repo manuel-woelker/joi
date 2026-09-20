@@ -72,8 +72,6 @@ export function FacetFilter(props: FacetFilterProps) {
                       props.onValueChange(facet.id, entry.value, state() === next ? "neutral" : next);
                     return (
                       <li data-state={state()}>
-                        <span class={styles.label}>{props.renderValue?.(facet, entry) ?? entry.label}</span>
-                        <span class={styles.count}>{entry.count.toLocaleString()}</span>
                         <button
                           type="button"
                           class={styles.toggle}
@@ -94,6 +92,8 @@ export function FacetFilter(props: FacetFilterProps) {
                         >
                           <span aria-hidden="true">−</span>
                         </button>
+                        <span class={styles.label}>{props.renderValue?.(facet, entry) ?? entry.label}</span>
+                        <span class={styles.count}>{entry.count.toLocaleString()}</span>
                       </li>
                     );
                   }}

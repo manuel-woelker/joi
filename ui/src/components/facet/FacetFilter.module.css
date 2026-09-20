@@ -55,7 +55,7 @@
 
 .values > li {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 4px;
   min-height: 28px;
@@ -70,6 +70,10 @@
 .values > li[data-state="excluded"] {
   background: var(--color-surface-muted);
   color: var(--color-text-muted);
+}
+
+.values > li[data-state="excluded"] .label {
+  text-decoration: line-through;
 }
 
 .toggle {
