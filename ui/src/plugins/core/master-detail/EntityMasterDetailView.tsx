@@ -91,28 +91,22 @@ export function EntityMasterDetailView(props: {
     observer.observe(element);
     onCleanup(() => observer.disconnect());
   };
-  createEffect(() => {
-    const current = filter();
-    if (current === filterParameters().filter) return;
-    const timer = window.setTimeout(
-      () => setFilterParameters((parameters) => ({ ...parameters, filter: current })),
-      300,
-    );
-    onCleanup(() => window.clearTimeout(timer));
-  });
+  // Live inputs commit into the executed query parameters on a trailing
+  // debounce so typing never fires a request per keystroke.
+  debounceParameter(
+    filter,
+    () => filterParameters().filter,
+    (value) => setFilterParameters((parameters) => ({ ...parameters, filter: value })),
+  );
+  debounceParameter(
+    () => search().trim(),
+    () => filterParameters().search,
+    (value) => setFilterParameters((parameters) => ({ ...parameters, search: value })),
+  );
   createEffect(() => {
     const current = facetSelections();
     if (current === filterParameters().facets) return;
     setFilterParameters((parameters) => ({ ...parameters, facets: current }));
-  });
-  createEffect(() => {
-    const current = search().trim();
-    if (current === filterParameters().search) return;
-    const timer = window.setTimeout(
-      () => setFilterParameters((parameters) => ({ ...parameters, search: current })),
-      300,
-    );
-    onCleanup(() => window.clearTimeout(timer));
   });
   let activeFilterIdentity = props.filterIdentity;
   createEffect(() => {
@@ -534,10 +528,19 @@ function facetValueKey(value: QueryValue | null): string {
   return value === null ? "null:" : `${typeof value}:${value}`;
 }
 
+/** Commits a live input into the executed query on a trailing debounce. */
+function debounceParameter<T>(value: () => T, committed: () => T, commit: (value: T) => void): void {
+  createEffect(() => {
+    const current = value();
+    if (current === committed()) return;
+    const timer = window.setTimeout(() => commit(current), 300);
+    onCleanup(() => window.clearTimeout(timer));
+  });
+}
+
 function cloneSorting(sorting: readonly DataTableSort[] | undefined): readonly DataTableSort[] {
   return sorting?.map((sort) => ({ ...sort })) ?? [];
 }
-
 function cloneFilter(filter: FilterDefinition | undefined): FilterDefinition {
   if (!filter) return createCompositeFilter();
   if (filter.type === "composite") {
