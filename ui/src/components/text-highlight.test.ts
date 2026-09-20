@@ -98,6 +98,15 @@ describe("deriveColumnHighlights", () => {
     expect(highlights.get("description")?.map((needle) => needle.source)).toEqual(["jane", "developer"]);
   });
 
+  it("scopes column search needles to their column", () => {
+    const highlights = deriveColumnHighlights(undefined, "", ["title", "description"], {
+      title: "nav bug",
+      description: "  ",
+    });
+    expect(highlights.get("title")?.map((needle) => needle.source)).toEqual(["nav", "bug"]);
+    expect(highlights.has("description")).toBe(false);
+  });
+
   it("ignores disabled, negated, and non-textual predicates", () => {
     const filter = {
       ...createCompositeFilter(),

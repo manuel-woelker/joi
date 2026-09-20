@@ -32,6 +32,13 @@ export interface DataTableSort {
   readonly direction: DataTableSortDirection;
 }
 
+export interface DataTableColumnFilter {
+  readonly value: string;
+  readonly onInput: (value: string) => void;
+  readonly placeholder?: string;
+  readonly ariaLabel?: string;
+}
+
 export interface DataTableProps {
   readonly ariaLabel: string;
   readonly result: QueryResult;
@@ -39,6 +46,8 @@ export interface DataTableProps {
   readonly columns: readonly DataTableColumn[];
   /** Precompiled highlight needles per attribute, applied to text cells. */
   readonly highlights?: ReadonlyMap<string, readonly CompiledTextNeedle[]>;
+  /** Per-column quick filters rendered below the column headers. */
+  readonly columnFilters?: ReadonlyMap<string, DataTableColumnFilter>;
   readonly emptyMessage?: string;
   readonly loading?: boolean;
   readonly loadingMessage?: string;
@@ -530,6 +539,29 @@ export function DataTable(props: DataTableProps) {
               </tr>
             )}
           </For>
+          <Show when={props.columnFilters}>
+            <tr class={styles.columnFilterRow}>
+              <For each={table.getVisibleLeafColumns()}>
+                {(column) => (
+                  <th data-column-id={column.id} aria-label={`${String(column.columnDef.header)} filter`}>
+                    <Show when={props.columnFilters?.get(column.id)}>
+                      {(filter) => (
+                        <input
+                          type="search"
+                          class={styles.columnFilter}
+                          aria-label={filter().ariaLabel ?? `Filter ${String(column.columnDef.header)}`}
+                          placeholder={filter().placeholder ?? "Filter"}
+                          value={filter().value}
+                          onInput={(event) => filter().onInput(event.currentTarget.value)}
+                          onPointerDown={(event) => event.stopPropagation()}
+                        />
+                      )}
+                    </Show>
+                  </th>
+                )}
+              </For>
+            </tr>
+          </Show>
         </thead>
         <tbody
           ref={(element) => {

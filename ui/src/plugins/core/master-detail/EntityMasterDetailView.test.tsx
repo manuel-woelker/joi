@@ -134,6 +134,34 @@ describe("EntityMasterDetailView master table", () => {
     expect(screen.getByText("Name", { selector: "mark" })).toBeTruthy();
   });
 
+  it("sends column terms scoped to their attribute", async () => {
+    const criteria: unknown[] = [];
+    const fetcher: Fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as {
+        criterion?: unknown;
+        results?: readonly [{ type?: string }];
+      };
+      if (body.results?.[0]?.type === "rows") {
+        criteria.push(body.criterion);
+        return { ok: true, json: async () => rowsResponse(["a"]) } as Response;
+      }
+      return { ok: true, json: async () => countResponse(1) } as Response;
+    });
+    renderView(fetcher);
+
+    expect(await screen.findByText("Name a")).toBeDefined();
+    expect(criteria[0]).toBe("match_any");
+
+    await userEvent.type(screen.getByRole("searchbox", { name: "Filter Name" }), "name b");
+    await waitFor(() => {
+      if (!criteria.some((criterion) => JSON.stringify(criterion).includes('"attributes"'))) {
+        throw new Error("column term not sent yet");
+      }
+    });
+    expect(criteria.at(-1)).toEqual({ term: { value: "name b", attributes: ["name"] } });
+    expect(screen.getByText("Name", { selector: "mark" })).toBeTruthy();
+  });
+
   it("survives sort, reverse, and reset cycles with fresh results", async () => {
     const fetcher: Fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as {
@@ -212,7 +240,8 @@ describe("EntityMasterDetailView master table", () => {
       });
       renderView(fetcher);
 
-      const firstDataRowText = () => screen.queryAllByRole("row")[1]?.textContent ?? "";
+      const firstDataRowText = () =>
+        screen.getByRole("table", { name: "Tickets" }).querySelectorAll("tr[data-row-id]")[0]?.textContent ?? "";
       const expectFirstRow = async (id: string, stage: string) => {
         await waitFor(() => {
           if (!firstDataRowText().includes(id)) throw new Error(`${stage} rows not rendered yet`);

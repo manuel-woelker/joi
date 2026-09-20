@@ -75,17 +75,37 @@ export function EntityMasterDetailView(props: {
   // can show marks (text and numbers highlight, lookup labels highlight
   // matched words, other custom cells stay untouched).
   const searchAttributes = createMemo(() => description.attributes.map((attribute) => attribute.id));
+  // Per-column quick filters keyed by attribute, trimmed on commit.
+  const [columnSearch, setColumnSearch] = createSignal<Readonly<Record<string, string>>>({});
   const [filterParameters, setFilterParameters] = createSignal({
     filter: filter(),
     facets: facetSelections(),
     search: search(),
+    columnSearch: columnSearch(),
   });
   const rowParameters = createMemo(() => ({ ...filterParameters(), sorting: sorting() }));
   // Highlights derive from the same committed parameters as the queries so
   // marks can never skew from the executed filter and search.
   const highlights = createMemo(() => {
     const parameters = filterParameters();
-    return deriveColumnHighlights(parameters.filter, parameters.search, searchAttributes());
+    return deriveColumnHighlights(parameters.filter, parameters.search, searchAttributes(), parameters.columnSearch);
+  });
+  // Lookup columns resolve ids to labels with no searchable text of their
+  // own, so they offer no column input.
+  const columnFilters = createMemo(() => {
+    const live = columnSearch();
+    return new Map(
+      description.attributes
+        .filter((attribute) => !attribute.lookup)
+        .map((attribute) => [
+          attribute.id,
+          {
+            value: live[attribute.id] ?? "",
+            placeholder: `Filter ${attribute.label}`,
+            onInput: (value: string) => setColumnSearch((current) => ({ ...current, [attribute.id]: value })),
+          },
+        ]),
+    );
   });
   const [showLoading, setShowLoading] = createSignal(false);
   // Viewport height drives table virtualization so only visible rows mount.
@@ -114,6 +134,12 @@ export function EntityMasterDetailView(props: {
     () => filterParameters().search,
     (value) => setFilterParameters((parameters) => ({ ...parameters, search: value })),
   );
+  debounceParameter(
+    () => trimColumnSearch(columnSearch()),
+    () => filterParameters().columnSearch,
+    (value) => setFilterParameters((parameters) => ({ ...parameters, columnSearch: value })),
+    sameColumnSearch,
+  );
   createEffect(() => {
     const current = facetSelections();
     if (current === filterParameters().facets) return;
@@ -129,7 +155,8 @@ export function EntityMasterDetailView(props: {
     setSorting(nextSorting);
     setFacetSelections([]);
     setSearch("");
-    setFilterParameters({ filter: next, facets: [], search: "" });
+    setColumnSearch({});
+    setFilterParameters({ filter: next, facets: [], search: "", columnSearch: {} });
   });
   let pendingFetch: { fetchMs: number; settledAt: number; rowCount: number; columnCount: number } | undefined;
   const [records, { refetch }] = createResource(rowParameters, async (query) => {
@@ -446,6 +473,7 @@ export function EntityMasterDetailView(props: {
                   rows={records()?.rows}
                   columns={createEntityTableColumns(entity())}
                   highlights={highlights()}
+                  columnFilters={columnFilters()}
                   loading={showLoading() || (records.loading && !records())}
                   loadingMessage="Loading..."
                   fillHeight
@@ -541,13 +569,32 @@ function facetValueKey(value: QueryValue | null): string {
 }
 
 /** Commits a live input into the executed query on a trailing debounce. */
-function debounceParameter<T>(value: () => T, committed: () => T, commit: (value: T) => void): void {
+function debounceParameter<T>(
+  value: () => T,
+  committed: () => T,
+  commit: (value: T) => void,
+  equal: (left: T, right: T) => boolean = Object.is,
+): void {
   createEffect(() => {
     const current = value();
-    if (current === committed()) return;
+    if (equal(current, committed())) return;
     const timer = window.setTimeout(() => commit(current), 300);
     onCleanup(() => window.clearTimeout(timer));
   });
+}
+
+function trimColumnSearch(search: Readonly<Record<string, string>>): Readonly<Record<string, string>> {
+  const trimmed = Object.fromEntries(
+    Object.entries(search)
+      .map(([attribute, term]) => [attribute, term.trim()] as const)
+      .filter(([, term]) => term),
+  );
+  return trimmed;
+}
+
+function sameColumnSearch(left: Readonly<Record<string, string>>, right: Readonly<Record<string, string>>): boolean {
+  const keys = Object.keys(left);
+  return keys.length === Object.keys(right).length && keys.every((key) => left[key] === right[key]);
 }
 
 function cloneSorting(sorting: readonly DataTableSort[] | undefined): readonly DataTableSort[] {

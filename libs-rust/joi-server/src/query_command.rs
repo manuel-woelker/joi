@@ -99,6 +99,8 @@ enum QueryRequestCriterion {
     },
     Term {
         value: JoiString,
+        #[serde(default)]
+        attributes: Vec<JoiString>,
     },
 }
 
@@ -298,7 +300,10 @@ fn query_criterion(criterion: QueryRequestCriterion) -> QueryCriterion {
             attribute: AttributeName(attribute),
             value,
         },
-        QueryRequestCriterion::Term { value } => QueryCriterion::Term { value },
+        QueryRequestCriterion::Term { value, attributes } => QueryCriterion::Term {
+            value,
+            attributes: attributes.into_iter().map(AttributeName).collect(),
+        },
     }
 }
 
@@ -432,6 +437,7 @@ mod tests {
                         table_name: "users".into(),
                         criterion: QueryRequestCriterion::Term {
                             value: value.into(),
+                            attributes: Vec::new(),
                         },
                         results: vec![QueryRequestResult::Rows {
                             sorting: Vec::new(),
@@ -587,8 +593,66 @@ mod tests {
         assert_eq!(
             titles(QueryRequestCriterion::Term {
                 value: "redesign".into(),
+                attributes: Vec::new(),
             }),
             vec![JoiString::from("Navigation redesign")]
+        );
+        // Scoped terms only cover the listed attributes.
+        let scoped_titles = |value: &str, attributes: &[&str]| {
+            let response = command
+                .execute(
+                    &Default::default(),
+                    QueryRequest {
+                        table_name: "notes".into(),
+                        criterion: QueryRequestCriterion::Term {
+                            value: value.into(),
+                            attributes: attributes
+                                .iter()
+                                .map(|attribute| (*attribute).into())
+                                .collect(),
+                        },
+                        results: vec![QueryRequestResult::Rows {
+                            sorting: Vec::new(),
+                            max_results: 10,
+                            attributes: vec!["title".into()],
+                        }],
+                    },
+                )
+                .unwrap();
+            let QueryResponseResult::Rows { result_columns } = &response.results[0] else {
+                panic!("expected rows")
+            };
+            let QueryValues::String(values) = &result_columns[0].values else {
+                panic!("expected string values")
+            };
+            let mut values = values.clone();
+            values.sort();
+            values
+        };
+        assert_eq!(
+            scoped_titles("redesign", &["title"]),
+            vec![JoiString::from("Navigation redesign")]
+        );
+        assert!(scoped_titles("redesign", &["id"]).is_empty());
+        assert!(
+            command
+                .execute(
+                    &Default::default(),
+                    QueryRequest {
+                        table_name: "notes".into(),
+                        criterion: QueryRequestCriterion::Term {
+                            value: "redesign".into(),
+                            attributes: vec!["ghost".into()],
+                        },
+                        results: vec![QueryRequestResult::Aggregate {
+                            aggregation: QueryAggregation::Count,
+                            attribute: None,
+                            max_results: 1,
+                            criterion: None,
+                        }],
+                    },
+                )
+                .is_err()
         );
         // References match exact ids and facet through the fast field;
         // substring search is rejected.

@@ -126,6 +126,7 @@ export function deriveColumnHighlights(
   filter: FilterDefinition | undefined,
   search: string,
   stringAttributes: readonly string[],
+  columnSearch: Readonly<Record<string, string>> = {},
 ): ReadonlyMap<string, readonly CompiledTextNeedle[]> {
   const specs = new Map<string, TextNeedleSpec[]>();
   const add = (attribute: string, spec: TextNeedleSpec) => {
@@ -143,6 +144,10 @@ export function deriveColumnHighlights(
   });
   for (const token of tokenizeHighlightText(search)) {
     for (const attribute of stringAttributes) add(attribute, { text: token, wholeWord: true });
+  }
+  // Per-column terms highlight only their own column, like the global term.
+  for (const [attribute, term] of Object.entries(columnSearch)) {
+    for (const token of tokenizeHighlightText(term)) add(attribute, { text: token, wholeWord: true });
   }
   const compiled = new Map<string, readonly CompiledTextNeedle[]>();
   for (const [attribute, entries] of specs) {

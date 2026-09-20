@@ -69,8 +69,10 @@ pub enum QueryCriterion {
     /// case-insensitively, integer attributes match tokens that parse as
     /// their exact value. An empty term matches every record.
     Term {
-        /// The search term to find across all attributes.
+        /// The search term to find across attributes.
         value: JoiString,
+        /// Attributes covered by the term; empty searches every attribute.
+        attributes: Vec<AttributeName>,
     },
 }
 

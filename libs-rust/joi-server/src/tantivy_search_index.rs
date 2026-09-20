@@ -779,19 +779,24 @@ fn criterion_query(index: &EntityIndex, criterion: &QueryCriterion) -> JoiResult
                 RegexQuery::from_pattern(&pattern, lower_field).map_err(report)?,
             ))
         }
-        QueryCriterion::Term { value } => term_query(index, value),
+        QueryCriterion::Term { value, attributes } => term_query(index, value, attributes),
     }
 }
 
-/// Matches one search term against every indexed attribute with native
+/// Matches one search term against indexed attributes with native
 /// term-dictionary lookups: the term runs through the index tokenizer, and
-/// every token must occur in at least one attribute. String attributes
-/// contribute a [`TermQuery`] per token over their token field, text
-/// attributes over their text field, combined with `Should` so one matching
-/// attribute satisfies the token; integer attributes contribute an exact
-/// [`TermQuery`] for tokens that parse as integers. An empty term matches
-/// every record, while a term without word tokens matches none.
-fn term_query(index: &EntityIndex, value: &JoiString) -> JoiResult<Box<dyn Query>> {
+/// every token must occur in at least one covered attribute. String
+/// attributes contribute a [`TermQuery`] per token over their token field,
+/// text attributes over their text field, combined with `Should` so one
+/// matching attribute satisfies the token; integer attributes contribute an
+/// exact [`TermQuery`] for tokens that parse as integers. An empty attribute
+/// list covers every attribute. An empty term matches every record, while a
+/// term without word tokens matches none.
+fn term_query(
+    index: &EntityIndex,
+    value: &JoiString,
+    attributes: &[AttributeName],
+) -> JoiResult<Box<dyn Query>> {
     let tokens = tokenize(index, value.as_str());
     if tokens.is_empty() {
         if value.as_str().trim().is_empty() {
@@ -799,13 +804,22 @@ fn term_query(index: &EntityIndex, value: &JoiString) -> JoiResult<Box<dyn Query
         }
         return Ok(Box::new(EmptyQuery));
     }
+    let scope: Vec<&IndexedAttribute> = if attributes.is_empty() {
+        index
+            .attribute_order
+            .iter()
+            .filter_map(|attribute| index.attributes.get(attribute))
+            .collect()
+    } else {
+        attributes
+            .iter()
+            .map(|attribute| indexed_attribute(index, attribute))
+            .collect::<JoiResult<_>>()?
+    };
     let mut conjunction = Vec::with_capacity(tokens.len());
     for token in tokens {
         let mut disjunction = Vec::new();
-        for attribute in &index.attribute_order {
-            let Some(field) = index.attributes.get(attribute) else {
-                continue;
-            };
+        for field in &scope {
             match field.data_type {
                 ColumnDataType::String => {
                     let Some(token_field) = field.token_field else {

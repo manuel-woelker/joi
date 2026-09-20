@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { loadEntityFacet, loadEntityRecordCount, loadEntityRecords } from "./entity-query";
-import { FetchService } from "../../../base/services/fetch-service";
+import { FetchService, type Fetcher } from "../../../base/services/fetch-service";
 import type { QueryDefinition } from "./model";
 import { testEntity } from "./test-fixtures";
 
@@ -124,7 +124,7 @@ describe("entity queries", () => {
     expect(requests.every((request) => request.results.length === 1)).toBe(true);
   });
 
-  it("sends the quicksearch term alongside filters", async () => {
+  it("sends quicksearch, column, and filter terms together", async () => {
     const fetcher = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -143,16 +143,56 @@ describe("entity queries", () => {
       }),
     });
 
-    await loadEntityRecords(testEntity, new FetchService(fetcher), { ...query, search: "  navigation " });
+    await loadEntityRecords(testEntity, new FetchService(fetcher), {
+      ...query,
+      search: "  navigation ",
+      columnSearch: { title: "bug fix", status: "  " },
+    });
     expect(JSON.parse(fetcher.mock.calls[0][1].body).criterion).toEqual({
       all: [
         { term: { value: "navigation" } },
+        { term: { value: "bug fix", attributes: ["title"] } },
         {
           all: [
             { equals: { attribute: "status", values: ["open", "in-progress"] } },
             { contains: { attribute: "title", value: "navigation" } },
           ],
         },
+      ],
+    });
+  });
+
+  it("drops a column term for its own facet counts", async () => {
+    const seen: unknown[] = [];
+    const fetcher: Fetcher = async (_input: RequestInfo | URL, init?: RequestInit) => {
+      seen.push(JSON.parse(String(init?.body)));
+      return {
+        ok: true,
+        json: async () => ({
+          results: [
+            {
+              type: "aggregate",
+              aggregation: "count",
+              attribute: "title",
+              values: [{ value: "Fix", count: 3 }],
+            },
+          ],
+        }),
+      } as Response;
+    };
+    const service = new FetchService(fetcher);
+
+    await loadEntityFacet(testEntity, "title", service, {
+      ...query,
+      search: "navigation",
+      columnSearch: { title: "bug", status: "open" },
+    });
+    expect(seen).toHaveLength(1);
+    expect((seen[0] as { criterion: unknown }).criterion).toEqual({
+      all: [
+        { term: { value: "navigation" } },
+        { term: { value: "open", attributes: ["status"] } },
+        { equals: { attribute: "status", values: ["open", "in-progress"] } },
       ],
     });
   });
