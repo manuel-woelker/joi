@@ -87,6 +87,10 @@ export function Tree(props: TreeProps) {
   };
 
   const onKeyDown = (event: KeyboardEvent, node: TreeNode) => {
+    // Controls nested inside a row keep their native keys: without this,
+    // typing aside, arrows, Space, and Enter in an embedded input would
+    // drive tree navigation instead of the control. Mirrors the click guard.
+    if ((event.target as Element | null)?.closest?.("button, a, input, select, textarea")) return;
     const rows = visible();
     const index = rows.findIndex((entry) => entry.node.id === node.id);
     const current = rows[index];

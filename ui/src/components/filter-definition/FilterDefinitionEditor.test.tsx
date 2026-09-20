@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 
 import { fireEvent, render, screen } from "@solidjs/testing-library";
+import userEvent from "@testing-library/user-event";
 import { createSignal } from "solid-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup } from "@solidjs/testing-library";
@@ -99,6 +100,35 @@ describe("FilterDefinitionEditor", () => {
     expect(screen.getByRole("textbox", { name: "Filter value" })).toBe(input);
     expect(document.activeElement).toBe(input);
     expect(input.value).toBe("ab");
+  });
+
+  it("keeps arrow keys inside value inputs instead of tree navigation", async () => {
+    const textAttributes = [
+      {
+        id: filterAttributeId("title"),
+        label: "Title",
+        valueType: "string" as const,
+      },
+    ];
+    const initial = createCompositeFilter("all", [
+      createFilterCriterion(
+        textAttributes[0].id,
+        containsFilterOperator,
+        { type: "value", value: "" },
+        filterNodeId("title"),
+      ),
+    ]);
+    const TestTextEditor = () => {
+      const [value, setValue] = createSignal<FilterDefinition>(initial);
+      return <FilterDefinitionEditor attributes={textAttributes} value={value()} onChange={setValue} />;
+    };
+    render(() => <TestTextEditor />);
+    const input = screen.getByRole<HTMLInputElement>("textbox", { name: "Filter value" });
+    await userEvent.click(input);
+    await userEvent.keyboard("ab");
+    await userEvent.keyboard("{ArrowLeft}");
+    expect(document.activeElement).toBe(input);
+    expect(input.selectionStart).toBe(1);
   });
 
   it("preserves an operand when changing to an operator with the same operand shape", () => {

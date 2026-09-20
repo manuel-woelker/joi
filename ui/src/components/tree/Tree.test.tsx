@@ -67,6 +67,33 @@ describe("Tree", () => {
     expect(screen.getByText("Document")).toBeTruthy();
   });
 
+  it("leaves keys inside nested controls alone", async () => {
+    const onActivate = vi.fn();
+    const renderers = createTreeRendererRegistry(label)
+      .register(documentKind, () => (
+        <label>
+          Rename <input aria-label="Rename document" type="text" value="Getting started" />
+        </label>
+      ))
+      .build();
+    render(() => (
+      <Tree
+        ariaLabel="Editable tree"
+        model={model()}
+        definition={{ renderers, onActivate }}
+        defaultExpanded={new Set([folderId])}
+      />
+    ));
+
+    const input = screen.getByLabelText("Rename document") as HTMLInputElement;
+    input.focus();
+    input.setSelectionRange(4, 4);
+    await userEvent.keyboard("{ArrowLeft}");
+    expect(onActivate).not.toHaveBeenCalled();
+    expect(globalThis.document.activeElement).toBe(input);
+    expect(input.selectionStart).toBe(3);
+  });
+
   it("navigates visible rows and activates leaf nodes", async () => {
     const onActivate = vi.fn();
     const renderers = createTreeRendererRegistry(label)
