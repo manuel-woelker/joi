@@ -37,18 +37,22 @@ const ENTITY_DATA_FIELD: &str = "_joi_entity_data";
 const SEQUENCE_FIELD: &str = "_joi_sequence";
 const LOWER_SUFFIX: &str = "_joi_lower";
 const TOKEN_SUFFIX: &str = "_joi_token";
+const SORT_SUFFIX: &str = "_joi_sort";
 /// Tokenizer backing quicksearch: tantivy's native word-token search over a
 /// tokenized text field.
 const TOKENIZER: &str = "default";
 /// Search-index schema generation. Bump after any index-layout change; older
 /// on-disk indexes are derived data and rebuild from the entity store.
-const SCHEMA_VERSION: &str = "4";
+const SCHEMA_VERSION: &str = "5";
 const SCHEMA_VERSION_FILE: &str = "joi_schema_version";
+/// Sort keys keep a short prefix: enough to order records, small to store.
+const SORT_PREFIX_CHARS: usize = 20;
 
 struct IndexedAttribute {
     field: Field,
     lower_field: Option<Field>,
     token_field: Option<Field>,
+    sort_field: Option<Field>,
     data_type: ColumnDataType,
 }
 
@@ -128,9 +132,11 @@ impl SearchIndex for TantivySearchIndex {
                             schema.add_text_field(&format!("{name}{TOKEN_SUFFIX}"), TEXT);
                         }
                         // Prose is only indexed as tokenized text; row values
-                        // come from the stored entity payload.
+                        // come from the stored entity payload. A truncated
+                        // sort key keeps ordering cheap.
                         ColumnDataType::Text => {
                             schema.add_text_field(name, TEXT);
+                            schema.add_text_field(&format!("{name}{SORT_SUFFIX}"), STRING | FAST);
                         }
                         ColumnDataType::Int => {
                             schema.add_i64_field(name, tantivy::schema::INDEXED | STORED | FAST);
@@ -148,7 +154,7 @@ impl SearchIndex for TantivySearchIndex {
             let mut attribute_order = Vec::with_capacity(table.columns.len());
             for column in table.columns {
                 let name = column.name.0.as_str();
-                let (field, lower_field, token_field) = match column.data_type {
+                let (field, lower_field, token_field, sort_field) = match column.data_type {
                     ColumnDataType::String => {
                         let lower_name = format!("{name}{LOWER_SUFFIX}");
                         let token_name = format!("{name}{TOKEN_SUFFIX}");
@@ -156,10 +162,21 @@ impl SearchIndex for TantivySearchIndex {
                             schema.get_field(name).map_err(report)?,
                             Some(schema.get_field(&lower_name).map_err(report)?),
                             Some(schema.get_field(&token_name).map_err(report)?),
+                            None,
                         )
                     }
-                    ColumnDataType::Text => (schema.get_field(name).map_err(report)?, None, None),
-                    ColumnDataType::Int => (schema.get_field(name).map_err(report)?, None, None),
+                    ColumnDataType::Text => {
+                        let sort_name = format!("{name}{SORT_SUFFIX}");
+                        (
+                            schema.get_field(name).map_err(report)?,
+                            None,
+                            None,
+                            Some(schema.get_field(&sort_name).map_err(report)?),
+                        )
+                    }
+                    ColumnDataType::Int => {
+                        (schema.get_field(name).map_err(report)?, None, None, None)
+                    }
                 };
                 attribute_order.push(column.name.clone());
                 attributes.insert(
@@ -168,6 +185,7 @@ impl SearchIndex for TantivySearchIndex {
                         field,
                         lower_field,
                         token_field,
+                        sort_field,
                         data_type: column.data_type,
                     },
                 );
@@ -270,18 +288,23 @@ impl SearchIndex for TantivySearchIndex {
             .map_err(report)?;
         let addresses = if let Some(sort) = query.sorting.first() {
             let field = indexed_attribute(index, &sort.attribute)?;
-            let field_name = index.index.schema().get_field_name(field.field).to_owned();
-            let mut addresses = match field.data_type {
-                ColumnDataType::String => searcher
+            // Prose orders by its truncated sort key.
+            let sort_field = match field.data_type {
+                ColumnDataType::Text => field.sort_field.expect("text attributes index sort keys"),
+                _ => field.field,
+            };
+            let field_name = index.index.schema().get_field_name(sort_field).to_owned();
+            // TopDocs returns the requested order directly.
+            let order = match sort.direction {
+                QuerySortDirection::Ascending => Order::Asc,
+                QuerySortDirection::Descending => Order::Desc,
+            };
+            match field.data_type {
+                ColumnDataType::String | ColumnDataType::Text => searcher
                     .search(
                         tantivy_query.as_ref(),
-                        &TopDocs::with_limit(query.max_results.max(1)).order_by_string_fast_field(
-                            field_name,
-                            match sort.direction {
-                                QuerySortDirection::Ascending => Order::Desc,
-                                QuerySortDirection::Descending => Order::Asc,
-                            },
-                        ),
+                        &TopDocs::with_limit(query.max_results.max(1))
+                            .order_by_string_fast_field(field_name, order),
                     )
                     .map_err(report)?
                     .into_iter()
@@ -290,29 +313,14 @@ impl SearchIndex for TantivySearchIndex {
                 ColumnDataType::Int => searcher
                     .search(
                         tantivy_query.as_ref(),
-                        &TopDocs::with_limit(query.max_results.max(1)).order_by_fast_field::<i64>(
-                            field_name,
-                            match sort.direction {
-                                QuerySortDirection::Ascending => Order::Desc,
-                                QuerySortDirection::Descending => Order::Asc,
-                            },
-                        ),
+                        &TopDocs::with_limit(query.max_results.max(1))
+                            .order_by_fast_field::<i64>(field_name, order),
                     )
                     .map_err(report)?
                     .into_iter()
                     .map(|(_, address)| address)
                     .collect::<Vec<_>>(),
-                ColumnDataType::Text => {
-                    return Err(joi_error!(
-                        "sorting is not supported for text attribute `{}`",
-                        sort.attribute.0
-                    ));
-                }
-            };
-            if sort.direction == QuerySortDirection::Descending {
-                addresses.reverse();
             }
-            addresses
         } else {
             searcher
                 .search(
@@ -531,6 +539,7 @@ fn validate_table(table: &TableDescription) -> JoiResult<()> {
         if column.name.0.starts_with("_joi_")
             || column.name.0.ends_with(LOWER_SUFFIX)
             || column.name.0.ends_with(TOKEN_SUFFIX)
+            || column.name.0.ends_with(SORT_SUFFIX)
         {
             joi_bail!(
                 "attribute `{}` uses a reserved search-index name",
@@ -583,9 +592,16 @@ fn add_entity(
                 }
             }
             // The analyzer tokenizes prose; the raw value stays in the payload.
+            // The sort key is a lowercased prefix for case-insensitive order.
             ColumnDataType::Text => {
                 if let Some(value) = value.as_str() {
                     document.add_text(attribute.field, value);
+                    document.add_text(
+                        attribute
+                            .sort_field
+                            .expect("text attributes index sort keys"),
+                        sort_key(value),
+                    );
                 }
             }
         }
@@ -813,6 +829,15 @@ fn token_conjunction(field: Field, tokens: &[String]) -> Box<dyn Query> {
             })
             .collect(),
     ))
+}
+
+/// Lowercased sort prefix for case-insensitive prose ordering.
+fn sort_key(value: &str) -> String {
+    value
+        .to_lowercase()
+        .chars()
+        .take(SORT_PREFIX_CHARS)
+        .collect()
 }
 
 /// Runs a search term through the index tokenizer so query tokens follow the

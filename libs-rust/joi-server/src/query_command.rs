@@ -372,7 +372,10 @@ mod tests {
         assert_eq!(result_columns.len(), 2);
         assert!(matches!(
             &result_columns[0].values,
-            QueryValues::String(values) if values.len() == 2
+            QueryValues::String(values) if values == &[
+                JoiString::from("uma.user"),
+                JoiString::from("ollie.owner"),
+            ]
         ));
         assert!(matches!(
             &response.results[1],
@@ -381,6 +384,34 @@ mod tests {
         assert!(matches!(
             &response.results[2],
             QueryResponseResult::Aggregate { values, .. } if values.len() == 1 && values[0].count == 1
+        ));
+
+        let ascending = command
+            .execute(
+                &Default::default(),
+                QueryRequest {
+                    table_name: "users".into(),
+                    criterion: QueryRequestCriterion::MatchAny,
+                    results: vec![QueryRequestResult::Rows {
+                        sorting: vec![QueryRequestSort {
+                            attribute: "username".into(),
+                            direction: QueryRequestSortDirection::Ascending,
+                        }],
+                        max_results: 2,
+                        attributes: vec!["username".into()],
+                    }],
+                },
+            )
+            .unwrap();
+        let QueryResponseResult::Rows { result_columns } = &ascending.results[0] else {
+            panic!("expected rows")
+        };
+        assert!(matches!(
+            &result_columns[0].values,
+            QueryValues::String(values) if values == &[
+                JoiString::from("jane.developer"),
+                JoiString::from("joe.tester"),
+            ]
         ));
     }
 
@@ -473,13 +504,14 @@ mod tests {
                     columns: vec![
                         AttributeColumn {
                             attribute: AttributeName("id".into()),
-                            values: Values::String(vec!["a".into(), "b".into()]),
+                            values: Values::String(vec!["a".into(), "b".into(), "c".into()]),
                         },
                         AttributeColumn {
                             attribute: AttributeName("title".into()),
                             values: Values::String(vec![
                                 JoiString::from("Fix navigation bug"),
                                 JoiString::from("Navigation redesign"),
+                                JoiString::from("apple turnover"),
                             ]),
                         },
                     ],
@@ -548,37 +580,57 @@ mod tests {
             vec![JoiString::from("Navigation redesign")]
         );
 
-        // Ordering, ranges, and aggregations need exact terms or fast fields.
-        let unsupported = [
-            QueryRequestResult::Rows {
-                sorting: vec![QueryRequestSort {
-                    attribute: "title".into(),
-                    direction: QueryRequestSortDirection::Ascending,
-                }],
-                max_results: 10,
-                attributes: vec!["title".into()],
-            },
-            QueryRequestResult::Aggregate {
-                aggregation: QueryAggregation::Count,
-                attribute: Some("title".into()),
-                max_results: 10,
-                criterion: None,
-            },
-        ];
-        for shape in unsupported {
-            assert!(
-                command
-                    .execute(
-                        &Default::default(),
-                        QueryRequest {
-                            table_name: "notes".into(),
-                            criterion: QueryRequestCriterion::MatchAny,
-                            results: vec![shape],
-                        },
-                    )
-                    .is_err()
-            );
-        }
+        // Prose sorts case-insensitively by its truncated sort key.
+        let response = command
+            .execute(
+                &Default::default(),
+                QueryRequest {
+                    table_name: "notes".into(),
+                    criterion: QueryRequestCriterion::MatchAny,
+                    results: vec![QueryRequestResult::Rows {
+                        sorting: vec![QueryRequestSort {
+                            attribute: "title".into(),
+                            direction: QueryRequestSortDirection::Ascending,
+                        }],
+                        max_results: 10,
+                        attributes: vec!["title".into()],
+                    }],
+                },
+            )
+            .unwrap();
+        let QueryResponseResult::Rows { result_columns } = &response.results[0] else {
+            panic!("expected rows")
+        };
+        let QueryValues::String(values) = &result_columns[0].values else {
+            panic!("expected string values")
+        };
+        assert_eq!(
+            values,
+            &[
+                JoiString::from("apple turnover"),
+                JoiString::from("Fix navigation bug"),
+                JoiString::from("Navigation redesign"),
+            ]
+        );
+
+        // Ranges and aggregations need exact terms or fast fields.
+        assert!(
+            command
+                .execute(
+                    &Default::default(),
+                    QueryRequest {
+                        table_name: "notes".into(),
+                        criterion: QueryRequestCriterion::MatchAny,
+                        results: vec![QueryRequestResult::Aggregate {
+                            aggregation: QueryAggregation::Count,
+                            attribute: Some("title".into()),
+                            max_results: 10,
+                            criterion: None,
+                        }],
+                    },
+                )
+                .is_err()
+        );
         assert!(
             command
                 .execute(

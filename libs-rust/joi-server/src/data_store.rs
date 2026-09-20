@@ -237,8 +237,8 @@ pub enum ColumnDataType {
     /// String values with exact matching, sorting, and faceting.
     String,
     /// Prose values stored as strings but indexed as tokenized text only.
-    /// Equality is word-based, and sorting, ranges, and aggregations are
-    /// not supported.
+    /// Equality is word-based, sorting orders by a truncated lowercase
+    /// prefix, and ranges and aggregations are not supported.
     Text,
     /// Integer values.
     Int,
