@@ -487,6 +487,14 @@ mod tests {
                     columns: vec![
                         column("id", ColumnDataType::String),
                         column("title", ColumnDataType::Text),
+                        ColumnDescription {
+                            name: AttributeName("owner".into()),
+                            description: "Owning note".into(),
+                            data_type: ColumnDataType::Reference {
+                                entity: TableName("notes".into()),
+                            },
+                            optional: false,
+                        },
                     ],
                 }
             }
@@ -512,6 +520,10 @@ mod tests {
                                 JoiString::from("Navigation redesign"),
                                 JoiString::from("apple turnover"),
                             ]),
+                        },
+                        AttributeColumn {
+                            attribute: AttributeName("owner".into()),
+                            values: Values::String(vec!["b".into(), "a".into(), "b".into()]),
                         },
                     ],
                 })],
@@ -577,6 +589,36 @@ mod tests {
                 value: "redesign".into(),
             }),
             vec![JoiString::from("Navigation redesign")]
+        );
+        // References match exact ids; substring search is rejected.
+        assert_eq!(
+            titles(QueryRequestCriterion::Equals {
+                attribute: "owner".into(),
+                values: vec!["b".into()],
+            }),
+            vec![
+                JoiString::from("Fix navigation bug"),
+                JoiString::from("apple turnover"),
+            ]
+        );
+        assert!(
+            command
+                .execute(
+                    &Default::default(),
+                    QueryRequest {
+                        table_name: "notes".into(),
+                        criterion: QueryRequestCriterion::Contains {
+                            attribute: "owner".into(),
+                            value: "b".into(),
+                        },
+                        results: vec![QueryRequestResult::Rows {
+                            sorting: Vec::new(),
+                            max_results: 10,
+                            attributes: vec!["title".into()],
+                        }],
+                    },
+                )
+                .is_err()
         );
 
         // Prose sorts case-insensitively by its truncated sort key.

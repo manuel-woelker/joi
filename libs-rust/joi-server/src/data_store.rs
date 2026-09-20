@@ -231,7 +231,8 @@ pub enum ColumnDataType {
     Text,
     /// Foreign identifiers stored as strings and indexed exactly like
     /// [`ColumnDataType::String`]. References always address the target
-    /// entity type's primary key.
+    /// entity type's primary key. Only exact matching is meaningful:
+    /// substring search is rejected since callers must supply the id.
     Reference {
         /// The referenced entity type.
         entity: TableName,

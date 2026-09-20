@@ -726,6 +726,12 @@ fn criterion_query(index: &EntityIndex, criterion: &QueryCriterion) -> JoiResult
         }
         QueryCriterion::Contains { attribute, value } => {
             let field = indexed_attribute(index, attribute)?;
+            if matches!(field.data_type, ColumnDataType::Reference { .. }) {
+                joi_bail!(
+                    "contains is not supported for reference attribute `{}`; match the exact id with equals",
+                    attribute.0
+                );
+            }
             if field.data_type == ColumnDataType::Text {
                 // Prose matches whole words: one token queries directly, longer
                 // input must occur as an exact phrase.
