@@ -119,6 +119,12 @@
   border-bottom: 0;
 }
 
+.table mark {
+  border-radius: 2px;
+  color: inherit;
+  background: color-mix(in srgb, var(--color-primary) 28%, transparent);
+}
+
 .table tbody tr:hover {
   background: var(--color-surface-muted);
 }

@@ -6,6 +6,8 @@ import { Portal } from "solid-js/web";
 
 import type { QueryColumnHandle, QueryResult, QueryResultRow, QueryValue } from "../plugins/core/query/query-result";
 import styles from "./DataTable.module.css";
+import type { CompiledTextNeedle, HighlightSegment } from "./text-highlight";
+import { highlightSegments } from "./text-highlight";
 
 export interface DataTableColumn {
   readonly column: QueryColumnHandle;
@@ -30,6 +32,8 @@ export interface DataTableProps {
   readonly result: QueryResult;
   readonly rows?: readonly QueryResultRow[];
   readonly columns: readonly DataTableColumn[];
+  /** Precompiled highlight needles per attribute, applied to default text cells only. */
+  readonly highlights?: ReadonlyMap<string, readonly CompiledTextNeedle[]>;
   readonly emptyMessage?: string;
   readonly loading?: boolean;
   readonly loadingMessage?: string;
@@ -86,7 +90,13 @@ export function DataTable(props: DataTableProps) {
       id: definition.column.attribute,
       accessorFn: (row) => row.value(definition.column),
       header: definition.header,
-      cell: (context) => <DataTableCell definition={definition} row={context.row.original} />,
+      cell: (context) => (
+        <DataTableCell
+          definition={definition}
+          row={context.row.original}
+          highlights={props.highlights?.get(definition.column.attribute)}
+        />
+      ),
       size: definition.width,
       minSize: 32,
     })),
@@ -674,12 +684,33 @@ function isSelected(props: DataTableProps, row: QueryResultRow): boolean | undef
   return row.value(props.rowKey) === props.selectedRowKey;
 }
 
-function DataTableCell(props: { definition: DataTableColumn; row: QueryResultRow }) {
+function DataTableCell(props: {
+  definition: DataTableColumn;
+  row: QueryResultRow;
+  highlights?: readonly CompiledTextNeedle[];
+}) {
+  // Reads stay inside memos: component bodies run once, so a plain const
+  // would freeze the first value and miss row updates.
+  const value = createMemo(() => props.row.value(props.definition.column));
+  const segments = createMemo(() => {
+    const current = value();
+    return typeof current === "string" && props.highlights?.length
+      ? highlightSegments(current, props.highlights)
+      : undefined;
+  });
   return (
     <>
-      {props.definition.cell
-        ? props.definition.cell(props.row.value(props.definition.column), props.row, props.definition.column)
-        : String(props.row.value(props.definition.column) ?? "")}
+      {props.definition.cell ? (
+        props.definition.cell(value(), props.row, props.definition.column)
+      ) : (
+        <Show when={segments()} fallback={String(value() ?? "")}>
+          {(resolved) => <HighlightedSegments segments={resolved()} />}
+        </Show>
+      )}
     </>
   );
+}
+
+function HighlightedSegments(props: { segments: readonly HighlightSegment[] }) {
+  return <>{props.segments.map((segment) => (segment.highlighted ? <mark>{segment.text}</mark> : segment.text))}</>;
 }

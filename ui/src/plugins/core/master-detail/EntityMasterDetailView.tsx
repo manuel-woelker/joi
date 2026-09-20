@@ -15,6 +15,7 @@ import { FilterDefinitionEditor } from "../../../components/filter-definition/Fi
 import { createCompositeFilter, type FilterDefinition } from "../../../components/filter-definition/filter-model";
 import { IconButton } from "../../../components/IconButton";
 import { Select } from "../../../components/Select";
+import { deriveColumnHighlights } from "../../../components/text-highlight";
 import { useActions } from "../actions/ActionProvider";
 import type { EntityRecordActionTarget } from "../actions/action";
 import { actionsToContextMenuEntries } from "../actions/action-context-menu";
@@ -70,12 +71,21 @@ export function EntityMasterDetailView(props: {
   const [sorting, setSorting] = createSignal<readonly DataTableSort[]>(cloneSorting(props.initialSorting));
   const [facetSelections, setFacetSelections] = createSignal<readonly FacetSelection[]>([]);
   const [search, setSearch] = createSignal("");
+  const stringAttributes = createMemo(() =>
+    description.attributes.filter((attribute) => attribute.valueType === "string").map((attribute) => attribute.id),
+  );
   const [filterParameters, setFilterParameters] = createSignal({
     filter: filter(),
     facets: facetSelections(),
     search: search(),
   });
   const rowParameters = createMemo(() => ({ ...filterParameters(), sorting: sorting() }));
+  // Highlights derive from the same committed parameters as the queries so
+  // marks can never skew from the executed filter and search.
+  const highlights = createMemo(() => {
+    const parameters = filterParameters();
+    return deriveColumnHighlights(parameters.filter, parameters.search, stringAttributes());
+  });
   const [showLoading, setShowLoading] = createSignal(false);
   // Viewport height drives table virtualization so only visible rows mount.
   // It is measured rather than fixed because the master pane flex-fills
@@ -434,6 +444,7 @@ export function EntityMasterDetailView(props: {
                   result={displayedRecords() ?? emptyResult}
                   rows={records()?.rows}
                   columns={createEntityTableColumns(entity())}
+                  highlights={highlights()}
                   loading={showLoading() || (records.loading && !records())}
                   loadingMessage="Loading..."
                   fillHeight

@@ -5,7 +5,10 @@ import { createSignal } from "solid-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { parseQueryResponse } from "../plugins/core/query/query-result";
+import { containsFilterOperator } from "./filter-definition/filter-operators";
+import { createCompositeFilter, filterAttributeId, filterNodeId } from "./filter-definition/filter-model";
 import { DataTable, type DataTableColumn, type DataTableSort } from "./DataTable";
+import { deriveColumnHighlights } from "./text-highlight";
 
 afterEach(cleanup);
 
@@ -47,6 +50,63 @@ describe("DataTable", () => {
     expect(screen.getByLabelText("Table status").textContent).toBe(
       "Rows shown: 1Rows in view: 1Rows selected: 0Total rows: 1",
     );
+  });
+
+  it("highlights matches only in the filtered column", () => {
+    const result = parseQueryResponse({
+      number_of_hits: 1,
+      result_columns: [
+        { attribute: "title", values: { type: "string", values: ["Fix navigation bug"] } },
+        { attribute: "description", values: { type: "string", values: ["Navigation is broken"] } },
+      ],
+    });
+    const columns: DataTableColumn[] = [
+      { column: result.requireColumn("title"), header: "Title" },
+      { column: result.requireColumn("description"), header: "Description" },
+    ];
+    const filter = {
+      ...createCompositeFilter(),
+      children: [
+        {
+          id: filterNodeId("title-filter"),
+          type: "criterion" as const,
+          attribute: filterAttributeId("title"),
+          operator: containsFilterOperator,
+          operand: { type: "value" as const, value: "navigation" },
+        },
+      ],
+    };
+    render(() => (
+      <DataTable
+        ariaLabel="Tickets"
+        result={result}
+        columns={columns}
+        highlights={deriveColumnHighlights(filter, "", ["title", "description"])}
+      />
+    ));
+
+    const mark = screen.getByText("navigation", { selector: "mark" });
+    expect(mark.closest("td")?.cellIndex).toBe(0);
+    expect(screen.getByText("Navigation is broken").querySelector("mark")).toBeNull();
+    expect(screen.getAllByText("navigation", { selector: "mark" })).toHaveLength(1);
+  });
+
+  it("leaves custom cells unhighlighted", () => {
+    const result = parseQueryResponse({
+      number_of_hits: 1,
+      result_columns: [{ attribute: "name", values: { type: "string", values: ["Jane"] } }],
+    });
+    render(() => (
+      <DataTable
+        ariaLabel="People"
+        result={result}
+        columns={[{ column: result.requireColumn("name"), header: "Name", cell: (value) => <strong>{value}!</strong> }]}
+        highlights={deriveColumnHighlights(undefined, "jane", ["name"])}
+      />
+    ));
+
+    expect(screen.getByText("Jane!").tagName).toBe("STRONG");
+    expect(screen.queryByText("Jane", { selector: "mark" })).toBeNull();
   });
 
   it("reacts to a new result and schema", () => {

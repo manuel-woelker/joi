@@ -131,6 +131,7 @@ describe("EntityMasterDetailView master table", () => {
       }
     });
     expect(criteria.at(-1)).toEqual({ term: { value: "name a" } });
+    expect(screen.getByText("Name", { selector: "mark" })).toBeTruthy();
   });
 
   it("survives sort, reverse, and reset cycles with fresh results", async () => {
