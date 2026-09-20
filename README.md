@@ -63,6 +63,11 @@ This runs Rust formatting, clippy, and tests, plus Biome linting and
 formatting and the TypeScript typechecks and tests.
 Run `./n --list` to see all available tasks.
 
+Always route tool invocations through `./t` (for example
+`./t cargo test -p joi-server`): bare `cargo` uses a different
+toolchain than the pinned one and poisons the shared build cache,
+breaking subsequent `./n` runs.
+
 See [AGENTS.md](AGENTS.md) for contributor and agent guidance.
 
 ## Status

@@ -45,10 +45,15 @@ All repository tooling runs through the `./n` wrapper at the repository root
 (it bootstraps the pinned `nao` toolchain via `t`; bare `nao` is not on PATH).
 Run `./n --list` to see the available tasks.
 
+Never invoke `cargo` (or `pnpm`, `node`, `tsc`) directly: always route
+through `./t` (for example `./t cargo test -p <package>`). Bare tool
+invocations use a different toolchain than the pinned one and poison the
+shared build cache, breaking subsequent `./n` runs.
+
 Follow this checklist for every unit of work:
 
 1. While working, run the most relevant checks for the packages touched
-   (for example `cargo test -p <package>`).
+   (for example `./t cargo test -p <package>`).
 2. After completing the unit of work, run the repository-wide checks with
    `./n check` from the repository root and fix any failures.
 3. Then run `./n --restart` so active development tasks
