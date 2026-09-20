@@ -1,7 +1,8 @@
-import { createContext, createResource, useContext, type JSX } from "solid-js";
+import { Show, createContext, createMemo, createResource, useContext, type JSX } from "solid-js";
 
 import type { PluginRegistryAccess } from "../../../base/plugin-registry";
 import { extensionPoint } from "../../../base/plugin-registry";
+import { highlightSegments, type CompiledTextNeedle } from "../../../components/text-highlight";
 
 declare const lookupIdBrand: unique symbol;
 declare const lookupEntryIdBrand: unique symbol;
@@ -102,11 +103,27 @@ export function useLookupService(): LookupService {
 }
 
 /** Renders a lookup value and updates when its cached source has loaded. */
-export function LookupValue(props: { lookup: LookupId; value: string; format?: (label: string) => string }) {
+export function LookupValue(props: {
+  lookup: LookupId;
+  value: string;
+  format?: (label: string) => string;
+  highlight?: readonly CompiledTextNeedle[];
+}) {
   const service = useLookupService();
   const [label] = createResource(
     () => [props.lookup, props.value] as const,
     ([lookup, value]) => (value ? service.label(lookup, lookupEntryId(value)) : Promise.resolve("Unassigned")),
   );
-  return <>{props.format?.(label() ?? props.value) ?? label() ?? props.value}</>;
+  const display = () => props.format?.(label() ?? props.value) ?? label() ?? props.value;
+  const segments = createMemo(() => {
+    const text = display();
+    return props.highlight?.length ? highlightSegments(text, props.highlight) : undefined;
+  });
+  return (
+    <Show when={segments()} fallback={<>{display()}</>}>
+      {(resolved) => (
+        <>{resolved().map((segment) => (segment.highlighted ? <mark>{segment.text}</mark> : segment.text))}</>
+      )}
+    </Show>
+  );
 }

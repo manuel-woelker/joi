@@ -117,9 +117,10 @@ export function tokenizeHighlightText(value: string): string[] {
  * committed quicksearch term. Only positive text predicates contribute:
  * `contains` as substring needles, `equals`/`in-set` as value needles,
  * and every search token as a whole-word needle fanned out to the given
- * string attributes. Negated subtrees (`none`, `not-equals`) and
- * non-textual operators contribute nothing since their text is absent
- * from matching rows.
+ * attributes. Negated subtrees (`none`, `not-equals`) and non-textual
+ * operators contribute nothing since their text is absent from matching
+ * rows. Callers decide which attributes participate; cell rendering
+ * decides what can show marks.
  */
 export function deriveColumnHighlights(
   filter: FilterDefinition | undefined,

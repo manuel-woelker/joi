@@ -15,7 +15,12 @@ export interface DataTableColumn {
   readonly width?: number;
   readonly type?: DataTableColumnType;
   readonly sortable?: boolean;
-  readonly cell?: (value: QueryValue | undefined, row: QueryResultRow, column: QueryColumnHandle) => JSX.Element;
+  readonly cell?: (
+    value: QueryValue | undefined,
+    row: QueryResultRow,
+    column: QueryColumnHandle,
+    highlights?: readonly CompiledTextNeedle[],
+  ) => JSX.Element;
 }
 
 export type DataTableColumnType = "text" | "number" | "date" | "time";
@@ -32,7 +37,7 @@ export interface DataTableProps {
   readonly result: QueryResult;
   readonly rows?: readonly QueryResultRow[];
   readonly columns: readonly DataTableColumn[];
-  /** Precompiled highlight needles per attribute, applied to default text cells only. */
+  /** Precompiled highlight needles per attribute, applied to text cells. */
   readonly highlights?: ReadonlyMap<string, readonly CompiledTextNeedle[]>;
   readonly emptyMessage?: string;
   readonly loading?: boolean;
@@ -692,21 +697,25 @@ function DataTableCell(props: {
   // Reads stay inside memos: component bodies run once, so a plain const
   // would freeze the first value and miss row updates.
   const value = createMemo(() => props.row.value(props.definition.column));
-  const segments = createMemo(() => {
+  const rendered = createMemo(() => {
+    if (props.definition.cell) {
+      return props.definition.cell(value(), props.row, props.definition.column, props.highlights);
+    }
     const current = value();
+    return typeof current === "string" || typeof current === "number" ? String(current) : "";
+  });
+  // Custom cells returning JSX render untouched; plain strings highlight.
+  const segments = createMemo(() => {
+    const current = rendered();
     return typeof current === "string" && props.highlights?.length
       ? highlightSegments(current, props.highlights)
       : undefined;
   });
   return (
     <>
-      {props.definition.cell ? (
-        props.definition.cell(value(), props.row, props.definition.column)
-      ) : (
-        <Show when={segments()} fallback={String(value() ?? "")}>
-          {(resolved) => <HighlightedSegments segments={resolved()} />}
-        </Show>
-      )}
+      <Show when={segments()} fallback={<>{rendered()}</>}>
+        {(resolved) => <HighlightedSegments segments={resolved()} />}
+      </Show>
     </>
   );
 }

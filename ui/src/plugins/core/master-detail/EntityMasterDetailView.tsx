@@ -71,9 +71,10 @@ export function EntityMasterDetailView(props: {
   const [sorting, setSorting] = createSignal<readonly DataTableSort[]>(cloneSorting(props.initialSorting));
   const [facetSelections, setFacetSelections] = createSignal<readonly FacetSelection[]>([]);
   const [search, setSearch] = createSignal("");
-  const stringAttributes = createMemo(() =>
-    description.attributes.filter((attribute) => attribute.valueType === "string").map((attribute) => attribute.id),
-  );
+  // Quicksearch fans out to every attribute; column rendering decides what
+  // can show marks (text and numbers highlight, lookup labels highlight
+  // matched words, other custom cells stay untouched).
+  const searchAttributes = createMemo(() => description.attributes.map((attribute) => attribute.id));
   const [filterParameters, setFilterParameters] = createSignal({
     filter: filter(),
     facets: facetSelections(),
@@ -84,7 +85,7 @@ export function EntityMasterDetailView(props: {
   // marks can never skew from the executed filter and search.
   const highlights = createMemo(() => {
     const parameters = filterParameters();
-    return deriveColumnHighlights(parameters.filter, parameters.search, stringAttributes());
+    return deriveColumnHighlights(parameters.filter, parameters.search, searchAttributes());
   });
   const [showLoading, setShowLoading] = createSignal(false);
   // Viewport height drives table virtualization so only visible rows mount.

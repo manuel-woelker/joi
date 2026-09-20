@@ -5,10 +5,18 @@ import { createSignal } from "solid-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { parseQueryResponse } from "../plugins/core/query/query-result";
+import type { PluginRegistryAccess } from "../base/plugin-registry";
+import {
+  lookupDefinitions,
+  lookupEntryId,
+  lookupId,
+  LookupValue,
+  LookupProvider,
+} from "../plugins/core/lookups/lookup";
 import { containsFilterOperator } from "./filter-definition/filter-operators";
 import { createCompositeFilter, filterAttributeId, filterNodeId } from "./filter-definition/filter-model";
 import { DataTable, type DataTableColumn, type DataTableSort } from "./DataTable";
-import { deriveColumnHighlights } from "./text-highlight";
+import { compileNeedles, deriveColumnHighlights } from "./text-highlight";
 
 afterEach(cleanup);
 
@@ -107,6 +115,75 @@ describe("DataTable", () => {
 
     expect(screen.getByText("Jane!").tagName).toBe("STRONG");
     expect(screen.queryByText("Jane", { selector: "mark" })).toBeNull();
+  });
+
+  it("highlights numbers and string-returning custom cells", () => {
+    const result = parseQueryResponse({
+      number_of_hits: 1,
+      result_columns: [
+        { attribute: "age", values: { type: "int", values: [34] } },
+        { attribute: "note", values: { type: "string", values: ["plain label"] } },
+      ],
+    });
+    render(() => (
+      <DataTable
+        ariaLabel="People"
+        result={result}
+        columns={[
+          { column: result.requireColumn("age"), header: "Age" },
+          { column: result.requireColumn("note"), header: "Note", cell: (value) => String(value ?? "") },
+        ]}
+        highlights={
+          new Map([
+            ["age", compileNeedles([{ text: "34", wholeWord: false }])],
+            ["note", compileNeedles([{ text: "label", wholeWord: false }])],
+          ])
+        }
+      />
+    ));
+
+    expect(screen.getByText("34", { selector: "mark" })).toBeTruthy();
+    expect(screen.getByText("label", { selector: "mark" })).toBeTruthy();
+  });
+
+  it("highlights matched words in lookup labels", async () => {
+    const result = parseQueryResponse({
+      number_of_hits: 1,
+      result_columns: [{ attribute: "project_id", values: { type: "string", values: ["p1"] } }],
+    });
+    const registry = {
+      extensions: (point: unknown) =>
+        point === lookupDefinitions
+          ? [
+              {
+                id: lookupId("projects"),
+                label: "Project",
+                load: async () => [{ id: lookupEntryId("p1"), label: "Test project" }],
+              },
+            ]
+          : [],
+      extensionEntries: () => [],
+    } as unknown as PluginRegistryAccess;
+    render(() => (
+      <LookupProvider registry={registry}>
+        <DataTable
+          ariaLabel="Tickets"
+          result={result}
+          columns={[
+            {
+              column: result.requireColumn("project_id"),
+              header: "Project",
+              cell: (value, _row, _column, highlights) => (
+                <LookupValue lookup={lookupId("projects")} value={String(value ?? "")} highlight={highlights} />
+              ),
+            },
+          ]}
+          highlights={deriveColumnHighlights(undefined, "test project", ["project_id"])}
+        />
+      </LookupProvider>
+    ));
+
+    expect(await screen.findByText("Test", { selector: "mark" })).toBeTruthy();
   });
 
   it("reacts to a new result and schema", () => {

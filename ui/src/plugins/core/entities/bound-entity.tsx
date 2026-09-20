@@ -1,6 +1,7 @@
 import type { DataTableColumn } from "../../../components/DataTable";
 import { richTextPlainText } from "../../../components/rich-text/html";
-import type { QueryColumnHandle, QueryResult } from "../query/query-result";
+import type { CompiledTextNeedle } from "../../../components/text-highlight";
+import type { QueryColumnHandle, QueryResult, QueryResultRow } from "../query/query-result";
 import { requireEntityAttribute, type AnyEntityAttribute, type EntityDescription } from "./entity-description";
 import { LookupValue } from "../lookups/lookup";
 
@@ -67,11 +68,17 @@ export function createEntityTableColumns(
     const hideProjectPrefix = entity.description.tableName === "tickets" && attribute.id === "project_id";
     const lookupCell = attribute.lookup
       ? {
-          cell: (value: unknown) => (
+          cell: (
+            value: unknown,
+            _row: QueryResultRow,
+            _column: QueryColumnHandle,
+            highlights?: readonly CompiledTextNeedle[],
+          ) => (
             <LookupValue
               lookup={attribute.lookup!}
               value={String(value ?? "")}
               format={hideProjectPrefix ? (label) => label.replace(/\s+\([^)]*\)$/, "") : undefined}
+              highlight={highlights}
             />
           ),
         }
