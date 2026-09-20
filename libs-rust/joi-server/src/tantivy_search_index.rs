@@ -18,7 +18,11 @@ use tantivy::{
         AllQuery, BooleanQuery, EmptyQuery, ExistsQuery, FastFieldRangeQuery, Occur, Query,
         RegexQuery, TermQuery,
     },
-    schema::{FAST, Field, IndexRecordOption, STORED, STRING, Schema, Value},
+    schema::{
+        FAST, Field, IndexRecordOption, STORED, STRING, Schema, TextFieldIndexing, TextOptions,
+        Value,
+    },
+    tokenizer::{LowerCaser, NgramTokenizer, TextAnalyzer},
 };
 
 use crate::{
@@ -36,10 +40,19 @@ const ENTITY_ID_FIELD: &str = "_joi_entity_id";
 const ENTITY_DATA_FIELD: &str = "_joi_entity_data";
 const SEQUENCE_FIELD: &str = "_joi_sequence";
 const LOWER_SUFFIX: &str = "_joi_lower";
+const TRIGRAM_SUFFIX: &str = "_joi_trigram";
+/// Tokenizer backing quicksearch: character trigrams over the raw value,
+/// lowercased so term matching stays case-insensitive.
+const TRIGRAM_TOKENIZER: &str = "joi_trigram";
+/// Search-index schema generation. Bump after any index-layout change; older
+/// on-disk indexes are derived data and rebuild from the entity store.
+const SCHEMA_VERSION: &str = "2";
+const SCHEMA_VERSION_FILE: &str = "joi_schema_version";
 
 struct IndexedAttribute {
     field: Field,
     lower_field: Option<Field>,
+    trigram_field: Option<Field>,
     data_type: ColumnDataType,
 }
 
@@ -66,6 +79,7 @@ impl TantivySearchIndex {
     pub fn open(path: impl AsRef<Path>) -> JoiResult<Self> {
         let root = path.as_ref().to_path_buf();
         fs::create_dir_all(&root).map_err(report)?;
+        ensure_schema_version(&root)?;
         Ok(Self {
             root,
             indexes: HashMap::new(),
@@ -115,6 +129,10 @@ impl SearchIndex for TantivySearchIndex {
                         ColumnDataType::String => {
                             schema.add_text_field(name, STRING | STORED | FAST);
                             schema.add_text_field(&format!("{name}{LOWER_SUFFIX}"), STRING);
+                            schema.add_text_field(
+                                &format!("{name}{TRIGRAM_SUFFIX}"),
+                                trigram_options(),
+                            );
                         }
                         ColumnDataType::Int => {
                             schema.add_i64_field(name, tantivy::schema::INDEXED | STORED | FAST);
@@ -125,6 +143,9 @@ impl SearchIndex for TantivySearchIndex {
                 let index = Index::create_in_dir(&directory, schema.clone()).map_err(report)?;
                 (index, schema)
             };
+            index
+                .tokenizers()
+                .register(TRIGRAM_TOKENIZER, trigram_analyzer()?);
             let id_field = schema.get_field(ENTITY_ID_FIELD).map_err(report)?;
             let data_field = schema.get_field(ENTITY_DATA_FIELD).map_err(report)?;
             let sequence_field = schema.get_field(SEQUENCE_FIELD).map_err(report)?;
@@ -132,15 +153,17 @@ impl SearchIndex for TantivySearchIndex {
             let mut attribute_order = Vec::with_capacity(table.columns.len());
             for column in table.columns {
                 let name = column.name.0.as_str();
-                let (field, lower_field) = match column.data_type {
+                let (field, lower_field, trigram_field) = match column.data_type {
                     ColumnDataType::String => {
                         let lower_name = format!("{name}{LOWER_SUFFIX}");
+                        let trigram_name = format!("{name}{TRIGRAM_SUFFIX}");
                         (
                             schema.get_field(name).map_err(report)?,
                             Some(schema.get_field(&lower_name).map_err(report)?),
+                            Some(schema.get_field(&trigram_name).map_err(report)?),
                         )
                     }
-                    ColumnDataType::Int => (schema.get_field(name).map_err(report)?, None),
+                    ColumnDataType::Int => (schema.get_field(name).map_err(report)?, None, None),
                 };
                 attribute_order.push(column.name.clone());
                 attributes.insert(
@@ -148,6 +171,7 @@ impl SearchIndex for TantivySearchIndex {
                     IndexedAttribute {
                         field,
                         lower_field,
+                        trigram_field,
                         data_type: column.data_type,
                     },
                 );
@@ -394,6 +418,43 @@ impl SearchIndex for TantivySearchIndex {
     }
 }
 
+/// Drops derived indexes written with an older schema generation so they
+/// rebuild from the entity store, then records the current generation.
+fn ensure_schema_version(root: &Path) -> JoiResult<()> {
+    let marker = root.join(SCHEMA_VERSION_FILE);
+    let current = fs::read_to_string(&marker)
+        .ok()
+        .map(|version| version.trim().to_owned());
+    if current.as_deref() == Some(SCHEMA_VERSION) {
+        return Ok(());
+    }
+    for entry in fs::read_dir(root).map_err(report)? {
+        let path = entry.map_err(report)?.path();
+        if path.is_dir() {
+            fs::remove_dir_all(&path).map_err(report)?;
+        }
+    }
+    fs::write(&marker, SCHEMA_VERSION).map_err(report)
+}
+
+/// Character trigrams over the raw value, lowercased for case-insensitive
+/// term matching.
+fn trigram_analyzer() -> JoiResult<TextAnalyzer> {
+    Ok(
+        TextAnalyzer::builder(NgramTokenizer::new(3, 3, false).map_err(report)?)
+            .filter(LowerCaser)
+            .build(),
+    )
+}
+
+fn trigram_options() -> TextOptions {
+    TextOptions::default().set_indexing_options(
+        TextFieldIndexing::default()
+            .set_tokenizer(TRIGRAM_TOKENIZER)
+            .set_index_option(IndexRecordOption::Basic),
+    )
+}
+
 fn count_terms(
     searcher: &tantivy::Searcher,
     query: &dyn Query,
@@ -470,7 +531,10 @@ fn validate_table(table: &TableDescription) -> JoiResult<()> {
                 table.name.0
             );
         }
-        if column.name.0.starts_with("_joi_") || column.name.0.ends_with(LOWER_SUFFIX) {
+        if column.name.0.starts_with("_joi_")
+            || column.name.0.ends_with(LOWER_SUFFIX)
+            || column.name.0.ends_with(TRIGRAM_SUFFIX)
+        {
             joi_bail!(
                 "attribute `{}` uses a reserved search-index name",
                 column.name.0
@@ -508,6 +572,12 @@ fn add_entity(
                 if let Some(value) = value.as_str() {
                     document.add_text(attribute.field, value);
                     document.add_text(attribute.lower_field.unwrap(), value.to_lowercase());
+                    document.add_text(
+                        attribute
+                            .trigram_field
+                            .expect("string attributes index trigrams"),
+                        value,
+                    );
                 }
             }
             ColumnDataType::Int => {
@@ -608,6 +678,12 @@ fn criterion_query(index: &EntityIndex, criterion: &QueryCriterion) -> JoiResult
     }
 }
 
+/// Matches one search term against every indexed attribute with term-dictionary
+/// lookups: each string attribute contributes its character trigrams, combined
+/// with `Must` so every trigram of the term must occur in the value, while
+/// integer attributes contribute an exact [`TermQuery`] when the term parses.
+/// Attributes combine with `Should`, so one matching attribute selects the
+/// record. Terms shorter than one trigram fall back to substring matching.
 fn term_query(index: &EntityIndex, value: &JoiString) -> JoiResult<Box<dyn Query>> {
     let term = value.to_lowercase();
     if term.is_empty() {
@@ -620,17 +696,7 @@ fn term_query(index: &EntityIndex, value: &JoiString) -> JoiResult<Box<dyn Query
         };
         match field.data_type {
             ColumnDataType::String => {
-                let Some(lower_field) = field.lower_field else {
-                    continue;
-                };
-                // Same case-insensitive substring matching as `Contains`,
-                // applied to every string attribute.
-                let pattern = format!("(?s).*{}.*", regex_escape(&term));
-                clauses.push((
-                    Occur::Should,
-                    Box::new(RegexQuery::from_pattern(&pattern, lower_field).map_err(report)?)
-                        as Box<dyn Query>,
-                ));
+                clauses.push((Occur::Should, string_term_query(field, &term)?));
             }
             ColumnDataType::Int => {
                 if term.parse::<i64>().is_ok() {
@@ -643,6 +709,34 @@ fn term_query(index: &EntityIndex, value: &JoiString) -> JoiResult<Box<dyn Query
         return Ok(Box::new(EmptyQuery));
     }
     Ok(Box::new(BooleanQuery::new(clauses)))
+}
+
+fn string_term_query(field: &IndexedAttribute, term: &str) -> JoiResult<Box<dyn Query>> {
+    if let Some(trigram_field) = field.trigram_field {
+        let characters: Vec<char> = term.chars().collect();
+        if characters.len() >= 3 {
+            let mut conjunction = Vec::with_capacity(characters.len() - 2);
+            for window in characters.windows(3) {
+                conjunction.push((
+                    Occur::Must,
+                    Box::new(TermQuery::new(
+                        Term::from_field_text(trigram_field, &window.iter().collect::<String>()),
+                        IndexRecordOption::Basic,
+                    )) as Box<dyn Query>,
+                ));
+            }
+            return Ok(Box::new(BooleanQuery::new(conjunction)));
+        }
+    }
+    let Some(lower_field) = field.lower_field else {
+        return Ok(Box::new(EmptyQuery));
+    };
+    // Same case-insensitive substring matching as `Contains`, only for terms
+    // too short to contain a trigram.
+    let pattern = format!("(?s).*{}.*", regex_escape(term));
+    Ok(Box::new(
+        RegexQuery::from_pattern(&pattern, lower_field).map_err(report)?,
+    ))
 }
 
 fn composite_query(

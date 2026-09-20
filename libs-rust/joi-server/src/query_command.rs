@@ -427,6 +427,11 @@ mod tests {
             usernames(&search("JOE.TESTER")),
             vec![JoiString::from("joe.tester")]
         );
+        // Multi-word terms match across word boundaries.
+        assert_eq!(
+            usernames(&search("jane developer")),
+            vec![JoiString::from("jane.developer")]
+        );
         assert!(usernames(&search("no-such-user")).is_empty());
     }
 

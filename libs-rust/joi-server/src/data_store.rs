@@ -64,9 +64,10 @@ pub enum QueryCriterion {
     },
     /// Selects records where any attribute matches a single search term.
     ///
-    /// String attributes match when they contain the term as a
-    /// case-insensitive substring. Integer attributes match when the term
-    /// parses as their exact value. An empty term matches every record.
+    /// String attributes match case-insensitively through trigram term
+    /// queries: every character trigram of the term must occur in the value.
+    /// Integer attributes match when the term parses as their exact value.
+    /// An empty term matches every record.
     Term {
         /// The search term to find across all attributes.
         value: JoiString,
