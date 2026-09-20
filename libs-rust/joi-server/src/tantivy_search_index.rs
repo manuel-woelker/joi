@@ -46,7 +46,7 @@ const TOKENIZER: &str = "default";
 const SCHEMA_VERSION: &str = "5";
 const SCHEMA_VERSION_FILE: &str = "joi_schema_version";
 /// Sort keys keep a short prefix: enough to order records, small to store.
-const SORT_PREFIX_CHARS: usize = 20;
+const SORT_PREFIX_CHARS: usize = 32;
 
 struct IndexedAttribute {
     field: Field,
@@ -831,13 +831,14 @@ fn token_conjunction(field: Field, tokens: &[String]) -> Box<dyn Query> {
     ))
 }
 
-/// Lowercased sort prefix for case-insensitive prose ordering.
+/// Truncated sort prefix for case-insensitive prose ordering: take the
+/// first characters, then lowercase the prefix.
 fn sort_key(value: &str) -> String {
     value
-        .to_lowercase()
         .chars()
         .take(SORT_PREFIX_CHARS)
-        .collect()
+        .collect::<String>()
+        .to_lowercase()
 }
 
 /// Runs a search term through the index tokenizer so query tokens follow the
