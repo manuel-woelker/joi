@@ -6,7 +6,7 @@ use fake::{
 };
 use joi_base::JoiString;
 use joi_server::data_store::{
-    AttributeColumn, AttributeName, ColumnDataType, ColumnDescription, ColumnReference, DataStore,
+    AttributeColumn, AttributeName, ColumnDataType, ColumnDescription, DataStore,
     DataStoreInsertMutation, DataStoreMutation, DataStoreMutationStep, DataStoreQuery,
     QueryCriterion, TableDescription, TableDescriptionProvider, TableName, TestDataProvider,
     Values,
@@ -26,13 +26,11 @@ impl TableDescriptionProvider for TicketTableDescriptionProvider {
                 ColumnDescription {
                     name: AttributeName("project_id".into()),
                     description: "Project containing the ticket".into(),
-                    data_type: ColumnDataType::String,
+                    data_type: ColumnDataType::Reference {
+                        entity: TableName("projects".into()),
+                    },
                     // Existing development databases can add nullable columns in place.
                     optional: true,
-                    references: Some(ColumnReference {
-                        table: TableName("projects".into()),
-                        attribute: AttributeName("id".into()),
-                    }),
                 },
                 ticket_text_column("title", "Short summary of the ticket"),
                 ticket_text_column("description", "Detailed ticket description"),
@@ -40,12 +38,10 @@ impl TableDescriptionProvider for TicketTableDescriptionProvider {
                 ColumnDescription {
                     name: AttributeName("assignee".into()),
                     description: "User assigned to the ticket".into(),
-                    data_type: ColumnDataType::String,
+                    data_type: ColumnDataType::Reference {
+                        entity: TableName("users".into()),
+                    },
                     optional: true,
-                    references: Some(ColumnReference {
-                        table: TableName("users".into()),
-                        attribute: AttributeName("id".into()),
-                    }),
                 },
             ],
         }
@@ -58,7 +54,6 @@ fn ticket_column(name: &'static str, description: &'static str) -> ColumnDescrip
         description: description.into(),
         data_type: ColumnDataType::String,
         optional: false,
-        references: None,
     }
 }
 
@@ -68,7 +63,6 @@ fn ticket_text_column(name: &'static str, description: &'static str) -> ColumnDe
         description: description.into(),
         data_type: ColumnDataType::Text,
         optional: false,
-        references: None,
     }
 }
 
@@ -414,7 +408,7 @@ mod tests {
             table
                 .columns
                 .iter()
-                .filter(|column| column.name.0 != "title" && column.name.0 != "description")
+                .filter(|column| ["id", "key", "status"].contains(&column.name.0.as_str()))
                 .all(|column| column.data_type == ColumnDataType::String)
         );
         let assignee = table
@@ -423,16 +417,20 @@ mod tests {
             .find(|column| column.name.0 == "assignee")
             .unwrap();
         assert!(assignee.optional);
-        assert_eq!(assignee.references.as_ref().unwrap().table.0, "users");
-        assert_eq!(assignee.references.as_ref().unwrap().attribute.0, "id");
+        assert!(matches!(
+            &assignee.data_type,
+            ColumnDataType::Reference { entity } if entity.0 == "users"
+        ));
         let project = table
             .columns
             .iter()
             .find(|column| column.name.0 == "project_id")
             .unwrap();
         assert!(project.optional);
-        assert_eq!(project.references.as_ref().unwrap().table.0, "projects");
-        assert_eq!(project.references.as_ref().unwrap().attribute.0, "id");
+        assert!(matches!(
+            &project.data_type,
+            ColumnDataType::Reference { entity } if entity.0 == "projects"
+        ));
     }
 
     #[test]

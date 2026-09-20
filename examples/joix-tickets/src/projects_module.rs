@@ -21,7 +21,6 @@ impl TableDescriptionProvider for ProjectTableDescriptionProvider {
                     description: "Detailed project description".into(),
                     data_type: ColumnDataType::Text,
                     optional: false,
-                    references: None,
                 },
                 project_column("prefix", "Uppercase prefix used for associated ticket keys"),
             ],
@@ -35,7 +34,6 @@ fn project_column(name: &'static str, description: &'static str) -> ColumnDescri
         description: description.into(),
         data_type: ColumnDataType::String,
         optional: false,
-        references: None,
     }
 }
 

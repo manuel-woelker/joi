@@ -45,7 +45,6 @@ impl TableDescriptionProvider for CommitTableDescriptionProvider {
                     ColumnDataType::String
                 },
                 optional: false,
-                references: None,
             })
             .collect(),
         }

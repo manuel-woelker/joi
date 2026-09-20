@@ -480,7 +480,6 @@ mod tests {
                     description: name.into(),
                     data_type,
                     optional: false,
-                    references: None,
                 };
                 TableDescription {
                     name: TableName("notes".into()),

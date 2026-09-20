@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use joi_plugin::{Plugin, plugin};
 use joi_server::command_registry::CommandProvider;
 use joi_server::data_store::{
-    AttributeColumn, AttributeName, ColumnDataType, ColumnDescription, ColumnReference, DataStore,
+    AttributeColumn, AttributeName, ColumnDataType, ColumnDescription, DataStore,
     DataStoreInsertMutation, DataStoreMutation, DataStoreMutationStep, DataStoreQuery,
     QueryCriterion, TableDescription, TableDescriptionProvider, TableName, TestDataProvider,
     Values,
@@ -77,12 +77,10 @@ impl TableDescriptionProvider for RepositoryBranchTableDescriptionProvider {
                 ColumnDescription {
                     name: AttributeName("repository_id".into()),
                     description: "Repository containing the branch".into(),
-                    data_type: ColumnDataType::String,
+                    data_type: ColumnDataType::Reference {
+                        entity: TableName("repositories".into()),
+                    },
                     optional: false,
-                    references: Some(ColumnReference {
-                        table: TableName("repositories".into()),
-                        attribute: AttributeName("id".into()),
-                    }),
                 },
                 repository_column("name", "Git branch name"),
             ],
@@ -114,7 +112,6 @@ fn repository_column(name: &'static str, description: &'static str) -> ColumnDes
         description: description.into(),
         data_type: ColumnDataType::String,
         optional: false,
-        references: None,
     }
 }
 

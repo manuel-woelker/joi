@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::command::Command;
 use crate::command_handler::CommandHandler;
 use crate::data_store::{
-    AttributeColumn, AttributeName, ColumnDataType, ColumnDescription, ColumnReference, DataStore,
+    AttributeColumn, AttributeName, ColumnDataType, ColumnDescription, DataStore,
     DataStoreDeleteMutation, DataStoreInsertMutation, DataStoreMutation, DataStoreMutationStep,
     DataStoreQuery, DataStoreQueryResult, QueryCriterion, SharedDataStore, TableDescription,
     TableDescriptionProvider, TableName, TestDataProvider, Values,
@@ -34,17 +34,14 @@ impl TableDescriptionProvider for UserSessionTableDescriptionProvider {
                     description: "Cryptographically unguessable session identifier".into(),
                     data_type: ColumnDataType::String,
                     optional: false,
-                    references: None,
                 },
                 ColumnDescription {
                     name: AttributeName("user_id".into()),
                     description: "User owning this session".into(),
-                    data_type: ColumnDataType::String,
+                    data_type: ColumnDataType::Reference {
+                        entity: TableName("users".into()),
+                    },
                     optional: false,
-                    references: Some(ColumnReference {
-                        table: TableName("users".into()),
-                        attribute: AttributeName("id".into()),
-                    }),
                 },
             ],
         }
@@ -314,7 +311,6 @@ fn user_column(name: &'static str, description: &'static str) -> ColumnDescripti
         description: description.into(),
         data_type: ColumnDataType::String,
         optional: false,
-        references: None,
     }
 }
 

@@ -85,6 +85,19 @@ impl DataStore for IndexedDataStore {
             }
         }
         let entity_types = schemas.keys().cloned().collect::<Vec<_>>();
+        for table in schemas.values() {
+            for column in &table.columns {
+                if let ColumnDataType::Reference { entity } = &column.data_type
+                    && !schemas.contains_key(entity)
+                {
+                    joi_bail!(
+                        "entity type `{}` references unknown entity type `{}`",
+                        table.name.0,
+                        entity.0
+                    );
+                }
+            }
+        }
         self.search_index.prepare(tables)?;
         for entity_type in &entity_types {
             if self.search_index.is_empty(entity_type)? || self.rebuild_in_progress(entity_type)? {
@@ -770,7 +783,6 @@ mod tests {
             description: name.into(),
             data_type: ColumnDataType::String,
             optional: false,
-            references: None,
         };
         TableDescription {
             name: TableName("users".into()),
@@ -795,6 +807,22 @@ mod tests {
             id: EntityId::new(row.key),
             data: row.value,
         }
+    }
+
+    #[test]
+    fn rejects_references_to_unknown_entity_types() {
+        let mut table = users_table();
+        table.columns.push(ColumnDescription {
+            name: AttributeName("manager".into()),
+            description: "Managing user".into(),
+            data_type: ColumnDataType::Reference {
+                entity: TableName("ghosts".into()),
+            },
+            optional: true,
+        });
+        let mut store = IndexedDataStore::in_memory().unwrap();
+        let error = store.ensure_tables(vec![table]).unwrap_err();
+        assert!(error.to_string().contains("unknown entity type `ghosts`"));
     }
 
     #[test]

@@ -1,9 +1,8 @@
 use joi_error::{JoiResult, joi_error, report};
 use joi_server::data_store::{
-    AttributeColumn, AttributeName, ColumnDataType, ColumnDescription, ColumnReference,
-    DataStoreInsertMutation, DataStoreMutation, DataStoreMutationStep, DataStoreQuery,
-    DataStoreUpdateMutation, QueryCriterion, SharedDataStore, TableDescription,
-    TableDescriptionProvider, TableName, Values,
+    AttributeColumn, AttributeName, ColumnDataType, ColumnDescription, DataStoreInsertMutation,
+    DataStoreMutation, DataStoreMutationStep, DataStoreQuery, DataStoreUpdateMutation,
+    QueryCriterion, SharedDataStore, TableDescription, TableDescriptionProvider, TableName, Values,
 };
 use joi_server::{
     command::CommandDescriptor,
@@ -30,25 +29,17 @@ impl TableDescriptionProvider for ReviewCommentTableDescriptionProvider {
                     "commit_id",
                     "Commit being reviewed",
                     "codevette_commits",
-                    "commit_id",
                     false,
                 ),
                 string_column(
                     "created_at",
                     "Comment creation timestamp in RFC 3339 format",
                 ),
-                reference_column(
-                    "author_id",
-                    "User who authored the comment",
-                    "users",
-                    "id",
-                    false,
-                ),
+                reference_column("author_id", "User who authored the comment", "users", false),
                 reference_column(
                     "parent_id",
                     "Parent comment when this comment is a reply",
                     "review_comments",
-                    "id",
                     true,
                 ),
                 string_column("file", "Repository-relative path of the commented file"),
@@ -57,7 +48,6 @@ impl TableDescriptionProvider for ReviewCommentTableDescriptionProvider {
                     description: "One-based line number on the selected diff side".into(),
                     data_type: ColumnDataType::Int,
                     optional: false,
-                    references: None,
                 },
                 string_column("side", "Diff side: additions or deletions"),
                 string_column("comment", "Review comment text"),
@@ -339,26 +329,22 @@ fn string_column(name: &'static str, description: &'static str) -> ColumnDescrip
         description: description.into(),
         data_type: ColumnDataType::String,
         optional: false,
-        references: None,
     }
 }
 
 fn reference_column(
     name: &'static str,
     description: &'static str,
-    table: &'static str,
-    attribute: &'static str,
+    entity: &'static str,
     optional: bool,
 ) -> ColumnDescription {
     ColumnDescription {
         name: AttributeName(name.into()),
         description: description.into(),
-        data_type: ColumnDataType::String,
+        data_type: ColumnDataType::Reference {
+            entity: TableName(entity.into()),
+        },
         optional,
-        references: Some(ColumnReference {
-            table: TableName(table.into()),
-            attribute: AttributeName(attribute.into()),
-        }),
     }
 }
 

@@ -218,21 +218,10 @@ pub struct ColumnDescription {
     pub data_type: ColumnDataType,
     /// Whether the column accepts null values.
     pub optional: bool,
-    /// Optional foreign-key target for this column.
-    pub references: Option<ColumnReference>,
-}
-
-/// Identifies the column referenced by a foreign key.
-#[derive(Clone)]
-pub struct ColumnReference {
-    /// Referenced table.
-    pub table: TableName,
-    /// Referenced column.
-    pub attribute: AttributeName,
 }
 
 /// The value type supported by a table column.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ColumnDataType {
     /// String values with exact matching, sorting, and faceting.
     String,
@@ -240,17 +229,26 @@ pub enum ColumnDataType {
     /// Equality is word-based, sorting orders by a truncated lowercase
     /// prefix, and ranges and aggregations are not supported.
     Text,
+    /// Foreign identifiers stored as strings and indexed exactly like
+    /// [`ColumnDataType::String`]. References always address the target
+    /// entity type's primary key.
+    Reference {
+        /// The referenced entity type.
+        entity: TableName,
+    },
     /// Integer values.
     Int,
 }
 
 impl ColumnDataType {
     /// Whether column values of this physical representation fit the type.
-    /// Text is physically represented as strings.
+    /// Text and references are physically represented as strings.
     pub fn accepts(&self, values: &Values) -> bool {
         let strings = matches!(values, Values::String(_) | Values::NullableString(_));
         match self {
-            ColumnDataType::String | ColumnDataType::Text => strings,
+            ColumnDataType::String | ColumnDataType::Text | ColumnDataType::Reference { .. } => {
+                strings
+            }
             ColumnDataType::Int => matches!(values, Values::Int(_)),
         }
     }

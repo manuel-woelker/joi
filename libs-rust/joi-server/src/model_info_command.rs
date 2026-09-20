@@ -30,37 +30,74 @@ impl CommandHandler for ModelInfoCommand {
         _context: &crate::command_handler::CommandContext,
         _request: Self::Command,
     ) -> JoiResult<ModelInfoResponse> {
-        let mut models = self
+        use crate::data_store::TableDescription;
+        use joi_error::{JoiResult, joi_error};
+
+        fn primary_key(table: &TableDescription) -> JoiResult<&str> {
+            table
+                .columns
+                .first()
+                .map(|column| column.name.0.as_str())
+                .ok_or_else(|| joi_error!("entity type `{}` defines no attributes", table.name.0))
+        }
+
+        let tables = self
             .plugin_registry
             .extensions::<dyn TableDescriptionProvider>()?
             .map(TableDescriptionProvider::table_description)
             .filter(|table| table.discoverable)
-            .map(|table| ModelTypeDescription {
-                name: table.name.0.to_string(),
-                attributes: table
-                    .columns
-                    .into_iter()
-                    .enumerate()
-                    .map(|(index, column)| ModelAttributeDescription {
-                        name: column.name.0.to_string(),
-                        description: column.description.to_string(),
-                        data_type: match column.data_type {
-                            // Text is physically stored as strings.
-                            ColumnDataType::String | ColumnDataType::Text => {
-                                ModelAttributeType::String
-                            }
-                            ColumnDataType::Int => ModelAttributeType::Int,
-                        },
-                        optional: column.optional,
-                        key: index == 0,
-                        references: column.references.map(|reference| ModelAttributeReference {
-                            model: reference.table.0.to_string(),
-                            attribute: reference.attribute.0.to_string(),
-                        }),
-                    })
-                    .collect(),
-            })
             .collect::<Vec<_>>();
+        let mut models = tables
+            .iter()
+            .map(|table| {
+                let attributes = table
+                    .columns
+                    .iter()
+                    .enumerate()
+                    .map(|(index, column)| {
+                        let data_type = match &column.data_type {
+                            // Text and references are physically stored as strings.
+                            ColumnDataType::String
+                            | ColumnDataType::Text
+                            | ColumnDataType::Reference { .. } => ModelAttributeType::String,
+                            ColumnDataType::Int => ModelAttributeType::Int,
+                        };
+                        let references = match &column.data_type {
+                            // References always address the target's primary key.
+                            ColumnDataType::Reference { entity } => {
+                                let target = tables
+                                    .iter()
+                                    .find(|candidate| candidate.name == *entity)
+                                    .ok_or_else(|| {
+                                        joi_error!(
+                                            "entity type `{}` references unknown entity type `{}`",
+                                            table.name.0,
+                                            entity.0
+                                        )
+                                    })?;
+                                Some(ModelAttributeReference {
+                                    model: entity.0.to_string(),
+                                    attribute: primary_key(target)?.to_owned(),
+                                })
+                            }
+                            _ => None,
+                        };
+                        Ok(ModelAttributeDescription {
+                            name: column.name.0.to_string(),
+                            description: column.description.to_string(),
+                            data_type,
+                            optional: column.optional,
+                            key: index == 0,
+                            references,
+                        })
+                    })
+                    .collect::<JoiResult<Vec<_>>>()?;
+                Ok(ModelTypeDescription {
+                    name: table.name.0.to_string(),
+                    attributes,
+                })
+            })
+            .collect::<JoiResult<Vec<_>>>()?;
         models.sort_by(|left, right| left.name.cmp(&right.name));
         Ok(ModelInfoResponse { models })
     }
@@ -84,20 +121,31 @@ mod tests {
     struct TableProvider {
         name: &'static str,
         discoverable: bool,
+        reference: Option<&'static str>,
     }
 
     impl TableDescriptionProvider for TableProvider {
         fn table_description(&self) -> TableDescription {
+            let mut columns = vec![ColumnDescription {
+                name: AttributeName("id".into()),
+                description: "Stable identifier".into(),
+                data_type: ColumnDataType::String,
+                optional: false,
+            }];
+            if let Some(entity) = self.reference {
+                columns.push(ColumnDescription {
+                    name: AttributeName("owner".into()),
+                    description: "Owning record".into(),
+                    data_type: ColumnDataType::Reference {
+                        entity: TableName(entity.into()),
+                    },
+                    optional: false,
+                });
+            }
             TableDescription {
                 name: TableName(self.name.into()),
                 discoverable: self.discoverable,
-                columns: vec![ColumnDescription {
-                    name: AttributeName("id".into()),
-                    description: "Stable identifier".into(),
-                    data_type: ColumnDataType::String,
-                    optional: false,
-                    references: None,
-                }],
+                columns,
             }
         }
     }
@@ -115,6 +163,7 @@ mod tests {
                     Box::new(TableProvider {
                         name: "zebras",
                         discoverable: true,
+                        reference: None,
                     }),
                 )?;
                 context.register_extension::<dyn TableDescriptionProvider>(
@@ -123,6 +172,7 @@ mod tests {
                     Box::new(TableProvider {
                         name: "internal",
                         discoverable: false,
+                        reference: None,
                     }),
                 )?;
                 context.register_extension::<dyn TableDescriptionProvider>(
@@ -131,6 +181,7 @@ mod tests {
                     Box::new(TableProvider {
                         name: "apples",
                         discoverable: true,
+                        reference: Some("zebras"),
                     }),
                 )
             }))
@@ -153,5 +204,12 @@ mod tests {
             ModelAttributeType::String
         );
         assert!(response.models[0].attributes[0].key);
+        // References report the target entity and its primary key.
+        let owner = &response.models[0].attributes[1];
+        assert_eq!(owner.data_type, ModelAttributeType::String);
+        assert!(!owner.key);
+        let reference = owner.references.as_ref().expect("owner references zebras");
+        assert_eq!(reference.model, "zebras");
+        assert_eq!(reference.attribute, "id");
     }
 }

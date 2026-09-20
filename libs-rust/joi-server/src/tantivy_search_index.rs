@@ -126,7 +126,7 @@ impl SearchIndex for TantivySearchIndex {
                 for column in &table.columns {
                     let name = column.name.0.as_str();
                     match column.data_type {
-                        ColumnDataType::String => {
+                        ColumnDataType::String | ColumnDataType::Reference { .. } => {
                             schema.add_text_field(name, STRING | STORED | FAST);
                             schema.add_text_field(&format!("{name}{LOWER_SUFFIX}"), STRING);
                             schema.add_text_field(&format!("{name}{TOKEN_SUFFIX}"), TEXT);
@@ -155,7 +155,7 @@ impl SearchIndex for TantivySearchIndex {
             for column in table.columns {
                 let name = column.name.0.as_str();
                 let (field, lower_field, token_field, sort_field) = match column.data_type {
-                    ColumnDataType::String => {
+                    ColumnDataType::String | ColumnDataType::Reference { .. } => {
                         let lower_name = format!("{name}{LOWER_SUFFIX}");
                         let token_name = format!("{name}{TOKEN_SUFFIX}");
                         (
@@ -300,7 +300,9 @@ impl SearchIndex for TantivySearchIndex {
                 QuerySortDirection::Descending => Order::Desc,
             };
             match field.data_type {
-                ColumnDataType::String | ColumnDataType::Text => searcher
+                ColumnDataType::String
+                | ColumnDataType::Text
+                | ColumnDataType::Reference { .. } => searcher
                     .search(
                         tantivy_query.as_ref(),
                         &TopDocs::with_limit(query.max_results.max(1))
@@ -370,8 +372,10 @@ impl SearchIndex for TantivySearchIndex {
                 )
             })?;
             let values = match indexed.data_type {
-                // Text is physically stored as strings in the entity payload.
-                ColumnDataType::String | ColumnDataType::Text => Values::String(
+                // Text and references are physically stored as strings in the entity payload.
+                ColumnDataType::String
+                | ColumnDataType::Text
+                | ColumnDataType::Reference { .. } => Values::String(
                     rows.iter()
                         .map(|(_, row)| {
                             row.get(attribute.0.as_str())
@@ -489,13 +493,17 @@ fn count_terms(
         .map(|bucket| {
             Ok(DataStoreCountValue {
                 value: Some(match attribute.data_type {
-                    ColumnDataType::String => DataStoreValue::String(
-                        bucket
-                            .get("key")
-                            .and_then(JsonValue::as_str)
-                            .ok_or_else(|| joi_error!("Tantivy returned an invalid term bucket"))?
-                            .into(),
-                    ),
+                    ColumnDataType::String | ColumnDataType::Reference { .. } => {
+                        DataStoreValue::String(
+                            bucket
+                                .get("key")
+                                .and_then(JsonValue::as_str)
+                                .ok_or_else(|| {
+                                    joi_error!("Tantivy returned an invalid term bucket")
+                                })?
+                                .into(),
+                        )
+                    }
                     ColumnDataType::Int => DataStoreValue::Int(
                         bucket
                             .get("key")
@@ -574,7 +582,7 @@ fn add_entity(
             continue;
         };
         match attribute.data_type {
-            ColumnDataType::String => {
+            ColumnDataType::String | ColumnDataType::Reference { .. } => {
                 if let Some(value) = value.as_str() {
                     document.add_text(attribute.field, value);
                     document.add_text(attribute.lower_field.unwrap(), value.to_lowercase());
@@ -665,7 +673,10 @@ fn criterion_query(index: &EntityIndex, criterion: &QueryCriterion) -> JoiResult
         QueryCriterion::Set(attribute) => {
             let field = indexed_attribute(index, attribute)?;
             let exists = Box::new(ExistsQuery::new(field_name(index, attribute)?, false));
-            if field.data_type == ColumnDataType::String {
+            if matches!(
+                field.data_type,
+                ColumnDataType::String | ColumnDataType::Reference { .. }
+            ) {
                 Ok(Box::new(BooleanQuery::new(vec![
                     (Occur::Must, exists),
                     (Occur::MustNot, exact_query(field, "")?),
@@ -683,7 +694,10 @@ fn criterion_query(index: &EntityIndex, criterion: &QueryCriterion) -> JoiResult
                     Box::new(ExistsQuery::new(field_name(index, attribute)?, false)),
                 ),
             ]));
-            if field.data_type == ColumnDataType::String {
+            if matches!(
+                field.data_type,
+                ColumnDataType::String | ColumnDataType::Reference { .. }
+            ) {
                 Ok(Box::new(BooleanQuery::new(vec![
                     (Occur::Should, missing),
                     (Occur::Should, exact_query(field, "")?),
@@ -773,7 +787,7 @@ fn term_query(index: &EntityIndex, value: &JoiString) -> JoiResult<Box<dyn Query
                 continue;
             };
             match field.data_type {
-                ColumnDataType::String => {
+                ColumnDataType::String | ColumnDataType::Reference { .. } => {
                     let Some(token_field) = field.token_field else {
                         continue;
                     };
@@ -878,7 +892,9 @@ fn composite_query(
 
 fn exact_query(field: &IndexedAttribute, value: &str) -> JoiResult<Box<dyn Query>> {
     let term = match field.data_type {
-        ColumnDataType::String => Term::from_field_text(field.field, value),
+        ColumnDataType::String | ColumnDataType::Reference { .. } => {
+            Term::from_field_text(field.field, value)
+        }
         // Rejected in `criterion_query` before exact matching.
         ColumnDataType::Text => joi_bail!("equality is word-based for text attributes"),
         ColumnDataType::Int => Term::from_field_i64(
@@ -899,7 +915,9 @@ fn range_query(
     let convert = |bound: Bound<&JoiString>| -> JoiResult<Bound<Term>> {
         Ok(match bound {
             Bound::Included(value) => Bound::Included(match field.data_type {
-                ColumnDataType::String => Term::from_field_text(field.field, value),
+                ColumnDataType::String | ColumnDataType::Reference { .. } => {
+                    Term::from_field_text(field.field, value)
+                }
                 // Rejected in `criterion_query` before ranging.
                 ColumnDataType::Text => joi_bail!("ranges are not supported for text attributes"),
                 ColumnDataType::Int => Term::from_field_i64(
@@ -910,7 +928,9 @@ fn range_query(
                 ),
             }),
             Bound::Excluded(value) => Bound::Excluded(match field.data_type {
-                ColumnDataType::String => Term::from_field_text(field.field, value),
+                ColumnDataType::String | ColumnDataType::Reference { .. } => {
+                    Term::from_field_text(field.field, value)
+                }
                 // Rejected in `criterion_query` before ranging.
                 ColumnDataType::Text => joi_bail!("ranges are not supported for text attributes"),
                 ColumnDataType::Int => Term::from_field_i64(
