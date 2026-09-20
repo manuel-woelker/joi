@@ -229,9 +229,9 @@ pub enum ColumnDataType {
     /// Equality is word-based, sorting orders by a truncated lowercase
     /// prefix, and ranges and aggregations are not supported.
     Text,
-    /// Foreign identifiers stored as strings and indexed exactly like
-    /// [`ColumnDataType::String`]. References always address the target
-    /// entity type's primary key. Only exact matching is meaningful:
+    /// Foreign identifiers stored as strings and indexed as raw values with
+    /// a fast field for sorting and faceting. References always address the
+    /// target entity type's primary key. Only exact matching is meaningful:
     /// substring search is rejected since callers must supply the id.
     Reference {
         /// The referenced entity type.

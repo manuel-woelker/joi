@@ -126,10 +126,15 @@ impl SearchIndex for TantivySearchIndex {
                 for column in &table.columns {
                     let name = column.name.0.as_str();
                     match column.data_type {
-                        ColumnDataType::String | ColumnDataType::Reference { .. } => {
+                        ColumnDataType::String => {
                             schema.add_text_field(name, STRING | STORED | FAST);
                             schema.add_text_field(&format!("{name}{LOWER_SUFFIX}"), STRING);
                             schema.add_text_field(&format!("{name}{TOKEN_SUFFIX}"), TEXT);
+                        }
+                        // Foreign ids need exact matching with sorting and
+                        // faceting, but no substring or token search.
+                        ColumnDataType::Reference { .. } => {
+                            schema.add_text_field(name, STRING | STORED | FAST);
                         }
                         // Prose is only indexed as tokenized text; row values
                         // come from the stored entity payload. A truncated
@@ -155,7 +160,7 @@ impl SearchIndex for TantivySearchIndex {
             for column in table.columns {
                 let name = column.name.0.as_str();
                 let (field, lower_field, token_field, sort_field) = match column.data_type {
-                    ColumnDataType::String | ColumnDataType::Reference { .. } => {
+                    ColumnDataType::String => {
                         let lower_name = format!("{name}{LOWER_SUFFIX}");
                         let token_name = format!("{name}{TOKEN_SUFFIX}");
                         (
@@ -164,6 +169,9 @@ impl SearchIndex for TantivySearchIndex {
                             Some(schema.get_field(&token_name).map_err(report)?),
                             None,
                         )
+                    }
+                    ColumnDataType::Reference { .. } => {
+                        (schema.get_field(name).map_err(report)?, None, None, None)
                     }
                     ColumnDataType::Text => {
                         let sort_name = format!("{name}{SORT_SUFFIX}");
@@ -582,7 +590,7 @@ fn add_entity(
             continue;
         };
         match attribute.data_type {
-            ColumnDataType::String | ColumnDataType::Reference { .. } => {
+            ColumnDataType::String => {
                 if let Some(value) = value.as_str() {
                     document.add_text(attribute.field, value);
                     document.add_text(attribute.lower_field.unwrap(), value.to_lowercase());
@@ -592,6 +600,12 @@ fn add_entity(
                             .expect("string attributes index tokens"),
                         value,
                     );
+                }
+            }
+            // Foreign ids index the raw value only.
+            ColumnDataType::Reference { .. } => {
+                if let Some(value) = value.as_str() {
+                    document.add_text(attribute.field, value);
                 }
             }
             ColumnDataType::Int => {
@@ -793,7 +807,7 @@ fn term_query(index: &EntityIndex, value: &JoiString) -> JoiResult<Box<dyn Query
                 continue;
             };
             match field.data_type {
-                ColumnDataType::String | ColumnDataType::Reference { .. } => {
+                ColumnDataType::String => {
                     let Some(token_field) = field.token_field else {
                         continue;
                     };
@@ -805,6 +819,8 @@ fn term_query(index: &EntityIndex, value: &JoiString) -> JoiResult<Box<dyn Query
                         )) as Box<dyn Query>,
                     ));
                 }
+                // References carry no token field: pasted ids cannot match.
+                ColumnDataType::Reference { .. } => continue,
                 // Prose is already tokenized in its own field.
                 ColumnDataType::Text => {
                     disjunction.push((

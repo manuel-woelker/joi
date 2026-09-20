@@ -590,7 +590,8 @@ mod tests {
             }),
             vec![JoiString::from("Navigation redesign")]
         );
-        // References match exact ids; substring search is rejected.
+        // References match exact ids and facet through the fast field;
+        // substring search is rejected.
         assert_eq!(
             titles(QueryRequestCriterion::Equals {
                 attribute: "owner".into(),
@@ -601,6 +602,40 @@ mod tests {
                 JoiString::from("apple turnover"),
             ]
         );
+        let response = command
+            .execute(
+                &Default::default(),
+                QueryRequest {
+                    table_name: "notes".into(),
+                    criterion: QueryRequestCriterion::MatchAny,
+                    results: vec![QueryRequestResult::Aggregate {
+                        aggregation: QueryAggregation::Count,
+                        attribute: Some("owner".into()),
+                        max_results: 10,
+                        criterion: None,
+                    }],
+                },
+            )
+            .unwrap();
+        let QueryResponseResult::Aggregate { values, .. } = &response.results[0] else {
+            panic!("expected aggregate")
+        };
+        let mut counts = values
+            .iter()
+            .map(|value| {
+                (
+                    value
+                        .value
+                        .as_ref()
+                        .and_then(|value| value.as_str())
+                        .unwrap_or_default()
+                        .to_owned(),
+                    value.count,
+                )
+            })
+            .collect::<Vec<_>>();
+        counts.sort();
+        assert_eq!(counts, vec![("a".to_owned(), 1), ("b".to_owned(), 2)]);
         assert!(
             command
                 .execute(
