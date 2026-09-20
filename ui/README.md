@@ -43,6 +43,24 @@ Record-oriented screens use a shared master-detail editor over the same
 columnar query result. A ticket row click selects it for contextual actions;
 double-click, Enter, or the visible Edit command opens its pane on the right.
 User rows currently open directly because they have no contextual actions.
+
+`createMasterDetailStore` in `src/plugins/core/master-detail/master-detail-store.ts`
+owns the generic entity view's queries, debounced inputs, sorting, facets,
+selection decisions, action targets, and live updates. It exposes read-only
+Solid accessors and named operations. Construct it once under a Solid owner with
+explicit services and reactive view inputs; dispose that owner when leaving the
+view. A different entity type gets a new store. Use its coherent `table()` snapshot
+for rows and response-local bindings. Row, count, and facet requests settle
+independently; their loading and error states are exposed separately.
+
+`EntityMasterDetailView` renders those accessors and forwards user events. DOM
+measurements and paint scheduling stay in the component. The record editor stores
+coordinate field conversion, persistence, and external changes while the existing
+Form runtime remains the sole owner of drafts, validation, and autosave. Both
+standalone editors and the master-detail view use these stores. Store tests run
+under Node with Solid client reactivity and no mounted components; DOM tests cover
+focus, control wiring, and virtualization.
+
 Code-defined entity descriptions are the
 canonical UI source for table names, identity attributes, attribute labels and
 types, icons, default table columns, edit/create controls, initial values, and

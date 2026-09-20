@@ -82,21 +82,21 @@ having their adapter construct the same editor store with explicit dependencies.
 
 ## Implementation Checklist
 
-- [ ] Inventory current call sites and tests; record query counts, loading rules,
+- [x] Inventory current call sites and tests; record query counts, loading rules,
       selection behavior, and editor persistence behavior as characterization cases.
-- [ ] Define the store contract and explicit dependencies. Create it under the
+- [x] Define the store contract and explicit dependencies. Create it under the
       caller's Solid owner with `onCleanup`; use `createRoot` plus disposal in tests.
-- [ ] Move query state, debounce/reset effects, resources, facets, bindings,
+- [x] Move query state, debounce/reset effects, resources, facets, bindings,
       highlights, refresh, and delayed loading into the store. Reuse existing query
       helpers and preserve response-local branded handles.
-- [ ] Move navigation decisions, action target construction/registration, and
+- [x] Move navigation decisions, action target construction/registration, and
       data-change reconciliation into store operations and effects.
-- [ ] Extract editor coordination and pure form/value conversion helpers; retain
+- [x] Extract editor coordination and pure form/value conversion helpers; retain
       the Form model's existing lifecycle and remove duplicate row reconciliation.
-- [ ] Wire EntityMasterDetailView, MasterDetailView, and RecordEditor to accessors
+- [x] Wire EntityMasterDetailView, MasterDetailView, and RecordEditor to accessors
       and operations. Remove moved effects/helpers and direct service calls from
       rendering code; retain only DOM-specific adapters.
-- [ ] Add store behavior tests and retain focused component tests for event wiring,
+- [x] Add store behavior tests and retain focused component tests for event wiring,
       focus preservation, virtualization, and layout. Document the store API and
       dependency/lifetime contract in `ui/README.md`.
 
@@ -113,12 +113,32 @@ Run store tests without rendering components; ensure Vitest resolves Solid's cli
 reactivity implementation even in the Node test environment (SSR effects do not
 execute). Use happy-dom only for tests that need actual DOM interactions.
 
-- [ ] Run focused UI tests and `./n ui-typecheck`.
-- [ ] Exercise tickets/users/projects: filtering, sorting, facets, selection,
-      creation, editing, actions, refresh, and browser back/forward.
-- [ ] Check desktop and narrow layouts, fixed headers, independent scrolling, and
-      stable focus while queries and saves complete.
-- [ ] Run `./n check`, then `./n --restart`.
+- [x] Run focused UI tests and `./n ui-typecheck`.
+- [x] Delegate tickets/users/projects workflow verification to the user, who
+      explicitly requested skipping Chrome verification and is testing by hand.
+- [x] Delegate desktop/narrow layout and scrolling verification to the user's
+      manual testing; no browser verification is claimed for this implementation.
+- [x] Run `./n check`, then `./n --restart`.
+
+## What was implemented and verified?
+
+Completed on 2026-09-20. The plan was committed before implementation as
+`c6009e8`. `master-detail-store.ts` owns query orchestration and view state;
+`record-editor-store.ts` owns editor coordination and value conversion.
+MasterDetailView already provided layout-only composition and retained its API,
+including compatibility with SavedViewContent. RecordEditor constructs the same
+editor stores for standalone usage. Shared idempotent row reconciliation prevents
+duplicate writes when both table and editor subscribe to a committed change.
+
+Twelve new Node tests exercise the stores without DOM rendering. All 30 focused
+master-detail tests pass, including the existing focus, autosave, and virtualized
+sorting tests. Type checking and repository-wide checks pass. Browser verification
+was skipped at the user's request; the temporary Chrome instance was stopped.
+
+The existing FetchService has no request cancellation API. In-flight transport
+requests may finish after disposal, but disposed owners release subscriptions and
+timers, stale resource results are ignored, and late completion cannot navigate
+or publish display metrics. This refactor does not change the transport API.
 
 ## What assumptions and risks need attention?
 

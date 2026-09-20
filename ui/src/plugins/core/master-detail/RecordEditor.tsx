@@ -1,36 +1,18 @@
-import { For, Show, createMemo, createSignal, createUniqueId, onCleanup, type JSX } from "solid-js";
+import { For, Show, createUniqueId, type JSX } from "solid-js";
 import XIcon from "lucide-solid/icons/x";
 
-import {
-  Form,
-  useFormField,
-  useFormState,
-  type FormChanges,
-  type FormModel,
-  type FormValues,
-} from "../../../components/form/Form";
+import { Form, useFormField, useFormState } from "../../../components/form/Form";
 import { FormValidationMessages } from "../../../components/form/FormValidationMessages";
 import { Select } from "../../../components/Select";
 import { RichTextEditor } from "../../../components/rich-text/RichTextEditor";
-import { richTextPlainText } from "../../../components/rich-text/html";
-import type { QueryResult, QueryResultRow, QueryValue } from "../query/query-result";
+import type { QueryResult } from "../query/query-result";
 import type { FetchService } from "../../../base/services/fetch-service";
-import type { ValidationFunction } from "../../../validation/validation";
-import { notEmpty } from "../../../validation/validation-functions";
 import { useLookupService, type LookupEntry } from "../lookups/lookup";
 import { useOptionalApplicationServices } from "../../../base/services/application-services";
-import {
-  DataChangeService,
-  type DataChangeService as DataChangeServiceType,
-} from "../data-changes/data-change-service";
+import { DataChangeService } from "../data-changes/data-change-service";
 import { RecordMutationService } from "../data-changes/record-mutation-service";
-import {
-  validateMasterDetailDefinition,
-  type CreateRecordDefinition,
-  type EditFieldDefinition,
-  type MasterDetailDefinition,
-} from "./definition";
-import { createRecord, type RecordFieldValue } from "./record-api";
+import { type EditFieldDefinition, type MasterDetailDefinition } from "./definition";
+import { createRecordEditorStore, createRecordCreationStore, type RecordEditorStore } from "./record-editor-store";
 import styles from "./RecordEditor.module.css";
 
 export type EntityEditorMode =
@@ -59,55 +41,33 @@ function EditRecordEditor(props: {
   mode: Extract<EntityEditorMode, { type: "edit" }>;
   onClose: () => void;
 }) {
-  const [saved, setSaved] = createSignal(false);
   const applicationServices = useOptionalApplicationServices();
   const dataChanges = applicationServices?.dataChanges ?? new DataChangeService();
   const recordMutations =
     applicationServices?.recordMutations ?? new RecordMutationService(props.fetchService, dataChanges);
-  const validationError = createMemo(() => {
-    try {
-      validateMasterDetailDefinition(props.mode.result, props.definition);
-      return undefined;
-    } catch (error) {
-      return error instanceof Error ? error.message : "Invalid editor definition";
-    }
-  });
-  const row = createMemo(() => findRecord(props.mode.result, props.definition.identityAttribute, props.mode.recordId));
-  const save = async (changes: FormChanges) => {
-    const values = fieldValues(props.definition.fields, changes);
-    if (values instanceof Error) throw values;
-    setSaved(false);
-    await recordMutations.update(
-      props.definition,
-      props.mode.recordId,
-      Object.fromEntries(values.map(({ field, value }) => [field.attribute, value])),
-    );
-    setSaved(true);
-  };
+  const store = createRecordEditorStore(
+    {
+      definition: props.definition,
+      result: () => props.mode.result,
+      recordId: () => props.mode.recordId,
+    },
+    { fetchService: props.fetchService, dataChanges, recordMutations },
+  );
 
   return (
-    <Show when={!validationError()} fallback={<div class={styles.state}>{validationError()}</div>}>
-      <Show when={row()} fallback={<div class={styles.state}>Record not found.</div>}>
+    <Show when={!store.validationError()} fallback={<div class={styles.state}>{store.validationError()}</div>}>
+      <Show when={store.row()} fallback={<div class={styles.state}>Record not found.</div>}>
         {(currentRow) => (
           <Show keyed when={props.mode.recordId}>
             {(_recordId) => (
-              <Form
-                model={editFormModel(props.mode.result, props.definition, currentRow())}
-                persistence={{ type: "autosave", onSave: save }}
-              >
-                <RecordChangeSubscriber
-                  dataChanges={dataChanges}
-                  tableName={props.definition.tableName}
-                  recordId={props.mode.recordId}
-                  result={props.mode.result}
-                  identityAttribute={props.definition.identityAttribute}
-                />
+              <Form model={store.model(currentRow())} persistence={{ type: "autosave", onSave: store.save }}>
+                <RecordFormBinding store={store} />
                 <EditorLayout
                   title={props.definition.detailTitle}
                   fields={props.definition.fields}
                   onClose={props.onClose}
                 >
-                  <SaveStatus saved={saved} />
+                  <SaveStatus saved={store.saved} />
                 </EditorLayout>
               </Form>
             )}
@@ -118,29 +78,8 @@ function EditRecordEditor(props: {
   );
 }
 
-function RecordChangeSubscriber(props: {
-  dataChanges: DataChangeServiceType;
-  tableName: string;
-  recordId: string;
-  result: QueryResult;
-  identityAttribute: string;
-}) {
-  const form = useFormState();
-  const unsubscribe = props.dataChanges.subscribe(
-    { tableName: props.tableName, recordId: props.recordId },
-    (change) => {
-      form.reconcile(Object.fromEntries(Object.entries(change.changes).map(([key, value]) => [key, String(value)])));
-      const identity = props.result.column(props.identityAttribute);
-      const row = identity && props.result.rows.find((candidate) => candidate.value(identity) === props.recordId);
-      if (!row) return;
-      const updates = Object.entries(change.changes).flatMap(([attribute, value]) => {
-        const column = props.result.column(attribute);
-        return column ? [{ column, value }] : [];
-      });
-      if (updates.length) props.result.updateRow(row, updates);
-    },
-  );
-  onCleanup(unsubscribe);
+function RecordFormBinding(props: { store: RecordEditorStore }) {
+  props.store.attachForm(useFormState());
   return null;
 }
 
@@ -152,17 +91,13 @@ function CreateRecordEditor(props: {
 }) {
   const create = props.definition.create;
   if (!create) return <div class={styles.state}>Creation is not configured for this entity.</div>;
-  const initialValues = Object.fromEntries(
-    create.attributes.map((attribute) => [attribute.attribute, attribute.initialValue()]),
-  );
-  const submit = async (formValues: FormValues) => {
-    const values = createValues(create, formValues, initialValues);
-    if (values instanceof Error) throw values;
-    const id = await createRecord(props.fetchService, props.definition, values);
-    await props.mode.onCreated(id);
-  };
+  const store = createRecordCreationStore(
+    props.definition,
+    { fetchService: props.fetchService },
+    props.mode.onCreated,
+  )!;
   return (
-    <Form model={createFormModel(create, initialValues)} persistence={{ type: "submit", onSubmit: submit }}>
+    <Form model={store.model} persistence={{ type: "submit", onSubmit: store.submit }}>
       <EditorLayout title={create.title} fields={create.fields} onClose={props.onClose}>
         <CreateActions onCancel={props.onClose} />
       </EditorLayout>
@@ -323,101 +258,4 @@ function EditorField(props: { field: EditFieldDefinition }) {
       <FormValidationMessages attribute={formField.id} id={messagesId} />
     </div>
   );
-}
-
-function findRecord(result: QueryResult, identityAttribute: string, id: string): QueryResultRow | undefined {
-  const identity = result.column(identityAttribute);
-  return identity ? result.rows.find((row) => row.value(identity) === id) : undefined;
-}
-
-function editFormModel(result: QueryResult, definition: MasterDetailDefinition, row: QueryResultRow): FormModel {
-  return {
-    attributes: definition.fields.map((field) => ({
-      id: field.attribute,
-      label: field.label,
-      initialValue: String(row.value(result.requireColumn(field.attribute)) ?? ""),
-      placeholder: field.placeholder,
-      readonly: field.readonly,
-      disabled: field.disabled,
-      validation: fieldValidation(field),
-    })),
-    validation: definition.validation?.(result, row),
-  };
-}
-
-function createFormModel(
-  create: CreateRecordDefinition,
-  initialValues: Readonly<Record<string, QueryValue>>,
-): FormModel {
-  return {
-    attributes: create.fields.map((field) => ({
-      id: field.attribute,
-      label: field.label,
-      initialValue: String(initialValues[field.attribute] ?? ""),
-      placeholder: field.placeholder,
-      validation: fieldValidation(field),
-    })),
-    validation: create.validation
-      ? ({ value, addValidationFailure }) => {
-          const values = createValues(create, value, initialValues);
-          if (!(values instanceof Error)) create.validation?.({ value: values, addValidationFailure });
-        }
-      : undefined,
-  };
-}
-
-function fieldValidation(field: EditFieldDefinition): ValidationFunction<string> | undefined {
-  const validateRequired = field.required
-    ? field.control === "html"
-      ? htmlNotEmpty(`${field.label} is required.`)
-      : notEmpty(`${field.label} is required.`)
-    : undefined;
-  if (!validateRequired) return field.validation;
-  if (!field.validation) return validateRequired;
-  return (context) => {
-    validateRequired(context);
-    field.validation?.(context);
-  };
-}
-
-function htmlNotEmpty(message: string): ValidationFunction<string> {
-  return ({ value, addValidationFailure }) => {
-    if (!richTextPlainText(value).trim()) addValidationFailure({ message });
-  };
-}
-
-function fieldValues(
-  fields: readonly EditFieldDefinition[],
-  changes: FormChanges,
-): readonly RecordFieldValue[] | Error {
-  const values: RecordFieldValue[] = [];
-  for (const [attribute, raw] of Object.entries(changes)) {
-    const field = fields.find((candidate) => candidate.attribute === attribute);
-    if (!field) return new Error(`Unknown editable field ${attribute}`);
-    if (field.control !== "integer") values.push({ field, value: raw });
-    else {
-      const value = Number(raw);
-      if (!Number.isSafeInteger(value)) return new Error(`${field.label} must be an integer.`);
-      values.push({ field, value });
-    }
-  }
-  return values;
-}
-
-function createValues(
-  create: CreateRecordDefinition,
-  formValues: FormValues,
-  initialValues: Readonly<Record<string, QueryValue>>,
-): Readonly<Record<string, QueryValue>> | Error {
-  const values: Record<string, QueryValue> = { ...initialValues };
-  for (const field of create.fields) {
-    const raw = formValues[field.attribute];
-    if (field.control !== "integer") values[field.attribute] = raw;
-    else {
-      const parsed = Number(raw);
-      if (!Number.isSafeInteger(parsed)) return new Error(`${field.label} must be an integer.`);
-      values[field.attribute] = parsed;
-    }
-  }
-  return Object.freeze(values);
 }
