@@ -206,7 +206,8 @@ describe("master-detail store", () => {
     expect(store.visibleFacets()).toEqual([]);
 
     const group = await store.cellFacetMenu("name", "Name a");
-    expect(group?.label).toBe("Table actions");
+    expect(group?.id).toBe("facet-actions");
+    expect(group?.label).toBe("Facet actions");
     expect(group?.entries.map((entry) => entry.label)).toEqual(['Include "Name a"', 'Exclude "Name a"']);
     expect(store.visibleFacets()).toHaveLength(1);
 

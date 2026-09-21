@@ -26,4 +26,22 @@ describe("actionsToContextMenuEntries", () => {
     await entry.execute();
     expect(execute).toHaveBeenCalledWith(action);
   });
+
+  it("omits actions hidden from context menus", () => {
+    const visible: UiAction = {
+      id: actionId("tickets.assign"),
+      label: "Assign to me",
+      description: "Assign the ticket.",
+      isAvailable: () => true,
+      execute: () => undefined,
+    };
+    const hidden: UiAction = {
+      ...visible,
+      id: actionId("playground.open"),
+      label: "Open playground",
+      showInContextMenu: false,
+    };
+    const entries = actionsToContextMenuEntries([visible, hidden], { execute: () => undefined });
+    expect(entries.map((entry) => entry.label)).toEqual(["Assign to me"]);
+  });
 });

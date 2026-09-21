@@ -73,7 +73,7 @@ function EntityMasterDetailContent(props: {
   const openContextMenu = async (event: MouseEvent, row: QueryResultRow, column?: QueryColumnHandle) => {
     if (!store.selectRow(row)) return;
     const cellGroup = column ? await store.cellFacetMenu(column.attribute, row.value(column)) : undefined;
-    const groups = [...(cellGroup ? [cellGroup] : []), ...store.contextMenuGroups()];
+    const groups = [...store.contextMenuGroups(), ...(cellGroup ? [cellGroup] : [])];
     contextMenu.open({ event, createGroups: () => groups });
   };
   return (

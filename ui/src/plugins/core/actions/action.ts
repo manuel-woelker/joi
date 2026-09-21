@@ -32,6 +32,7 @@ export interface UiAction {
   readonly description: string;
   readonly hotkey?: string;
   readonly showInActionBar?: boolean;
+  readonly showInContextMenu?: boolean;
   readonly compatibleEntityTypes?: readonly EntityId[];
   isAvailable(context: ActionContext): boolean;
   execute(context: ActionContext): void | Promise<void>;

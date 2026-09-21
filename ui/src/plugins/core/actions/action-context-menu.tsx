@@ -12,12 +12,14 @@ export function actionsToContextMenuEntries(
   actions: readonly UiAction[],
   options: ActionContextMenuOptions,
 ): readonly ContextMenuEntry[] {
-  return actions.map((action) => ({
-    id: contextMenuEntryId(action.id),
-    label: action.label,
-    keyboardHint: action.hotkey,
-    description: action.description,
-    disabled: options.disabled,
-    execute: () => options.execute(action),
-  }));
+  return actions
+    .filter((action) => action.showInContextMenu !== false)
+    .map((action) => ({
+      id: contextMenuEntryId(action.id),
+      label: action.label,
+      keyboardHint: action.hotkey,
+      description: action.description,
+      disabled: options.disabled,
+      execute: () => options.execute(action),
+    }));
 }

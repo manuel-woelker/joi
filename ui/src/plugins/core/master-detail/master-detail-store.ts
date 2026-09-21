@@ -319,13 +319,13 @@ export function createMasterDetailStore(
     const display = await cellDisplayLabel(attribute.lookup, value);
     setVisibleFacetIds((current) => (current.includes(attributeId) ? current : [...current, attributeId]));
     const entry = (state: "included" | "excluded") => ({
-      id: contextMenuEntryId(`table-facet-${state}-${attributeId}`),
+      id: contextMenuEntryId(`facet-cell-${state}-${attributeId}`),
       label: `${state === "included" ? "Include" : "Exclude"} "${display}"`,
       execute: () => setFacetValue(attributeId, value, state),
     });
     return {
-      id: contextMenuGroupId("table-actions"),
-      label: "Table actions",
+      id: contextMenuGroupId("facet-actions"),
+      label: "Facet actions",
       entries: [entry("included"), entry("excluded")],
     };
   };

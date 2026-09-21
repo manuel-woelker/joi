@@ -18,6 +18,7 @@ export default plugin({
         label: "Open playground",
         description: "Open the component playground.",
         showInActionBar: false,
+        showInContextMenu: false,
         isAvailable: () => true,
         execute: () => {
           window.location.hash = "#playground";
