@@ -238,6 +238,37 @@ describe("DataTable", () => {
     await waitFor(() => expect(input.value).toBe(""));
   });
 
+  it("reports the right-clicked column to the context menu handler", () => {
+    const result = parseQueryResponse({
+      number_of_hits: 1,
+      result_columns: [
+        { attribute: "name", values: { type: "string", values: ["Jane"] } },
+        { attribute: "age", values: { type: "int", values: [34] } },
+      ],
+    });
+    const seen: { row: number; column?: string }[] = [];
+    render(() => (
+      <DataTable
+        ariaLabel="People"
+        result={result}
+        columns={[
+          { column: result.requireColumn("name"), header: "Name" },
+          { column: result.requireColumn("age"), header: "Age" },
+        ]}
+        onRowContextMenu={(_event, row, column) => seen.push({ row: row.index, column: column?.attribute })}
+      />
+    ));
+
+    const nameCell = screen.getByText("Jane").closest("td")!;
+    fireEvent.contextMenu(nameCell);
+    const ageCell = screen.getByText("34").closest("td")!;
+    fireEvent.contextMenu(ageCell);
+    expect(seen).toEqual([
+      { row: 0, column: "name" },
+      { row: 0, column: "age" },
+    ]);
+  });
+
   it("reacts to a new result and schema", () => {
     const first = createResult("Jane", 34);
     const second = createResult("Joe", 41);
@@ -504,7 +535,11 @@ describe("DataTable", () => {
     const row = screen.getByRole("row", { name: "Jane" });
     fireEvent.contextMenu(row, { clientX: 12, clientY: 24 });
 
-    expect(contextMenu).toHaveBeenCalledWith(expect.objectContaining({ clientX: 12, clientY: 24 }), result.rows[0]);
+    expect(contextMenu).toHaveBeenCalledWith(
+      expect.objectContaining({ clientX: 12, clientY: 24 }),
+      result.rows[0],
+      undefined,
+    );
     expect(activate).not.toHaveBeenCalled();
   });
 

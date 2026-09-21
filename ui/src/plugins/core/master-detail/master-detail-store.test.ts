@@ -195,6 +195,29 @@ describe("master-detail store", () => {
     expect(store.visibleFacets()).toHaveLength(1);
   });
 
+  it("sets facet values directly from cell values and keeps them visible", async () => {
+    const { store, requests } = setup();
+    await settle();
+    store.removeFacet("name");
+    expect(store.visibleFacets()).toEqual([]);
+
+    const group = store.cellFacetMenu("name", "Name a");
+    expect(group?.label).toBe("Table actions");
+    expect(group?.entries.map((entry) => entry.label)).toEqual(['Include "Name a"', 'Exclude "Name a"']);
+    expect(store.visibleFacets()).toHaveLength(1);
+
+    group?.entries[0].execute();
+    await settle();
+    expect(requests.at(-3)?.criterion).toEqual({ equals: { attribute: "name", values: ["Name a"] } });
+
+    // Re-setting the same value replaces the selection instead of duplicating it.
+    store.setFacetValue("name", "Name a", "excluded");
+    await settle();
+    expect(requests.at(-3)?.criterion).toEqual({ not: { equals: { attribute: "name", values: ["Name a"] } } });
+
+    expect(store.cellFacetMenu("id", "a")).toBeUndefined();
+  });
+
   it("ignores stale responses and clears missing selection only after current rows settle", async () => {
     const first = deferred<unknown>();
     const second = deferred<unknown>();

@@ -10,7 +10,7 @@ import { createCompositeFilter, type FilterDefinition } from "../../../component
 import { deriveColumnHighlights } from "../../../components/text-highlight";
 import type { EntityRecordActionTarget } from "../actions/action";
 import { actionsToContextMenuEntries } from "../actions/action-context-menu";
-import { contextMenuGroupId } from "../../../components/context-menu/context-menu";
+import { contextMenuEntryId, contextMenuGroupId } from "../../../components/context-menu/context-menu";
 import { bindEntity } from "../entities/bound-entity";
 import type { EntityDescription } from "../entities/entity-description";
 import { createEntityEditorDefinition } from "../entities/entity-editor";
@@ -280,15 +280,52 @@ export function createMasterDetailStore(
   const changeFacet = (facetId: string, valueKey: string, state: FacetValueState) => {
     const value = facetValue(aggregateResults(), facetId, valueKey, facetSelections());
     if (value === undefined) return;
+    if (state === "neutral") {
+      const remaining = facetSelections().filter(
+        (selection) => selection.attribute !== facetId || facetValueKey(selection.value) !== valueKey,
+      );
+      batch(() => {
+        setFacetSelections(remaining);
+        setFilterParameters((parameters) => ({ ...parameters, facets: remaining }));
+      });
+      return;
+    }
+    setFacetValue(facetId, value, state);
+  };
+
+  /** Sets one facet value directly, replacing any selection for the same value. */
+  const setFacetValue = (attribute: string, value: QueryValue | null, state: "included" | "excluded") => {
+    const key = facetValueKey(value);
     const remaining = facetSelections().filter(
-      (selection) => selection.attribute !== facetId || facetValueKey(selection.value) !== valueKey,
+      (selection) => selection.attribute !== attribute || facetValueKey(selection.value) !== key,
     );
-    const next: readonly FacetSelection[] =
-      state === "neutral" ? remaining : [...remaining, { attribute: facetId, value, state }];
+    const next: readonly FacetSelection[] = [...remaining, { attribute, value, state }];
     batch(() => {
       setFacetSelections(next);
       setFilterParameters((parameters) => ({ ...parameters, facets: next }));
     });
+  };
+
+  /**
+   * Builds the Table actions menu for one table cell, or undefined when the
+   * cell cannot feed the facet mechanism. Ensures the facet stays visible
+   * so the new selection remains manageable.
+   */
+  const cellFacetMenu = (attributeId: string, value: QueryValue | null | undefined) => {
+    const attribute = description.attributes.find((candidate) => candidate.id === attributeId);
+    if (!attribute?.facet || value === undefined) return undefined;
+    const display = value === null ? "Unassigned" : String(value);
+    setVisibleFacetIds((current) => (current.includes(attributeId) ? current : [...current, attributeId]));
+    const entry = (state: "included" | "excluded") => ({
+      id: contextMenuEntryId(`table-facet-${state}-${attributeId}`),
+      label: `${state === "included" ? "Include" : "Exclude"} "${display}"`,
+      execute: () => setFacetValue(attributeId, value, state),
+    });
+    return {
+      id: contextMenuGroupId("table-actions"),
+      label: "Table actions",
+      entries: [entry("included"), entry("excluded")],
+    };
   };
 
   const refresh = () => {
@@ -381,6 +418,8 @@ export function createMasterDetailStore(
     togglePanel: (panel: "filter" | "facets") => setActivePanel((current) => (current === panel ? undefined : panel)),
     closePanel: () => setActivePanel(undefined),
     changeFacet,
+    setFacetValue,
+    cellFacetMenu,
     addFacet: (id: string | undefined) => {
       if (id && availableFacets().some((attribute) => attribute.id === id))
         setVisibleFacetIds((current) => [...current, id]);

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { cleanup, render, screen, waitFor } from "@solidjs/testing-library";
+import { cleanup, fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -28,7 +28,7 @@ const ticketEntity: EntityDescription = {
   identityAttribute: "id",
   attributes: [
     { id: "id", label: "ID", valueType: "string", table: { visibleByDefault: true } },
-    { id: "name", label: "Name", valueType: "string", table: { visibleByDefault: true } },
+    { id: "name", label: "Name", valueType: "string", table: { visibleByDefault: true }, facet: true },
   ],
 };
 
@@ -245,6 +245,32 @@ describe("EntityMasterDetailView master table", () => {
       Array.prototype.indexOf.call(button.parentElement!.children, button),
     );
     expect(order).toEqual([...order].sort((left, right) => left - right));
+  });
+
+  it("offers cell include and exclude actions feeding the facet filter", async () => {
+    const criteria: unknown[] = [];
+    const fetcher: Fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as {
+        criterion?: unknown;
+        results?: readonly [{ type?: string }];
+      };
+      if (body.results?.[0]?.type === "rows") {
+        criteria.push(body.criterion);
+        return { ok: true, json: async () => rowsResponse(["a"]) } as Response;
+      }
+      return { ok: true, json: async () => countResponse(1) } as Response;
+    });
+    renderView(fetcher);
+
+    expect(await screen.findByText("Name a")).toBeDefined();
+    fireEvent.contextMenu(screen.getByText("Name a"));
+    fireEvent.click(await screen.findByRole("menuitem", { name: 'Include "Name a"' }));
+    await waitFor(() => {
+      if (!criteria.some((criterion) => JSON.stringify(criterion).includes("Name a"))) {
+        throw new Error("facet selection not applied yet");
+      }
+    });
+    expect(criteria.at(-1)).toEqual({ equals: { attribute: "name", values: ["Name a"] } });
   });
 
   it("survives sort, reverse, and reset cycles with fresh results", async () => {

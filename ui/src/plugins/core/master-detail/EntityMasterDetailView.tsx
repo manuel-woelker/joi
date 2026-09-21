@@ -17,7 +17,7 @@ import { createEntityTableColumns } from "../entities/bound-entity";
 import type { EntityId } from "../entities/entity-description";
 import { useEntityRegistry } from "../entities/entity-registry";
 import { LookupValue, useLookupService } from "../lookups/lookup";
-import type { QueryResultRow } from "../query/query-result";
+import type { QueryColumnHandle, QueryResultRow } from "../query/query-result";
 import { createMasterDetailStore } from "./master-detail-store";
 import styles from "./EntityMasterDetailView.module.css";
 import { MasterDetailView } from "./MasterDetailView";
@@ -70,8 +70,11 @@ function EntityMasterDetailContent(props: {
     observer.observe(element);
     onCleanup(() => observer.disconnect());
   };
-  const openContextMenu = (event: MouseEvent, row: QueryResultRow) => {
-    if (store.selectRow(row)) contextMenu.open({ event, createGroups: store.contextMenuGroups });
+  const openContextMenu = (event: MouseEvent, row: QueryResultRow, column?: QueryColumnHandle) => {
+    if (!store.selectRow(row)) return;
+    const cellGroup = column ? store.cellFacetMenu(column.attribute, row.value(column)) : undefined;
+    const groups = [...(cellGroup ? [cellGroup] : []), ...store.contextMenuGroups()];
+    contextMenu.open({ event, createGroups: () => groups });
   };
   return (
     <Switch>

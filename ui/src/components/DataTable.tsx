@@ -61,7 +61,7 @@ export interface DataTableProps {
   readonly onSortingChange?: (sorting: readonly DataTableSort[]) => void;
   readonly onRowSelect?: (row: QueryResultRow) => void;
   readonly onRowActivate?: (row: QueryResultRow) => void;
-  readonly onRowContextMenu?: (event: MouseEvent, row: QueryResultRow) => void;
+  readonly onRowContextMenu?: (event: MouseEvent, row: QueryResultRow, column?: QueryColumnHandle) => void;
   readonly virtualization?: {
     readonly height: number;
     readonly estimatedRowHeight?: number;
@@ -358,7 +358,14 @@ export function DataTable(props: DataTableProps) {
         props.onRowSelect?.(row.original);
       }}
       onDblClick={() => props.onRowActivate?.(row.original)}
-      onContextMenu={(event) => props.onRowContextMenu?.(event, row.original)}
+      onContextMenu={(event) => {
+        const cell = (event.target as Element | null)?.closest?.("td[data-column-id]");
+        const column = cell
+          ? props.columns.find((candidate) => candidate.column.attribute === cell.getAttribute("data-column-id"))
+              ?.column
+          : undefined;
+        props.onRowContextMenu?.(event, row.original, column);
+      }}
       onKeyDown={(event) => {
         const destination = navigationDestination(event.key, row.id, tableRows());
         if (destination) {
@@ -382,7 +389,7 @@ export function DataTable(props: DataTableProps) {
     >
       <For each={row.getVisibleCells()}>
         {(cell) => (
-          <td data-column-type={columnType(props.columns, cell.column.id)}>
+          <td data-column-id={cell.column.id} data-column-type={columnType(props.columns, cell.column.id)}>
             {flexRender(cell.column.columnDef.cell, cell.getContext())}
           </td>
         )}
