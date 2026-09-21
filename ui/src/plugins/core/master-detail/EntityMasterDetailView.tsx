@@ -177,6 +177,7 @@ function EntityMasterDetailContent(props: {
                       : `Filter ${description.pluralLabel.toLowerCase()}`
                   }
                   icon={<FunnelIcon size={17} />}
+                  text="Filter"
                   aria-expanded={store.activePanel() === "filter"}
                   class={`${styles.filterButton} ${store.activePanel() === "filter" ? styles.activeFilter : ""}`}
                   onClick={() => store.togglePanel("filter")}
@@ -188,21 +189,24 @@ function EntityMasterDetailContent(props: {
                       : `Show ${description.pluralLabel.toLowerCase()} facets`
                   }
                   icon={<GemIcon size={17} />}
+                  text="Facets"
                   aria-expanded={store.activePanel() === "facets"}
                   class={`${styles.facetButton} ${store.activePanel() === "facets" ? styles.activeFilter : ""}`}
                   onClick={() => store.togglePanel("facets")}
                 />
                 <IconButton
-                  label={`New ${description.label.toLowerCase()}`}
-                  icon="+"
-                  class={styles.createButton}
-                  onClick={store.createRecord}
-                />
-                <IconButton
                   label={`Refresh ${description.pluralLabel.toLowerCase()}`}
                   icon={<RefreshCwIcon size={17} />}
+                  text="Refresh"
                   class={styles.refreshButton}
                   onClick={store.refresh}
+                />
+                <IconButton
+                  label={`New ${description.label.toLowerCase()}`}
+                  icon="+"
+                  text={`New ${description.label.toLowerCase()}`}
+                  class={styles.createButton}
+                  onClick={store.createRecord}
                 />
               </div>
               <Show when={store.countError()}>

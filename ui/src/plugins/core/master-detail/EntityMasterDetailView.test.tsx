@@ -226,6 +226,27 @@ describe("EntityMasterDetailView master table", () => {
     expect((screen.getByRole("searchbox", { name: "Filter Name" }) as HTMLInputElement).value).toBe("xy");
   });
 
+  it("labels toolbar buttons with refresh before create", async () => {
+    const fetcher: Fetcher = vi.fn(async () => {
+      return { ok: true, json: async () => countResponse(0) } as Response;
+    });
+    renderView(fetcher);
+    await screen.findByRole("table", { name: "Tickets" });
+
+    const filter = screen.getByRole("button", { name: "Filter tickets" });
+    const facets = screen.getByRole("button", { name: "Show tickets facets" });
+    const refresh = screen.getByRole("button", { name: "Refresh tickets" });
+    const create = screen.getByRole("button", { name: "New ticket" });
+    expect(filter.textContent).toContain("Filter");
+    expect(facets.textContent).toContain("Facets");
+    expect(refresh.textContent).toContain("Refresh");
+    expect(create.textContent).toContain("New ticket");
+    const order = [filter, facets, refresh, create].map((button) =>
+      Array.prototype.indexOf.call(button.parentElement!.children, button),
+    );
+    expect(order).toEqual([...order].sort((left, right) => left - right));
+  });
+
   it("survives sort, reverse, and reset cycles with fresh results", async () => {
     const fetcher: Fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as {

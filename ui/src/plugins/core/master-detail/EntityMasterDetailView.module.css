@@ -33,10 +33,11 @@
 
 .createButton {
   flex: 0 0 auto;
+  margin-left: auto;
 }
 
 .refreshButton {
-  margin-left: auto;
+  flex: 0 0 auto;
 }
 
 .searchField {
