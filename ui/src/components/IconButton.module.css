@@ -4,4 +4,4 @@
 .labeled { display: inline-flex; width: auto; padding: 0 10px; gap: 6px; }
 .buttonText { font-size: 13px; white-space: nowrap; }
 .iconButton::after { position: absolute; z-index: 100; top: calc(100% + 6px); right: 0; display: none; width: max-content; max-width: 180px; padding: 5px 7px; border-radius: 4px; color: var(--color-surface); background: var(--color-ink); content: attr(data-tooltip); font-size: 12px; pointer-events: none; }
-.iconButton:hover::after, .iconButton:focus-visible::after { display: block; }
+.iconButton[data-tooltip]:hover::after, .iconButton[data-tooltip]:focus-visible::after { display: block; }
