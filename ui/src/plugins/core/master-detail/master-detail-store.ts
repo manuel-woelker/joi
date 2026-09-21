@@ -3,6 +3,7 @@ import type { NavigationController } from "../../../base/navigation";
 import type { ApplicationServices } from "../../../base/services/application-services";
 import type { useActions } from "../actions/ActionProvider";
 import type { LookupService } from "../lookups/lookup";
+import { lookupEntryId } from "../lookups/lookup";
 import type { DataTableSort } from "../../../components/DataTable";
 import type { Facet, FacetValueState } from "../../../components/facet/FacetFilter";
 import { entityFilterAttributes } from "../../../components/filter-definition/entity-filter-attributes";
@@ -51,7 +52,7 @@ export interface MasterDetailStoreDependencies {
     ReturnType<typeof useActions>,
     "registerTarget" | "availableActions" | "pendingAction" | "execute"
   >;
-  readonly lookups: Pick<LookupService, "invalidateSource">;
+  readonly lookups: Pick<LookupService, "invalidateSource" | "label">;
   /** Schedules optional display metrics at the next painted frame. */
   readonly afterPaint?: (publish: () => void) => void;
 }
@@ -308,13 +309,14 @@ export function createMasterDetailStore(
 
   /**
    * Builds the Table actions menu for one table cell, or undefined when the
-   * cell cannot feed the facet mechanism. Ensures the facet stays visible
-   * so the new selection remains manageable.
+   * cell cannot feed the facet mechanism. Lookup-backed values resolve to
+   * their display labels, falling back to the raw id. Ensures the facet
+   * stays visible so the new selection remains manageable.
    */
-  const cellFacetMenu = (attributeId: string, value: QueryValue | null | undefined) => {
+  const cellFacetMenu = async (attributeId: string, value: QueryValue | null | undefined) => {
     const attribute = description.attributes.find((candidate) => candidate.id === attributeId);
     if (!attribute?.facet || value === undefined) return undefined;
-    const display = value === null ? "Unassigned" : String(value);
+    const display = await cellDisplayLabel(attribute.lookup, value);
     setVisibleFacetIds((current) => (current.includes(attributeId) ? current : [...current, attributeId]));
     const entry = (state: "included" | "excluded") => ({
       id: contextMenuEntryId(`table-facet-${state}-${attributeId}`),
@@ -326,6 +328,21 @@ export function createMasterDetailStore(
       label: "Table actions",
       entries: [entry("included"), entry("excluded")],
     };
+  };
+
+  /** Resolves a cell value to its lookup display label, or the raw value. */
+  const cellDisplayLabel = async (
+    lookup: EntityDescription["attributes"][number]["lookup"],
+    value: QueryValue | null,
+  ): Promise<string> => {
+    if (value === null) return "Unassigned";
+    const raw = String(value);
+    if (!lookup || !raw) return raw;
+    try {
+      return await lookups.label(lookup, lookupEntryId(raw));
+    } catch {
+      return raw;
+    }
   };
 
   const refresh = () => {

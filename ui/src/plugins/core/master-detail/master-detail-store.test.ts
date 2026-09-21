@@ -4,6 +4,7 @@ import { FetchService } from "../../../base/services/fetch-service";
 import { DataChangeService } from "../data-changes/data-change-service";
 import { RecordMutationService } from "../data-changes/record-mutation-service";
 import { entityId, type EntityDescription } from "../entities/entity-description";
+import { lookupId } from "../lookups/lookup";
 import { createMasterDetailStore } from "./master-detail-store";
 
 const description: EntityDescription = {
@@ -67,6 +68,7 @@ async function settle() {
 function setup(
   load: (request: Request) => Promise<unknown> = async (request) =>
     request.results[0].type === "rows" ? rows(["a", "b"]) : count(request.results[0].attribute),
+  override?: { description?: EntityDescription; label?: (id: string, value: string) => Promise<string> },
 ) {
   const requests: Request[] = [];
   const fetchService = new FetchService(async (_url, init) => {
@@ -78,6 +80,7 @@ function setup(
   const dataChanges = new DataChangeService();
   const unregister = vi.fn();
   const invalidateSource = vi.fn();
+  const label = vi.fn(async (id: string, value: string) => override?.label?.(id, value) ?? value);
   const closeRecord = vi.fn();
   const finishCreatingRecord = vi.fn();
   const registerTarget = vi.fn(() => unregister);
@@ -87,7 +90,7 @@ function setup(
     const [creatingRecord, setCreating] = createSignal(false);
     const [identity, setIdentity] = createSignal("one");
     const store = createMasterDetailStore(
-      { description, filterIdentity: identity },
+      { description: override?.description ?? description, filterIdentity: identity },
       {
         fetchService,
         dataChanges,
@@ -110,7 +113,7 @@ function setup(
           pendingAction: () => undefined,
           execute: async () => {},
         },
-        lookups: { invalidateSource },
+        lookups: { invalidateSource, label },
       },
     );
     return {
@@ -122,6 +125,7 @@ function setup(
       dispose,
       unregister,
       invalidateSource,
+      label,
       closeRecord,
       finishCreatingRecord,
     };
@@ -201,7 +205,7 @@ describe("master-detail store", () => {
     store.removeFacet("name");
     expect(store.visibleFacets()).toEqual([]);
 
-    const group = store.cellFacetMenu("name", "Name a");
+    const group = await store.cellFacetMenu("name", "Name a");
     expect(group?.label).toBe("Table actions");
     expect(group?.entries.map((entry) => entry.label)).toEqual(['Include "Name a"', 'Exclude "Name a"']);
     expect(store.visibleFacets()).toHaveLength(1);
@@ -215,7 +219,47 @@ describe("master-detail store", () => {
     await settle();
     expect(requests.at(-3)?.criterion).toEqual({ not: { equals: { attribute: "name", values: ["Name a"] } } });
 
-    expect(store.cellFacetMenu("id", "a")).toBeUndefined();
+    expect(await store.cellFacetMenu("id", "a")).toBeUndefined();
+  });
+
+  it("resolves lookup labels for reference cell menus with raw fallback", async () => {
+    const ownerDescription: EntityDescription = {
+      ...description,
+      attributes: [
+        ...description.attributes,
+        { id: "owner", label: "Owner", valueType: "string", facet: true, lookup: lookupId("users") },
+      ],
+    };
+    const ownerRows = (ids: string[]) => ({
+      results: [
+        {
+          type: "rows",
+          result_columns: [
+            { attribute: "id", values: { type: "string", values: ids } },
+            { attribute: "name", values: { type: "string", values: ids.map((id) => `Name ${id}`) } },
+            { attribute: "owner", values: { type: "string", values: ids.map(() => "user-1") } },
+          ],
+        },
+      ],
+    });
+    const { store, label } = setup(
+      async (request) => (request.results[0].type === "rows" ? ownerRows(["a"]) : count(request.results[0].attribute)),
+      {
+        description: ownerDescription,
+        label: async (_id, value) => (value === "user-1" ? "Jane Developer" : value),
+      },
+    );
+    await settle();
+
+    const group = await store.cellFacetMenu("owner", "user-1");
+    expect(group?.entries.map((entry) => entry.label)).toEqual([
+      'Include "Jane Developer"',
+      'Exclude "Jane Developer"',
+    ]);
+    expect(label).toHaveBeenCalledWith(lookupId("users"), expect.anything());
+
+    const missing = await store.cellFacetMenu("owner", "user-9");
+    expect(missing?.entries.map((entry) => entry.label)).toEqual(['Include "user-9"', 'Exclude "user-9"']);
   });
 
   it("ignores stale responses and clears missing selection only after current rows settle", async () => {

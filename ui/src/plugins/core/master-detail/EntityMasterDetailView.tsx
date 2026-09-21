@@ -70,9 +70,9 @@ function EntityMasterDetailContent(props: {
     observer.observe(element);
     onCleanup(() => observer.disconnect());
   };
-  const openContextMenu = (event: MouseEvent, row: QueryResultRow, column?: QueryColumnHandle) => {
+  const openContextMenu = async (event: MouseEvent, row: QueryResultRow, column?: QueryColumnHandle) => {
     if (!store.selectRow(row)) return;
-    const cellGroup = column ? store.cellFacetMenu(column.attribute, row.value(column)) : undefined;
+    const cellGroup = column ? await store.cellFacetMenu(column.attribute, row.value(column)) : undefined;
     const groups = [...(cellGroup ? [cellGroup] : []), ...store.contextMenuGroups()];
     contextMenu.open({ event, createGroups: () => groups });
   };
