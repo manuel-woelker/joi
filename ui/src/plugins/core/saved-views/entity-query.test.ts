@@ -148,7 +148,7 @@ describe("entity queries", () => {
         { contains: { attribute: "title", value: "navigation" } },
       ],
     });
-    expect(requests[1].criterion).toEqual({ contains: { attribute: "title", value: "navigation" } });
+    expect(requests[1].criterion).toEqual(requests[0].criterion);
     expect(requests.every((request) => request.results.length === 1)).toBe(true);
   });
 
@@ -190,7 +190,7 @@ describe("entity queries", () => {
     });
   });
 
-  it("drops a column term for its own facet counts", async () => {
+  it("keeps filter and column terms while excluding only the facet's own selections", async () => {
     const seen: unknown[] = [];
     const fetcher: Fetcher = async (_input: RequestInfo | URL, init?: RequestInit) => {
       seen.push(JSON.parse(String(init?.body)));
@@ -214,13 +214,24 @@ describe("entity queries", () => {
       ...query,
       search: "navigation",
       columnSearch: { title: "bug", status: "open" },
+      facets: [
+        { attribute: "title", value: "Fix", state: "included" },
+        { attribute: "status", value: "open", state: "excluded" },
+      ],
     });
     expect(seen).toHaveLength(1);
     expect((seen[0] as { criterion: unknown }).criterion).toEqual({
       all: [
         { term: { value: "navigation" } },
+        { term: { value: "bug", attributes: ["title"] } },
         { term: { value: "open", attributes: ["status"] } },
-        { equals: { attribute: "status", values: ["open", "in-progress"] } },
+        {
+          all: [
+            { equals: { attribute: "status", values: ["open", "in-progress"] } },
+            { contains: { attribute: "title", value: "navigation" } },
+          ],
+        },
+        { not: { equals: { attribute: "status", values: ["open"] } } },
       ],
     });
   });

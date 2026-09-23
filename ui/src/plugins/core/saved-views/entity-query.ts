@@ -63,7 +63,7 @@ export async function loadEntityRecordCount(
   return aggregate.values[0]?.count ?? 0;
 }
 
-/** Loads one facet independently, excluding that attribute from its criterion. */
+/** Loads one facet independently, excluding only its own facet selections. */
 export function loadEntityFacet(
   entity: EntityDescription,
   attribute: string,
@@ -91,25 +91,19 @@ function queryRequest(entity: EntityDescription, query: EntityQuery | undefined)
   } as const;
 }
 
-function queryCriterion(query: EntityQuery | undefined, excludedAttribute?: string): QueryCriterionRequest {
+function queryCriterion(query: EntityQuery | undefined, excludedFacetAttribute?: string): QueryCriterionRequest {
   const criteria: QueryCriterionRequest[] = [];
-  // The quicksearch term covers every attribute, so it stays applied even
-  // when one attribute's own filter is excluded for its facet counts: facet
-  // panels reflect the current search instead of ignoring it.
   const search = query?.search?.trim();
   if (search) criteria.push({ term: { value: search } });
   for (const [attribute, term] of Object.entries(query?.columnSearch ?? {})) {
-    // A column term scoped to the excluded attribute would only restate its
-    // own facet, so facet counts drop it like attribute filters.
-    if (attribute === excludedAttribute) continue;
     const value = term.trim();
     if (value) criteria.push({ term: { value, attributes: [attribute] } });
   }
-  const base = filterCriterion(query?.filter, excludedAttribute);
+  const base = filterCriterion(query?.filter);
   if (base) criteria.push(base);
   const facets = new Map<string, FacetSelection[]>();
   for (const selection of query?.facets ?? []) {
-    if (selection.attribute === excludedAttribute) continue;
+    if (selection.attribute === excludedFacetAttribute) continue;
     const entries = facets.get(selection.attribute) ?? [];
     entries.push(selection);
     facets.set(selection.attribute, entries);
@@ -136,14 +130,11 @@ function queryCriterion(query: EntityQuery | undefined, excludedAttribute?: stri
   return criteria.length === 1 ? criteria[0] : { all: criteria };
 }
 
-function filterCriterion(
-  filter: FilterDefinition | undefined,
-  excludedAttribute?: string,
-): QueryCriterionRequest | undefined {
+function filterCriterion(filter: FilterDefinition | undefined): QueryCriterionRequest | undefined {
   if (!filter || filter.disabled) return undefined;
   if (filter.type === "composite") {
     const children = filter.children.flatMap((child) => {
-      const criterion = filterCriterion(child, excludedAttribute);
+      const criterion = filterCriterion(child);
       return criterion ? [criterion] : [];
     });
     if (!children.length) return undefined;
@@ -152,7 +143,6 @@ function filterCriterion(
     if (filter.kind === "one") return { one: children };
     return { none: children };
   }
-  if (filter.attribute === excludedAttribute) return undefined;
   if (filter.operator === "set") return { set: { attribute: filter.attribute } };
   if (filter.operator === "unset") return { unset: { attribute: filter.attribute } };
   if (filter.operator === "in-range" && filter.operand?.type === "range") {
