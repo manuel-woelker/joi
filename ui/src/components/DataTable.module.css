@@ -80,6 +80,9 @@
 }
 
 .headerLabel { display: block; overflow: hidden; padding-right: 7px; text-overflow: ellipsis; }
+.columnLabel { display: inline-flex; align-items: center; gap: 4px; min-width: 0; max-width: 100%; }
+.columnLabel > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.filterIndicator { flex: 0 0 12px; color: var(--color-primary-dark); }
 .sortButton { display: flex; width: 100%; min-width: 0; align-items: center; gap: 5px; padding: 0; border: 0; color: inherit; background: transparent; box-shadow: none; font: inherit; text-align: left; text-transform: inherit; }
 .sortButton > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .sortButton:hover, .sortButton:focus-visible { color: var(--color-primary-dark); background: transparent; box-shadow: none; }

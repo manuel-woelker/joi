@@ -1,6 +1,8 @@
 import { type ColumnDef, createSolidTable, flexRender, getCoreRowModel, type Row } from "@tanstack/solid-table";
 import { createVirtualizer } from "@tanstack/solid-virtual";
 import ArrowDownIcon from "lucide-solid/icons/arrow-down";
+import FunnelIcon from "lucide-solid/icons/funnel";
+import GemIcon from "lucide-solid/icons/gem";
 import { createEffect, createMemo, createSignal, For, type JSX, onCleanup, onMount, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 
@@ -49,6 +51,10 @@ export interface DataTableProps {
   readonly highlights?: ReadonlyMap<string, readonly CompiledTextNeedle[]>;
   /** Per-column quick filters rendered below the column headers. */
   readonly columnFilters?: ReadonlyMap<string, DataTableColumnFilter>;
+  /** Attributes constrained by the data provider's applied filters. */
+  readonly filteredAttributes?: ReadonlySet<string>;
+  /** Attributes constrained by included or excluded facet values. */
+  readonly facetedAttributes?: ReadonlySet<string>;
   readonly emptyMessage?: string;
   readonly loading?: boolean;
   readonly loadingMessage?: string;
@@ -458,7 +464,27 @@ export function DataTable(props: DataTableProps) {
                         {header.isPlaceholder ? null : (
                           <Show
                             when={canSort(header.column.id)}
-                            fallback={flexRender(header.column.columnDef.header, header.getContext())}
+                            fallback={
+                              <span class={styles.columnLabel}>
+                                {flexRender(header.column.columnDef.header, header.getContext())}
+                                <Show when={props.filteredAttributes?.has(header.column.id)}>
+                                  <FunnelIcon
+                                    class={styles.filterIndicator}
+                                    size={12}
+                                    role="img"
+                                    aria-label="Filtered"
+                                  />
+                                </Show>
+                                <Show when={props.facetedAttributes?.has(header.column.id)}>
+                                  <GemIcon
+                                    class={styles.filterIndicator}
+                                    size={12}
+                                    role="img"
+                                    aria-label="Facet applied"
+                                  />
+                                </Show>
+                              </span>
+                            }
                           >
                             <button
                               type="button"
@@ -471,7 +497,25 @@ export function DataTable(props: DataTableProps) {
                               onPointerDown={(event) => event.stopPropagation()}
                               onClick={(event) => changeSorting(header.column.id, event.shiftKey)}
                             >
-                              <span>{flexRender(header.column.columnDef.header, header.getContext())}</span>
+                              <span class={styles.columnLabel}>
+                                <span>{flexRender(header.column.columnDef.header, header.getContext())}</span>
+                                <Show when={props.filteredAttributes?.has(header.column.id)}>
+                                  <FunnelIcon
+                                    class={styles.filterIndicator}
+                                    size={12}
+                                    role="img"
+                                    aria-label="Filtered"
+                                  />
+                                </Show>
+                                <Show when={props.facetedAttributes?.has(header.column.id)}>
+                                  <GemIcon
+                                    class={styles.filterIndicator}
+                                    size={12}
+                                    role="img"
+                                    aria-label="Facet applied"
+                                  />
+                                </Show>
+                              </span>
                               <Show when={sortFor(header.column.id)}>
                                 {(sort) => (
                                   <span class={styles.sortIndicator} aria-hidden="true">

@@ -24,6 +24,7 @@ import {
 } from "../query/query-result";
 import {
   type FacetSelection,
+  filteredEntityAttributes,
   loadEntityFacet,
   loadEntityRecordCount,
   loadEntityRecords,
@@ -97,6 +98,10 @@ export function createMasterDetailStore(
     columnSearch: columnSearch(),
   });
   const rowParameters = createMemo(() => ({ ...filterParameters(), sorting: sorting() }));
+  const filteredAttributes = createMemo(() => filteredEntityAttributes(filterParameters()));
+  const facetedAttributes = createMemo<ReadonlySet<string>>(
+    () => new Set(filterParameters().facets.map((selection) => selection.attribute)),
+  );
   // Highlights derive from the same committed parameters as the queries so
   // marks can never skew from the executed filter and search.
   const highlights = createMemo(() => {
@@ -406,6 +411,8 @@ export function createMasterDetailStore(
     sorting,
     columnSearch,
     highlights,
+    filteredAttributes,
+    facetedAttributes,
     columnFilters,
     activePanel,
     visibleFacets,

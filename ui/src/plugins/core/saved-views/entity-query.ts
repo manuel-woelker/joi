@@ -23,6 +23,24 @@ export interface FacetSelection {
   readonly state: "included" | "excluded";
 }
 
+/** Attributes constrained by effective criteria or column searches, excluding facets. */
+export function filteredEntityAttributes(query: EntityQuery): ReadonlySet<string> {
+  const attributes = new Set<string>();
+  const visit = (filter: FilterDefinition) => {
+    if (filter.disabled) return;
+    if (filter.type === "composite") {
+      filter.children.forEach(visit);
+    } else if (filterCriterion(filter)) {
+      attributes.add(filter.attribute);
+    }
+  };
+  if (query.filter) visit(query.filter);
+  for (const [attribute, term] of Object.entries(query.columnSearch ?? {})) {
+    if (term.trim()) attributes.add(attribute);
+  }
+  return attributes;
+}
+
 export function loadEntityRecords(
   entity: EntityDescription,
   service: FetchService = fetchService,

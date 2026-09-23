@@ -185,6 +185,8 @@ describe("master-detail store", () => {
     await settle();
     store.changeFacet("name", "string:Name a", "included");
     await settle();
+    expect(store.facetedAttributes().has("name")).toBe(true);
+    expect(store.filteredAttributes().has("name")).toBe(false);
     expect(requests).toHaveLength(6);
     expect(requests[3].criterion).toEqual({ equals: { attribute: "name", values: ["Name a"] } });
     expect(requests[5].criterion).toBe("match_any");

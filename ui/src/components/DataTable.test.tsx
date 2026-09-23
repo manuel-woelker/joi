@@ -31,6 +31,41 @@ const createResult = (name: string, age: number) =>
   });
 
 describe("DataTable", () => {
+  it("shows a reactive filter indicator after sorted and unsortable column labels", () => {
+    const result = createResult("Jane", 34);
+    const [filtered, setFiltered] = createSignal<ReadonlySet<string>>(new Set(["name", "age"]));
+    const [faceted, setFaceted] = createSignal<ReadonlySet<string>>(new Set(["name", "age"]));
+    render(() => (
+      <DataTable
+        ariaLabel="People"
+        result={result}
+        columns={[
+          { column: result.requireColumn("name"), header: "Name" },
+          { column: result.requireColumn("age"), header: "Age", sortable: false },
+        ]}
+        sorting={[{ attribute: "name", direction: "ascending" }]}
+        onSortingChange={() => {}}
+        filteredAttributes={filtered()}
+        facetedAttributes={faceted()}
+      />
+    ));
+    for (const label of ["Name", "Age"]) {
+      const header = screen.getByRole("columnheader", { name: label });
+      const indicator = header.querySelector('[aria-label="Filtered"]');
+      expect(indicator).not.toBeNull();
+      expect(indicator?.parentElement?.textContent).toBe(label);
+      expect(indicator?.previousSibling?.textContent).toBe(label);
+      expect(header.querySelector('[aria-label="Facet applied"]')?.previousSibling).toBe(indicator);
+    }
+    setFiltered(new Set(["age"]));
+    expect(screen.getAllByRole("img", { name: "Filtered" })).toHaveLength(1);
+    setFiltered(new Set<string>());
+    expect(screen.queryByRole("img", { name: "Filtered" })).toBeNull();
+    expect(screen.getAllByRole("img", { name: "Facet applied" })).toHaveLength(2);
+    setFaceted(new Set<string>());
+    expect(screen.queryByRole("img", { name: "Facet applied" })).toBeNull();
+  });
+
   it("renders typed values, custom cells, accessibility, density, and row keys", () => {
     const result = createResult("Jane", 34);
     const columns: DataTableColumn[] = [

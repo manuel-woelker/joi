@@ -226,6 +226,8 @@ function EntityMasterDetailContent(props: {
                   rows={store.table().rows}
                   columns={createEntityTableColumns(store.table().entity)}
                   highlights={store.highlights()}
+                  filteredAttributes={store.filteredAttributes()}
+                  facetedAttributes={store.facetedAttributes()}
                   columnFilters={store.columnFilters()}
                   loading={store.loading()}
                   loadingMessage="Loading..."

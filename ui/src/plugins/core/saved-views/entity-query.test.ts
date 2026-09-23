@@ -1,9 +1,37 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { loadEntityFacet, loadEntityRecordCount, loadEntityRecords } from "./entity-query";
+import { filteredEntityAttributes, loadEntityFacet, loadEntityRecordCount, loadEntityRecords } from "./entity-query";
+import {
+  createCompositeFilter,
+  createFilterCriterion,
+  filterAttributeId,
+  filterOperatorId,
+} from "../../../components/filter-definition/filter-model";
 import { FetchService, type Fetcher } from "../../../base/services/fetch-service";
 import type { QueryDefinition } from "./model";
 import { testEntity } from "./test-fixtures";
+
+it("identifies effective nested filters and column searches separately from facets", () => {
+  const criterion = (attribute: string) => createFilterCriterion(filterAttributeId(attribute), filterOperatorId("set"));
+  const filter = createCompositeFilter("all", [
+    createCompositeFilter("none", [criterion("status")]),
+    { ...criterion("disabled"), disabled: true },
+    { ...createCompositeFilter("one", [criterion("disabled-parent")]), disabled: true },
+    createFilterCriterion(filterAttributeId("incomplete"), filterOperatorId("contains")),
+  ]);
+  expect([
+    ...filteredEntityAttributes({
+      filter,
+      facets: [
+        { attribute: "assignee", value: "jane", state: "included" },
+        { attribute: "project", value: "test", state: "excluded" },
+      ],
+      columnSearch: { title: " search ", blank: " " },
+      search: "global search",
+    }),
+  ]).toEqual(["status", "title"]);
+  expect(filteredEntityAttributes({ filter: { ...filter, disabled: true } }).size).toBe(0);
+});
 
 const query: QueryDefinition = {
   id: "query-open",
