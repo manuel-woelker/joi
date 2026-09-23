@@ -179,6 +179,7 @@ function EntityMasterDetailContent(props: {
                   icon={<FunnelIcon size={17} />}
                   text="Filter"
                   aria-expanded={store.activePanel() === "filter"}
+                  data-restricted={store.hasFilterRestriction() ? "" : undefined}
                   class={`${styles.filterButton} ${store.activePanel() === "filter" ? styles.activeFilter : ""}`}
                   onClick={() => store.togglePanel("filter")}
                 />
@@ -191,6 +192,7 @@ function EntityMasterDetailContent(props: {
                   icon={<GemIcon size={17} />}
                   text="Facets"
                   aria-expanded={store.activePanel() === "facets"}
+                  data-restricted={store.hasFacetRestriction() ? "" : undefined}
                   class={`${styles.facetButton} ${store.activePanel() === "facets" ? styles.activeFilter : ""}`}
                   onClick={() => store.togglePanel("facets")}
                 />

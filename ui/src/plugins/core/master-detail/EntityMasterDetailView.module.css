@@ -31,6 +31,21 @@
   flex: 0 0 auto;
 }
 
+.filterButton[data-restricted]::before,
+.facetButton[data-restricted]::before {
+  position: absolute;
+  z-index: 1;
+  top: 4px;
+  left: 24px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-secondary-dark);
+  box-shadow: 0 0 0 1px var(--color-surface);
+  content: "";
+  pointer-events: none;
+}
+
 .createButton {
   flex: 0 0 auto;
   margin-left: auto;

@@ -250,6 +250,8 @@ describe("master-detail store", () => {
     vi.useFakeTimers();
     const { store, requests } = setup();
     await settle();
+    expect(store.hasFilterRestriction()).toBe(false);
+    expect(store.hasFacetRestriction()).toBe(false);
     store.setFilter(
       createCompositeFilter("all", [
         createFilterCriterion(filterAttributeId("name"), filterOperatorId("contains"), {
@@ -258,7 +260,9 @@ describe("master-detail store", () => {
         }),
       ]),
     );
+    expect(store.hasFilterRestriction()).toBe(true);
     store.changeFacet("name", "string:Name a", "included");
+    expect(store.hasFacetRestriction()).toBe(true);
     await vi.advanceTimersByTimeAsync(300);
     expect(requests.some((request) => JSON.stringify(request.criterion).includes("Name a"))).toBe(true);
     expect(store.highlights().size).toBe(0);
@@ -278,6 +282,9 @@ describe("master-detail store", () => {
         .get("name")
         ?.map((needle) => needle.source),
     ).toEqual(["other", "new", "term"]);
+    store.clearColumnConstraints("name");
+    expect(store.hasFilterRestriction()).toBe(false);
+    expect(store.hasFacetRestriction()).toBe(false);
   });
 
   it("sets facet values directly from cell values and keeps them visible", async () => {

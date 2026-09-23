@@ -9,6 +9,13 @@ import type { PluginRegistryAccess } from "../../../base/plugin-registry";
 import { ApplicationServicesProvider } from "../../../base/services/application-services";
 import { type Fetcher, FetchService } from "../../../base/services/fetch-service";
 import { ContextMenuProvider } from "../../../components/context-menu/ContextMenuProvider";
+import {
+  createCompositeFilter,
+  createFilterCriterion,
+  filterAttributeId,
+  filterOperatorId,
+} from "../../../components/filter-definition/filter-model";
+import type { FilterDefinition } from "../../../components/filter-definition/filter-model";
 import { ActionProvider } from "../actions/ActionProvider";
 import { DataChangeService } from "../data-changes/data-change-service";
 import { RecordMutationService } from "../data-changes/record-mutation-service";
@@ -52,7 +59,7 @@ function countResponse(count: number) {
   };
 }
 
-function renderView(fetcher: Fetcher) {
+function renderView(fetcher: Fetcher, initialFilter?: FilterDefinition) {
   const fetchService = new FetchService(fetcher);
   const dataChanges = new DataChangeService();
   const registry = {
@@ -68,7 +75,7 @@ function renderView(fetcher: Fetcher) {
           <LookupProvider registry={registry}>
             <EntityRegistryProvider pluginRegistry={registry}>
               <ActionProvider registry={registry} currentUser={{ id: "user-1", username: "jane", name: "Jane" }}>
-                <EntityMasterDetailView entityId={entityId("ticket")} />
+                <EntityMasterDetailView entityId={entityId("ticket")} initialFilter={initialFilter} />
               </ActionProvider>
             </EntityRegistryProvider>
           </LookupProvider>
@@ -79,6 +86,33 @@ function renderView(fetcher: Fetcher) {
 }
 
 describe("EntityMasterDetailView master table", () => {
+  it("marks the filter and facet buttons only while their restrictions are active", async () => {
+    const fetcher: Fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as { results?: readonly [{ type?: string }] };
+      return {
+        ok: true,
+        json: async () => (body.results?.[0]?.type === "rows" ? rowsResponse(["a"]) : countResponse(1)),
+      } as Response;
+    });
+    renderView(
+      fetcher,
+      createCompositeFilter("all", [createFilterCriterion(filterAttributeId("name"), filterOperatorId("set"))]),
+    );
+    expect(await screen.findByText("Name a")).toBeDefined();
+    const filterButton = screen.getByRole("button", { name: "Filter tickets" });
+    const facetButton = screen.getByRole("button", { name: "Show tickets facets" });
+    expect(filterButton.hasAttribute("data-restricted")).toBe(true);
+    expect(facetButton.hasAttribute("data-restricted")).toBe(false);
+
+    fireEvent.contextMenu(screen.getByText("Name a"));
+    fireEvent.click(await screen.findByRole("menuitem", { name: 'Include "Name a"' }));
+    expect(facetButton.hasAttribute("data-restricted")).toBe(true);
+    fireEvent.contextMenu(screen.getByRole("columnheader", { name: "Name" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Clear filters and facets" }));
+    expect(filterButton.hasAttribute("data-restricted")).toBe(false);
+    expect(facetButton.hasAttribute("data-restricted")).toBe(false);
+  });
+
   it("clears a column quickfilter from its header menu", async () => {
     const fetcher: Fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as { results?: readonly [{ type?: string }] };

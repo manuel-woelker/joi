@@ -100,6 +100,8 @@ export function createMasterDetailStore(
   });
   const rowParameters = createMemo(() => ({ ...filterParameters(), sorting: sorting() }));
   const filteredAttributes = createMemo(() => filteredEntityAttributes(filterParameters()));
+  const hasFilterRestriction = createMemo(() => filteredEntityAttributes({ filter: filter() }).size > 0);
+  const hasFacetRestriction = createMemo(() => facetSelections().length > 0);
   const facetedAttributes = createMemo<ReadonlySet<string>>(
     () => new Set(filterParameters().facets.map((selection) => selection.attribute)),
   );
@@ -435,6 +437,8 @@ export function createMasterDetailStore(
     columnSearch,
     highlights,
     filteredAttributes,
+    hasFilterRestriction,
+    hasFacetRestriction,
     facetedAttributes,
     columnFilters,
     hasColumnConstraints,
