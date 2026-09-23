@@ -252,6 +252,11 @@ describe("DataTable", () => {
     await userEvent.keyboard("{ArrowLeft}X");
     expect(input.value).toBe("aXb");
     expect(input.selectionStart).toBe(2);
+    await userEvent.click(screen.getByRole("button", { name: "Clear Filter Title" }));
+    expect(input.value).toBe("");
+    expect(external()).toBe("");
+    expect(document.activeElement).toBe(input);
+    expect(screen.queryByRole("button", { name: "Clear Filter Title" })).toBeNull();
     // External changes (view resets) still clear the input.
     setExternal("cd");
     await waitFor(() => expect(input.value).toBe("cd"));

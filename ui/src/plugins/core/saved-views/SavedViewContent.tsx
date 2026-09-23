@@ -3,6 +3,7 @@ import { createEffect, createMemo, createResource, createSignal, For, onCleanup,
 import { fetchService } from "../../../base/services/fetch-service";
 import { DataTable } from "../../../components/DataTable";
 import { IconButton } from "../../../components/IconButton";
+import { QuickFilterInput } from "../../../components/QuickFilterInput";
 import { useContextMenu } from "../../../components/context-menu/ContextMenuProvider";
 import { contextMenuGroupId } from "../../../components/context-menu/context-menu";
 import styles from "../../../components/ViewContent.module.css";
@@ -187,17 +188,14 @@ export function SavedViewContent() {
   const master = (
     <>
       <div class={styles.viewToolbar}>
-        <label class={styles.searchField}>
-          <span class={styles.iconGlyph} aria-hidden="true">
-            ⌕
-          </span>
-          <span class={styles.srOnly}>Search records</span>
-          <input
-            value={controller.search()}
-            onInput={(event) => controller.setSearch(event.currentTarget.value)}
-            placeholder="Search this view"
-          />
-        </label>
+        <QuickFilterInput
+          class={styles.searchField}
+          leadingIcon="⌕"
+          value={controller.search}
+          onInput={controller.setSearch}
+          placeholder="Search this view"
+          ariaLabel="Search records"
+        />
         <span class={styles.resultCount}>
           {queryResult.loading ? "Loading" : resultCount(queryResult(), records().length, entity()?.pluralLabel)}
         </span>

@@ -4,6 +4,7 @@ import ArrowDownIcon from "lucide-solid/icons/arrow-down";
 import FunnelIcon from "lucide-solid/icons/funnel";
 import GemIcon from "lucide-solid/icons/gem";
 import { createEffect, createMemo, createSignal, For, type JSX, onCleanup, onMount, Show } from "solid-js";
+import { QuickFilterInput } from "./QuickFilterInput";
 import { Portal } from "solid-js/web";
 
 import type { QueryColumnHandle, QueryResult, QueryResultRow, QueryValue } from "../plugins/core/query/query-result";
@@ -806,27 +807,13 @@ function DataTableCell(props: {
 }
 
 function ColumnFilterInput(props: { filter: () => DataTableColumnFilter; label?: string }) {
-  let element!: HTMLInputElement;
-  // Sync external value changes (view resets) without touching the caret
-  // on own keystrokes: the DOM already holds typed text then.
-  createEffect(() => {
-    const next = props.filter().value();
-    if (element.value !== next) element.value = next;
-  });
   return (
-    <input
-      ref={element}
-      type="search"
-      class={styles.columnFilter}
-      aria-label={props.filter().ariaLabel ?? (props.label ? `Filter ${props.label}` : "Filter")}
+    <QuickFilterInput
+      value={() => props.filter().value()}
+      onInput={(value) => props.filter().onInput(value)}
+      ariaLabel={props.filter().ariaLabel ?? (props.label ? `Filter ${props.label}` : "Filter")}
       placeholder={props.filter().placeholder ?? "Filter"}
-      onInput={(event) => props.filter().onInput(event.currentTarget.value)}
-      onPointerDown={(event) => event.stopPropagation()}
-      onKeyDown={(event) => {
-        if (event.altKey && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
-          event.stopPropagation();
-        }
-      }}
+      density="compact"
     />
   );
 }

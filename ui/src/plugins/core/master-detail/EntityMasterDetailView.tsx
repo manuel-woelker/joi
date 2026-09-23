@@ -11,6 +11,7 @@ import { FacetFilter } from "../../../components/facet/FacetFilter";
 import { FilterDefinitionEditor } from "../../../components/filter-definition/FilterDefinitionEditor";
 import type { FilterDefinition } from "../../../components/filter-definition/filter-model";
 import { IconButton } from "../../../components/IconButton";
+import { QuickFilterInput } from "../../../components/QuickFilterInput";
 import { Select } from "../../../components/Select";
 import { useActions } from "../actions/ActionProvider";
 import { createEntityTableColumns } from "../entities/bound-entity";
@@ -160,19 +161,14 @@ function EntityMasterDetailContent(props: {
           master={
             <>
               <div class={styles.toolbar}>
-                <label class={styles.searchField}>
-                  <span class={styles.searchIcon} aria-hidden="true">
-                    ⌕
-                  </span>
-                  <span class={styles.srOnly}>Search {description.pluralLabel.toLowerCase()}</span>
-                  <input
-                    type="search"
-                    value={store.search()}
-                    onInput={(event) => store.setSearch(event.currentTarget.value)}
-                    placeholder={`Search ${description.pluralLabel.toLowerCase()}`}
-                    aria-label={`Search ${description.pluralLabel.toLowerCase()}`}
-                  />
-                </label>
+                <QuickFilterInput
+                  class={styles.searchField}
+                  leadingIcon="⌕"
+                  value={store.search}
+                  onInput={store.setSearch}
+                  placeholder={`Search ${description.pluralLabel.toLowerCase()}`}
+                  ariaLabel={`Search ${description.pluralLabel.toLowerCase()}`}
+                />
                 <IconButton
                   label={
                     store.activePanel() === "filter"
