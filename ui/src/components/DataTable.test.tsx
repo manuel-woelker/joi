@@ -14,8 +14,6 @@ import {
   LookupValue,
   LookupProvider,
 } from "../plugins/core/lookups/lookup";
-import { containsFilterOperator } from "./filter-definition/filter-operators";
-import { createCompositeFilter, filterAttributeId, filterNodeId } from "./filter-definition/filter-model";
 import { DataTable, type DataTableColumn, type DataTableSort } from "./DataTable";
 import { compileNeedles, deriveColumnHighlights } from "./text-highlight";
 
@@ -96,7 +94,7 @@ describe("DataTable", () => {
     );
   });
 
-  it("highlights matches only in the filtered column", () => {
+  it("highlights matches only in the searched column", () => {
     const result = parseQueryResponse({
       number_of_hits: 1,
       result_columns: [
@@ -108,24 +106,12 @@ describe("DataTable", () => {
       { column: result.requireColumn("title"), header: "Title" },
       { column: result.requireColumn("description"), header: "Description" },
     ];
-    const filter = {
-      ...createCompositeFilter(),
-      children: [
-        {
-          id: filterNodeId("title-filter"),
-          type: "criterion" as const,
-          attribute: filterAttributeId("title"),
-          operator: containsFilterOperator,
-          operand: { type: "value" as const, value: "navigation" },
-        },
-      ],
-    };
     render(() => (
       <DataTable
         ariaLabel="Tickets"
         result={result}
         columns={columns}
-        highlights={deriveColumnHighlights(filter, "", ["title", "description"])}
+        highlights={deriveColumnHighlights("", ["title", "description"], { title: "navigation" })}
       />
     ));
 
@@ -145,7 +131,7 @@ describe("DataTable", () => {
         ariaLabel="People"
         result={result}
         columns={[{ column: result.requireColumn("name"), header: "Name", cell: (value) => <strong>{value}!</strong> }]}
-        highlights={deriveColumnHighlights(undefined, "jane", ["name"])}
+        highlights={deriveColumnHighlights("jane", ["name"])}
       />
     ));
 
@@ -214,7 +200,7 @@ describe("DataTable", () => {
               ),
             },
           ]}
-          highlights={deriveColumnHighlights(undefined, "test project", ["project_id"])}
+          highlights={deriveColumnHighlights("test project", ["project_id"])}
         />
       </LookupProvider>
     ));

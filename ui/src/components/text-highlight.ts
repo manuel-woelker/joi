@@ -1,10 +1,3 @@
-import type { FilterDefinition } from "./filter-definition/filter-model";
-import {
-  containsFilterOperator,
-  equalsFilterOperator,
-  inSetFilterOperator,
-} from "./filter-definition/filter-operators";
-
 /** Uncompiled highlight needle: literal text with its matching mode. */
 export interface TextNeedleSpec {
   readonly text: string;
@@ -113,17 +106,12 @@ export function tokenizeHighlightText(value: string): string[] {
 }
 
 /**
- * Derives per-attribute highlight needles from a committed filter plus a
- * committed quicksearch term. Only positive text predicates contribute:
- * `contains` as substring needles, `equals`/`in-set` as value needles,
- * and every search token as a whole-word needle fanned out to the given
- * attributes. Negated subtrees (`none`, `not-equals`) and non-textual
- * operators contribute nothing since their text is absent from matching
- * rows. Callers decide which attributes participate; cell rendering
- * decides what can show marks.
+ * Derives per-attribute highlight needles only from committed quicksearch
+ * inputs. Global search tokens apply to the given attributes; column search
+ * tokens apply only to their own column. Filter and facet values do not
+ * contribute highlight needles.
  */
 export function deriveColumnHighlights(
-  filter: FilterDefinition | undefined,
   search: string,
   stringAttributes: readonly string[],
   columnSearch: Readonly<Record<string, string>> = {},
@@ -134,14 +122,6 @@ export function deriveColumnHighlights(
     entries.push(spec);
     specs.set(attribute, entries);
   };
-  walkFilter(filter, (attribute, operator, values) => {
-    if (operator === containsFilterOperator || operator === equalsFilterOperator) {
-      const [value] = values;
-      if (value !== undefined) add(attribute, { text: value, wholeWord: false });
-    } else if (operator === inSetFilterOperator) {
-      for (const value of values) add(attribute, { text: value, wholeWord: false });
-    }
-  });
   for (const token of tokenizeHighlightText(search)) {
     for (const attribute of stringAttributes) add(attribute, { text: token, wholeWord: true });
   }
@@ -155,30 +135,6 @@ export function deriveColumnHighlights(
     if (needles.length) compiled.set(attribute, needles);
   }
   return compiled;
-}
-
-function walkFilter(
-  filter: FilterDefinition | undefined,
-  visit: (attribute: string, operator: string, values: readonly string[]) => void,
-): void {
-  if (!filter || filter.disabled) return;
-  if (filter.type === "composite") {
-    // Negated subtrees match rows *without* the needle text.
-    if (filter.kind === "none") return;
-    for (const child of filter.children) walkFilter(child, visit);
-    return;
-  }
-  if (
-    filter.operator !== containsFilterOperator &&
-    filter.operator !== equalsFilterOperator &&
-    filter.operator !== inSetFilterOperator
-  ) {
-    return;
-  }
-  const operand = filter.operand;
-  const values =
-    operand?.type === "set" ? operand.values.map(String) : operand?.type === "value" ? [String(operand.value)] : [];
-  if (values.length) visit(String(filter.attribute), filter.operator, values);
 }
 
 function escapeRegExp(value: string): string {

@@ -102,11 +102,11 @@ export function createMasterDetailStore(
   const facetedAttributes = createMemo<ReadonlySet<string>>(
     () => new Set(filterParameters().facets.map((selection) => selection.attribute)),
   );
-  // Highlights derive from the same committed parameters as the queries so
-  // marks can never skew from the executed filter and search.
+  // Highlights use only committed quicksearch inputs, so marks cannot skew
+  // from the executed search or reflect filter/facet operand values.
   const highlights = createMemo(() => {
     const parameters = filterParameters();
-    return deriveColumnHighlights(parameters.filter, parameters.search, searchAttributes(), parameters.columnSearch);
+    return deriveColumnHighlights(parameters.search, searchAttributes(), parameters.columnSearch);
   });
   // Lookup columns resolve ids to labels with no searchable text of their
   // own, so they offer no column input. Values are live thunks so inputs

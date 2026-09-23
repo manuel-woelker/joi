@@ -3,6 +3,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { FetchService } from "../../../base/services/fetch-service";
 import { DataChangeService } from "../data-changes/data-change-service";
 import { RecordMutationService } from "../data-changes/record-mutation-service";
+import {
+  createCompositeFilter,
+  createFilterCriterion,
+  filterAttributeId,
+  filterOperatorId,
+} from "../../../components/filter-definition/filter-model";
 import { entityId, type EntityDescription } from "../entities/entity-description";
 import { lookupId } from "../lookups/lookup";
 import { createMasterDetailStore } from "./master-detail-store";
@@ -199,6 +205,40 @@ describe("master-detail store", () => {
     store.addFacet("name");
     store.addFacet("name");
     expect(store.visibleFacets()).toHaveLength(1);
+  });
+
+  it("highlights quicksearch terms without highlighting filter or facet values", async () => {
+    vi.useFakeTimers();
+    const { store, requests } = setup();
+    await settle();
+    store.setFilter(
+      createCompositeFilter("all", [
+        createFilterCriterion(filterAttributeId("name"), filterOperatorId("contains"), {
+          type: "value",
+          value: "Name a",
+        }),
+      ]),
+    );
+    store.changeFacet("name", "string:Name a", "included");
+    await vi.advanceTimersByTimeAsync(300);
+    expect(requests.some((request) => JSON.stringify(request.criterion).includes("Name a"))).toBe(true);
+    expect(store.highlights().size).toBe(0);
+    store.setColumnSearch("name", "new term");
+    await vi.advanceTimersByTimeAsync(300);
+    expect(
+      store
+        .highlights()
+        .get("name")
+        ?.map((needle) => needle.source),
+    ).toEqual(["new", "term"]);
+    store.setSearch("other");
+    await vi.advanceTimersByTimeAsync(300);
+    expect(
+      store
+        .highlights()
+        .get("name")
+        ?.map((needle) => needle.source),
+    ).toEqual(["other", "new", "term"]);
   });
 
   it("sets facet values directly from cell values and keeps them visible", async () => {
