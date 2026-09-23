@@ -139,6 +139,45 @@ function setup(
 }
 
 describe("master-detail store", () => {
+  it("clears one column's nested filters, facets, and quickfilter without changing other columns", async () => {
+    vi.useFakeTimers();
+    const { store, requests } = setup();
+    await settle();
+    store.setFilter(
+      createCompositeFilter("all", [
+        createCompositeFilter("one", [
+          createFilterCriterion(filterAttributeId("name"), filterOperatorId("contains"), {
+            type: "value",
+            value: "Jane",
+          }),
+        ]),
+        createFilterCriterion(filterAttributeId("id"), filterOperatorId("equals"), {
+          type: "value",
+          value: "a",
+        }),
+      ]),
+    );
+    store.setFacetValue("name", "Name a", "included");
+    store.setColumnSearch("name", "Jan");
+    store.setColumnSearch("id", "a");
+    expect(store.hasColumnConstraints("name")).toBe(true);
+
+    store.clearColumnConstraints("name");
+    await settle();
+    expect(store.hasColumnConstraints("name")).toBe(false);
+    expect(store.hasColumnConstraints("id")).toBe(true);
+    expect(store.columnSearch()).toEqual({ id: "a" });
+    expect(store.facetedAttributes().has("name")).toBe(false);
+    const remainingFilter = store.filter();
+    expect(remainingFilter.type === "composite" && remainingFilter.children).toHaveLength(1);
+    expect(requests.at(-1)?.criterion).toEqual({
+      all: [{ term: { value: "a", attributes: ["id"] } }, { equals: { attribute: "id", values: ["a"] } }],
+    });
+    const requestCount = requests.length;
+    await vi.advanceTimersByTimeAsync(300);
+    expect(requests).toHaveLength(requestCount);
+  });
+
   it("runs reactive queries without a DOM, debounces search, and sorts immediately", async () => {
     vi.useFakeTimers();
     const { store, requests } = setup();

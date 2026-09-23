@@ -8,6 +8,7 @@ import type { DataTableSort } from "../../../components/DataTable";
 import type { Facet, FacetValueState } from "../../../components/facet/FacetFilter";
 import { entityFilterAttributes } from "../../../components/filter-definition/entity-filter-attributes";
 import { createCompositeFilter, type FilterDefinition } from "../../../components/filter-definition/filter-model";
+import { hasAttributeFilter, removeAttributeFilters } from "../../../components/filter-definition/filter-operations";
 import { deriveColumnHighlights } from "../../../components/text-highlight";
 import type { EntityRecordActionTarget } from "../actions/action";
 import { actionsToContextMenuEntries } from "../actions/action-context-menu";
@@ -126,6 +127,28 @@ export function createMasterDetailStore(
         ]),
     );
   });
+  const hasColumnConstraints = (attribute: string) =>
+    hasAttributeFilter(filter(), attribute) ||
+    facetSelections().some((selection) => selection.attribute === attribute) ||
+    Boolean(columnSearch()[attribute]?.trim());
+  const clearColumnConstraints = (attribute: string) => {
+    const nextFilter = removeAttributeFilters(filter(), attribute);
+    const nextFacets = facetSelections().filter((selection) => selection.attribute !== attribute);
+    const nextColumnSearch = Object.fromEntries(
+      Object.entries(columnSearch()).filter(([candidate]) => candidate !== attribute),
+    );
+    batch(() => {
+      setFilter(nextFilter);
+      setFacetSelections(nextFacets);
+      setColumnSearch(nextColumnSearch);
+      setFilterParameters((parameters) => ({
+        ...parameters,
+        filter: nextFilter,
+        facets: nextFacets,
+        columnSearch: trimColumnSearch(nextColumnSearch),
+      }));
+    });
+  };
   const [showLoading, setShowLoading] = createSignal(false);
   // Viewport height drives table virtualization so only visible rows mount.
   // It is measured rather than fixed because the master pane flex-fills
@@ -414,6 +437,8 @@ export function createMasterDetailStore(
     filteredAttributes,
     facetedAttributes,
     columnFilters,
+    hasColumnConstraints,
+    clearColumnConstraints,
     activePanel,
     visibleFacets,
     availableFacetKey,

@@ -69,6 +69,7 @@ export interface DataTableProps {
   readonly onRowSelect?: (row: QueryResultRow) => void;
   readonly onRowActivate?: (row: QueryResultRow) => void;
   readonly onRowContextMenu?: (event: MouseEvent, row: QueryResultRow, column?: QueryColumnHandle) => void;
+  readonly onColumnHeaderContextMenu?: (event: MouseEvent, attribute: string) => void;
   readonly virtualization?: {
     readonly height: number;
     readonly estimatedRowHeight?: number;
@@ -441,6 +442,7 @@ export function DataTable(props: DataTableProps) {
                       }}
                       data-column-id={header.column.id}
                       data-column-type={columnType(props.columns, header.column.id)}
+                      onContextMenu={(event) => props.onColumnHeaderContextMenu?.(event, header.column.id)}
                       tabIndex={header.isPlaceholder ? undefined : 0}
                       onPointerDown={(event) => {
                         if (header.isPlaceholder || resizingColumnId() || event.button !== 0) return;

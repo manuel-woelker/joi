@@ -29,6 +29,21 @@ const createResult = (name: string, age: number) =>
   });
 
 describe("DataTable", () => {
+  it("reports the right-clicked header column", () => {
+    const result = createResult("Jane", 34);
+    const onColumnHeaderContextMenu = vi.fn();
+    render(() => (
+      <DataTable
+        ariaLabel="People"
+        result={result}
+        columns={[{ column: result.requireColumn("name"), header: "Name" }]}
+        onColumnHeaderContextMenu={onColumnHeaderContextMenu}
+      />
+    ));
+    fireEvent.contextMenu(screen.getByRole("columnheader", { name: "Name" }));
+    expect(onColumnHeaderContextMenu).toHaveBeenCalledWith(expect.any(MouseEvent), "name");
+  });
+
   it("shows a reactive filter indicator after sorted and unsortable column labels", () => {
     const result = createResult("Jane", 34);
     const [filtered, setFiltered] = createSignal<ReadonlySet<string>>(new Set(["name", "age"]));

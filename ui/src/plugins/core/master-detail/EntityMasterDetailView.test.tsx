@@ -79,6 +79,26 @@ function renderView(fetcher: Fetcher) {
 }
 
 describe("EntityMasterDetailView master table", () => {
+  it("clears a column quickfilter from its header menu", async () => {
+    const fetcher: Fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as { results?: readonly [{ type?: string }] };
+      return {
+        ok: true,
+        json: async () => (body.results?.[0]?.type === "rows" ? rowsResponse(["a"]) : countResponse(1)),
+      } as Response;
+    });
+    renderView(fetcher);
+    expect(await screen.findByText("Name a")).toBeDefined();
+    fireEvent.contextMenu(screen.getByRole("columnheader", { name: "Name" }));
+    expect(screen.getByRole("menuitem", { name: "Clear filters and facets" }).hasAttribute("disabled")).toBe(true);
+    await userEvent.keyboard("{Escape}");
+
+    await userEvent.type(screen.getByRole("searchbox", { name: "Filter Name" }), "Jane");
+    fireEvent.contextMenu(screen.getByRole("columnheader", { name: "Name" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Clear filters and facets" }));
+    expect((screen.getByRole("searchbox", { name: "Filter Name" }) as HTMLInputElement).value).toBe("");
+  });
+
   it("renders the table shell while the first page loads", async () => {
     let resolveRows!: (response: Response) => void;
     const fetcher: Fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {

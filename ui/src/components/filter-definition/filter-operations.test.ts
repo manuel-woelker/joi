@@ -9,6 +9,8 @@ import {
   moveFilter,
   moveFilterDown,
   outdentFilter,
+  hasAttributeFilter,
+  removeAttributeFilters,
   validateFilterDefinition,
 } from "./filter-operations";
 
@@ -21,6 +23,29 @@ const criterion = (id: string) =>
   );
 
 describe("filter tree operations", () => {
+  it("removes one attribute throughout the tree without leaving invalid one-of groups", () => {
+    const unrelated = createFilterCriterion(
+      filterAttributeId("status"),
+      equalsFilterOperator,
+      undefined,
+      filterNodeId("status"),
+    );
+    const root = createCompositeFilter(
+      "all",
+      [createCompositeFilter("one", [criterion("name")], filterNodeId("one")), unrelated],
+      filterNodeId("root"),
+    );
+    const result = removeAttributeFilters(root, "title");
+    expect(hasAttributeFilter(result, "title")).toBe(false);
+    expect(result).toEqual({ ...root, children: [unrelated] });
+    expect(validateFilterDefinition(result)).toEqual([]);
+    expect(removeAttributeFilters(createCompositeFilter("one", [criterion("only")]), "title")).toMatchObject({
+      type: "composite",
+      kind: "all",
+      children: [],
+    });
+  });
+
   it("moves filters between composites while preserving order", () => {
     const nested = createCompositeFilter("one", [criterion("b")], filterNodeId("nested"));
     const root = createCompositeFilter("all", [criterion("a"), nested, criterion("c")], filterNodeId("root"));

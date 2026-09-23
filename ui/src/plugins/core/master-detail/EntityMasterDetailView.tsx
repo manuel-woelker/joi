@@ -6,6 +6,7 @@ import { For, Match, onCleanup, Show, Switch } from "solid-js";
 import { useNavigation } from "../../../base/navigation";
 import { useApplicationServices } from "../../../base/services/application-services";
 import { useContextMenu } from "../../../components/context-menu/ContextMenuProvider";
+import { contextMenuEntryId, contextMenuGroupId } from "../../../components/context-menu/context-menu";
 import { DataTable, type DataTableSort } from "../../../components/DataTable";
 import { FacetFilter } from "../../../components/facet/FacetFilter";
 import { FilterDefinitionEditor } from "../../../components/filter-definition/FilterDefinitionEditor";
@@ -225,6 +226,24 @@ function EntityMasterDetailContent(props: {
                   filteredAttributes={store.filteredAttributes()}
                   facetedAttributes={store.facetedAttributes()}
                   columnFilters={store.columnFilters()}
+                  onColumnHeaderContextMenu={(event, attribute) =>
+                    contextMenu.open({
+                      event,
+                      createGroups: () => [
+                        {
+                          id: contextMenuGroupId("column-filters"),
+                          entries: [
+                            {
+                              id: contextMenuEntryId("clear-column-filters"),
+                              label: "Clear filters and facets",
+                              disabled: !store.hasColumnConstraints(attribute),
+                              execute: () => store.clearColumnConstraints(attribute),
+                            },
+                          ],
+                        },
+                      ],
+                    })
+                  }
                   loading={store.loading()}
                   loadingMessage="Loading..."
                   fillHeight

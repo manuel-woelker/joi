@@ -1,4 +1,5 @@
 import {
+  createCompositeFilter,
   createFilterNodeId,
   type CompositeFilterDefinition,
   type FilterDefinition,
@@ -52,6 +53,29 @@ export function removeFilter(root: FilterDefinition, id: FilterNodeId): FilterDe
     ...root,
     children: root.children.filter((child) => child.id !== id).map((child) => removeFilter(child, id)),
   };
+}
+
+/** Remove criteria for an attribute, pruning one-of groups left without enabled children. */
+export function removeAttributeFilters(root: FilterDefinition, attribute: string): FilterDefinition {
+  const remove = (node: FilterDefinition): FilterDefinition | undefined => {
+    if (node.type === "criterion") return node.attribute === attribute ? undefined : node;
+    const children = node.children.flatMap((child) => {
+      const remaining = remove(child);
+      return remaining ? [remaining] : [];
+    });
+    if (node.kind === "one" && !children.some((child) => !child.disabled)) return undefined;
+    return children.length === node.children.length && children.every((child, index) => child === node.children[index])
+      ? node
+      : { ...node, children };
+  };
+  return remove(root) ?? createCompositeFilter("all", [], root.id);
+}
+
+/** Includes disabled criteria, which should also be removed by explicit clearing. */
+export function hasAttributeFilter(root: FilterDefinition, attribute: string): boolean {
+  return root.type === "criterion"
+    ? root.attribute === attribute
+    : root.children.some((child) => hasAttributeFilter(child, attribute));
 }
 
 export function moveFilter(root: FilterDefinition, id: FilterNodeId, target: FilterMoveTarget): FilterDefinition {
