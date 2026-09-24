@@ -140,6 +140,7 @@ function setup(
       requests,
       dataChanges,
       selectRecord,
+      selectedRecordId,
       setIdentity,
       saveConfig,
       dispose,
@@ -357,7 +358,8 @@ describe("master-detail store", () => {
     store.removeFacet("name");
     expect(store.visibleFacets()).toEqual([]);
 
-    const group = await store.cellFacetMenu("name", "Name a");
+    store.selectRow(store.table().rows![0]);
+    const group = await store.cellFacetMenu("name");
     expect(group?.id).toBe("facet-actions");
     expect(group?.label).toBe("Facet actions");
     expect(group?.entries.map((entry) => entry.label)).toEqual(['Include "Name a"', 'Exclude "Name a"']);
@@ -372,7 +374,82 @@ describe("master-detail store", () => {
     await settle();
     expect(requests.at(-3)?.criterion).toEqual({ not: { equals: { attribute: "name", values: ["Name a"] } } });
 
-    expect(await store.cellFacetMenu("id", "a")).toBeUndefined();
+    expect(await store.cellFacetMenu("id")).toBeUndefined();
+  });
+
+  it("applies facet actions to distinct values across a row range", async () => {
+    const { store, requests, selectedRecordId } = setup(async (request) =>
+      request.results[0].type === "rows"
+        ? {
+            results: [
+              {
+                type: "rows",
+                result_columns: [
+                  { attribute: "id", values: { type: "string", values: ["a", "b", "c"] } },
+                  { attribute: "name", values: { type: "string", values: ["Same", "Same", "Other"] } },
+                ],
+              },
+            ],
+          }
+        : count(request.results[0].attribute),
+    );
+    await settle();
+    const [first, , last] = store.table().rows!;
+    store.selectRow(first);
+    store.selectRow(last, "range");
+    expect([...store.selectedRowIds()]).toEqual(["a", "b", "c"]);
+    expect(selectedRecordId()).toBe("a");
+
+    const group = await store.cellFacetMenu("name");
+    expect(group?.entries.map((entry) => entry.label)).toEqual(['Include "Same", "Other"', 'Exclude "Same", "Other"']);
+    group?.entries[0].execute();
+    await settle();
+    expect(requests.at(-3)?.criterion).toEqual({ equals: { attribute: "name", values: ["Same", "Other"] } });
+
+    store.selectRow(store.table().rows![0], "preserve");
+    expect(store.selectedRowIds().size).toBe(3);
+    group?.entries[1].execute();
+    await settle();
+    expect(store.facetSummary().map((entry) => entry.state)).toEqual(["excluded", "excluded"]);
+  });
+
+  it("does not navigate when shift-selecting without an anchor", async () => {
+    const { store, selectedRecordId } = setup();
+    await settle();
+    store.selectRow(store.table().rows![1], "range");
+    expect([...store.selectedRowIds()]).toEqual(["b"]);
+    expect(selectedRecordId()).toBeUndefined();
+  });
+
+  it("uses the open detail row as a range anchor after selection state resets", async () => {
+    const { store, selectedRecordId, setIdentity } = setup();
+    await settle();
+    store.selectRow(store.table().rows![0]);
+    setIdentity("two");
+    await settle();
+    expect(store.selectedRowIds().size).toBe(0);
+
+    store.selectRow(store.table().rows![1], "range");
+    expect([...store.selectedRowIds()]).toEqual(["a", "b"]);
+    expect(selectedRecordId()).toBe("a");
+  });
+
+  it("summarizes large facet selections without omitting values from the action", async () => {
+    const ids = ["a", "b", "c", "d", "e"];
+    const { store } = setup(async (request) =>
+      request.results[0].type === "rows" ? rows(ids) : count(request.results[0].attribute),
+    );
+    await settle();
+    store.selectRow(store.table().rows![0]);
+    store.selectRow(store.table().rows![4], "range");
+
+    const group = await store.cellFacetMenu("name");
+    expect(group?.entries.map((entry) => entry.label)).toEqual([
+      'Include "Name a", "Name b" and 3 more',
+      'Exclude "Name a", "Name b" and 3 more',
+    ]);
+    group?.entries[0].execute();
+    expect(store.facetSummary().map((entry) => entry.value)).toEqual(ids.map((id) => `Name ${id}`));
   });
 
   it("resolves lookup labels for reference cell menus with raw fallback", async () => {
@@ -390,13 +467,17 @@ describe("master-detail store", () => {
           result_columns: [
             { attribute: "id", values: { type: "string", values: ids } },
             { attribute: "name", values: { type: "string", values: ids.map((id) => `Name ${id}`) } },
-            { attribute: "owner", values: { type: "string", values: ids.map(() => "user-1") } },
+            {
+              attribute: "owner",
+              values: { type: "string", values: ids.map((id) => (id === "a" ? "user-1" : "user-9")) },
+            },
           ],
         },
       ],
     });
     const { store, label } = setup(
-      async (request) => (request.results[0].type === "rows" ? ownerRows(["a"]) : count(request.results[0].attribute)),
+      async (request) =>
+        request.results[0].type === "rows" ? ownerRows(["a", "b"]) : count(request.results[0].attribute),
       {
         description: ownerDescription,
         label: async (_id, value) => (value === "user-1" ? "Jane Developer" : value),
@@ -404,14 +485,16 @@ describe("master-detail store", () => {
     );
     await settle();
 
-    const group = await store.cellFacetMenu("owner", "user-1");
+    store.selectRow(store.table().rows![0]);
+    const group = await store.cellFacetMenu("owner");
     expect(group?.entries.map((entry) => entry.label)).toEqual([
       'Include "Jane Developer"',
       'Exclude "Jane Developer"',
     ]);
     expect(label).toHaveBeenCalledWith(lookupId("users"), expect.anything());
 
-    const missing = await store.cellFacetMenu("owner", "user-9");
+    store.selectRow(store.table().rows![1]);
+    const missing = await store.cellFacetMenu("owner");
     expect(missing?.entries.map((entry) => entry.label)).toEqual(['Include "user-9"', 'Exclude "user-9"']);
   });
 

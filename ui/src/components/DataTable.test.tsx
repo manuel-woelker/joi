@@ -438,6 +438,37 @@ describe("DataTable", () => {
     expect(activate).toHaveBeenCalledTimes(2);
   });
 
+  it("reports toggle and range selection modifiers and renders multiple selected rows", () => {
+    const result = parseQueryResponse({
+      number_of_hits: 3,
+      result_columns: [{ attribute: "name", values: { type: "string", values: ["Jane", "Joe", "Uma"] } }],
+    });
+    const [selected, setSelected] = createSignal<ReadonlySet<string>>(new Set(["Jane", "Uma"]));
+    const select = vi.fn();
+    render(() => (
+      <DataTable
+        ariaLabel="People"
+        result={result}
+        columns={[{ column: result.requireColumn("name"), header: "Name" }]}
+        rowKey={result.requireColumn("name")}
+        selectedRowKeys={selected()}
+        onRowSelect={select}
+      />
+    ));
+    expect(screen.getByRole("row", { name: "Jane" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("row", { name: "Joe" }).getAttribute("aria-selected")).toBe("false");
+    expect(screen.getByRole("row", { name: "Uma" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByLabelText("Table status").textContent).toContain("Rows selected: 2");
+    expect(fireEvent.mouseDown(screen.getByRole("row", { name: "Uma" }), { shiftKey: true })).toBe(false);
+    expect(fireEvent.mouseDown(screen.getByRole("row", { name: "Uma" }))).toBe(true);
+    fireEvent.click(screen.getByRole("row", { name: "Joe" }), { ctrlKey: true });
+    expect(select).toHaveBeenLastCalledWith(result.rows[1], "toggle");
+    fireEvent.click(screen.getByRole("row", { name: "Uma" }), { shiftKey: true });
+    expect(select).toHaveBeenLastCalledWith(result.rows[2], "range");
+    setSelected(new Set(["Joe"]));
+    expect(screen.getByRole("row", { name: "Joe" }).getAttribute("aria-selected")).toBe("true");
+  });
+
   it("emits controlled multi-column sorting without sorting rows locally", () => {
     const result = parseQueryResponse({
       number_of_hits: 2,
@@ -635,14 +666,14 @@ describe("DataTable", () => {
     jane.focus();
     fireEvent.keyDown(jane, { key: "ArrowDown" });
     expect(document.activeElement).toBe(joe);
-    expect(select).toHaveBeenLastCalledWith(result.rows[1]);
+    expect(select).toHaveBeenLastCalledWith(result.rows[1], "replace");
     expect(joe.tabIndex).toBe(0);
     fireEvent.keyDown(joe, { key: "End" });
     expect(document.activeElement).toBe(alex);
-    expect(select).toHaveBeenLastCalledWith(result.rows[2]);
+    expect(select).toHaveBeenLastCalledWith(result.rows[2], "replace");
     fireEvent.keyDown(alex, { key: "Home" });
     expect(document.activeElement).toBe(jane);
-    expect(select).toHaveBeenLastCalledWith(result.rows[0]);
+    expect(select).toHaveBeenLastCalledWith(result.rows[0], "replace");
     const selectionCount = select.mock.calls.length;
     fireEvent.keyDown(jane, { key: "ArrowUp" });
     expect(document.activeElement).toBe(jane);

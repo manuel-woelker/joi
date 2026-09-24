@@ -41,6 +41,8 @@ export interface DataTableColumnConfig {
   readonly widths: Readonly<Record<string, number>>;
 }
 
+export type DataTableSelectionMode = "replace" | "toggle" | "range";
+
 export interface DataTableColumnFilter {
   /** Reactive current value; entries stay identical while their column exists. */
   readonly value: () => string;
@@ -70,12 +72,13 @@ export interface DataTableProps {
   readonly density?: "compact" | "comfortable";
   readonly rowKey?: QueryColumnHandle;
   readonly selectedRowKey?: QueryValue;
+  readonly selectedRowKeys?: ReadonlySet<QueryValue>;
   readonly sorting?: readonly DataTableSort[];
   readonly onSortingChange?: (sorting: readonly DataTableSort[]) => void;
   readonly columnConfig?: DataTableColumnConfig;
   readonly columnConfigKey?: string;
   readonly onColumnConfigChange?: (config: DataTableColumnConfig) => void;
-  readonly onRowSelect?: (row: QueryResultRow) => void;
+  readonly onRowSelect?: (row: QueryResultRow, mode: DataTableSelectionMode) => void;
   readonly onRowActivate?: (row: QueryResultRow) => void;
   readonly onRowContextMenu?: (event: MouseEvent, row: QueryResultRow, column?: QueryColumnHandle) => void;
   readonly onColumnHeaderContextMenu?: (event: MouseEvent, attribute: string) => void;
@@ -386,9 +389,12 @@ export function DataTable(props: DataTableProps) {
       }
       aria-selected={isSelected(props, row.original)}
       onFocus={() => setFocusedRowId(row.id)}
+      onMouseDown={(event) => {
+        if (event.shiftKey) event.preventDefault();
+      }}
       onClick={(event) => {
         event.currentTarget.focus();
-        props.onRowSelect?.(row.original);
+        props.onRowSelect?.(row.original, selectionMode(event));
       }}
       onDblClick={() => props.onRowActivate?.(row.original)}
       onContextMenu={(event) => {
@@ -404,7 +410,8 @@ export function DataTable(props: DataTableProps) {
         if (destination) {
           event.preventDefault();
           setFocusedRowId(destination.id);
-          if (destination.id !== row.id) props.onRowSelect?.(destination.original);
+          if (destination.id !== row.id)
+            props.onRowSelect?.(destination.original, event.shiftKey ? "range" : "replace");
           if (props.virtualization) {
             virtualizer.scrollToIndex(destination.index);
             requestAnimationFrame(() => focusRow(event.currentTarget, destination.id));
@@ -416,7 +423,7 @@ export function DataTable(props: DataTableProps) {
           props.onRowActivate(row.original);
         } else if (event.key === " " && props.onRowSelect) {
           event.preventDefault();
-          props.onRowSelect(row.original);
+          props.onRowSelect(row.original, selectionMode(event));
         }
       }}
     >
@@ -707,7 +714,10 @@ export function DataTable(props: DataTableProps) {
       <footer class={styles.tableStatus} aria-label="Table status">
         <span>Rows shown: {tableRows().length}</span>
         <span>Rows in view: {rowsInView() ?? tableRows().length}</span>
-        <span>Rows selected: {tableRows().filter((row) => isSelected(props, row.original)).length}</span>
+        <span>
+          Rows selected:{" "}
+          {props.selectedRowKeys?.size ?? tableRows().filter((row) => isSelected(props, row.original)).length}
+        </span>
         <span>Total rows: {props.result.numberOfHits ?? "Not requested"}</span>
       </footer>
       <Show when={draggedColumnId() && pendingColumnDrag}>
@@ -770,6 +780,8 @@ function isTabStop(
   focusedRowId: string | undefined,
 ): boolean {
   if (focusedRowId) return rowId === focusedRowId;
+  if (props.selectedRowKeys?.size && props.rowKey)
+    return row.value(props.rowKey) === props.selectedRowKeys.values().next().value;
   if (props.selectedRowKey !== undefined) return isSelected(props, row) === true;
   return rowId === firstRowId;
 }
@@ -802,8 +814,16 @@ function focusRow(currentRow: HTMLTableRowElement, rowId: string): void {
 }
 
 function isSelected(props: DataTableProps, row: QueryResultRow): boolean | undefined {
-  if (!props.rowKey || props.selectedRowKey === undefined) return undefined;
+  if (!props.rowKey) return undefined;
+  if (props.selectedRowKeys) return props.selectedRowKeys.has(row.value(props.rowKey)!);
+  if (props.selectedRowKey === undefined) return undefined;
   return row.value(props.rowKey) === props.selectedRowKey;
+}
+
+function selectionMode(event: MouseEvent | KeyboardEvent): DataTableSelectionMode {
+  if (event.shiftKey) return "range";
+  if (event.ctrlKey || event.metaKey) return "toggle";
+  return "replace";
 }
 
 function DataTableCell(props: {

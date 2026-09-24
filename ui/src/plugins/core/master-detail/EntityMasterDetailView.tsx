@@ -84,8 +84,8 @@ function EntityMasterDetailContent(props: {
     onCleanup(() => observer.disconnect());
   };
   const openContextMenu = async (event: MouseEvent, row: QueryResultRow, column?: QueryColumnHandle) => {
-    if (!store.selectRow(row)) return;
-    const cellGroup = column ? await store.cellFacetMenu(column.attribute, row.value(column)) : undefined;
+    if (!store.selectRow(row, "preserve")) return;
+    const cellGroup = column ? await store.cellFacetMenu(column.attribute) : undefined;
     const groups = [...store.contextMenuGroups(), ...(cellGroup ? [cellGroup] : [])];
     contextMenu.open({ event, createGroups: () => groups });
   };
@@ -306,7 +306,7 @@ function EntityMasterDetailContent(props: {
                   columnConfigKey={viewIdentity()}
                   onColumnConfigChange={store.setColumnConfig}
                   rowKey={store.table().entity.identity}
-                  selectedRowKey={store.selectedRecordId()}
+                  selectedRowKeys={store.selectedRowIds()}
                   density="compact"
                   emptyMessage={`No matching ${description.pluralLabel.toLowerCase()} found.`}
                   onRowSelect={store.selectRow}

@@ -1,10 +1,19 @@
-import { batch, createEffect, createMemo, createResource, createSignal, onCleanup, type Accessor } from "solid-js";
+import {
+  batch,
+  createEffect,
+  createMemo,
+  createResource,
+  createSignal,
+  onCleanup,
+  untrack,
+  type Accessor,
+} from "solid-js";
 import type { NavigationController } from "../../../base/navigation";
 import type { ApplicationServices } from "../../../base/services/application-services";
 import type { useActions } from "../actions/ActionProvider";
 import type { LookupService } from "../lookups/lookup";
 import { lookupEntryId } from "../lookups/lookup";
-import type { DataTableColumnConfig, DataTableSort } from "../../../components/DataTable";
+import type { DataTableColumnConfig, DataTableSelectionMode, DataTableSort } from "../../../components/DataTable";
 import type { Facet, FacetValueState } from "../../../components/facet/FacetFilter";
 import { entityFilterAttributes } from "../../../components/filter-definition/entity-filter-attributes";
 import { createCompositeFilter, type FilterDefinition } from "../../../components/filter-definition/filter-model";
@@ -107,6 +116,10 @@ export function createMasterDetailStore(
     savedConfig?.columnSearch ?? {},
   );
   const [columnConfig, setColumnConfig] = createSignal<DataTableColumnConfig | undefined>(savedConfig?.columns);
+  const [selectedRowIds, setSelectedRowIds] = createSignal<ReadonlySet<string>>(
+    new Set(navigation.selectedRecordId() ? [navigation.selectedRecordId()!] : []),
+  );
+  const [selectionAnchorId, setSelectionAnchorId] = createSignal<string>();
   const [filterParameters, setFilterParameters] = createSignal({
     filter: filter(),
     facets: facetSelections(),
@@ -208,6 +221,8 @@ export function createMasterDetailStore(
       setFacetSelections(nextFacets);
       setVisibleFacetIds(config?.visibleFacetIds ?? defaultFacetIds);
       setColumnConfig(config?.columns);
+      setSelectedRowIds(new Set<string>());
+      setSelectionAnchorId(undefined);
       setSearch("");
       setColumnSearch(nextColumnSearch);
       setFilterParameters({
@@ -279,6 +294,27 @@ export function createMasterDetailStore(
     return result;
   });
   const readRecords = () => (records.error ? undefined : records());
+  createEffect(() => {
+    const id = navigation.selectedRecordId();
+    if (id && !untrack(selectedRowIds).has(id)) {
+      setSelectedRowIds(new Set([id]));
+      setSelectionAnchorId(id);
+    }
+  });
+  createEffect(() => {
+    const result = readRecords();
+    if (!result || records.loading) return;
+    const identity = result.column(description.identityAttribute);
+    if (!identity) return;
+    const selected = untrack(selectedRowIds);
+    const present = new Set(
+      result.rows.flatMap((row) => {
+        const id = row.value(identity);
+        return typeof id === "string" && selected.has(id) ? [id] : [];
+      }),
+    );
+    if (present.size !== selected.size) setSelectedRowIds(present);
+  });
   createEffect(() => {
     const result = readRecords();
     const recordId = navigation.selectedRecordId();
@@ -393,18 +429,27 @@ export function createMasterDetailStore(
     setFacetValue(facetId, value, state);
   };
 
-  /** Sets one facet value directly, replacing any selection for the same value. */
-  const setFacetValue = (attribute: string, value: QueryValue | null, state: "included" | "excluded") => {
-    const key = facetValueKey(value);
+  /** Sets distinct facet values in one update, retaining unrelated selections. */
+  const setFacetValues = (
+    attribute: string,
+    values: readonly (QueryValue | null)[],
+    state: "included" | "excluded",
+  ) => {
+    const unique = new Map(values.map((value) => [facetValueKey(value), value]));
     const remaining = facetSelections().filter(
-      (selection) => selection.attribute !== attribute || facetValueKey(selection.value) !== key,
+      (selection) => selection.attribute !== attribute || !unique.has(facetValueKey(selection.value)),
     );
-    const next: readonly FacetSelection[] = [...remaining, { attribute, value, state }];
+    const next: readonly FacetSelection[] = [
+      ...remaining,
+      ...[...unique.values()].map((value) => ({ attribute, value, state })),
+    ];
     batch(() => {
       setFacetSelections(next);
       setFilterParameters((parameters) => ({ ...parameters, facets: next }));
     });
   };
+  const setFacetValue = (attribute: string, value: QueryValue | null, state: "included" | "excluded") =>
+    setFacetValues(attribute, [value], state);
 
   /**
    * Builds the Table actions menu for one table cell, or undefined when the
@@ -412,15 +457,32 @@ export function createMasterDetailStore(
    * their display labels, falling back to the raw id. Ensures the facet
    * stays visible so the new selection remains manageable.
    */
-  const cellFacetMenu = async (attributeId: string, value: QueryValue | null | undefined) => {
+  const cellFacetMenu = async (attributeId: string) => {
     const attribute = description.attributes.find((candidate) => candidate.id === attributeId);
-    if (!attribute?.facet || value === undefined) return undefined;
-    const display = await cellDisplayLabel(attribute.lookup, value);
+    const result = readRecords();
+    const identity = result?.column(description.identityAttribute);
+    const column = result?.column(attributeId);
+    if (!attribute?.facet || !result || !identity || !column) return undefined;
+    const selected = selectedRowIds();
+    const uniqueValues = new Map<string, QueryValue | null>();
+    for (const row of result.rows) {
+      const id = row.value(identity);
+      if (typeof id !== "string" || !selected.has(id)) continue;
+      const value = row.value(column);
+      if (value !== undefined) uniqueValues.set(facetValueKey(value), value);
+    }
+    const values = [...uniqueValues.values()];
+    if (!values.length) return undefined;
+    const shown = values.slice(0, values.length > 3 ? 2 : 3);
+    const labels = await Promise.all(shown.map((value) => cellDisplayLabel(attribute.lookup, value)));
+    const display = labels.map((label) => JSON.stringify(label)).join(", ");
+    const remainder = values.length - shown.length;
+    const summary = remainder ? `${display} and ${remainder} more` : display;
     setVisibleFacetIds((current) => (current.includes(attributeId) ? current : [...current, attributeId]));
     const entry = (state: "included" | "excluded") => ({
       id: contextMenuEntryId(`facet-cell-${state}-${attributeId}`),
-      label: `${state === "included" ? "Include" : "Exclude"} "${display}"`,
-      execute: () => setFacetValue(attributeId, value, state),
+      label: `${state === "included" ? "Include" : "Exclude"} ${summary}`,
+      execute: () => setFacetValues(attributeId, values, state),
     });
     return {
       id: contextMenuGroupId("facet-actions"),
@@ -475,9 +537,51 @@ export function createMasterDetailStore(
   };
   onCleanup(actions.registerTarget(actionTarget));
 
-  const selectRow = (row: QueryResultRow) => {
+  const selectRow = (row: QueryResultRow, mode: DataTableSelectionMode | "preserve" = "replace") => {
+    if (readRecords()?.rows[row.index] !== row) return false;
     const id = row.value(boundEntity().identity);
     if (typeof id !== "string") return false;
+    const selected = selectedRowIds();
+    if (mode === "preserve" && selected.has(id)) {
+      navigation.selectRecord(id);
+      return true;
+    }
+    if (mode === "toggle") {
+      const next = new Set(selected);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      setSelectedRowIds(next);
+      setSelectionAnchorId(id);
+      return true;
+    }
+    if (mode === "range") {
+      const result = readRecords();
+      const identity = result?.column(description.identityAttribute);
+      const rows = result?.rows ?? [];
+      const anchors = [selectionAnchorId(), selected.values().next().value, navigation.selectedRecordId()];
+      const anchor = anchors.reduce(
+        (found, candidate) =>
+          found >= 0 ? found : rows.findIndex((row) => identity && row.value(identity) === candidate),
+        -1,
+      );
+      const end = rows.findIndex((candidate) => identity && candidate.value(identity) === id);
+      if (identity && anchor >= 0 && end >= 0) {
+        setSelectedRowIds(
+          new Set(
+            rows.slice(Math.min(anchor, end), Math.max(anchor, end) + 1).flatMap((candidate) => {
+              const value = candidate.value(identity);
+              return typeof value === "string" ? [value] : [];
+            }),
+          ),
+        );
+        return true;
+      }
+      setSelectedRowIds(new Set([id]));
+      setSelectionAnchorId(id);
+      return true;
+    }
+    setSelectedRowIds(new Set([id]));
+    setSelectionAnchorId(id);
     navigation.selectRecord(id);
     return true;
   };
@@ -533,6 +637,7 @@ export function createMasterDetailStore(
     viewportHeight,
     setViewportHeight: (height: number) => setViewportHeight(height),
     selectedRecordId: navigation.selectedRecordId,
+    selectedRowIds,
     creatingRecord: navigation.creatingRecord,
     actionTarget,
     setFilter: (value: FilterDefinition) => setFilter(value),

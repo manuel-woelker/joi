@@ -334,6 +334,41 @@ describe("EntityMasterDetailView master table", () => {
     expect(criteria.at(-1)).toEqual({ equals: { attribute: "name", values: ["Name a"] } });
   });
 
+  it("includes unique values from all selected rows in a column", async () => {
+    const criteria: unknown[] = [];
+    const fetcher: Fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as {
+        criterion?: unknown;
+        results?: readonly [{ type?: string }];
+      };
+      if (body.results?.[0]?.type === "rows") {
+        criteria.push(body.criterion);
+        return { ok: true, json: async () => rowsResponse(["a", "b", "c"]) } as Response;
+      }
+      return { ok: true, json: async () => countResponse(3) } as Response;
+    });
+    renderView(fetcher);
+    expect(await screen.findByText("Name c")).toBeDefined();
+    fireEvent.click(screen.getByText("Name a").closest("tr")!);
+    const detailHash = window.location.hash;
+    const rowQueries = criteria.length;
+    fireEvent.click(screen.getByText("Name c").closest("tr")!, { shiftKey: true });
+    expect(window.location.hash).toBe(detailHash);
+    expect(criteria).toHaveLength(rowQueries);
+    fireEvent.click(screen.getByText("Name b").closest("tr")!, { ctrlKey: true });
+    fireEvent.click(screen.getByText("Name b").closest("tr")!, { ctrlKey: true });
+    expect(screen.getByLabelText("Table status").textContent).toContain("Rows selected: 3");
+
+    fireEvent.contextMenu(screen.getByText("Name b"));
+    fireEvent.click(await screen.findByRole("menuitem", { name: 'Include "Name a", "Name b", "Name c"' }));
+    await waitFor(() => {
+      if (!criteria.some((criterion) => JSON.stringify(criterion).includes("Name c"))) {
+        throw new Error("multi-value facet selection not applied yet");
+      }
+    });
+    expect(criteria.at(-1)).toEqual({ equals: { attribute: "name", values: ["Name a", "Name b", "Name c"] } });
+  });
+
   it("survives sort, reverse, and reset cycles with fresh results", async () => {
     const fetcher: Fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as {
