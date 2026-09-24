@@ -4,6 +4,7 @@ import {
   addFolder,
   addShortcutFromDraft,
   addView,
+  addViewFromDraft,
   deleteNavigationItem,
   duplicateView,
   moveItemToFolder,
@@ -89,12 +90,37 @@ describe("workspace operations", () => {
 
   it("duplicates a view while reusing its definitions", () => {
     const workspace = createTestWorkspace();
+    workspace.viewConfigs = { "view-active": { "master-detail": { columnSearch: { name: "Jane" } } } };
     const id = duplicateView(workspace, "view-active")!;
     expect(workspace.views[id]).toMatchObject({
       name: "Active things copy",
       queryId: "query-open",
       presentationId: "presentation-table",
     });
+    expect(workspace.viewConfigs[id]).toEqual(workspace.viewConfigs["view-active"]);
+    const navigation = Object.values(workspace.navigation).find((item) => item.type === "view" && item.viewId === id)!;
+    deleteNavigationItem(workspace, navigation.id);
+    expect(workspace.viewConfigs[id]).toBeUndefined();
+  });
+
+  it("copies a system view's current settings into a new workspace view", () => {
+    const workspace = createTestWorkspace();
+    workspace.viewConfigs = { "system:tickets:view-active": { "master-detail": { sorting: [] } } };
+    const id = addViewFromDraft(workspace, {
+      name: "My active issues",
+      query: { name: "Active", entityId: workspace.queries["query-open"].entityId, sorting: [] },
+      presentation: {
+        name: "Table",
+        entityId: workspace.presentations["presentation-table"].entityId,
+        layout: "table",
+        density: "compact",
+        fields: [],
+      },
+      sourceViewId: "system:tickets:view-active",
+    });
+    expect(workspace.viewConfigs[id]).toEqual(workspace.viewConfigs["system:tickets:view-active"]);
+    (workspace.viewConfigs[id]["master-detail"] as { sorting: string[] }).sorting.push("changed");
+    expect(workspace.viewConfigs["system:tickets:view-active"]["master-detail"]).toEqual({ sorting: [] });
   });
 
   it("only deletes empty folders", () => {

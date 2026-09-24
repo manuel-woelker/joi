@@ -20,8 +20,10 @@ import { createEntityTableColumns } from "../entities/bound-entity";
 import type { EntityId } from "../entities/entity-description";
 import { useEntityRegistry } from "../entities/entity-registry";
 import { LookupValue, useLookupService } from "../lookups/lookup";
+import { useOptionalWorkspace } from "../saved-views/controller";
 import type { QueryColumnHandle, QueryResultRow } from "../query/query-result";
 import { createMasterDetailStore } from "./master-detail-store";
+import type { MasterDetailViewConfig } from "./master-detail-view-config";
 import styles from "./EntityMasterDetailView.module.css";
 import { MasterDetailView } from "./MasterDetailView";
 
@@ -48,17 +50,25 @@ function EntityMasterDetailContent(props: {
   const services = useApplicationServices();
   const { fetchService } = services;
   const contextMenu = useContextMenu();
+  const navigation = useNavigation();
+  const workspace = useOptionalWorkspace();
+  const viewIdentity = () => props.filterIdentity ?? navigation.selectedViewId();
   const description = useEntityRegistry().require(props.entityId);
   const store = createMasterDetailStore(
     {
       description,
       initialFilter: () => props.initialFilter,
       initialSorting: () => props.initialSorting,
-      filterIdentity: () => props.filterIdentity,
+      filterIdentity: viewIdentity,
+      viewConfig: () => {
+        const id = viewIdentity();
+        return id ? workspace?.readViewConfig<MasterDetailViewConfig>(id, "master-detail") : undefined;
+      },
+      onViewConfigChange: (id, config) => workspace?.updateViewConfig(id, "master-detail", config),
     },
     {
       ...services,
-      navigation: useNavigation(),
+      navigation,
       actions: useActions(),
       lookups: useLookupService(),
       afterPaint: (publish) => {
@@ -292,6 +302,9 @@ function EntityMasterDetailContent(props: {
                   virtualization={store.viewportHeight() > 0 ? { height: store.viewportHeight() } : undefined}
                   sorting={store.sorting()}
                   onSortingChange={store.setSorting}
+                  columnConfig={store.columnConfig()}
+                  columnConfigKey={viewIdentity()}
+                  onColumnConfigChange={store.setColumnConfig}
                   rowKey={store.table().entity.identity}
                   selectedRowKey={store.selectedRecordId()}
                   density="compact"

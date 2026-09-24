@@ -38,6 +38,8 @@ export interface WorkspaceController {
   workspace: WorkspaceDocument;
   navigation: NavigationController;
   selectedView: () => WorkspaceDocument["views"][string] | undefined;
+  readViewConfig<T>(viewId: ViewId, key: string): T | undefined;
+  updateViewConfig<T>(viewId: ViewId, key: string, value: T): void;
   warning: () => string | undefined;
   announcement: () => string;
   editorOpen: () => boolean;
@@ -140,6 +142,16 @@ export function WorkspaceProvider(props: ParentProps<{ repository?: WorkspaceRep
     workspace,
     navigation,
     selectedView,
+    readViewConfig<T>(viewId: ViewId, key: string): T | undefined {
+      return workspace.viewConfigs?.[viewId]?.[key] as T | undefined;
+    },
+    updateViewConfig<T>(viewId: ViewId, key: string, value: T) {
+      commit((draft) => {
+        draft.viewConfigs ??= {};
+        draft.viewConfigs[viewId] ??= {};
+        draft.viewConfigs[viewId][key] = cloneValue(value);
+      });
+    },
     warning,
     announcement,
     editorOpen,
@@ -310,4 +322,9 @@ export function useWorkspace(): WorkspaceController {
   const workspace = useContext(WorkspaceContext);
   if (!workspace) throw new Error("WorkspaceProvider is missing");
   return workspace;
+}
+
+/** Optional access for domain components also rendered outside a workspace provider. */
+export function useOptionalWorkspace(): WorkspaceController | undefined {
+  return useContext(WorkspaceContext);
 }

@@ -3,7 +3,7 @@ import { createVirtualizer } from "@tanstack/solid-virtual";
 import ArrowDownIcon from "lucide-solid/icons/arrow-down";
 import FunnelIcon from "lucide-solid/icons/funnel";
 import GemIcon from "lucide-solid/icons/gem";
-import { createEffect, createMemo, createSignal, For, type JSX, onCleanup, onMount, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, type JSX, onCleanup, onMount, Show, untrack } from "solid-js";
 import { QuickFilterInput } from "./QuickFilterInput";
 import { Portal } from "solid-js/web";
 
@@ -33,6 +33,12 @@ export type DataTableSortDirection = "ascending" | "descending";
 export interface DataTableSort {
   readonly attribute: string;
   readonly direction: DataTableSortDirection;
+}
+
+/** Persistable layout state, independent of query-result column handles. */
+export interface DataTableColumnConfig {
+  readonly order: readonly string[];
+  readonly widths: Readonly<Record<string, number>>;
 }
 
 export interface DataTableColumnFilter {
@@ -66,6 +72,9 @@ export interface DataTableProps {
   readonly selectedRowKey?: QueryValue;
   readonly sorting?: readonly DataTableSort[];
   readonly onSortingChange?: (sorting: readonly DataTableSort[]) => void;
+  readonly columnConfig?: DataTableColumnConfig;
+  readonly columnConfigKey?: string;
+  readonly onColumnConfigChange?: (config: DataTableColumnConfig) => void;
   readonly onRowSelect?: (row: QueryResultRow) => void;
   readonly onRowActivate?: (row: QueryResultRow) => void;
   readonly onRowContextMenu?: (event: MouseEvent, row: QueryResultRow, column?: QueryColumnHandle) => void;
@@ -140,6 +149,19 @@ export function DataTable(props: DataTableProps) {
     columnResizeMode: "onChange",
     enableColumnResizing: true,
   });
+  const notifyColumnConfig = () =>
+    props.onColumnConfigChange?.({
+      order: table.getAllLeafColumns().map((column) => column.id),
+      widths: { ...table.getState().columnSizing },
+    });
+  createEffect(() => {
+    props.columnConfigKey;
+    const config = props.columnConfig;
+    untrack(() => {
+      table.setColumnOrder(config?.order ? [...config.order] : []);
+      table.setColumnSizing(config?.widths ? { ...config.widths } : {});
+    });
+  });
   const tableRows = () => table.getRowModel().rows;
   const virtualizer = createVirtualizer<HTMLTableSectionElement, HTMLTableRowElement>({
     get count() {
@@ -193,6 +215,7 @@ export function DataTable(props: DataTableProps) {
     if (sourceIndex < 0 || targetIndex < 0 || targetIndex >= order.length) return;
     [order[sourceIndex], order[targetIndex]] = [order[targetIndex], order[sourceIndex]];
     table.setColumnOrder(order);
+    notifyColumnConfig();
   };
   const previewColumnAtPointer = (clientX: number, pending: NonNullable<typeof pendingColumnDrag>) => {
     const remaining = table
@@ -223,6 +246,7 @@ export function DataTable(props: DataTableProps) {
   };
   const finishColumnDrag = (commit: boolean) => {
     if (!commit && pendingColumnDrag) table.setColumnOrder(pendingColumnDrag.originalOrder);
+    if (commit && draggedColumnId()) notifyColumnConfig();
     removeColumnDragListeners?.();
     removeColumnDragListeners = undefined;
     pendingColumnDrag = undefined;
@@ -265,6 +289,7 @@ export function DataTable(props: DataTableProps) {
       setResizingColumnId(undefined);
       document.removeEventListener(releaseEvent, finish);
       finishColumnResize = undefined;
+      notifyColumnConfig();
     };
     finishColumnResize = finish;
     document.addEventListener(releaseEvent, finish);
@@ -569,7 +594,10 @@ export function DataTable(props: DataTableProps) {
                             event.stopPropagation();
                             beginColumnResize(header.column.id, event, header.getResizeHandler());
                           }}
-                          onDblClick={() => header.column.resetSize()}
+                          onDblClick={() => {
+                            header.column.resetSize();
+                            notifyColumnConfig();
+                          }}
                           onKeyDown={(event) => {
                             if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
                             event.preventDefault();
@@ -585,6 +613,7 @@ export function DataTable(props: DataTableProps) {
                                 ),
                               ),
                             }));
+                            notifyColumnConfig();
                           }}
                         />
                       </Show>

@@ -47,6 +47,8 @@ export interface WorkspaceViewDraft {
   readonly query: Omit<QueryDefinition, "id">;
   readonly presentation: Omit<PresentationDefinition, "id">;
   readonly sourceNavigationEntryId?: string;
+  /** Copies persisted per-view settings from a system view when available. */
+  readonly sourceViewId?: ViewId;
 }
 
 export interface WorkspaceShortcutDraft {
@@ -91,6 +93,8 @@ export interface WorkspaceDocument {
   views: Record<ViewId, SavedView>;
   navigation: Record<NavigationId, NavigationItem>;
   rootItems: NavigationId[];
+  /** JSON-serializable, namespaced state keyed by view identity (including system views). */
+  viewConfigs?: Record<ViewId, Record<string, unknown>>;
 }
 import type { NavigationSelection } from "../../../base/navigation";
 import type { EntityId } from "../entities/entity-description";

@@ -60,6 +60,9 @@ export function addViewFromDraft(workspace: WorkspaceDocument, draft: WorkspaceV
   const viewId = addView(workspace, draft.name, queryId, presentationId);
   workspace.views[viewId].description = draft.description;
   workspace.views[viewId].sourceNavigationEntryId = draft.sourceNavigationEntryId;
+  if (draft.sourceViewId && workspace.viewConfigs?.[draft.sourceViewId]) {
+    workspace.viewConfigs[viewId] = cloneValue(workspace.viewConfigs[draft.sourceViewId]);
+  }
   return viewId;
 }
 
@@ -83,6 +86,7 @@ export function duplicateView(workspace: WorkspaceDocument, viewId: ViewId): Vie
   if (!source || !navigation) return undefined;
   const copyId = addView(workspace, `${source.name} copy`, source.queryId, source.presentationId);
   workspace.views[copyId].description = source.description;
+  if (workspace.viewConfigs?.[viewId]) workspace.viewConfigs[copyId] = cloneValue(workspace.viewConfigs[viewId]);
   const copyNavigation = Object.values(workspace.navigation).find(
     (item) => item.type === "view" && item.viewId === copyId,
   );
@@ -102,6 +106,7 @@ export function deleteNavigationItem(workspace: WorkspaceDocument, itemId: Navig
   delete workspace.navigation[itemId];
   if (item.type === "view") {
     delete workspace.views[item.viewId];
+    if (workspace.viewConfigs) delete workspace.viewConfigs[item.viewId];
     return item.viewId;
   }
   return undefined;

@@ -72,7 +72,7 @@ function TicketMasterDetailView() {
       entityId={ticketEntity.id}
       initialFilter={query()?.filter}
       initialSorting={query()?.sorting.map((sort) => ({ attribute: sort.field, direction: sort.direction }))}
-      filterIdentity={query()?.id}
+      filterIdentity={controller.navigation.selectedViewId()}
     />
   );
 }
@@ -128,6 +128,7 @@ export default plugin({
                     fields: presentation.fields,
                   },
                   sourceNavigationEntryId: `tickets/${entryId}`,
+                  sourceViewId: `system:tickets:${viewId}`,
                 },
               }),
             };

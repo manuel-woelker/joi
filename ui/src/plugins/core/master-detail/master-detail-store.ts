@@ -4,7 +4,7 @@ import type { ApplicationServices } from "../../../base/services/application-ser
 import type { useActions } from "../actions/ActionProvider";
 import type { LookupService } from "../lookups/lookup";
 import { lookupEntryId } from "../lookups/lookup";
-import type { DataTableSort } from "../../../components/DataTable";
+import type { DataTableColumnConfig, DataTableSort } from "../../../components/DataTable";
 import type { Facet, FacetValueState } from "../../../components/facet/FacetFilter";
 import { entityFilterAttributes } from "../../../components/filter-definition/entity-filter-attributes";
 import { createCompositeFilter, type FilterDefinition } from "../../../components/filter-definition/filter-model";
@@ -33,6 +33,7 @@ import {
 import { recordTablePerformance } from "./table-performance";
 import { reconcileRecordResult } from "./record-editor-store";
 import { summarizeFacets, summarizeFilter } from "./constraint-summary";
+import type { MasterDetailViewConfig } from "./master-detail-view-config";
 
 /** Reactive inputs for one fixed entity type and a changing owning view. */
 export interface MasterDetailStoreOptions {
@@ -40,6 +41,8 @@ export interface MasterDetailStoreOptions {
   readonly initialFilter?: Accessor<FilterDefinition | undefined>;
   readonly initialSorting?: Accessor<readonly DataTableSort[] | undefined>;
   readonly filterIdentity?: Accessor<string | undefined>;
+  readonly viewConfig?: Accessor<MasterDetailViewConfig | undefined>;
+  readonly onViewConfigChange?: (identity: string, config: MasterDetailViewConfig) => void;
 }
 
 /** Explicit service boundary; constructing a store requires no component context. */
@@ -80,19 +83,30 @@ export function createMasterDetailStore(
     description.attributes.map((attribute) => ({ attribute: attribute.id, type: attribute.valueType })),
   );
   const [activePanel, setActivePanel] = createSignal<"filter" | "facets">();
+  const defaultFacetIds = description.attributes
+    .filter((attribute) => attribute.facet)
+    .map((attribute) => attribute.id);
+  const savedConfig = options.viewConfig?.();
   const [visibleFacetIds, setVisibleFacetIds] = createSignal<readonly string[]>(
-    description.attributes.filter((attribute) => attribute.facet).map((attribute) => attribute.id),
+    savedConfig?.visibleFacetIds ?? defaultFacetIds,
   );
-  const [filter, setFilter] = createSignal<FilterDefinition>(cloneFilter(options.initialFilter?.()));
-  const [sorting, setSorting] = createSignal<readonly DataTableSort[]>(cloneSorting(options.initialSorting?.()));
-  const [facetSelections, setFacetSelections] = createSignal<readonly FacetSelection[]>([]);
+  const [filter, setFilter] = createSignal<FilterDefinition>(
+    cloneFilter(savedConfig?.filter ?? options.initialFilter?.()),
+  );
+  const [sorting, setSorting] = createSignal<readonly DataTableSort[]>(
+    cloneSorting(savedConfig?.sorting ?? options.initialSorting?.()),
+  );
+  const [facetSelections, setFacetSelections] = createSignal<readonly FacetSelection[]>(savedConfig?.facets ?? []);
   const [search, setSearch] = createSignal("");
   // Quicksearch fans out to every attribute; column rendering decides what
   // can show marks (text and numbers highlight, lookup labels highlight
   // matched words, other custom cells stay untouched).
   const searchAttributes = createMemo(() => description.attributes.map((attribute) => attribute.id));
   // Per-column quick filters keyed by attribute, trimmed on commit.
-  const [columnSearch, setColumnSearch] = createSignal<Readonly<Record<string, string>>>({});
+  const [columnSearch, setColumnSearch] = createSignal<Readonly<Record<string, string>>>(
+    savedConfig?.columnSearch ?? {},
+  );
+  const [columnConfig, setColumnConfig] = createSignal<DataTableColumnConfig | undefined>(savedConfig?.columns);
   const [filterParameters, setFilterParameters] = createSignal({
     filter: filter(),
     facets: facetSelections(),
@@ -183,16 +197,70 @@ export function createMasterDetailStore(
     if (options.filterIdentity?.() === activeFilterIdentity) return;
     activeFilterIdentity = options.filterIdentity?.();
     generation++;
-    const next = cloneFilter(options.initialFilter?.());
-    const nextSorting = cloneSorting(options.initialSorting?.());
+    const config = options.viewConfig?.();
+    const next = cloneFilter(config?.filter ?? options.initialFilter?.());
+    const nextSorting = cloneSorting(config?.sorting ?? options.initialSorting?.());
+    const nextFacets = config?.facets ?? [];
+    const nextColumnSearch = config?.columnSearch ?? {};
     batch(() => {
       setFilter(next);
       setSorting(nextSorting);
-      setFacetSelections([]);
+      setFacetSelections(nextFacets);
+      setVisibleFacetIds(config?.visibleFacetIds ?? defaultFacetIds);
+      setColumnConfig(config?.columns);
       setSearch("");
-      setColumnSearch({});
-      setFilterParameters({ filter: next, facets: [], search: "", columnSearch: {} });
+      setColumnSearch(nextColumnSearch);
+      setFilterParameters({
+        filter: next,
+        facets: nextFacets,
+        search: "",
+        columnSearch: trimColumnSearch(nextColumnSearch),
+      });
     });
+  });
+  let lastConfigIdentity = options.filterIdentity?.();
+  let lastConfig = JSON.stringify(viewConfigSnapshot());
+  let pendingConfig: { identity: string; config: MasterDetailViewConfig; serialized: string } | undefined;
+  let saveConfigTimer: ReturnType<typeof setTimeout> | undefined;
+  const flushViewConfig = () => {
+    clearTimeout(saveConfigTimer);
+    saveConfigTimer = undefined;
+    if (!pendingConfig) return;
+    const pending = pendingConfig;
+    pendingConfig = undefined;
+    lastConfig = pending.serialized;
+    options.onViewConfigChange?.(pending.identity, pending.config);
+  };
+  onCleanup(flushViewConfig);
+  function viewConfigSnapshot(): MasterDetailViewConfig {
+    return {
+      filter: filter(),
+      facets: facetSelections(),
+      visibleFacetIds: visibleFacetIds(),
+      sorting: sorting(),
+      columnSearch: columnSearch(),
+      columns: columnConfig(),
+    };
+  }
+  createEffect(() => {
+    const identity = options.filterIdentity?.();
+    const config = viewConfigSnapshot();
+    const serialized = JSON.stringify(config);
+    if (identity !== lastConfigIdentity) {
+      flushViewConfig();
+      lastConfigIdentity = identity;
+      lastConfig = serialized;
+      return;
+    }
+    if (!identity || serialized === lastConfig) {
+      clearTimeout(saveConfigTimer);
+      saveConfigTimer = undefined;
+      pendingConfig = undefined;
+      return;
+    }
+    clearTimeout(saveConfigTimer);
+    pendingConfig = { identity, config, serialized };
+    saveConfigTimer = setTimeout(flushViewConfig, 300);
   });
   let pendingFetch: { fetchMs: number; settledAt: number; rowCount: number; columnCount: number } | undefined;
   let rowRequest = 0;
@@ -440,6 +508,7 @@ export function createMasterDetailStore(
     filteredAttributes,
     hasFilterRestriction,
     hasFacetRestriction,
+    columnConfig,
     filterSummary: () => summarizeFilter(filter(), description),
     facetSummary: () => summarizeFacets(facetSelections(), description),
     facetedAttributes,
@@ -471,6 +540,7 @@ export function createMasterDetailStore(
     setColumnSearch: (attribute: string, value: string) =>
       setColumnSearch((current) => ({ ...current, [attribute]: value })),
     setSorting: (value: readonly DataTableSort[]) => setSorting(value),
+    setColumnConfig: (value: DataTableColumnConfig) => setColumnConfig(value),
     togglePanel: (panel: "filter" | "facets") => setActivePanel((current) => (current === panel ? undefined : panel)),
     closePanel: () => setActivePanel(undefined),
     changeFacet,

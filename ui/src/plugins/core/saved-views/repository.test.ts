@@ -15,8 +15,12 @@ describe("LocalWorkspaceRepository", () => {
     const repository = new LocalWorkspaceRepository(createTestWorkspace(), localStorage);
     const workspace = repository.reset();
     workspace.views["view-active"].name = "Changed";
+    workspace.viewConfigs = { "view-active": { "master-detail": { columnSearch: { name: "Jane" } } } };
     repository.save(workspace);
     expect(repository.load().workspace.views["view-active"].name).toBe("Changed");
+    expect(repository.load().workspace.viewConfigs?.["view-active"]?.["master-detail"]).toEqual({
+      columnSearch: { name: "Jane" },
+    });
   });
 
   it("normalizes legacy administration shortcuts to regular views", () => {

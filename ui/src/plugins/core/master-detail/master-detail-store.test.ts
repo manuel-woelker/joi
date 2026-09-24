@@ -12,6 +12,7 @@ import {
 import { entityId, type EntityDescription } from "../entities/entity-description";
 import { lookupId } from "../lookups/lookup";
 import { createMasterDetailStore } from "./master-detail-store";
+import type { MasterDetailViewConfig } from "./master-detail-view-config";
 
 const description: EntityDescription = {
   id: entityId("test"),
@@ -74,7 +75,11 @@ async function settle() {
 function setup(
   load: (request: Request) => Promise<unknown> = async (request) =>
     request.results[0].type === "rows" ? rows(["a", "b"]) : count(request.results[0].attribute),
-  override?: { description?: EntityDescription; label?: (id: string, value: string) => Promise<string> },
+  override?: {
+    description?: EntityDescription;
+    label?: (id: string, value: string) => Promise<string>;
+    configs?: Record<string, MasterDetailViewConfig>;
+  },
 ) {
   const requests: Request[] = [];
   const fetchService = new FetchService(async (_url, init) => {
@@ -95,8 +100,16 @@ function setup(
     const [selectedRecordId, selectRecord] = createSignal<string>();
     const [creatingRecord, setCreating] = createSignal(false);
     const [identity, setIdentity] = createSignal("one");
+    const saveConfig = vi.fn((id: string, config: MasterDetailViewConfig) => {
+      if (override?.configs) override.configs[id] = structuredClone(config);
+    });
     const store = createMasterDetailStore(
-      { description: override?.description ?? description, filterIdentity: identity },
+      {
+        description: override?.description ?? description,
+        filterIdentity: identity,
+        viewConfig: override?.configs ? () => override.configs?.[identity()] : undefined,
+        onViewConfigChange: override?.configs ? saveConfig : undefined,
+      },
       {
         fetchService,
         dataChanges,
@@ -128,6 +141,7 @@ function setup(
       dataChanges,
       selectRecord,
       setIdentity,
+      saveConfig,
       dispose,
       unregister,
       invalidateSource,
@@ -139,6 +153,56 @@ function setup(
 }
 
 describe("master-detail store", () => {
+  it("restores per-view filters, facets, sorting, quickfilters, and column layout", async () => {
+    vi.useFakeTimers();
+    const filter = createFilterCriterion(filterAttributeId("name"), filterOperatorId("contains"), {
+      type: "value",
+      value: "Jane",
+    });
+    const configs: Record<string, MasterDetailViewConfig> = {
+      one: {
+        filter,
+        facets: [{ attribute: "name", value: "Name a", state: "included" }],
+        visibleFacetIds: [],
+        sorting: [{ attribute: "name", direction: "descending" }],
+        columnSearch: { name: "Jane" },
+        columns: { order: ["name", "id"], widths: { name: 220 } },
+      },
+    };
+    const { store, setIdentity, saveConfig, dispose } = setup(undefined, { configs });
+    await settle();
+    expect(store.filter()).toEqual(filter);
+    expect(store.sorting()).toEqual(configs.one.sorting);
+    expect(store.columnSearch()).toEqual({ name: "Jane" });
+    expect(store.columnConfig()).toEqual(configs.one.columns);
+    expect(store.visibleFacets()).toEqual([]);
+
+    store.setFacetValue("name", "Name b", "excluded");
+    store.setColumnConfig({ order: ["id", "name"], widths: { name: 180 } });
+    vi.advanceTimersByTime(300);
+    expect(saveConfig).toHaveBeenCalledWith(
+      "one",
+      expect.objectContaining({
+        columns: { order: ["id", "name"], widths: { name: 180 } },
+        facets: [
+          { attribute: "name", value: "Name a", state: "included" },
+          { attribute: "name", value: "Name b", state: "excluded" },
+        ],
+      }),
+    );
+
+    setIdentity("two");
+    expect(store.columnConfig()).toBeUndefined();
+    expect(store.columnSearch()).toEqual({});
+    expect(store.visibleFacets().length).toBe(1);
+    setIdentity("one");
+    expect(store.columnConfig()).toEqual({ order: ["id", "name"], widths: { name: 180 } });
+    expect(store.filter()).toEqual(filter);
+
+    store.setColumnSearch("name", "changed");
+    dispose();
+    expect(configs.one.columnSearch).toEqual({ name: "changed" });
+  });
   it("clears one column's nested filters, facets, and quickfilter without changing other columns", async () => {
     vi.useFakeTimers();
     const { store, requests } = setup();

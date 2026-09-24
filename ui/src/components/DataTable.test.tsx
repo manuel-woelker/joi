@@ -560,6 +560,30 @@ describe("DataTable", () => {
     await waitFor(() => expect(document.documentElement.style.userSelect).toBe(""));
   });
 
+  it("restores column layout and reports keyboard changes", () => {
+    const result = createResult("Jane", 34);
+    const onColumnConfigChange = vi.fn();
+    render(() => (
+      <DataTable
+        ariaLabel="People"
+        result={result}
+        columns={[
+          { column: result.requireColumn("name"), header: "Name" },
+          { column: result.requireColumn("age"), header: "Age" },
+        ]}
+        columnConfig={{ order: ["age", "name"], widths: { age: 90 } }}
+        onColumnConfigChange={onColumnConfigChange}
+      />
+    ));
+
+    expect(screen.getAllByRole("columnheader").map((header) => header.textContent)).toEqual(["Age", "Name"]);
+    expect(screen.getByRole("separator", { name: "Resize Age column" }).getAttribute("aria-valuenow")).toBe("90");
+    fireEvent.keyDown(screen.getByRole("columnheader", { name: "Age" }), { key: "ArrowRight", altKey: true });
+    expect(onColumnConfigChange).toHaveBeenLastCalledWith({ order: ["name", "age"], widths: { age: 90 } });
+    fireEvent.keyDown(screen.getByRole("separator", { name: "Resize Age column" }), { key: "ArrowRight" });
+    expect(onColumnConfigChange).toHaveBeenLastCalledWith({ order: ["name", "age"], widths: { age: 98 } });
+  });
+
   it("forwards row context menu events without activating the row", () => {
     const result = createResult("Jane", 34);
     const contextMenu = vi.fn();
