@@ -15,7 +15,11 @@ version = "0.1.0"
 edition = "2024"
 license = "MIT"
 
-# Keep local development builds fast while compiling dependencies with release-level
-# optimization. Cargo applies this override to dependency packages, including crates.io.
-[profile.dev.package."*"]
+# Run workspace crates and dependencies with release-level optimizations in dev.
+[profile.dev]
 opt-level = 3
+debug = 0
+debug-assertions = false
+overflow-checks = false
+codegen-units = 16
+incremental = false

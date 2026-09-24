@@ -26,7 +26,7 @@ use crate::{
 /// Bounds each key/value transaction and keeps per-chunk index work small,
 /// so large imports stay responsive and a failed chunk only abandons its
 /// own rows instead of the whole request.
-const MUTATION_CHUNK_SIZE: usize = 10_000;
+const MUTATION_CHUNK_SIZE: usize = 50_000;
 
 /// Coordinates authoritative entity storage with a derived search index.
 pub struct IndexedDataStore {
@@ -775,7 +775,21 @@ fn validate_unique_ids(ids: &[joi_base::JoiString]) -> JoiResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::data_store::{AttributeName, ColumnDescription, QueryCriterion};
+    use crate::data_store::{
+        AttributeName, ColumnDescription, DataStoreDeleteMutation, QueryCriterion,
+    };
+
+    #[test]
+    fn mutation_chunks_split_at_the_batch_limit() {
+        let steps = vec![DataStoreMutationStep::Delete(DataStoreDeleteMutation {
+            table_name: TableName("users".into()),
+            ids: vec!["id".into(); MUTATION_CHUNK_SIZE + 1],
+        })];
+        let chunks = mutation_chunks(&steps);
+        assert_eq!(chunks.len(), 2);
+        assert_eq!(chunks[0].rows, 0..MUTATION_CHUNK_SIZE);
+        assert_eq!(chunks[1].rows, MUTATION_CHUNK_SIZE..MUTATION_CHUNK_SIZE + 1);
+    }
 
     fn users_table() -> TableDescription {
         let column = |name: &'static str| ColumnDescription {

@@ -5,6 +5,9 @@ arguments=()
 for argument in "$@"; do
 	if [[ "${argument}" == "--target=x86_64-unknown-linux-gnu" ]]; then
 		arguments+=("--target=x86_64-linux-gnu")
+	elif [[ "${argument}" == "-Wl,-O1" ]]; then
+		# Zig's linker ignores this Rust-supplied GNU ld optimization flag.
+		continue
 	else
 		arguments+=("${argument}")
 	fi
