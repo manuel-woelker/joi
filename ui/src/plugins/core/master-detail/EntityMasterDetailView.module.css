@@ -61,6 +61,15 @@
   max-width: 340px;
 }
 
+.constraintSummary {
+  display: grid;
+  gap: 2px;
+}
+
+.constraintSummary strong {
+  margin-bottom: 2px;
+}
+
 .filterHeader {
   display: flex;
   min-height: 32px;

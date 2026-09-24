@@ -104,9 +104,16 @@ describe("EntityMasterDetailView master table", () => {
     expect(filterButton.hasAttribute("data-restricted")).toBe(true);
     expect(facetButton.hasAttribute("data-restricted")).toBe(false);
 
+    fireEvent.mouseEnter(filterButton.parentElement!);
+    expect((await screen.findByRole("tooltip")).textContent).toContain("Name is set");
+    fireEvent.mouseLeave(filterButton.parentElement!);
+
     fireEvent.contextMenu(screen.getByText("Name a"));
     fireEvent.click(await screen.findByRole("menuitem", { name: 'Include "Name a"' }));
     expect(facetButton.hasAttribute("data-restricted")).toBe(true);
+    fireEvent.mouseEnter(facetButton.parentElement!);
+    expect((await screen.findByRole("tooltip")).textContent).toContain('Name: Include "Name a"');
+    fireEvent.mouseLeave(facetButton.parentElement!);
     fireEvent.contextMenu(screen.getByRole("columnheader", { name: "Name" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Clear filters and facets" }));
     expect(filterButton.hasAttribute("data-restricted")).toBe(false);

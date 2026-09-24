@@ -32,6 +32,7 @@ import {
 } from "../saved-views/entity-query";
 import { recordTablePerformance } from "./table-performance";
 import { reconcileRecordResult } from "./record-editor-store";
+import { summarizeFacets, summarizeFilter } from "./constraint-summary";
 
 /** Reactive inputs for one fixed entity type and a changing owning view. */
 export interface MasterDetailStoreOptions {
@@ -439,6 +440,8 @@ export function createMasterDetailStore(
     filteredAttributes,
     hasFilterRestriction,
     hasFacetRestriction,
+    filterSummary: () => summarizeFilter(filter(), description),
+    facetSummary: () => summarizeFacets(facetSelections(), description),
     facetedAttributes,
     columnFilters,
     hasColumnConstraints,

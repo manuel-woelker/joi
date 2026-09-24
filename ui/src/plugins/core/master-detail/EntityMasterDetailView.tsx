@@ -14,6 +14,7 @@ import type { FilterDefinition } from "../../../components/filter-definition/fil
 import { IconButton } from "../../../components/IconButton";
 import { QuickFilterInput } from "../../../components/QuickFilterInput";
 import { Select } from "../../../components/Select";
+import { Tooltip } from "../../../components/Tooltip";
 import { useActions } from "../actions/ActionProvider";
 import { createEntityTableColumns } from "../entities/bound-entity";
 import type { EntityId } from "../entities/entity-description";
@@ -170,32 +171,70 @@ function EntityMasterDetailContent(props: {
                   placeholder={`Search ${description.pluralLabel.toLowerCase()}`}
                   ariaLabel={`Search ${description.pluralLabel.toLowerCase()}`}
                 />
-                <IconButton
-                  label={
-                    store.activePanel() === "filter"
-                      ? "Close filter"
-                      : `Filter ${description.pluralLabel.toLowerCase()}`
-                  }
-                  icon={<FunnelIcon size={17} />}
-                  text="Filter"
-                  aria-expanded={store.activePanel() === "filter"}
-                  data-restricted={store.hasFilterRestriction() ? "" : undefined}
-                  class={`${styles.filterButton} ${store.activePanel() === "filter" ? styles.activeFilter : ""}`}
-                  onClick={() => store.togglePanel("filter")}
-                />
-                <IconButton
-                  label={
-                    store.activePanel() === "facets"
-                      ? "Close facets"
-                      : `Show ${description.pluralLabel.toLowerCase()} facets`
-                  }
-                  icon={<GemIcon size={17} />}
-                  text="Facets"
-                  aria-expanded={store.activePanel() === "facets"}
-                  data-restricted={store.hasFacetRestriction() ? "" : undefined}
-                  class={`${styles.facetButton} ${store.activePanel() === "facets" ? styles.activeFilter : ""}`}
-                  onClick={() => store.togglePanel("facets")}
-                />
+                <Tooltip
+                  content={() => (
+                    <div class={styles.constraintSummary}>
+                      <strong>Filters</strong>
+                      <Show when={store.filterSummary().length} fallback={<div>No active filters</div>}>
+                        <For each={store.filterSummary()}>
+                          {(line) => <div style={{ "padding-left": `${line.depth * 12}px` }}>{line.text}</div>}
+                        </For>
+                      </Show>
+                    </div>
+                  )}
+                >
+                  <IconButton
+                    label={
+                      store.activePanel() === "filter"
+                        ? "Close filter"
+                        : `Filter ${description.pluralLabel.toLowerCase()}`
+                    }
+                    icon={<FunnelIcon size={17} />}
+                    text="Filter"
+                    aria-expanded={store.activePanel() === "filter"}
+                    data-restricted={store.hasFilterRestriction() ? "" : undefined}
+                    class={`${styles.filterButton} ${store.activePanel() === "filter" ? styles.activeFilter : ""}`}
+                    onClick={() => store.togglePanel("filter")}
+                  />
+                </Tooltip>
+                <Tooltip
+                  content={() => (
+                    <div class={styles.constraintSummary}>
+                      <strong>Facets</strong>
+                      <Show when={store.facetSummary().length} fallback={<div>No active facets</div>}>
+                        <For each={store.facetSummary()}>
+                          {(selection) => (
+                            <div>
+                              {selection.attribute}: {selection.state === "included" ? "Include" : "Exclude"} {'"'}
+                              {selection.value === null ? (
+                                "Unassigned"
+                              ) : selection.lookup && typeof selection.value === "string" ? (
+                                <LookupValue lookup={selection.lookup} value={selection.value} />
+                              ) : (
+                                String(selection.value)
+                              )}
+                              {'"'}
+                            </div>
+                          )}
+                        </For>
+                      </Show>
+                    </div>
+                  )}
+                >
+                  <IconButton
+                    label={
+                      store.activePanel() === "facets"
+                        ? "Close facets"
+                        : `Show ${description.pluralLabel.toLowerCase()} facets`
+                    }
+                    icon={<GemIcon size={17} />}
+                    text="Facets"
+                    aria-expanded={store.activePanel() === "facets"}
+                    data-restricted={store.hasFacetRestriction() ? "" : undefined}
+                    class={`${styles.facetButton} ${store.activePanel() === "facets" ? styles.activeFilter : ""}`}
+                    onClick={() => store.togglePanel("facets")}
+                  />
+                </Tooltip>
                 <IconButton
                   label={`Refresh ${description.pluralLabel.toLowerCase()}`}
                   icon={<RefreshCwIcon size={17} />}
