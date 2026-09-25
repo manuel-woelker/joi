@@ -1,0 +1,41 @@
+.data,
+.model,
+.filter {
+  overflow-wrap: anywhere;
+}
+
+.data {
+  color: var(--color-ink);
+  font-weight: 650;
+}
+
+.model {
+  color: var(--color-text-muted);
+  font-weight: 650;
+  text-decoration: underline dotted var(--color-border-strong);
+  text-underline-offset: 3px;
+}
+
+.filter {
+  color: var(--color-ink);
+}
+
+.filter::before,
+.filter::after {
+  display: inline-block;
+  color: var(--color-primary);
+  font-size: 0.85em;
+  line-height: 0.7em;
+  vertical-align: middle;
+  white-space: pre;
+}
+
+.filter::before {
+  margin-right: 3px;
+  content: "⌜\A⌞";
+}
+
+.filter::after {
+  margin-left: 3px;
+  content: "⌝\A⌟";
+}
