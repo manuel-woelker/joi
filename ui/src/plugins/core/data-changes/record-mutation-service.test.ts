@@ -67,8 +67,7 @@ describe("RecordMutationService", () => {
     expect(fetcher).toHaveBeenCalledOnce();
     const body = JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body));
     expect(body.steps.map(({ update }: { update: { ids: string[] } }) => update.ids)).toEqual([
-      ["ticket-1"],
-      ["ticket-2"],
+      ["ticket-1", "ticket-2"],
     ]);
     expect(published).toEqual(["ticket-1", "ticket-2"]);
   });

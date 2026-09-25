@@ -53,20 +53,38 @@ export async function updateRecords(
   updates: readonly RecordUpdate[],
 ): Promise<void> {
   if (!updates.length) return;
+  const groups = new Map<
+    string,
+    {
+      ids: string[];
+      columns: { attribute: string; values: { type: string; values: (QueryValue | null)[] } }[];
+    }
+  >();
+  for (const { id, fields } of updates) {
+    const orderedFields = [...fields].sort((a, b) => a.field.attribute.localeCompare(b.field.attribute));
+    const encoded = orderedFields.map(({ field, value }) => ({
+      attribute: field.attribute,
+      type: field.optional && value === "" ? "nullable_string" : field.control === "integer" ? "int" : "string",
+      value: field.optional && value === "" ? null : value,
+    }));
+    const signature = JSON.stringify(encoded.map(({ attribute, type }) => [attribute, type]));
+    let group = groups.get(signature);
+    if (!group) {
+      group = {
+        ids: [],
+        columns: encoded.map(({ attribute, type }) => ({ attribute, values: { type, values: [] } })),
+      };
+      groups.set(signature, group);
+    }
+    group.ids.push(id);
+    encoded.forEach(({ value }, index) => group.columns[index].values.values.push(value));
+  }
   await service.post("/api/mutate", {
-    steps: updates.map(({ id, fields }) => ({
+    steps: [...groups.values()].map(({ ids, columns }) => ({
       update: {
         table_name: definition.tableName,
-        ids: [id],
-        columns: fields.map(({ field, value }) => ({
-          attribute: field.attribute,
-          values:
-            field.optional && value === ""
-              ? { type: "nullable_string", values: [null] }
-              : field.control === "integer"
-                ? { type: "int", values: [value] }
-                : { type: "string", values: [value] },
-        })),
+        ids,
+        columns,
       },
     })),
   });
