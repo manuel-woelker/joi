@@ -1,5 +1,5 @@
 import type { MasterDetailDefinition } from "../master-detail/definition";
-import { updateRecord, type RecordFieldValue } from "../master-detail/record-api";
+import { updateRecords, type RecordFieldValue } from "../master-detail/record-api";
 import { serviceKey } from "../../../base/service-registry";
 import type { QueryValue } from "../query/query-result";
 import type { FetchService } from "../../../base/services/fetch-service";
@@ -20,28 +20,43 @@ export class RecordMutationService {
     changes: Readonly<Record<string, QueryValue>>,
     source?: string,
   ): Promise<void> {
-    const key = `${definition.tableName}\0${recordId}`;
-    const previous = this.pending.get(key) ?? Promise.resolve();
-    const operation = previous
-      .catch(() => undefined)
-      .then(async () => {
-        const fields = toFieldValues(definition, changes);
-        if (fields.length === 0) return;
-        await updateRecord(this.fetchService, definition, recordId, fields);
+    return this.updateMany(definition, [{ recordId, changes }], source);
+  }
+
+  updateMany(
+    definition: MasterDetailDefinition,
+    updates: readonly { readonly recordId: string; readonly changes: Readonly<Record<string, QueryValue>> }[],
+    source?: string,
+  ): Promise<void> {
+    const prepared = updates
+      .map(({ recordId, changes }) => ({ recordId, changes, fields: toFieldValues(definition, changes) }))
+      .filter(({ fields }) => fields.length > 0);
+    if (!prepared.length) return Promise.resolve();
+    const keys = prepared.map(({ recordId }) => `${definition.tableName}\0${recordId}`);
+    if (new Set(keys).size !== keys.length) throw new Error("A record may only be updated once per batch");
+    const previous = keys.map((key) => this.pending.get(key)).filter((pending): pending is Promise<void> => !!pending);
+    const operation = Promise.all(previous.map((pending) => pending.catch(() => undefined))).then(async () => {
+      await updateRecords(
+        this.fetchService,
+        definition,
+        prepared.map(({ recordId, fields }) => ({ id: recordId, fields })),
+      );
+      for (const { recordId, changes } of prepared) {
         this.dataChanges.publish({
           tableName: definition.tableName,
           recordId,
           changes: Object.freeze({ ...changes }),
           source,
         });
-      });
-    this.pending.set(key, operation);
+      }
+    });
+    for (const key of keys) this.pending.set(key, operation);
     void operation.then(
       () => {
-        if (this.pending.get(key) === operation) this.pending.delete(key);
+        for (const key of keys) if (this.pending.get(key) === operation) this.pending.delete(key);
       },
       () => {
-        if (this.pending.get(key) === operation) this.pending.delete(key);
+        for (const key of keys) if (this.pending.get(key) === operation) this.pending.delete(key);
       },
     );
     return operation;

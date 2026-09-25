@@ -7,6 +7,11 @@ export interface RecordFieldValue {
   readonly value: QueryValue;
 }
 
+export interface RecordUpdate {
+  readonly id: string;
+  readonly fields: readonly RecordFieldValue[];
+}
+
 export async function createRecord(
   service: FetchService,
   definition: MasterDetailDefinition,
@@ -39,24 +44,31 @@ export async function updateRecord(
   id: string,
   fields: readonly RecordFieldValue[],
 ): Promise<void> {
+  await updateRecords(service, definition, [{ id, fields }]);
+}
+
+export async function updateRecords(
+  service: FetchService,
+  definition: MasterDetailDefinition,
+  updates: readonly RecordUpdate[],
+): Promise<void> {
+  if (!updates.length) return;
   await service.post("/api/mutate", {
-    steps: [
-      {
-        update: {
-          table_name: definition.tableName,
-          ids: [id],
-          columns: fields.map(({ field, value }) => ({
-            attribute: field.attribute,
-            values:
-              field.optional && value === ""
-                ? { type: "nullable_string", values: [null] }
-                : field.control === "integer"
-                  ? { type: "int", values: [value] }
-                  : { type: "string", values: [value] },
-          })),
-        },
+    steps: updates.map(({ id, fields }) => ({
+      update: {
+        table_name: definition.tableName,
+        ids: [id],
+        columns: fields.map(({ field, value }) => ({
+          attribute: field.attribute,
+          values:
+            field.optional && value === ""
+              ? { type: "nullable_string", values: [null] }
+              : field.control === "integer"
+                ? { type: "int", values: [value] }
+                : { type: "string", values: [value] },
+        })),
       },
-    ],
+    })),
   });
 }
 

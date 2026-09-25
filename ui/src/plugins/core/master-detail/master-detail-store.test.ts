@@ -421,6 +421,14 @@ describe("master-detail store", () => {
     expect(selectedRecordId()).toBeUndefined();
   });
 
+  it("offers every selected row as an action target", async () => {
+    const { store } = setup();
+    await settle();
+    store.selectRow(store.table().rows![0]);
+    store.selectRow(store.table().rows![1], "toggle");
+    expect(store.actionTarget()?.targets.map((target) => target.recordId)).toEqual(["a", "b"]);
+  });
+
   it("uses the open detail row as a range anchor after selection state resets", async () => {
     const { store, selectedRecordId, setIdentity } = setup();
     await settle();

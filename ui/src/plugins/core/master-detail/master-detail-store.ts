@@ -19,7 +19,7 @@ import { entityFilterAttributes } from "../../../components/filter-definition/en
 import { createCompositeFilter, type FilterDefinition } from "../../../components/filter-definition/filter-model";
 import { hasAttributeFilter, removeAttributeFilters } from "../../../components/filter-definition/filter-operations";
 import { deriveColumnHighlights } from "../../../components/text-highlight";
-import type { EntityRecordActionTarget } from "../actions/action";
+import type { ActionTargetSelection, EntityRecordActionTarget } from "../actions/action";
 import { actionsToContextMenuEntries } from "../actions/action-context-menu";
 import { contextMenuEntryId, contextMenuGroupId } from "../../../components/context-menu/context-menu";
 import { bindEntity } from "../entities/bound-entity";
@@ -58,7 +58,7 @@ export interface MasterDetailStoreOptions {
 export interface MasterDetailStoreDependencies {
   readonly fetchService: ApplicationServices["fetchService"];
   readonly dataChanges: Pick<ApplicationServices["dataChanges"], "subscribe">;
-  readonly recordMutations: Pick<ApplicationServices["recordMutations"], "update">;
+  readonly recordMutations: Pick<ApplicationServices["recordMutations"], "update" | "updateMany">;
   readonly navigation: Pick<
     NavigationController,
     "selectedRecordId" | "creatingRecord" | "selectRecord" | "createRecord" | "finishCreatingRecord" | "closeRecord"
@@ -512,26 +512,45 @@ export function createMasterDetailStore(
     for (const resource of facetResources) void resource.refetch();
   };
 
-  const actionTarget = (): EntityRecordActionTarget | undefined => {
+  const actionTarget = (): ActionTargetSelection | undefined => {
     const result = readRecords();
-    const recordId = navigation.selectedRecordId();
     const identity = result?.column(description.identityAttribute);
-    const row =
-      identity && recordId ? result?.rows.find((candidate) => candidate.value(identity) === recordId) : undefined;
-    if (!result || !recordId || !row) return undefined;
-    const values = Object.freeze(
-      Object.fromEntries(result.columns.map((column) => [column.attribute, row.value(column)!])),
-    );
+    if (!result || !identity) return undefined;
+    const selected = selectedRowIds();
+    const fallbackId = navigation.selectedRecordId();
+    const ids = selected.size ? selected : fallbackId ? new Set([fallbackId]) : new Set<string>();
+    const targets: EntityRecordActionTarget[] = result.rows.flatMap((row) => {
+      const recordId = row.value(identity);
+      if (typeof recordId !== "string" || !ids.has(recordId)) return [];
+      const values = Object.freeze(
+        Object.fromEntries(result.columns.map((column) => [column.attribute, row.value(column)!])),
+      );
+      return [
+        {
+          type: "entity-record" as const,
+          entityId: description.id,
+          recordId,
+          values,
+          update: async (changes: Readonly<Record<string, QueryValue>>) => {
+            const changed = Object.fromEntries(
+              Object.entries(changes).filter(([attribute, value]) => values[attribute] !== value),
+            );
+            if (Object.keys(changed).length) await recordMutations.update(editor, recordId, changed);
+          },
+        },
+      ];
+    });
+    if (!targets.length) return undefined;
     return {
-      type: "entity-record",
-      entityId: description.id,
-      recordId,
-      values,
-      update: async (changes) => {
-        const changed = Object.fromEntries(
-          Object.entries(changes).filter(([attribute, value]) => values[attribute] !== value),
-        );
-        if (Object.keys(changed).length) await recordMutations.update(editor, recordId, changed);
+      targets,
+      applyUpdates: async (updates) => {
+        const changed = updates.map(({ target, changes }) => ({
+          recordId: target.recordId,
+          changes: Object.fromEntries(
+            Object.entries(changes).filter(([attribute, value]) => target.values[attribute] !== value),
+          ),
+        }));
+        await recordMutations.updateMany(editor, changed);
       },
     };
   };

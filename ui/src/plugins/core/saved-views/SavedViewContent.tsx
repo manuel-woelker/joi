@@ -8,7 +8,7 @@ import { useContextMenu } from "../../../components/context-menu/ContextMenuProv
 import { contextMenuGroupId } from "../../../components/context-menu/context-menu";
 import styles from "../../../components/ViewContent.module.css";
 import { useActions } from "../actions/ActionProvider";
-import type { EntityRecordActionTarget } from "../actions/action";
+import type { ActionTargetSelection, EntityRecordActionTarget } from "../actions/action";
 import { actionsToContextMenuEntries } from "../actions/action-context-menu";
 import { bindEntity, createEntityTableColumns } from "../entities/bound-entity";
 import { createEntityEditorDefinition } from "../entities/entity-editor";
@@ -133,7 +133,7 @@ export function SavedViewContent() {
     }
   });
 
-  const actionTarget = (): EntityRecordActionTarget | undefined => {
+  const actionTarget = (): ActionTargetSelection | undefined => {
     const result = queryResult();
     const description = entity();
     const currentEditor = editor();
@@ -145,7 +145,7 @@ export function SavedViewContent() {
     const values = Object.freeze(
       Object.fromEntries(result.columns.map((column) => [column.attribute, row.value(column)!])),
     );
-    return {
+    const target: EntityRecordActionTarget = {
       type: "entity-record",
       entityId: description.id,
       recordId,
@@ -157,6 +157,20 @@ export function SavedViewContent() {
         if (Object.keys(changed).length) await recordMutations.update(currentEditor, recordId, changed);
       },
       activate: () => controller.selectRecord(recordId),
+    };
+    return {
+      targets: [target],
+      applyUpdates: async (updates) => {
+        await recordMutations.updateMany(
+          currentEditor,
+          updates.map(({ target, changes }) => ({
+            recordId: target.recordId,
+            changes: Object.fromEntries(
+              Object.entries(changes).filter(([attribute, value]) => target.values[attribute] !== value),
+            ),
+          })),
+        );
+      },
     };
   };
   onCleanup(actions.registerTarget(actionTarget));

@@ -21,6 +21,16 @@ export interface EntityRecordActionTarget {
 
 export type ActionTarget = EntityRecordActionTarget;
 
+export interface ActionTargetUpdate {
+  readonly target: EntityRecordActionTarget;
+  readonly changes: Readonly<Record<string, QueryValue>>;
+}
+
+export interface ActionTargetSelection {
+  readonly targets: readonly ActionTarget[];
+  applyUpdates(updates: readonly ActionTargetUpdate[]): Promise<void>;
+}
+
 export interface ActionContext {
   readonly currentUser: AuthenticatedUser;
   readonly target?: ActionTarget;
