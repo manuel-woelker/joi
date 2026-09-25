@@ -44,6 +44,14 @@ textarea {
   font: inherit;
 }
 
+input,
+select,
+textarea {
+  font-family: var(--font-data);
+  font-style: normal;
+  font-weight: 400;
+}
+
 :where(button, input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
   border: 1px solid var(--color-control-border);
   border-radius: 4px;

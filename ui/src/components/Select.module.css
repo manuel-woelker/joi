@@ -1,5 +1,5 @@
 .root { position: relative; width: 100%; }
-.control { display: grid; height: var(--control-height); grid-template-columns: minmax(0, 1fr) 28px; border: 1px solid var(--color-control-border); border-radius: 5px; background: var(--color-control-background); box-shadow: inset 0 1px 2px var(--color-control-inset-shadow); }
+.control { display: grid; height: var(--control-height); grid-template-columns: minmax(0, 1fr) 28px; border: 1px solid var(--color-control-border); border-radius: 5px; background: var(--color-control-background); box-shadow: inset 0 1px 2px var(--color-control-inset-shadow); font-family: var(--font-data); font-style: normal; font-weight: 400; }
 .control:hover { border-color: var(--color-control-border-hover); background: var(--color-control-background-hover); }
 .control:focus-within, .control.open { border-color: var(--color-primary); outline: 2px solid var(--color-primary-soft); }
 .control.invalid { border-color: var(--color-danger); }
@@ -11,7 +11,7 @@
 .control button:hover:not(:disabled) { background: var(--color-surface-hover); color: var(--color-ink); }
 .popup { position: fixed; z-index: 1000; width: max-content; overflow: hidden; border: 1px solid var(--color-border); border-radius: 5px; background: var(--color-surface); box-shadow: 0 8px 24px var(--color-shadow); }
 .popup ul { max-height: var(--select-list-height); overflow-y: auto; margin: 0; padding: 4px; list-style: none; }
-.popup li { min-height: 34px; padding: 8px 10px; border-radius: 3px; color: var(--color-ink); cursor: pointer; }
+.popup li { min-height: 34px; padding: 8px 10px; border-radius: 3px; color: var(--color-ink); font-family: var(--font-data); font-style: normal; font-weight: 400; cursor: pointer; }
 .popup li.active { background: var(--color-surface-hover); }
 .popup li[aria-selected="true"] { background: var(--color-surface-selected); font-weight: 700; }
 .state { padding: 10px 12px; border-top: 1px solid var(--color-border-soft); color: var(--color-text-muted); font-size: 12px; }
