@@ -103,10 +103,35 @@ describe("DataTable", () => {
     expect(screen.getByRole("columnheader", { name: "Name" })).toBeTruthy();
     expect(screen.getByText("Jane")).toBeTruthy();
     expect(screen.getByText("34 years").tagName).toBe("STRONG");
+    expect(screen.getByText("34 years").closest("td")?.querySelector("span")?.className).toContain("data");
     expect(screen.getByText("Jane").closest("tr")?.dataset.rowId).toBe("Jane");
     expect(screen.getByLabelText("Table status").textContent).toBe(
       "Rows shown: 1Rows in view: 1Rows selected: 0Total rows: 1",
     );
+  });
+
+  it("uses data styling for string-returning custom cells such as rich text descriptions", () => {
+    const result = parseQueryResponse({
+      number_of_hits: 1,
+      result_columns: [{ attribute: "description", values: { type: "string", values: ["<p>Ticket details</p>"] } }],
+    });
+    render(() => (
+      <DataTable
+        ariaLabel="Tickets"
+        result={result}
+        columns={[
+          {
+            column: result.requireColumn("description"),
+            header: "Description",
+            cell: () => "Ticket details",
+          },
+        ]}
+      />
+    ));
+
+    const value = screen.getByText("Ticket details");
+    expect(value.tagName).toBe("SPAN");
+    expect(value.className).toContain("data");
   });
 
   it("highlights matches only in the searched column", () => {

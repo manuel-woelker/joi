@@ -6,11 +6,14 @@
 
 .data {
   color: var(--color-ink);
-  font-weight: 650;
+  font-family: var(--font-data);
+  font-style: normal;
+  font-weight: 400;
 }
 
 .model {
   color: var(--color-text-muted);
+  font-style: normal;
   font-weight: 650;
   text-decoration: underline dotted var(--color-border-strong);
   text-underline-offset: 3px;
@@ -18,6 +21,7 @@
 
 .filter {
   color: var(--color-ink);
+  font-style: normal;
 }
 
 .filter::before,

@@ -846,7 +846,7 @@ function DataTableCell(props: {
     const current = value();
     return typeof current === "string" || typeof current === "number" ? String(current) : "";
   });
-  // Custom cells returning JSX render untouched; plain strings highlight.
+  // Plain strings can be highlighted; custom JSX keeps its own rendering.
   const segments = createMemo(() => {
     const current = rendered();
     return typeof current === "string" && props.highlights?.length
@@ -855,14 +855,7 @@ function DataTableCell(props: {
   });
   return (
     <>
-      <Show
-        when={segments()}
-        fallback={
-          <Show when={props.definition.cell} fallback={<DataText>{rendered()}</DataText>}>
-            <>{rendered()}</>
-          </Show>
-        }
-      >
+      <Show when={segments()} fallback={<DataText>{rendered()}</DataText>}>
         {(resolved) => <HighlightedSegments segments={resolved()} />}
       </Show>
     </>
