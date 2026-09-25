@@ -29,6 +29,17 @@ Each library should have enough documentation for a new contributor to understan
 When writing longer documentation, prefer headings framed as questions and answer them directly in the following paragraphs.
 This makes documentation easier to scan and helps keep each section purposeful.
 
+## UI Text Sources
+
+Use the children-only span components in `ui/src/components/SourceText.tsx` to distinguish text by its source:
+
+- `DataText` for values from records, such as a ticket key or a user's name.
+- `ModelText` for model-defined names, such as entity and attribute labels.
+- `FilterText` for query and filter expressions.
+- Plain text for ordinary UI copy; do not wrap it in a source-text component.
+
+Do not pass styling or DOM props to these components. The `Source Text` playground demo shows the treatments in context.
+
 ## Testing Strategy
 
 Features should be covered by automated tests where practical.
