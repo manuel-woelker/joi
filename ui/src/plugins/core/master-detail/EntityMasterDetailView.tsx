@@ -23,6 +23,7 @@ import { LookupValue, useLookupService } from "../lookups/lookup";
 import { useOptionalWorkspace } from "../saved-views/controller";
 import type { QueryColumnHandle, QueryResultRow } from "../query/query-result";
 import { createMasterDetailStore } from "./master-detail-store";
+import { DataText, FilterText, ModelText } from "../../../components/SourceText";
 import type { MasterDetailViewConfig } from "./master-detail-view-config";
 import styles from "./EntityMasterDetailView.module.css";
 import { MasterDetailView } from "./MasterDetailView";
@@ -104,7 +105,7 @@ function EntityMasterDetailContent(props: {
                 <header class={styles.filterHeader}>
                   <h2 class={styles.panelTitle}>
                     <FunnelIcon size={15} />
-                    Filter {description.pluralLabel}
+                    Filter <ModelText>{description.pluralLabel}</ModelText>
                   </h2>
                   <IconButton label="Close filter" icon={<XIcon size={16} />} onClick={() => store.closePanel()} />
                 </header>
@@ -120,7 +121,7 @@ function EntityMasterDetailContent(props: {
                 <header class={styles.filterHeader}>
                   <h2 class={styles.panelTitle}>
                     <GemIcon size={15} />
-                    {description.pluralLabel} facets
+                    <ModelText>{description.pluralLabel}</ModelText> facets
                   </h2>
                   <IconButton label="Close facets" icon={<XIcon size={16} />} onClick={() => store.closePanel()} />
                 </header>
@@ -159,7 +160,7 @@ function EntityMasterDetailContent(props: {
                       return lookup && typeof raw === "string" && raw ? (
                         <LookupValue lookup={lookup} value={raw} />
                       ) : (
-                        value.label
+                        <DataText>{value.label}</DataText>
                       );
                     }}
                   />
@@ -187,7 +188,11 @@ function EntityMasterDetailContent(props: {
                       <strong>Filters</strong>
                       <Show when={store.filterSummary().length} fallback={<div>No active filters</div>}>
                         <For each={store.filterSummary()}>
-                          {(line) => <div style={{ "padding-left": `${line.depth * 12}px` }}>{line.text}</div>}
+                          {(line) => (
+                            <div style={{ "padding-left": `${line.depth * 12}px` }}>
+                              <FilterText>{line.text}</FilterText>
+                            </div>
+                          )}
                         </For>
                       </Show>
                     </div>
@@ -215,13 +220,14 @@ function EntityMasterDetailContent(props: {
                         <For each={store.facetSummary()}>
                           {(selection) => (
                             <div>
-                              {selection.attribute}: {selection.state === "included" ? "Include" : "Exclude"} {'"'}
+                              <ModelText>{selection.attribute}</ModelText>:{" "}
+                              {selection.state === "included" ? "Include" : "Exclude"} {'"'}
                               {selection.value === null ? (
-                                "Unassigned"
+                                <DataText>Unassigned</DataText>
                               ) : selection.lookup && typeof selection.value === "string" ? (
                                 <LookupValue lookup={selection.lookup} value={selection.value} />
                               ) : (
-                                String(selection.value)
+                                <DataText>{String(selection.value)}</DataText>
                               )}
                               {'"'}
                             </div>

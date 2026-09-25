@@ -2,6 +2,7 @@ import { createSignal, Show } from "solid-js";
 
 import type { FetchService } from "../../../base/services/fetch-service";
 import { CommandService } from "../../../generated/api/command-service";
+import { ModelText } from "../../../components/SourceText";
 import styles from "./TicketTestDataDebugContribution.module.css";
 
 export function TicketTestDataDebugContribution(props: { fetchService: FetchService }) {
@@ -36,7 +37,7 @@ export function TicketTestDataDebugContribution(props: { fetchService: FetchServ
     >
       <p>Generate believable ticket records for development and performance testing.</p>
       <label>
-        Tickets
+        <ModelText>Tickets</ModelText>
         <input
           type="number"
           min="1"

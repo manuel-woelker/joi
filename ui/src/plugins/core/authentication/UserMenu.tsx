@@ -1,6 +1,7 @@
 import { Show, createSignal, onCleanup, onMount } from "solid-js";
 
 import type { AuthenticatedUser } from "./authentication-service";
+import { DataText } from "../../../components/SourceText";
 import styles from "./UserMenu.module.css";
 
 export function UserMenu(props: { user: AuthenticatedUser; onLogout: () => void | Promise<void> }) {
@@ -39,14 +40,18 @@ export function UserMenu(props: { user: AuthenticatedUser; onLogout: () => void 
         aria-expanded={open()}
         onClick={() => setOpen((value) => !value)}
       >
-        {props.user.name}
+        <DataText>{props.user.name}</DataText>
         <span aria-hidden="true">⌄</span>
       </button>
       <Show when={open()}>
         <div class={styles.menu} role="menu">
           <div class={styles.identity}>
-            <strong>{props.user.name}</strong>
-            <span>{props.user.username}</span>
+            <strong>
+              <DataText>{props.user.name}</DataText>
+            </strong>
+            <span>
+              <DataText>{props.user.username}</DataText>
+            </span>
           </div>
           <button type="button" role="menuitem" disabled={pending()} onClick={() => void performLogout()}>
             {pending() ? "Logging out..." : "Logout"}

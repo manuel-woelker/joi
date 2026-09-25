@@ -2,6 +2,7 @@ import { createEffect, createSignal, For, onCleanup, onMount, Show } from "solid
 import { Portal } from "solid-js/web";
 
 import { KeyboardShortcut } from "../../../components/KeyboardShortcut";
+import { ModelText } from "../../../components/SourceText";
 import { useActions } from "./ActionProvider";
 import styles from "./ActionQuickLauncher.module.css";
 import type { UiAction } from "./action";
@@ -139,7 +140,9 @@ function ActionQuickLauncherDialog(props: {
                   onClick={() => run(action)}
                 >
                   <span class={styles.actionText}>
-                    <strong>{action.label}</strong>
+                    <strong>
+                      <ModelText>{action.label}</ModelText>
+                    </strong>
                     <span>{action.description}</span>
                   </span>
                   <Show when={action.hotkey}>{(hotkey) => <KeyboardShortcut shortcut={hotkey()} />}</Show>

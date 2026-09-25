@@ -3,6 +3,7 @@ import GripVerticalIcon from "lucide-solid/icons/grip-vertical";
 import Trash2Icon from "lucide-solid/icons/trash-2";
 
 import { Select } from "../Select";
+import { DataText, ModelText } from "../SourceText";
 import { Tree } from "../tree/Tree";
 import { createTreeRendererRegistry } from "../tree/tree-definition";
 import {
@@ -270,8 +271,12 @@ function CriterionRow(props: {
         renderEntry={(item) => (
           <div class={styles.attributeEntry}>
             <div>
-              <strong>{item.label}</strong>
-              <code>{item.valueType}</code>
+              <strong>
+                <ModelText>{item.label}</ModelText>
+              </strong>
+              <code>
+                <ModelText>{item.valueType}</ModelText>
+              </code>
             </div>
             <Show when={item.description}>
               <span>{item.description}</span>
@@ -405,7 +410,7 @@ function OperandEditor(props: {
                   });
                 }}
               />
-              {choice.label}
+              <DataText>{choice.label}</DataText>
             </label>
           )}
         </For>

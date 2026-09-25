@@ -2,6 +2,7 @@ import { For, Show, createResource, createSignal } from "solid-js";
 
 import type { FetchService } from "../../../base/services/fetch-service";
 import { loadLoginUsers, login, type AuthenticatedUser } from "./authentication-service";
+import { ModelText } from "../../../components/SourceText";
 import styles from "./Login.module.css";
 
 export function Login(props: { fetchService: FetchService; onLogin: (user: AuthenticatedUser) => void }) {
@@ -39,7 +40,9 @@ export function Login(props: { fetchService: FetchService; onLogin: (user: Authe
               </div>
             }
           >
-            <label for="login-user">User</label>
+            <label for="login-user">
+              <ModelText>User</ModelText>
+            </label>
             <select
               id="login-user"
               value={selectedUserId()}

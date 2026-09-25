@@ -63,7 +63,9 @@ describe("ExtensionInspector", () => {
     await waitFor(() => expect(screen.queryByText("navigation-sections")).not.toBeNull());
     const pointLabel = screen.getByText("navigation-sections");
     const extensionLabel = screen.getByText("ticket-navigation");
-    expect(pointLabel.parentElement?.className).not.toBe(extensionLabel.parentElement?.className);
+    expect(pointLabel.parentElement?.parentElement?.className).not.toBe(
+      extensionLabel.parentElement?.parentElement?.className,
+    );
 
     fireEvent.keyDown(window, { key: "Escape" });
     await waitFor(() => expect(screen.queryByText("navigation-sections")).toBeNull());

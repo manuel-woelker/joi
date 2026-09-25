@@ -1,5 +1,6 @@
 import { For, Show } from "solid-js";
 import styles from "./ActionCommands.module.css";
+import { ModelText } from "../../../components/SourceText";
 import { useActions } from "./ActionProvider";
 
 export function ActionCommands() {
@@ -22,7 +23,7 @@ export function ActionCommands() {
             aria-describedby={`${action.id}-description`}
             onClick={() => void actions.execute(action)}
           >
-            {action.label}
+            <ModelText>{action.label}</ModelText>
             <Show when={action.hotkey}>{(hotkey) => <span class={styles.hotkey}>{hotkey()}</span>}</Show>
             <span id={`${action.id}-description`} role="tooltip" class={styles.tooltip}>
               {action.description}

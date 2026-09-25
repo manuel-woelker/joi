@@ -2,6 +2,7 @@ import { Show } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import { ActionCommands } from "../plugins/core/actions/ActionCommands";
 import type { ApplicationView } from "../views/view";
+import { ModelText } from "./SourceText";
 import styles from "./ViewContent.module.css";
 
 export function ViewContent(props: { view?: ApplicationView }) {
@@ -20,12 +21,16 @@ export function ViewContent(props: { view?: ApplicationView }) {
           <>
             <div class={styles.viewHeading}>
               <div>
-                <p class={styles.eyebrow}>{view().section}</p>
+                <p class={styles.eyebrow}>
+                  <ModelText>{view().section}</ModelText>
+                </p>
                 <div class={styles.title}>
                   <Show when={view().icon}>
                     {(Icon) => <Dynamic component={Icon()} size={25} aria-hidden="true" />}
                   </Show>
-                  <h1>{view().name}</h1>
+                  <h1>
+                    <ModelText>{view().name}</ModelText>
+                  </h1>
                 </div>
                 <Show when={view().description}>{(description) => <p>{description()}</p>}</Show>
               </div>

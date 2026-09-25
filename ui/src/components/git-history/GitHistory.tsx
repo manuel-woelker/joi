@@ -1,5 +1,6 @@
 import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { formatRelativeTime } from "../relative-time";
+import { DataText } from "../SourceText";
 import styles from "./GitHistory.module.css";
 import type { GitHistoryCommit, GitHistoryCursor, GitHistorySource } from "./git-history";
 import { type GitHistoryGraphRow, layoutGitHistory } from "./git-history-layout";
@@ -70,18 +71,26 @@ export function GitHistory(props: GitHistoryProps) {
                   <CommitGraph row={row()} />
                   <div class={styles.details}>
                     <div class={styles.message}>
-                      <strong>{message().subject}</strong>
+                      <strong>
+                        <DataText>{message().subject}</DataText>
+                      </strong>
                       <Show when={message().body}>
-                        <span>{message().body}</span>
+                        <span>
+                          <DataText>{message().body}</DataText>
+                        </span>
                       </Show>
                     </div>
                     <div class={styles.metadata}>
-                      <span>{commit.author}</span>
+                      <span>
+                        <DataText>{commit.author}</DataText>
+                      </span>
                       <span aria-hidden="true">·</span>
                       <time dateTime={commit.authoredAt}>
-                        {relativeTime(commit.authoredAt, props.now?.() ?? new Date())}
+                        <DataText>{relativeTime(commit.authoredAt, props.now?.() ?? new Date())}</DataText>
                       </time>
-                      <code>{shortCommitId(commit.id)}</code>
+                      <code>
+                        <DataText>{shortCommitId(commit.id)}</DataText>
+                      </code>
                     </div>
                   </div>
                 </li>

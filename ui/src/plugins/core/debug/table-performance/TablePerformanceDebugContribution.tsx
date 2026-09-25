@@ -5,6 +5,7 @@ import {
   type TablePerformanceMetrics,
   tablePerformanceEntries,
 } from "../../master-detail/table-performance";
+import { ModelText } from "../../../../components/SourceText";
 import styles from "./TablePerformanceDebugContribution.module.css";
 
 function formatMs(value: number): string {
@@ -29,7 +30,10 @@ function EntityMetrics(props: { metrics: TablePerformanceMetrics }) {
   return (
     <section aria-label={`${metrics().entityLabel} performance`}>
       <h4>
-        {metrics().entityLabel} <span class={styles.tableName}>{metrics().tableName}</span>
+        <ModelText>{metrics().entityLabel}</ModelText>{" "}
+        <span class={styles.tableName}>
+          <ModelText>{metrics().tableName}</ModelText>
+        </span>
       </h4>
       <dl>
         <MetricRow label="Fetch" value={formatMs(metrics().fetchMs)} />

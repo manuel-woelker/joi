@@ -3,6 +3,7 @@ import { Show, createContext, createMemo, createResource, useContext, type JSX }
 import type { PluginRegistryAccess } from "../../../base/plugin-registry";
 import { extensionPoint } from "../../../base/plugin-registry";
 import { highlightSegments, type CompiledTextNeedle } from "../../../components/text-highlight";
+import { DataText } from "../../../components/SourceText";
 
 declare const lookupIdBrand: unique symbol;
 declare const lookupEntryIdBrand: unique symbol;
@@ -120,9 +121,11 @@ export function LookupValue(props: {
     return props.highlight?.length ? highlightSegments(text, props.highlight) : undefined;
   });
   return (
-    <Show when={segments()} fallback={<>{display()}</>}>
+    <Show when={segments()} fallback={<DataText>{display()}</DataText>}>
       {(resolved) => (
-        <>{resolved().map((segment) => (segment.highlighted ? <mark>{segment.text}</mark> : segment.text))}</>
+        <DataText>
+          {resolved().map((segment) => (segment.highlighted ? <mark>{segment.text}</mark> : segment.text))}
+        </DataText>
       )}
     </Show>
   );

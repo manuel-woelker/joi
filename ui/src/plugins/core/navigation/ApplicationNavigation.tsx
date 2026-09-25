@@ -27,6 +27,7 @@ import { useEntityRegistry } from "../entities/entity-registry";
 import { useWorkspace } from "../saved-views/controller";
 import type { WorkspaceEntryDraft } from "../saved-views/model";
 import { SavedViewNavigation } from "../saved-views/SavedViewNavigation";
+import { DataText, ModelText } from "../../../components/SourceText";
 import styles from "./ApplicationNavigation.module.css";
 import type { NavigationEntryId, NavigationLeafContribution, NavigationRootContribution } from "./contribution";
 import { navigationSection, validateNavigationRoots } from "./contribution";
@@ -211,7 +212,9 @@ export function ApplicationNavigation(props: { registry: PluginRegistry; userId:
                 onClick={() => setSystemOpen(open() ? undefined : section.id)}
               >
                 <Dynamic component={open() ? ChevronDownIcon : ChevronRightIcon} size={15} aria-hidden="true" />
-                <span class={styles.headingLabel}>{section.label}</span>
+                <span class={styles.headingLabel}>
+                  <ModelText>{section.label}</ModelText>
+                </span>
               </button>
               <Show when={open()}>
                 <div id={`system-navigation-${section.id}`} class={styles.panel}>
@@ -304,7 +307,9 @@ export function SystemTree(props: {
             size={16}
             aria-hidden="true"
           />
-          <span>{entry.label}</span>
+          <span>
+            <DataText>{entry.label}</DataText>
+          </span>
         </>
       );
     })
@@ -315,7 +320,9 @@ export function SystemTree(props: {
           <Show when={leaf.icon}>
             {(icon) => <Dynamic component={icon()} class={styles.leafIcon} size={16} aria-hidden="true" />}
           </Show>
-          <span>{leaf.label}</span>
+          <span>
+            <DataText>{leaf.label}</DataText>
+          </span>
         </>
       );
     })
@@ -386,7 +393,9 @@ function RecentTree(props: {
         <Show when={entryFor(node).icon}>
           {(icon) => <Dynamic component={icon()} class={styles.leafIcon} size={16} aria-hidden="true" />}
         </Show>
-        <span>{entryFor(node).label}</span>
+        <span>
+          <DataText>{entryFor(node).label}</DataText>
+        </span>
       </>
     ))
     .build();

@@ -10,6 +10,7 @@ import type { PresentationDefinition, QueryDefinition } from "../../core/saved-v
 import { cloneValue } from "../../core/saved-views/operations";
 import { validatePresentation } from "../../core/saved-views/query";
 import { ticketEntity } from "../entities/ticket-entity";
+import { ModelText } from "../../../components/SourceText";
 import styles from "./ViewEditor.module.css";
 
 export function ViewEditor() {
@@ -74,25 +75,29 @@ export function ViewEditor() {
         </div>
         <div class={styles.editorContent}>
           <section>
-            <h3>View</h3>
+            <h3>
+              <ModelText>View</ModelText>
+            </h3>
             <label>
-              Name
+              <ModelText>Name</ModelText>
               <input value={name()} onInput={(event) => setName(event.currentTarget.value)} />
             </label>
             <label>
-              Description
+              <ModelText>Description</ModelText>
               <textarea rows="2" value={description()} onInput={(event) => setDescription(event.currentTarget.value)} />
             </label>
           </section>
           <section>
             <div class={styles.sectionHeading}>
-              <h3>Query</h3>
+              <h3>
+                <ModelText>Query</ModelText>
+              </h3>
               <span>
                 {queryReferences()} view{queryReferences() === 1 ? "" : "s"}
               </span>
             </div>
             <label>
-              Definition
+              <ModelText>Definition</ModelText>
               <select
                 value={query()?.id}
                 onChange={(event) => setQuery(cloneValue(controller.workspace.queries[event.currentTarget.value]))}
@@ -103,7 +108,7 @@ export function ViewEditor() {
               </select>
             </label>
             <label>
-              Name
+              <ModelText>Name</ModelText>
               <input
                 value={query()?.name ?? ""}
                 onInput={(event) => query() && setQuery({ ...query()!, name: event.currentTarget.value })}
@@ -124,13 +129,15 @@ export function ViewEditor() {
           </section>
           <section>
             <div class={styles.sectionHeading}>
-              <h3>Presentation</h3>
+              <h3>
+                <ModelText>Presentation</ModelText>
+              </h3>
               <span>
                 {presentationReferences()} view{presentationReferences() === 1 ? "" : "s"}
               </span>
             </div>
             <label>
-              Definition
+              <ModelText>Definition</ModelText>
               <select
                 value={presentation()?.id}
                 onChange={(event) =>
@@ -143,7 +150,7 @@ export function ViewEditor() {
               </select>
             </label>
             <label>
-              Name
+              <ModelText>Name</ModelText>
               <input
                 value={presentation()?.name ?? ""}
                 onInput={(event) =>
@@ -166,7 +173,7 @@ export function ViewEditor() {
               </button>
             </div>
             <label>
-              Density
+              <ModelText>Density</ModelText>
               <select
                 value={presentation()?.density}
                 onChange={(event) =>

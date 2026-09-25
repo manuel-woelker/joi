@@ -4,6 +4,7 @@ import type { PluginRegistryAccess } from "../../../base/plugin-registry";
 import { InspectableExtension, InspectableExtensionPoint } from "../debug/inspector/extension-inspector";
 import styles from "./Administration.module.css";
 import { type AdministrationContribution, administrationContributions } from "./contribution";
+import { ModelText } from "../../../components/SourceText";
 
 export function administrationEntries(registry: PluginRegistryAccess): AdministrationContribution[] {
   return [...registry.extensions(administrationContributions)].sort((left, right) =>
@@ -35,7 +36,7 @@ export function Administration(props: {
                 onClick={() => props.onSelect(entry.value)}
               >
                 {entry.value.icon && <Dynamic component={entry.value.icon} size={16} aria-hidden="true" />}
-                {entry.value.name}
+                <ModelText>{entry.value.name}</ModelText>
               </button>
             </InspectableExtension>
           )}

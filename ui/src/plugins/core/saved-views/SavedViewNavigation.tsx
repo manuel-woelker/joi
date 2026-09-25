@@ -24,6 +24,7 @@ import { useEntityRegistry } from "../entities/entity-registry";
 import { navigationSection } from "../navigation/contribution";
 import { leafForWorkspaceSource, readWorkspaceCopy, workspaceEntryMimeType } from "../navigation/workspace-copy";
 import { useWorkspace } from "./controller";
+import { DataText } from "../../../components/SourceText";
 import type { NavigationId } from "./model";
 import styles from "./SavedViewNavigation.module.css";
 
@@ -184,14 +185,18 @@ export function SavedViewNavigation(props: { embedded?: boolean } = {}) {
           size={16}
           aria-hidden="true"
         />
-        <span>{label(node)}</span>
+        <span>
+          <DataText>{label(node)}</DataText>
+        </span>
         {commandButton(node)}
       </>
     ))
     .register(savedViewNodeKind, (node) => (
       <>
         <Dynamic component={iconForNode(node)} class={styles.entityIcon} size={16} aria-hidden="true" />
-        <span>{label(node)}</span>
+        <span>
+          <DataText>{label(node)}</DataText>
+        </span>
         {commandButton(node)}
       </>
     ))

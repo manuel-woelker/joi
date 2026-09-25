@@ -13,6 +13,7 @@ import {
   type TreeNodeId,
 } from "../tree/tree-model";
 import type { DiffDocument, DiffFile, DiffFileId } from "./diff-model";
+import { DataText } from "../SourceText";
 
 const diffFileKind = treeNodeKind("diff-file");
 
@@ -82,9 +83,13 @@ export function diffFileTreeDefinition(
       return (
         <>
           <Icon size={15} aria-hidden="true" />
-          <span>{String(node.data.label)}</span>
+          <span>
+            <DataText>{String(node.data.label)}</DataText>
+          </span>
           <small>
-            +{file.additions} -{file.deletions}
+            <DataText>
+              +{file.additions} -{file.deletions}
+            </DataText>
           </small>
         </>
       );

@@ -2,6 +2,7 @@ import { For, Show, type JSX } from "solid-js";
 import Trash2Icon from "lucide-solid/icons/trash-2";
 
 import { IconButton } from "../IconButton";
+import { DataText, ModelText } from "../SourceText";
 import styles from "./FacetFilter.module.css";
 
 export type FacetValueState = "neutral" | "included" | "excluded";
@@ -45,7 +46,9 @@ export function FacetFilter(props: FacetFilterProps) {
             <header class={styles.header}>
               <div class={styles.heading}>
                 <div>
-                  <h3 id={`facet-${facet.id}`}>{facet.label}</h3>
+                  <h3 id={`facet-${facet.id}`}>
+                    <ModelText>{facet.label}</ModelText>
+                  </h3>
                   <Show when={facet.description}>
                     <p>{facet.description}</p>
                   </Show>
@@ -92,8 +95,12 @@ export function FacetFilter(props: FacetFilterProps) {
                         >
                           <span aria-hidden="true">−</span>
                         </button>
-                        <span class={styles.label}>{props.renderValue?.(facet, entry) ?? entry.label}</span>
-                        <span class={styles.count}>{entry.count.toLocaleString()}</span>
+                        <span class={styles.label}>
+                          {props.renderValue?.(facet, entry) ?? <DataText>{entry.label}</DataText>}
+                        </span>
+                        <span class={styles.count}>
+                          <DataText>{entry.count.toLocaleString()}</DataText>
+                        </span>
                       </li>
                     );
                   }}

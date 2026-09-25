@@ -14,6 +14,7 @@ import {
 import { Portal } from "solid-js/web";
 
 import { serviceKey } from "../../../../base/service-registry";
+import { ModelText } from "../../../../components/SourceText";
 import styles from "./ExtensionInspector.module.css";
 
 export type InspectorMarkerKind = "extension" | "extension-point";
@@ -169,7 +170,9 @@ export function ExtensionInspectorOverlay(): JSX.Element {
                   height: `${frame.height}px`,
                 }}
               >
-                <span class={styles.label}>{frame.id}</span>
+                <span class={styles.label}>
+                  <ModelText>{frame.id}</ModelText>
+                </span>
               </div>
             )}
           </For>

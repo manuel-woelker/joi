@@ -8,6 +8,7 @@ import { QuickFilterInput } from "./QuickFilterInput";
 import { Portal } from "solid-js/web";
 
 import type { QueryColumnHandle, QueryResult, QueryResultRow, QueryValue } from "../plugins/core/query/query-result";
+import { DataText, ModelText } from "./SourceText";
 import styles from "./DataTable.module.css";
 import type { CompiledTextNeedle, HighlightSegment } from "./text-highlight";
 import { highlightSegments } from "./text-highlight";
@@ -501,7 +502,7 @@ export function DataTable(props: DataTableProps) {
                             when={canSort(header.column.id)}
                             fallback={
                               <span class={styles.columnLabel}>
-                                {flexRender(header.column.columnDef.header, header.getContext())}
+                                <ModelText>{flexRender(header.column.columnDef.header, header.getContext())}</ModelText>
                                 <Show when={props.filteredAttributes?.has(header.column.id)}>
                                   <FunnelIcon
                                     class={styles.filterIndicator}
@@ -533,7 +534,11 @@ export function DataTable(props: DataTableProps) {
                               onClick={(event) => changeSorting(header.column.id, event.shiftKey)}
                             >
                               <span class={styles.columnLabel}>
-                                <span>{flexRender(header.column.columnDef.header, header.getContext())}</span>
+                                <span>
+                                  <ModelText>
+                                    {flexRender(header.column.columnDef.header, header.getContext())}
+                                  </ModelText>
+                                </span>
                                 <Show when={props.filteredAttributes?.has(header.column.id)}>
                                   <FunnelIcon
                                     class={styles.filterIndicator}
@@ -728,7 +733,7 @@ export function DataTable(props: DataTableProps) {
             aria-hidden="true"
             style={{ left: `${columnDragPosition().x + 12}px`, top: `${columnDragPosition().y + 12}px` }}
           >
-            {pendingColumnDrag?.label}
+            {pendingColumnDrag?.label ? <ModelText>{pendingColumnDrag?.label}</ModelText> : null}
           </div>
         </Portal>
       </Show>
@@ -850,7 +855,14 @@ function DataTableCell(props: {
   });
   return (
     <>
-      <Show when={segments()} fallback={<>{rendered()}</>}>
+      <Show
+        when={segments()}
+        fallback={
+          <Show when={props.definition.cell} fallback={<DataText>{rendered()}</DataText>}>
+            <>{rendered()}</>
+          </Show>
+        }
+      >
         {(resolved) => <HighlightedSegments segments={resolved()} />}
       </Show>
     </>
@@ -870,5 +882,9 @@ function ColumnFilterInput(props: { filter: () => DataTableColumnFilter; label?:
 }
 
 function HighlightedSegments(props: { segments: readonly HighlightSegment[] }) {
-  return <>{props.segments.map((segment) => (segment.highlighted ? <mark>{segment.text}</mark> : segment.text))}</>;
+  return (
+    <DataText>
+      {props.segments.map((segment) => (segment.highlighted ? <mark>{segment.text}</mark> : segment.text))}
+    </DataText>
+  );
 }

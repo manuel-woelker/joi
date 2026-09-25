@@ -2,6 +2,7 @@ import type { ComponentProps } from "solid-js";
 import { createEffect, createSignal, onCleanup, onMount, Show, splitProps, untrack } from "solid-js";
 import styles from "./DateTime.module.css";
 import { formatRelativeTime } from "./relative-time";
+import { DataText } from "./SourceText";
 
 export interface DateTimeProps extends ComponentProps<"time"> {
   readonly value: string | Date | number;
@@ -65,11 +66,11 @@ export function DateTime(props: DateTimeProps) {
   return (
     <time {...rest} ref={host} class={`${styles.datetime} ${local.class ?? ""}`} datetime={iso()} title={absolute()}>
       <span ref={relativePart} class={styles.relative}>
-        {relative()}
+        <DataText>{relative()}</DataText>
       </span>
       <Show when={showAbsolute()}>
         <span ref={absolutePart} class={styles.absolute}>
-          ({absolute()})
+          (<DataText>{absolute()}</DataText>)
         </span>
       </Show>
     </time>

@@ -6,6 +6,7 @@ import XIcon from "lucide-solid/icons/x";
 import { createEffect, createMemo, createResource, createSignal, For, onMount, Show } from "solid-js";
 import type { ReviewComment } from "../../generated/api/api";
 import { DateTime } from "../DateTime";
+import { DataText } from "../SourceText";
 import { Tree } from "../tree/Tree";
 import type { CommentThreadEntry, ReviewCommentSource } from "./comment-model";
 import styles from "./DiffViewer.module.css";
@@ -193,9 +194,13 @@ function DiffRow(props: {
     case "file":
       return (
         <header class={styles.fileHeader}>
-          <strong>{props.row.file.displayPath}</strong>
+          <strong>
+            <DataText>{props.row.file.displayPath}</DataText>
+          </strong>
           <span class={styles.counts}>
-            -{props.row.file.deletions} +{props.row.file.additions}
+            <DataText>
+              -{props.row.file.deletions} +{props.row.file.additions}
+            </DataText>
           </span>
         </header>
       );
@@ -204,7 +209,11 @@ function DiffRow(props: {
         <p class={styles.info}>{props.row.file.status === "binary" ? "Binary file changed" : "File mode changed"}</p>
       );
     case "hunk":
-      return <div class={styles.hunk}>{props.row.header}</div>;
+      return (
+        <div class={styles.hunk}>
+          <DataText>{props.row.header}</DataText>
+        </div>
+      );
     case "code":
       return (
         <CodeBlock
@@ -328,14 +337,21 @@ function CodeSide(props: {
       }}
     >
       <Show when={number()}>
-        <Show when={props.commentable} fallback={<span class={styles.lineNumber}>{number()}</span>}>
+        <Show
+          when={props.commentable}
+          fallback={
+            <span class={styles.lineNumber}>
+              <DataText>{number()}</DataText>
+            </span>
+          }
+        >
           <button
             type="button"
             class={`${styles.lineNumber} ${styles.gutter}`}
             aria-label={`Comment on ${props.side === "additions" ? "new" : "old"} line ${number()}`}
             on:click={() => open({ file: props.file, line: number()!, side: props.side })}
           >
-            {number()}
+            <DataText>{number()}</DataText>
           </button>
         </Show>
       </Show>
@@ -352,7 +368,7 @@ function CodeSide(props: {
                 [styles.wordDeletion]: fragment.changed && props.side === "deletions",
               }}
             >
-              {fragment.text}
+              <DataText>{fragment.text}</DataText>
             </span>
           )}
         </For>
@@ -429,10 +445,13 @@ function Comment(props: {
         when={isEditing()}
         fallback={
           <>
-            <p>{props.entry.comment.comment}</p>
+            <p>
+              <DataText>{props.entry.comment.comment}</DataText>
+            </p>
             <footer>
               <span>
-                @{props.entry.comment.authorUsername} · <DateTime value={props.entry.comment.createdAt} />
+                <DataText>@{props.entry.comment.authorUsername}</DataText> ·{" "}
+                <DateTime value={props.entry.comment.createdAt} />
               </span>
               <Show when={props.currentUserId === props.entry.comment.authorId}>
                 <IconAction label="Edit comment" onClick={() => props.edit(props.entry.comment.id)}>

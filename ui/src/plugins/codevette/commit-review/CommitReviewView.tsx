@@ -8,6 +8,7 @@ import type { ReviewCommentSource } from "../../../components/diff-viewer/commen
 import { DiffViewer } from "../../../components/diff-viewer/DiffViewer";
 import { type TabDefinition, Tabs } from "../../../components/tabs/Tabs";
 import type { GitCommitDetails, UserInfo } from "../../../generated/api/api";
+import { DataText, ModelText } from "../../../components/SourceText";
 import { CommandService } from "../../../generated/api/command-service";
 import styles from "./CommitReviewView.module.css";
 
@@ -45,10 +46,16 @@ export function CommitReviewView(props: CommitReviewViewProps) {
               <header class={styles.header}>
                 <GitCommitIcon size={20} />
                 <div>
-                  <h1>{subject(details().message)}</h1>
-                  <code>{details().id.slice(0, 8)}</code>
+                  <h1>
+                    <DataText>{subject(details().message)}</DataText>
+                  </h1>
+                  <code>
+                    <DataText>{details().id.slice(0, 8)}</DataText>
+                  </code>
                 </div>
-                <span class={styles.status}>{details().status.replaceAll("-", " ")}</span>
+                <span class={styles.status}>
+                  <DataText>{details().status.replaceAll("-", " ")}</DataText>
+                </span>
               </header>
               <Tabs
                 class={styles.reviewTabs}
@@ -79,36 +86,58 @@ function commitTabs(
           <div class={styles.overview}>
             <dl class={styles.metadata}>
               <div>
-                <dt>Author</dt>
-                <dd>{details.author}</dd>
+                <dt>
+                  <ModelText>Author</ModelText>
+                </dt>
+                <dd>
+                  <DataText>{details.author}</DataText>
+                </dd>
               </div>
               <div>
-                <dt>Authored</dt>
+                <dt>
+                  <ModelText>Authored</ModelText>
+                </dt>
                 <dd>
                   <DateTime value={details.authoredAt} />
                 </dd>
               </div>
               <div>
-                <dt>Commit</dt>
+                <dt>
+                  <ModelText>Commit</ModelText>
+                </dt>
                 <dd>
-                  <code>{details.id}</code>
+                  <code>
+                    <DataText>{details.id}</DataText>
+                  </code>
                 </dd>
               </div>
               <div>
-                <dt>Parents</dt>
+                <dt>
+                  <ModelText>Parents</ModelText>
+                </dt>
                 <dd>
                   {details.parentIds.map((id) => (
-                    <code>{id.slice(0, 8)}</code>
+                    <code>
+                      <DataText>{id.slice(0, 8)}</DataText>
+                    </code>
                   ))}
                 </dd>
               </div>
             </dl>
             <div class={styles.summary}>
-              <strong>{details.filesChanged} files</strong>
-              <span class={styles.added}>+{details.linesAdded}</span>
-              <span class={styles.deleted}>-{details.linesDeleted}</span>
+              <strong>
+                <DataText>{details.filesChanged}</DataText> files
+              </strong>
+              <span class={styles.added}>
+                +<DataText>{details.linesAdded}</DataText>
+              </span>
+              <span class={styles.deleted}>
+                -<DataText>{details.linesDeleted}</DataText>
+              </span>
             </div>
-            <pre class={styles.message}>{details.message}</pre>
+            <pre class={styles.message}>
+              <DataText>{details.message}</DataText>
+            </pre>
           </div>
         </div>
       ),

@@ -1,6 +1,7 @@
 import { createResource, For, Match, Show, Switch, type JSX, type Resource } from "solid-js";
 
 import type { BackendPluginsService, PluginsResponse } from "./plugins-api";
+import { ModelText } from "../../../../components/SourceText";
 import styles from "./PluginMetadataDebugContributions.module.css";
 
 export function ExtensionPointsDebugContribution(props: { backendPluginsService: BackendPluginsService }) {
@@ -22,7 +23,9 @@ export function PluginsMetadata(props: { metadata: PluginsResponse }) {
         {(plugin) => (
           <li>
             <div>
-              <strong>{plugin.name}</strong>
+              <strong>
+                <ModelText>{plugin.name}</ModelText>
+              </strong>
               <span>{plugin.description}</span>
             </div>
             <dl>
@@ -37,9 +40,13 @@ export function PluginsMetadata(props: { metadata: PluginsResponse }) {
                 )}
               </Show>
               <dt>Extension points:</dt>
-              <dd>{plugin.extension_points.join(", ") || "None"}</dd>
+              <dd>
+                <ModelText>{plugin.extension_points.join(", ") || "None"}</ModelText>
+              </dd>
               <dt>Extensions:</dt>
-              <dd>{plugin.extensions.join(", ") || "None"}</dd>
+              <dd>
+                <ModelText>{plugin.extensions.join(", ") || "None"}</ModelText>
+              </dd>
             </dl>
           </li>
         )}
@@ -58,8 +65,10 @@ export function ExtensionPointsMetadata(props: { metadata: PluginsResponse }) {
             <li>
               <div>
                 <div class={styles.debugMetadataTitle}>
-                  <strong>{point.id}</strong>
-                  <small>{owner?.name ?? "unknown plugin"}</small>
+                  <strong>
+                    <ModelText>{point.id}</ModelText>
+                  </strong>
+                  <small>{owner?.name ? <ModelText>{owner.name}</ModelText> : "unknown plugin"}</small>
                 </div>
                 <span>{point.description}</span>
                 <SourceLocation file={point.file} line={point.line} />
@@ -74,8 +83,12 @@ export function ExtensionPointsMetadata(props: { metadata: PluginsResponse }) {
                     return (
                       <li>
                         <div class={styles.debugMetadataTitle}>
-                          <strong>{extensionId}</strong>
-                          <small>{extensionOwner?.name ?? "unknown plugin"}</small>
+                          <strong>
+                            <ModelText>{extensionId}</ModelText>
+                          </strong>
+                          <small>
+                            {extensionOwner?.name ? <ModelText>{extensionOwner.name}</ModelText> : "unknown plugin"}
+                          </small>
                         </div>
                         <span>{extension?.description ?? "No description"}</span>
                         <SourceLocation file={extension?.file} line={extension?.line} />

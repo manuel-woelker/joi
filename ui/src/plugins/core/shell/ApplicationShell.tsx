@@ -10,6 +10,7 @@ import { ApplicationServicesProvider } from "../../../base/services/application-
 import { ContextMenuProvider } from "../../../components/context-menu/ContextMenuProvider";
 import { IconButton } from "../../../components/IconButton";
 import { ViewContent } from "../../../components/ViewContent";
+import { DataText } from "../../../components/SourceText";
 import { ActionProvider } from "../actions/ActionProvider";
 import { ActionQuickLauncher } from "../actions/ActionQuickLauncher";
 import type { AuthenticatedUser } from "../authentication/authentication-service";
@@ -91,7 +92,9 @@ function ShellContent(props: { registry: PluginRegistry; user: AuthenticatedUser
             Joi
           </a>
           <span class={styles.topDivider} />
-          <span class={styles.currentView}>{selectedView()?.name ?? "Workspace"}</span>
+          <span class={styles.currentView}>
+            {selectedView() ? <DataText>{selectedView()!.name}</DataText> : "Workspace"}
+          </span>
         </div>
         <div class={styles.topCommands}>
           <InspectableExtensionPoint id={topBarContributions.id}>

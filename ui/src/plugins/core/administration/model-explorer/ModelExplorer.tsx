@@ -5,6 +5,7 @@ import { createMemo, createResource, createSignal, For, Show } from "solid-js";
 
 import type { FetchService } from "../../../../base/services/fetch-service";
 import { loadModelInfo } from "./model-info-api";
+import { ModelText } from "../../../../components/SourceText";
 import styles from "./ModelExplorer.module.css";
 
 export function ModelExplorer(props: { fetchService: FetchService }) {
@@ -30,7 +31,9 @@ export function ModelExplorer(props: { fetchService: FetchService }) {
                     onClick={() => setSelectedName(model.name)}
                   >
                     <TableIcon size={16} aria-hidden="true" />
-                    <span>{model.name}</span>
+                    <span>
+                      <ModelText>{model.name}</ModelText>
+                    </span>
                     <small>{model.attributes.length}</small>
                   </button>
                 )}
@@ -42,7 +45,9 @@ export function ModelExplorer(props: { fetchService: FetchService }) {
                   <header class={styles.modelHeader}>
                     <div>
                       <p>Model type</p>
-                      <h2 id="selected-model-name">{model().name}</h2>
+                      <h2 id="selected-model-name">
+                        <ModelText>{model().name}</ModelText>
+                      </h2>
                     </div>
                     <span>{model().attributes.length} attributes</span>
                   </header>
@@ -60,13 +65,17 @@ export function ModelExplorer(props: { fetchService: FetchService }) {
                           {(attribute) => (
                             <tr>
                               <td>
-                                <span class={styles.attributeName}>{attribute.name}</span>
+                                <span class={styles.attributeName}>
+                                  <ModelText>{attribute.name}</ModelText>
+                                </span>
                                 <Show when={attribute.key}>
                                   <KeyIcon size={13} aria-label="Key" />
                                 </Show>
                               </td>
                               <td>
-                                <code>{attribute.dataType}</code>
+                                <code>
+                                  <ModelText>{attribute.dataType}</ModelText>
+                                </code>
                                 <Show when={attribute.optional}>
                                   <span class={styles.qualifier}>optional</span>
                                 </Show>
@@ -77,7 +86,8 @@ export function ModelExplorer(props: { fetchService: FetchService }) {
                                   {(reference) => (
                                     <span class={styles.reference}>
                                       <LinkIcon size={12} aria-hidden="true" />
-                                      {reference().model}.{reference().attribute}
+                                      <ModelText>{reference().model}</ModelText>.
+                                      <ModelText>{reference().attribute}</ModelText>
                                     </span>
                                   )}
                                 </Show>

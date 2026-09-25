@@ -12,6 +12,7 @@ import { useOptionalApplicationServices } from "../../../base/services/applicati
 import { DataChangeService } from "../data-changes/data-change-service";
 import { RecordMutationService } from "../data-changes/record-mutation-service";
 import { type EditFieldDefinition, type MasterDetailDefinition } from "./definition";
+import { ModelText } from "../../../components/SourceText";
 import { createRecordEditorStore, createRecordCreationStore, type RecordEditorStore } from "./record-editor-store";
 import styles from "./RecordEditor.module.css";
 
@@ -114,7 +115,9 @@ function EditorLayout(props: {
   return (
     <div class={styles.form}>
       <header class={styles.header}>
-        <h2>{props.title}</h2>
+        <h2>
+          <ModelText>{props.title}</ModelText>
+        </h2>
         <button type="button" class={styles.close} aria-label="Close details" onClick={props.onClose}>
           <XIcon size={18} aria-hidden="true" />
         </button>
@@ -180,7 +183,9 @@ function EditorField(props: { field: EditFieldDefinition }) {
   const hasValidationMessages = () => formField.validationMessages().some((failure) => failure.touched);
   return (
     <div class={styles.field}>
-      <label for={inputId}>{formField.label}</label>
+      <label for={inputId}>
+        <ModelText>{formField.label}</ModelText>
+      </label>
       <Show
         when={props.field.control === "html"}
         fallback={

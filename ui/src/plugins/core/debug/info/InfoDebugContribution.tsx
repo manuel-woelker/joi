@@ -1,6 +1,7 @@
 import { createResource, For, Match, Switch } from "solid-js";
 
 import type { BackendInfoService } from "./info-api";
+import { DataText, ModelText } from "../../../../components/SourceText";
 import styles from "./InfoDebugContribution.module.css";
 
 export function InfoDebugContribution(props: { backendInfoService: BackendInfoService }) {
@@ -22,8 +23,12 @@ export function InfoDebugContribution(props: { backendInfoService: BackendInfoSe
             <For each={Object.entries(values())}>
               {([key, value]) => (
                 <>
-                  <dt>{key.replaceAll("_", " ")}</dt>
-                  <dd>{String(value)}</dd>
+                  <dt>
+                    <ModelText>{key.replaceAll("_", " ")}</ModelText>
+                  </dt>
+                  <dd>
+                    <DataText>{String(value)}</DataText>
+                  </dd>
                 </>
               )}
             </For>

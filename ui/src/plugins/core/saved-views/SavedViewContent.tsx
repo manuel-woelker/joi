@@ -17,6 +17,7 @@ import { MasterDetailView } from "../master-detail/MasterDetailView";
 import type { QueryColumnHandle, QueryResult } from "../query/query-result";
 import { useApplicationServices } from "../../../base/services/application-services";
 import { loadEntityRecords } from "./entity-query";
+import { DataText, ModelText } from "../../../components/SourceText";
 import { useWorkspace } from "./controller";
 import { executeQuery, validatePresentation } from "./query";
 
@@ -235,7 +236,9 @@ export function SavedViewContent() {
             when={!queryResult.error}
             fallback={
               <div class={styles.errorState}>
-                <p>{entity()?.pluralLabel ?? "Records"} could not be loaded.</p>
+                <p>
+                  <ModelText>{entity()?.pluralLabel ?? "Records"}</ModelText> could not be loaded.
+                </p>
                 <button class={styles.secondary} onClick={() => refetch()}>
                   Retry
                 </button>
@@ -281,7 +284,15 @@ export function SavedViewContent() {
                         <For each={presentation()?.fields}>
                           {(field, index) => {
                             const value = () => row.value(queryResult()!.requireColumn(field.field));
-                            return index() === 0 ? <strong>{value()}</strong> : <span>{value()}</span>;
+                            return index() === 0 ? (
+                              <strong>
+                                <DataText>{value()}</DataText>
+                              </strong>
+                            ) : (
+                              <span>
+                                <DataText>{value()}</DataText>
+                              </span>
+                            );
                           }}
                         </For>
                       </article>
@@ -339,11 +350,27 @@ function openRecord(
   if (typeof id === "string") controller.selectRecord(id);
 }
 
-function resultCount(result: QueryResult | undefined, visibleRows: number, pluralLabel = "records"): string {
-  if (!result) return `0 ${pluralLabel.toLocaleLowerCase()}`;
+function resultCount(result: QueryResult | undefined, visibleRows: number, pluralLabel = "records") {
   const label = pluralLabel.toLocaleLowerCase();
-  if (result.numberOfHits === undefined) return `${visibleRows} ${label}`;
-  return visibleRows === result.numberOfHits
-    ? `${result.numberOfHits} ${label}`
-    : `${visibleRows} of ${result.numberOfHits} ${label}`;
+  if (!result)
+    return (
+      <>
+        0 <ModelText>{label}</ModelText>
+      </>
+    );
+  if (result.numberOfHits === undefined)
+    return (
+      <>
+        {visibleRows} <ModelText>{label}</ModelText>
+      </>
+    );
+  return visibleRows === result.numberOfHits ? (
+    <>
+      {result.numberOfHits} <ModelText>{label}</ModelText>
+    </>
+  ) : (
+    <>
+      {visibleRows} of {result.numberOfHits} <ModelText>{label}</ModelText>
+    </>
+  );
 }

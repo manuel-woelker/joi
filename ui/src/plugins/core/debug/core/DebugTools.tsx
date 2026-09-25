@@ -6,6 +6,7 @@ import type { RegisteredExtensionEntry } from "../../../../base/plugin-registry"
 import type { PluginRegistryService } from "../../../../base/plugin-registry-service";
 import { InspectableExtension, InspectableExtensionPoint } from "../inspector/extension-inspector";
 import { debugContributions, type DebugContribution } from "./contribution";
+import { ModelText } from "../../../../components/SourceText";
 import styles from "./DebugTools.module.css";
 
 export interface DebugToolsProps {
@@ -45,7 +46,7 @@ export function DebugTools(props: DebugToolsProps) {
                     aria-current={active()?.id === contribution.id ? "page" : undefined}
                     onClick={() => setActive(() => contribution)}
                   >
-                    {contribution.value.name}
+                    <ModelText>{contribution.value.name}</ModelText>
                   </button>
                 )}
               </For>
@@ -53,7 +54,9 @@ export function DebugTools(props: DebugToolsProps) {
             <Show when={active()}>
               {(contribution) => (
                 <section class={styles.debugDetail} aria-labelledby="debug-detail-heading">
-                  <h3 id="debug-detail-heading">{contribution().value.name}</h3>
+                  <h3 id="debug-detail-heading">
+                    <ModelText>{contribution().value.name}</ModelText>
+                  </h3>
                   <div class={styles.debugPanelContent}>
                     <InspectableExtensionPoint id={debugContributions.id}>
                       <InspectableExtension id={contribution().id}>
