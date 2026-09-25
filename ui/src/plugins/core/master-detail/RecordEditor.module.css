@@ -1,6 +1,6 @@
 .form { display: grid; min-width: 0; gap: 18px; }
 .header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-.header h2 { margin: 0; color: var(--color-primary-dark); font-size: 18px; }
+.header h2 { margin: 0; color: var(--color-ink); font-size: 18px; }
 .close { padding: 0; border: 0; background: transparent; color: var(--color-text-muted); font-size: 24px; line-height: 1; }
 .field { display: grid; min-width: 0; gap: 7px; }
 .field label { color: var(--color-ink-soft); font-size: 12px; font-weight: 700; }
@@ -11,7 +11,7 @@
 .actions { display: flex; min-height: 36px; align-items: center; justify-content: flex-end; gap: 12px; }
 .error { margin-right: auto; color: var(--color-danger, #a32828); font-size: 13px; }
 .saving { color: var(--color-text-muted); font-size: 13px; }
-.saved { color: var(--color-secondary-dark); font-size: 13px; }
+.saved { color: var(--color-text-muted); font-size: 13px; }
 .primary, .secondary { padding: 8px 12px; border-radius: 4px; font: inherit; font-size: 13px; font-weight: 700; }
 .primary { border: 1px solid var(--color-primary); background: var(--color-primary); color: var(--color-surface); }
 .secondary { border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-ink); }

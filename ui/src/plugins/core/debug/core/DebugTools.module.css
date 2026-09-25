@@ -10,7 +10,7 @@
 .debugMaster { overflow: auto; padding: 6px; border-right: 1px solid var(--color-border-soft); background: var(--color-canvas); }
 .debugMaster button { display: block; width: 100%; padding: 8px 9px; border: 0; border-radius: 4px; color: var(--color-ink-soft); background: transparent; font-size: 12px; text-align: left; }
 .debugMaster button:hover, .debugMaster button:focus-visible { background: var(--color-surface-hover); }
-.debugMaster button.active { color: var(--color-primary-dark); background: var(--color-surface-selected); font-weight: 650; }
+.debugMaster button.active { color: var(--color-ink); background: var(--color-surface-selected); font-weight: 650; }
 .debugDetail { min-width: 0; overflow: auto; }
 .debugDetail h3 { margin: 0; padding: 12px 14px 9px; border-bottom: 1px solid var(--color-border-soft); font-size: 13px; }
 .debugPanelContent { padding: 10px 14px 14px; }

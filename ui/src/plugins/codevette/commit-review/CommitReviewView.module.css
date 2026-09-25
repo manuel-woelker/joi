@@ -2,7 +2,7 @@
 .header { min-height: 64px; padding: 12px 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--color-border); }
 .header h1 { margin: 0 0 3px; font-size: 17px; }
 .header code { color: var(--color-text-muted); }
-.status { margin-left: auto; padding: 3px 8px; border: 1px solid var(--color-border); border-radius: 4px; text-transform: capitalize; background: var(--color-primary-light); }
+.status { margin-left: auto; padding: 3px 8px; border: 1px solid var(--color-border); border-radius: 4px; text-transform: capitalize; background: var(--color-surface-muted); }
 .reviewTabs { min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); }
 .reviewTabs > [role="tablist"] { padding-inline: 20px; }
 .reviewTabs > [role="tabpanel"] { height: 100%; min-height: 0; overflow: hidden; padding: 0; }

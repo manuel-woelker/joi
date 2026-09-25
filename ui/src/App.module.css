@@ -2,13 +2,14 @@
 .topBar { position: relative; z-index: 30; display: flex; height: 52px; flex: 0 0 52px; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--color-border); background: var(--color-surface); padding: 0 18px; }
 .topBarStart, .topCommands { display: flex; align-items: center; }
 .topBarStart { min-width: 0; gap: 12px; }
-.brand { color: var(--color-primary-dark); font-size: 18px; font-weight: 750; text-decoration: none; }
+.brand { color: var(--color-ink); font-size: 18px; font-weight: 750; text-decoration: none; }
+.brand::before { display: inline-block; width: 2px; height: 18px; margin-right: 12px; background: var(--color-primary); content: ""; vertical-align: -3px; }
 .topDivider { width: 1px; height: 20px; background: var(--color-border); }
 .currentView { overflow: hidden; color: var(--color-text-muted); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
 .topCommands { gap: 6px; }
 .startupStatus { display: grid; min-height: 100vh; place-items: center; color: var(--color-text-muted); }
 .workspaceLayout { position: relative; display: flex; min-height: 0; flex: 1 1 auto; overflow: hidden; }
-.navigationPanel { position: relative; z-index: 20; display: flex; width: var(--sidebar-width); min-height: 0; flex: 0 0 var(--sidebar-width); overflow: hidden; border-right: 1px solid var(--color-border); background: var(--color-surface-muted); }
+.navigationPanel { position: relative; z-index: 20; display: flex; width: var(--sidebar-width); min-height: 0; flex: 0 0 var(--sidebar-width); overflow: hidden; border-right: 1px solid var(--color-border); background: var(--color-surface); }
 .sidebarResizer { position: absolute; z-index: 21; top: 0; right: -3px; bottom: 0; width: 6px; padding: 0; border: 0; background: transparent; cursor: col-resize; }
 .sidebarResizer:hover, .sidebarResizer:focus-visible { background: color-mix(in srgb, var(--color-primary) 34%, transparent); }
 .navigationBackdrop { position: fixed; z-index: 50; inset: 0; border: 0; background: var(--color-backdrop); }

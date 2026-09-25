@@ -27,8 +27,9 @@
 }
 
 .selected {
-  color: var(--color-primary-dark);
-  background: var(--color-surface-hover);
+  color: var(--color-ink);
+  background: var(--color-surface-selected);
+  box-shadow: inset 2px 0 var(--color-primary);
   font-weight: 650;
 }
 

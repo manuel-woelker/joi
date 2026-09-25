@@ -2,7 +2,7 @@
 .tabList { display: flex; min-width: 0; overflow-x: auto; border-bottom: 1px solid var(--color-border); background: var(--color-surface); }
 .tabList button { flex: 0 0 auto; min-height: 30px; padding: 4px 10px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; box-shadow: none; color: var(--color-text-muted); background: transparent; font-weight: 650; }
 .tabList button:hover:not(:disabled) { color: var(--color-ink); background: var(--color-surface-hover); }
-.tabList button[aria-selected="true"] { border-bottom-color: var(--color-primary); color: var(--color-primary-dark); background: var(--color-primary-soft); }
+.tabList button[aria-selected="true"] { border-bottom-color: var(--color-primary); color: var(--color-ink); background: var(--color-surface); }
 .tabList button:focus-visible { position: relative; outline: 2px solid var(--color-primary); outline-offset: -3px; }
 .tabList button:disabled { color: var(--color-text-subtle); background: transparent; cursor: not-allowed; }
 .tabPanel { min-width: 0; padding: 10px 2px 2px; outline: none; }

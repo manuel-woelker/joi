@@ -63,8 +63,8 @@
 }
 
 .values > li[data-state="included"] {
-  background: var(--color-secondary-soft);
-  color: var(--color-secondary-dark);
+  background: var(--color-surface-selected);
+  color: var(--color-ink);
 }
 
 .values > li[data-state="excluded"] {
@@ -100,8 +100,8 @@
 }
 
 .toggle[data-active="true"] {
-  border-color: var(--color-secondary-dark);
-  background: var(--color-secondary);
+  border-color: var(--color-ink-soft);
+  background: var(--color-ink-soft);
   color: white;
 }
 
