@@ -68,24 +68,27 @@ impl TestDataProvider for ProjectTestDataProvider {
             return Ok(());
         }
 
-        data_store.mutate(DataStoreMutation {
-            return_entities: false,
-            steps: vec![DataStoreMutationStep::Insert(DataStoreInsertMutation {
-                table_name: TableName("projects".into()),
-                columns: vec![
-                    string_column(
-                        "id",
-                        missing.iter().map(|_| ksuid::Ksuid::generate().to_base62()),
-                    ),
-                    string_column("name", missing.iter().map(|(name, _, _)| *name)),
-                    string_column(
-                        "description",
-                        missing.iter().map(|(_, description, _)| *description),
-                    ),
-                    string_column("prefix", missing.iter().map(|(_, _, prefix)| *prefix)),
-                ],
-            })],
-        })?;
+        data_store.mutate(
+            &joi_server::mutation_contributor::MutationContext::system(),
+            DataStoreMutation {
+                return_entities: false,
+                steps: vec![DataStoreMutationStep::Insert(DataStoreInsertMutation {
+                    table_name: TableName("projects".into()),
+                    columns: vec![
+                        string_column(
+                            "id",
+                            missing.iter().map(|_| ksuid::Ksuid::generate().to_base62()),
+                        ),
+                        string_column("name", missing.iter().map(|(name, _, _)| *name)),
+                        string_column(
+                            "description",
+                            missing.iter().map(|(_, description, _)| *description),
+                        ),
+                        string_column("prefix", missing.iter().map(|(_, _, prefix)| *prefix)),
+                    ],
+                })],
+            },
+        )?;
         Ok(())
     }
 }

@@ -73,6 +73,16 @@ pub trait KeyValueStore: Send {
 
     /// Returns the oldest entry in `table`, i.e. the one with the smallest key.
     fn query_oldest(&self, table: &TableName) -> JoiResult<Option<KeyValue>>;
+
+    /// Returns at most `limit` entries in a half-open range, descending by key.
+    /// An optional exclusive `before` cursor must lie within the range.
+    fn query_range_page(
+        &self,
+        table: &TableName,
+        range: Range<&[u8]>,
+        before: Option<&[u8]>,
+        limit: usize,
+    ) -> JoiResult<Vec<KeyValue>>;
 }
 
 /// A shareable key/value store handle.

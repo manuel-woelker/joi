@@ -510,30 +510,33 @@ mod tests {
             .ensure_tables(vec![NoteTable.table_description()])
             .unwrap();
         store
-            .mutate(DataStoreMutation {
-                return_entities: false,
-                steps: vec![DataStoreMutationStep::Insert(DataStoreInsertMutation {
-                    table_name: TableName("notes".into()),
-                    columns: vec![
-                        AttributeColumn {
-                            attribute: AttributeName("id".into()),
-                            values: Values::String(vec!["a".into(), "b".into(), "c".into()]),
-                        },
-                        AttributeColumn {
-                            attribute: AttributeName("title".into()),
-                            values: Values::String(vec![
-                                JoiString::from("Fix navigation bug"),
-                                JoiString::from("Navigation redesign"),
-                                JoiString::from("apple turnover"),
-                            ]),
-                        },
-                        AttributeColumn {
-                            attribute: AttributeName("owner".into()),
-                            values: Values::String(vec!["b".into(), "a".into(), "b".into()]),
-                        },
-                    ],
-                })],
-            })
+            .mutate(
+                &crate::mutation_contributor::MutationContext::system(),
+                DataStoreMutation {
+                    return_entities: false,
+                    steps: vec![DataStoreMutationStep::Insert(DataStoreInsertMutation {
+                        table_name: TableName("notes".into()),
+                        columns: vec![
+                            AttributeColumn {
+                                attribute: AttributeName("id".into()),
+                                values: Values::String(vec!["a".into(), "b".into(), "c".into()]),
+                            },
+                            AttributeColumn {
+                                attribute: AttributeName("title".into()),
+                                values: Values::String(vec![
+                                    JoiString::from("Fix navigation bug"),
+                                    JoiString::from("Navigation redesign"),
+                                    JoiString::from("apple turnover"),
+                                ]),
+                            },
+                            AttributeColumn {
+                                attribute: AttributeName("owner".into()),
+                                values: Values::String(vec!["b".into(), "a".into(), "b".into()]),
+                            },
+                        ],
+                    })],
+                },
+            )
             .unwrap();
         let command = QueryCommand::new(Arc::new(Mutex::new(Box::new(store))));
 

@@ -182,35 +182,38 @@ impl TestDataProvider for CurrentRepositoryProvider {
             attributes: vec![AttributeName("id".into())],
         })?;
 
-        data_store.mutate(DataStoreMutation {
-            return_entities: false,
-            steps: [
-                (existing.number_of_hits == 0).then(|| {
-                    DataStoreMutationStep::Insert(DataStoreInsertMutation {
-                        table_name: TableName("repositories".into()),
-                        columns: vec![
-                            string_column("id", repository_id.clone()),
-                            string_column("key", "joi"),
-                            string_column("name", "Joi"),
-                            string_column("path", path.as_ref()),
-                        ],
-                    })
-                }),
-                (existing_branch.number_of_hits == 0).then(|| {
-                    DataStoreMutationStep::Insert(DataStoreInsertMutation {
-                        table_name: TableName("repository_branches".into()),
-                        columns: vec![
-                            string_column("id", ksuid::Ksuid::generate().to_base62()),
-                            string_column("repository_id", repository_id),
-                            string_column("name", "main"),
-                        ],
-                    })
-                }),
-            ]
-            .into_iter()
-            .flatten()
-            .collect(),
-        })?;
+        data_store.mutate(
+            &joi_server::mutation_contributor::MutationContext::system(),
+            DataStoreMutation {
+                return_entities: false,
+                steps: [
+                    (existing.number_of_hits == 0).then(|| {
+                        DataStoreMutationStep::Insert(DataStoreInsertMutation {
+                            table_name: TableName("repositories".into()),
+                            columns: vec![
+                                string_column("id", repository_id.clone()),
+                                string_column("key", "joi"),
+                                string_column("name", "Joi"),
+                                string_column("path", path.as_ref()),
+                            ],
+                        })
+                    }),
+                    (existing_branch.number_of_hits == 0).then(|| {
+                        DataStoreMutationStep::Insert(DataStoreInsertMutation {
+                            table_name: TableName("repository_branches".into()),
+                            columns: vec![
+                                string_column("id", ksuid::Ksuid::generate().to_base62()),
+                                string_column("repository_id", repository_id),
+                                string_column("name", "main"),
+                            ],
+                        })
+                    }),
+                ]
+                .into_iter()
+                .flatten()
+                .collect(),
+            },
+        )?;
         Ok(())
     }
 }

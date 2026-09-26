@@ -187,61 +187,58 @@ sequence. A request-wide rollback and retry-idempotency protocol are out of scop
 
 ## What are the implementation steps?
 
-- [ ] Add documented mutation context/observation/collector types and extension
+- [x] Add documented mutation context/observation/collector types and extension
       point. Thread actor context through all mutation call sites and test-data
       helpers without changing existing chunking or transport contracts.
-- [ ] Implement table-interest routing and preparation in `IndexedDataStore`;
+- [x] Implement table-interest routing and preparation in `IndexedDataStore`;
       capture old states for tracked inserts/deletes and reuse update reads.
       Merge auxiliary entries into each chunk's single atomic KV transaction.
-- [ ] Implement history serialization and the opt-in history contributor; register
+- [x] Implement history serialization and the opt-in history contributor; register
       tickets/projects support before startup test-data insertion. Keep other
       entity tables and search indexes free of history data.
-- [ ] Add bounded prefix/range pagination to the KV contract and redb, a narrow
+- [x] Add bounded prefix/range pagination to the KV contract and redb, a narrow
       datastore history reader, generated command declarations, handler, and
       server-derived model capability metadata. Do not commit generated files.
-- [ ] Add the history store/service integration and reusable history rendering;
+- [x] Add the history store/service integration and reusable history rendering;
       wire Details/History tabs into generic record details without moving
       orchestration back into JSX. Add a focused playground demo with create,
       update, delete, nullable, HTML, and unknown-user examples.
-- [ ] Add backend transaction/recovery and API tests plus UI store/component
+- [x] Add backend transaction/recovery and API tests plus UI store/component
       tests. Document history semantics, extension constraints, system actor
       behavior, and key ordering in the server/UI READMEs.
 
 ## How will this be verified?
 
-- [ ] Check create/update/delete changes, no-op updates, absent deletes,
+- [x] Check create/update/delete changes, no-op updates, absent deletes,
       insert-overwrite behavior, repeated IDs/steps, null vs missing vs empty,
       user attribution, disabled tables, and old/new serialization round-trips.
-- [ ] Use failure-injecting KV/search implementations to prove contributor failure
+- [x] Use failure-injecting KV/search implementations to prove contributor failure
       and KV failure persist nothing for that chunk; indexing failure preserves
       history and dirty work; restart/replay creates no duplicate history.
       Test multi-chunk partial success and multiple contributors' output validation.
-- [ ] Test real redb atomic entity/history writes, retained deleted history,
+- [x] Test real redb atomic entity/history writes, retained deleted history,
       table/prefix isolation, empty pages, bounded paging, cursor validation,
       unsupported tables, same-second KSUIDs, and restart persistence.
-- [ ] Verify authenticated command attribution and system seeds, including
+- [x] Verify authenticated command attribution and system seeds, including
       non-null `userid = "system"` on system changes, rejection of null/missing
       history user IDs, projects/tickets enablement, and other tables remaining untracked.
-- [ ] Test lazy UI loading, pagination, rapid selection changes, refresh after
+- [x] Test lazy UI loading, pagination, rapid selection changes, refresh after
       autosave/actions, failure/retry, deleted actors, escaped HTML, and preserved
       pending form state when switching tabs. Use store tests for orchestration.
-- [ ] Check a representative 50,000-row seed/update chunk in an optimized build:
+- [x] Check a 50,000-row insert/update chunk in an optimized build using a simple
+      fixture schema (not a production workload or memory-profile measurement):
       no per-entity transactions, no full-history scans, no history in Tantivy,
       and bounded additional allocations. Batch old-value reads where useful.
-- [ ] Run focused server/plugin/UI/codegen tests through `./t` or `./n`, then
+- [x] Run focused server/plugin/UI/codegen tests through `./t` or `./n`, then
       `./n check` and `./n --restart`. Leave visual verification to the user;
       do not open Chrome DevTools.
 
-## Which assumptions and risks need confirmation?
+## Which constraints remain?
 
-1. **Extension name:** `MutationContributor` is the recommended working name:
-   it describes contributing additional transactional writes, not just observing.
-   Alternatives are `MutationEnricher` (emphasizes augmenting the mutation) and
-   `TransactionContributor` (emphasizes atomic writes, but is less specific about
-   the entity-mutation input). The extension still cannot rewrite the primary
-   entity mutation or perform external side effects.
-2. **Bucket layout:** assume a separate history bucket per entity table is
-   acceptable. It preserves the requested key shape without relying on IDs
+1. **Extension name:** implemented as `MutationContributor`. The extension
+   cannot rewrite the primary entity mutation or perform external side effects.
+2. **Bucket layout:** one history bucket per entity table preserves the
+   requested key shape without relying on IDs
    being globally unique across unrelated tables.
 3. **ID scope:** the first enabled entities use canonical KSUID strings. The
    underlying KV store allows arbitrary binary IDs; define a safe encoding
@@ -254,3 +251,54 @@ sequence. A request-wide rollback and retry-idempotency protocol are out of scop
    entity commit. A failed HTTP mutation therefore does not prove nothing was
    stored. Preserve/document this existing behavior, and avoid presenting the
    audit trail as an all-or-nothing request log.
+
+## What was implemented and verified?
+
+Completed on 2026-09-26. The plan was committed first as `16545d2`. Completed
+plans stay in `docs/plans`, following the existing repository convention.
+
+`MutationContributor` receives prepared entity changes and immutable attribution;
+its collector is limited to exclusively owned auxiliary buckets. Existing keys
+cannot be overwritten. Contributors run before the single entity/dirty/history
+KV transaction, never during index repair. The tickets plugin enables history
+for tickets and projects before startup seeding. History uses required user IDs,
+including `system`, and presence-aware optional JSON preserves null values.
+
+The generated `entity-history` command performs bounded reverse range reads.
+Model metadata advertises support; the UI plugin supplies a service and the
+history store owns lazy loading, paging, invalidation, errors, and selection
+lifetimes. Details/History tabs retain the edit form. The Entity History demo
+covers operation kinds, absent/null/empty values, escaped HTML, and missing users.
+
+Implementation details clarified during the work:
+
+- HTTP `mutate` and `entity-history` now explicitly require a session (401 on
+  missing authentication), preventing anonymous HTTP mutations from being
+  attributed to System. Direct startup/CLI callers can use a system context.
+- Optional JSON fields use the shared `optional_json` serde helper in generated
+  Rust and optional properties in generated TypeScript. Other optional field
+  semantics are unchanged; generated files remain untracked.
+- Capability queries are cached by the plugin service. UI history ordering is
+  descending KSUID key order, not a strict intra-second transaction sequence.
+- The bounded KV read is a reverse range page with an exclusive cursor; existing
+  forward page/range operations are unchanged.
+
+Verification includes contributor and KV failures, index and dirty-cleanup
+failures, restart/replay without duplicate history, prior-chunk durability,
+reserved bucket ownership, duplicate output keys, canonical IDs/cursors,
+null/missing serialization, authenticated attribution, real plugin seeding,
+history capability metadata, lazy UI paging/retry/stale-result handling,
+generated API decoding, escaped rendering, and retained editor input lifecycle.
+`./n cargo-test` and `./n check` passed. Visual testing is left to the user as
+requested; no browser verification was performed.
+
+The explicit ignored throughput test runs 50,000 inserts and updates through
+real redb and Tantivy using the optimized test profile. One local run measured:
+
+| History | Insert batch | Update batch |
+| --- | --- | --- |
+| Disabled | 0.69 s | 0.89 s |
+| Enabled | 1.27 s | 1.46 s |
+
+These are smoke measurements using short fixture values, not broad performance
+guarantees. The test is excluded from normal CI to avoid adding routine load.

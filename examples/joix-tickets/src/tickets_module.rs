@@ -105,6 +105,7 @@ impl TestDataProvider for TicketTestDataProvider {
         associate_existing_tickets(data_store, &projects)?;
         generate_tickets(
             data_store,
+            &joi_server::mutation_contributor::MutationContext::system(),
             STARTUP_TICKET_COUNT.saturating_sub(existing_count),
             existing_count,
             &projects,
@@ -124,64 +125,68 @@ fn insert_representative_tickets(
         .iter()
         .map(|key| project_for_key(projects, key))
         .collect::<joi_error::JoiResult<Vec<_>>>()?;
-    data_store.mutate(DataStoreMutation {
-        return_entities: false,
-        steps: vec![DataStoreMutationStep::Insert(DataStoreInsertMutation {
-            table_name: TableName("tickets".into()),
-            columns: vec![
-                string_values_column(
-                    "id",
-                    (0..4)
-                        .map(|_| ksuid::Ksuid::generate().to_base62().into())
-                        .collect(),
-                ),
-                string_values_column("key", keys.into_iter().map(Into::into).collect()),
-                string_values_column("project_id", project_ids),
-                string_values_column(
-                    "title",
-                    [
-                        "Fix navigation bug",
-                        "Add issue filters",
-                        "Review table schema",
-                        "Document ticket workflows",
-                    ]
-                    .into_iter()
-                    .map(Into::into)
-                    .collect(),
-                ),
-                string_values_column(
-                    "description",
-                    [
-                        "Navigation loses the selected view after reload",
-                        "Allow views to filter issues by workflow status",
-                        "Check the initial ticket storage definition",
-                        "Explain how ticket states are used",
-                    ]
-                    .into_iter()
-                    .map(Into::into)
-                    .collect(),
-                ),
-                string_values_column(
-                    "status",
-                    ["open", "in-progress", "closed", "wontfix"]
+    data_store.mutate(
+        &joi_server::mutation_contributor::MutationContext::system(),
+        DataStoreMutation {
+            return_entities: false,
+            steps: vec![DataStoreMutationStep::Insert(DataStoreInsertMutation {
+                table_name: TableName("tickets".into()),
+                columns: vec![
+                    string_values_column(
+                        "id",
+                        (0..4)
+                            .map(|_| ksuid::Ksuid::generate().to_base62().into())
+                            .collect(),
+                    ),
+                    string_values_column("key", keys.into_iter().map(Into::into).collect()),
+                    string_values_column("project_id", project_ids),
+                    string_values_column(
+                        "title",
+                        [
+                            "Fix navigation bug",
+                            "Add issue filters",
+                            "Review table schema",
+                            "Document ticket workflows",
+                        ]
                         .into_iter()
                         .map(Into::into)
                         .collect(),
-                ),
-                string_values_column(
-                    "assignee",
-                    (0..4)
-                        .map(|index| user_ids[index % user_ids.len()].clone())
+                    ),
+                    string_values_column(
+                        "description",
+                        [
+                            "Navigation loses the selected view after reload",
+                            "Allow views to filter issues by workflow status",
+                            "Check the initial ticket storage definition",
+                            "Explain how ticket states are used",
+                        ]
+                        .into_iter()
+                        .map(Into::into)
                         .collect(),
-                ),
-            ],
-        })],
-    })?;
+                    ),
+                    string_values_column(
+                        "status",
+                        ["open", "in-progress", "closed", "wontfix"]
+                            .into_iter()
+                            .map(Into::into)
+                            .collect(),
+                    ),
+                    string_values_column(
+                        "assignee",
+                        (0..4)
+                            .map(|index| user_ids[index % user_ids.len()].clone())
+                            .collect(),
+                    ),
+                ],
+            })],
+        },
+    )?;
     Ok(())
 }
 
 pub(crate) fn generate_additional_tickets(
     data_store: &mut dyn DataStore,
+    context: &joi_server::mutation_contributor::MutationContext,
     count: usize,
 ) -> joi_error::JoiResult<usize> {
     let projects = project_ids_by_prefix(data_store)?;
@@ -209,6 +214,7 @@ pub(crate) fn generate_additional_tickets(
     })?;
     generate_tickets(
         data_store,
+        context,
         count,
         existing.number_of_hits,
         &projects,
@@ -219,6 +225,7 @@ pub(crate) fn generate_additional_tickets(
 
 fn generate_tickets(
     data_store: &mut dyn DataStore,
+    context: &joi_server::mutation_contributor::MutationContext,
     count: usize,
     offset: usize,
     projects: &HashMap<JoiString, JoiString>,
@@ -248,21 +255,24 @@ fn generate_tickets(
         statuses.push(statuses_available[index % statuses_available.len()].into());
         assignees.push(user_ids[index % user_ids.len()].clone());
     }
-    data_store.mutate(DataStoreMutation {
-        return_entities: false,
-        steps: vec![DataStoreMutationStep::Insert(DataStoreInsertMutation {
-            table_name: TableName("tickets".into()),
-            columns: vec![
-                string_values_column("id", ids),
-                string_values_column("key", keys),
-                string_values_column("project_id", project_ids),
-                string_values_column("title", titles),
-                string_values_column("description", descriptions),
-                string_values_column("status", statuses),
-                string_values_column("assignee", assignees),
-            ],
-        })],
-    })?;
+    data_store.mutate(
+        context,
+        DataStoreMutation {
+            return_entities: false,
+            steps: vec![DataStoreMutationStep::Insert(DataStoreInsertMutation {
+                table_name: TableName("tickets".into()),
+                columns: vec![
+                    string_values_column("id", ids),
+                    string_values_column("key", keys),
+                    string_values_column("project_id", project_ids),
+                    string_values_column("title", titles),
+                    string_values_column("description", descriptions),
+                    string_values_column("status", statuses),
+                    string_values_column("assignee", assignees),
+                ],
+            })],
+        },
+    )?;
     Ok(())
 }
 
@@ -346,19 +356,22 @@ fn associate_existing_tickets(
         return Ok(());
     }
     let (ids, project_ids): (Vec<_>, Vec<_>) = assignments.into_iter().unzip();
-    data_store.mutate(DataStoreMutation {
-        return_entities: false,
-        steps: vec![DataStoreMutationStep::Update(
-            joi_server::data_store::DataStoreUpdateMutation {
-                table_name: TableName("tickets".into()),
-                ids,
-                columns: vec![AttributeColumn {
-                    attribute: AttributeName("project_id".into()),
-                    values: Values::String(project_ids),
-                }],
-            },
-        )],
-    })?;
+    data_store.mutate(
+        &joi_server::mutation_contributor::MutationContext::system(),
+        DataStoreMutation {
+            return_entities: false,
+            steps: vec![DataStoreMutationStep::Update(
+                joi_server::data_store::DataStoreUpdateMutation {
+                    table_name: TableName("tickets".into()),
+                    ids,
+                    columns: vec![AttributeColumn {
+                        attribute: AttributeName("project_id".into()),
+                        values: Values::String(project_ids),
+                    }],
+                },
+            )],
+        },
+    )?;
     Ok(())
 }
 
@@ -489,25 +502,28 @@ mod tests {
             unreachable!()
         };
         store
-            .mutate(DataStoreMutation {
-                return_entities: false,
-                steps: vec![DataStoreMutationStep::Update(
-                    joi_server::data_store::DataStoreUpdateMutation {
-                        table_name: TableName("tickets".into()),
-                        ids: vec![ticket_ids[0].clone()],
-                        columns: vec![
-                            AttributeColumn {
-                                attribute: AttributeName("assignee".into()),
-                                values: Values::NullableString(vec![None]),
-                            },
-                            AttributeColumn {
-                                attribute: AttributeName("project_id".into()),
-                                values: Values::NullableString(vec![None]),
-                            },
-                        ],
-                    },
-                )],
-            })
+            .mutate(
+                &joi_server::mutation_contributor::MutationContext::system(),
+                DataStoreMutation {
+                    return_entities: false,
+                    steps: vec![DataStoreMutationStep::Update(
+                        joi_server::data_store::DataStoreUpdateMutation {
+                            table_name: TableName("tickets".into()),
+                            ids: vec![ticket_ids[0].clone()],
+                            columns: vec![
+                                AttributeColumn {
+                                    attribute: AttributeName("assignee".into()),
+                                    values: Values::NullableString(vec![None]),
+                                },
+                                AttributeColumn {
+                                    attribute: AttributeName("project_id".into()),
+                                    values: Values::NullableString(vec![None]),
+                                },
+                            ],
+                        },
+                    )],
+                },
+            )
             .unwrap();
         TicketTestDataProvider.insert_test_data(&mut store).unwrap();
         let after_reinitialization = store

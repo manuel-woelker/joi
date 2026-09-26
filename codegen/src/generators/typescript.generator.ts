@@ -36,7 +36,7 @@ function renderType(type: NamedTypeDefinition): string {
   const fields = type.fields
     .map(
       (field) => `  ${doc(field.description)}
-  readonly ${camelCase(field.id)}: ${typeName(field.type)};`,
+  readonly ${camelCase(field.id)}${field.type.kind === "optional" && field.type.value.kind === "builtin" && field.type.value.name === "json" ? "?" : ""}: ${typeName(field.type)};`,
     )
     .join("\n");
   if (!fields)

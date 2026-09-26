@@ -17,6 +17,8 @@ pub mod command_registry;
 pub mod command_service;
 /// Generic table descriptions, queries, and mutations.
 pub mod data_store;
+/// Durable, opt-in entity history and its read command.
+pub mod entity_history;
 mod entity_store;
 /// Code-generated command declarations.
 pub mod generated;
@@ -28,6 +30,10 @@ pub mod key_value_store;
 pub mod model_info_command;
 /// Generic data mutation command handling.
 pub mod mutate_command;
+/// Transactional additions contributed alongside entity mutations.
+pub mod mutation_contributor;
+/// Presence-preserving optional JSON serialization support.
+pub mod optional_json;
 /// Plugin inventory command handling.
 pub mod plugins_command;
 /// Generic data query command handling.
@@ -47,3 +53,6 @@ pub mod user_session_command;
 
 pub use entity_store::{Entity, EntityId};
 pub use server::{ServerConfig, application_main, run};
+
+#[cfg(test)]
+mod entity_history_tests;

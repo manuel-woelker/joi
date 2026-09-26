@@ -1653,6 +1653,7 @@ dependencies = [
  "serde_json",
  "tantivy",
  "tempfile",
+ "time 0.3.55",
  "tokio",
  "tower",
  "tower-http",

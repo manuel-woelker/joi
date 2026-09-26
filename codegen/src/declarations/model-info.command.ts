@@ -49,6 +49,7 @@ export const ModelTypeDescription = defineStruct({
   fields: [
     { name: "name", type: stringType, description: "The model name." },
     { name: "attributes", type: list(ModelAttributeDescription), description: "Attributes in declaration order." },
+    { name: "history", type: booleanType, description: "Whether this model has retained entity history." },
   ],
 });
 

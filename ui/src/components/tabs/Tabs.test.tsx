@@ -16,6 +16,23 @@ const tabs: readonly TabDefinition[] = [
 afterEach(cleanup);
 
 describe("Tabs", () => {
+  it("keeps an input and its draft mounted while another tab is selected", async () => {
+    const user = userEvent.setup();
+    const [selected, setSelected] = createSignal("edit");
+    const panels = [
+      { id: "edit", label: "Edit", render: () => <input aria-label="Draft" /> },
+      { id: "history", label: "History", render: () => <p>History</p> },
+    ];
+    render(() => <Tabs ariaLabel="Details" keepMounted tabs={panels} selected={selected()} onSelect={setSelected} />);
+    const input = screen.getByLabelText<HTMLInputElement>("Draft");
+    await user.type(input, "Pending draft");
+    await user.click(screen.getByRole("tab", { name: "History" }));
+    expect(input.isConnected).toBe(true);
+    expect(input.closest('[role="tabpanel"]')?.hasAttribute("hidden")).toBe(true);
+    await user.click(screen.getByRole("tab", { name: "Edit" }));
+    expect(screen.getByLabelText("Draft")).toBe(input);
+    expect(input.value).toBe("Pending draft");
+  });
   it("selects tabs and renders the matching panel", async () => {
     const user = userEvent.setup();
     const [selected, setSelected] = createSignal("one");

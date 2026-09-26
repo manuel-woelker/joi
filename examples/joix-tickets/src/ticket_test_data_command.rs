@@ -33,7 +33,7 @@ impl CommandHandler for GenerateTicketTestDataCommand {
 
     fn execute(
         &self,
-        _context: &CommandContext,
+        context: &CommandContext,
         request: Self::Command,
     ) -> JoiResult<GenerateTicketTestDataResponse> {
         let count = usize::try_from(request.count)
@@ -46,7 +46,11 @@ impl CommandHandler for GenerateTicketTestDataCommand {
             .data_store
             .lock()
             .map_err(|_| joi_error!("data store lock is poisoned"))?;
-        let generated = generate_additional_tickets(store.as_mut(), count)?;
+        let generated = generate_additional_tickets(
+            store.as_mut(),
+            &joi_server::mutation_contributor::MutationContext::for_user(context.user.as_ref()),
+            count,
+        )?;
         Ok(GenerateTicketTestDataResponse {
             generated: i64::try_from(generated)
                 .map_err(|_| joi_error!("generated ticket count is too large"))?,

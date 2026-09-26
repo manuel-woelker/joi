@@ -75,7 +75,7 @@ impl CommandHandler for GitCommitCommand {
     type Command = GitCommitRequest;
     fn execute(
         &self,
-        _context: &joi_server::command_handler::CommandContext,
+        context: &joi_server::command_handler::CommandContext,
         request: GitCommitRequest,
     ) -> JoiResult<GitCommitDetails> {
         let (repository_id, git_directory) = self.resolve_repository(&request.branch_id)?;
@@ -97,7 +97,11 @@ impl CommandHandler for GitCommitCommand {
             status: CommitStatus::Open,
             patch: details.patch.clone(),
         };
-        self.store(&repository_id, &response)?;
+        self.store(
+            &repository_id,
+            &response,
+            &joi_server::mutation_contributor::MutationContext::for_user(context.user.as_ref()),
+        )?;
         Ok(response)
     }
 }
@@ -188,7 +192,12 @@ impl GitCommitCommand {
         }))
     }
 
-    fn store(&self, repository_id: &str, details: &GitCommitDetails) -> JoiResult<()> {
+    fn store(
+        &self,
+        repository_id: &str,
+        details: &GitCommitDetails,
+        context: &joi_server::mutation_contributor::MutationContext,
+    ) -> JoiResult<()> {
         let mut store = self
             .data_store
             .lock()
@@ -224,13 +233,16 @@ impl GitCommitCommand {
                 values: Values::Int(vec![value]),
             }),
         );
-        store.mutate(DataStoreMutation {
-            return_entities: false,
-            steps: vec![DataStoreMutationStep::Insert(DataStoreInsertMutation {
-                table_name: TableName("codevette_commits".into()),
-                columns,
-            })],
-        })?;
+        store.mutate(
+            context,
+            DataStoreMutation {
+                return_entities: false,
+                steps: vec![DataStoreMutationStep::Insert(DataStoreInsertMutation {
+                    table_name: TableName("codevette_commits".into()),
+                    columns,
+                })],
+            },
+        )?;
         Ok(())
     }
 }

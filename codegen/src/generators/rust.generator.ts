@@ -99,10 +99,17 @@ function renderType(type: NamedTypeDefinition): string {
     snakeCase,
   );
   const fields = type.fields
-    .map(
-      (field) => `    ${docs(field.description)}
-    pub ${rustIdentifier(field.id)}: ${typeName(field.type)},`,
-    )
+    .map((field) => {
+      const presence =
+        field.type.kind === "optional" && field.type.value.kind === "builtin" && field.type.value.name === "json"
+          ? `#[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "crate::optional_json::deserialize")]`
+          : "";
+      return source`
+        ${docs(field.description)}
+        ${presence}
+        pub ${rustIdentifier(field.id)}: ${typeName(field.type)},
+      `;
+    })
     .join("\n");
   return source`
     ${docs(type.description)}

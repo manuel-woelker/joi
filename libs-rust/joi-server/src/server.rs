@@ -89,6 +89,7 @@ async fn run_async(
     );
     let mut data_store =
         IndexedDataStore::open(&config.entity_store_path, &config.search_index_path)?;
+    data_store.set_contributors(plugin_registry.clone())?;
     tracing::info!(
         insert_test_data = config.insert_test_data,
         "Initializing data store"
@@ -120,6 +121,11 @@ fn create_plugin_registry(config: &mut ServerConfig) -> JoiResult<PluginRegistry
                 "info-providers",
                 "Contributes application information",
             )?;
+            context
+                .register_extension_point::<dyn crate::mutation_contributor::MutationContributor>(
+                    "mutation-contributors",
+                    "Contributes entries to entity mutation transactions",
+                )?;
             context.register_extension_point::<dyn TableDescriptionProvider>(
                 "table-descriptions",
                 "Defines data-store tables",
@@ -178,6 +184,9 @@ fn build_command_registry(
     builder.register(PluginsCommand::new(plugin_registry.clone()))?;
     builder.register(QueryCommand::new(data_store.clone()))?;
     builder.register(MutateCommand::new(data_store.clone()))?;
+    builder.register(crate::entity_history::EntityHistoryCommand::new(
+        data_store.clone(),
+    ))?;
     builder.register(LoginCommand::new(data_store.clone()))?;
     builder.register(LogoutCommand::new(data_store.clone()))?;
     builder.register(UserInfoCommand::new(data_store.clone()))?;
@@ -377,6 +386,20 @@ mod tests {
             .as_str()
             .unwrap();
         let router = CommandService::new(registry).into_router();
+
+        for command in ["mutate", "entity-history"] {
+            let response = router
+                .clone()
+                .oneshot(
+                    Request::post(format!("/api/{command}"))
+                        .header(CONTENT_TYPE, "application/json")
+                        .body(Body::from("{}"))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        }
 
         let unauthenticated = router
             .clone()

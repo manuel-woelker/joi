@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import command from "../declarations/query.command.ts";
+import historyCommand from "../declarations/entity-history.command.ts";
 import { defineCommand, defineStruct } from "../engine/model/declarations.ts";
 import { buildModel } from "../engine/model/model-builder.ts";
 import rustGenerator from "./rust.generator.ts";
@@ -9,6 +10,15 @@ import typescriptGenerator from "./typescript.generator.ts";
 const model = buildModel([{ declaration: command, sourcePath: "query.command.ts" }]);
 
 describe("language generators", () => {
+  it("preserves missing versus null JSON values in history contracts", () => {
+    const history = buildModel([{ declaration: historyCommand, sourcePath: "entity-history.command.ts" }]);
+    const rust = rustGenerator.generate(history)[0]!.contents;
+    expect(rust).toContain('deserialize_with = "crate::optional_json::deserialize"');
+    expect(rust).toContain('skip_serializing_if = "Option::is_none"');
+    const typescript = typescriptGenerator.generate(history)[0]!.contents;
+    expect(typescript).toContain("readonly oldValue?:");
+    expect(typescript).toContain("readonly newValue?:");
+  });
   it("generates deterministic TypeScript command contracts", () => {
     const first = typescriptGenerator.generate(model);
     expect(first).toEqual(typescriptGenerator.generate(model));

@@ -94,6 +94,13 @@ impl CommandHandler for ModelInfoCommand {
                     .collect::<JoiResult<Vec<_>>>()?;
                 Ok(ModelTypeDescription {
                     name: table.name.0.to_string(),
+                    history: self
+                        .plugin_registry
+                        .extensions::<dyn crate::mutation_contributor::MutationContributor>()
+                        .is_ok_and(|mut contributors| {
+                            contributors
+                                .any(|contributor| contributor.provides_history(&table.name))
+                        }),
                     attributes,
                 })
             })

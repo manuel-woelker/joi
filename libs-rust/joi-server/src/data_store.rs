@@ -365,7 +365,20 @@ pub trait DataStore: Send {
     ) -> JoiResult<Vec<DataStoreCountValue>>;
 
     /// Applies a mutation and returns its outcome.
-    fn mutate(&mut self, mutation: DataStoreMutation) -> JoiResult<DataStoreMutationResult>;
+    fn mutate(
+        &mut self,
+        context: &crate::mutation_contributor::MutationContext,
+        mutation: DataStoreMutation,
+    ) -> JoiResult<DataStoreMutationResult>;
+
+    /// Whether this entity table has durable history enabled.
+    fn history_enabled(&self, table: &TableName) -> bool;
+
+    /// Reads a bounded page of retained history, even after the entity is deleted.
+    fn history(
+        &self,
+        request: crate::generated::api::EntityHistoryRequest,
+    ) -> JoiResult<crate::generated::api::EntityHistoryResponse>;
 }
 
 /// Inserts development data into a configured data store.

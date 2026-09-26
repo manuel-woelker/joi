@@ -15,6 +15,8 @@ export interface TabsProps {
   readonly tabs: readonly TabDefinition[];
   readonly selected: string;
   readonly onSelect: (id: string) => void;
+  /** Keeps panels mounted when hidden, preserving form drafts and pending autosaves. */
+  readonly keepMounted?: boolean;
 }
 
 /** Renders a controlled, keyboard-accessible tab list and its selected panel. */
@@ -71,18 +73,38 @@ export function Tabs(props: TabsProps) {
           )}
         </For>
       </div>
-      <Show when={selectedTab()}>
-        {(tab) => (
-          <div
-            id={panelId(tab().id)}
-            class={styles.tabPanel}
-            role="tabpanel"
-            aria-labelledby={tabId(tab().id)}
-            tabIndex={0}
-          >
-            {tab().render()}
-          </div>
-        )}
+      <Show
+        when={props.keepMounted}
+        fallback={
+          <Show when={selectedTab()}>
+            {(tab) => (
+              <div
+                id={panelId(tab().id)}
+                class={styles.tabPanel}
+                role="tabpanel"
+                aria-labelledby={tabId(tab().id)}
+                tabIndex={0}
+              >
+                {tab().render()}
+              </div>
+            )}
+          </Show>
+        }
+      >
+        <For each={props.tabs}>
+          {(tab) => (
+            <div
+              id={panelId(tab.id)}
+              class={styles.tabPanel}
+              role="tabpanel"
+              aria-labelledby={tabId(tab.id)}
+              tabIndex={0}
+              hidden={tab.disabled || tab.id !== props.selected}
+            >
+              {tab.render()}
+            </div>
+          )}
+        </For>
       </Show>
     </div>
   );

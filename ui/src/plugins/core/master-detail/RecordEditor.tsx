@@ -15,6 +15,7 @@ import { type EditFieldDefinition, type MasterDetailDefinition } from "./definit
 import { ModelText } from "../../../components/SourceText";
 import { createRecordEditorStore, createRecordCreationStore, type RecordEditorStore } from "./record-editor-store";
 import styles from "./RecordEditor.module.css";
+import { RecordHistoryDetails } from "../entity-history/RecordHistoryDetails";
 
 export type EntityEditorMode =
   | { readonly type: "edit"; readonly result: QueryResult; readonly recordId: string }
@@ -56,26 +57,33 @@ function EditRecordEditor(props: {
   );
 
   return (
-    <Show when={!store.validationError()} fallback={<div class={styles.state}>{store.validationError()}</div>}>
-      <Show when={store.row()} fallback={<div class={styles.state}>Record not found.</div>}>
-        {(currentRow) => (
-          <Show keyed when={props.mode.recordId}>
-            {(_recordId) => (
-              <Form model={store.model(currentRow())} persistence={{ type: "autosave", onSave: store.save }}>
-                <RecordFormBinding store={store} />
-                <EditorLayout
-                  title={props.definition.detailTitle}
-                  fields={props.definition.fields}
-                  onClose={props.onClose}
-                >
-                  <SaveStatus saved={store.saved} />
-                </EditorLayout>
-              </Form>
-            )}
-          </Show>
-        )}
+    <RecordHistoryDetails
+      definition={props.definition}
+      recordId={props.mode.recordId}
+      dataChanges={dataChanges}
+      onClose={props.onClose}
+    >
+      <Show when={!store.validationError()} fallback={<div class={styles.state}>{store.validationError()}</div>}>
+        <Show when={store.row()} fallback={<div class={styles.state}>Record not found.</div>}>
+          {(currentRow) => (
+            <Show keyed when={props.mode.recordId}>
+              {(_recordId) => (
+                <Form model={store.model(currentRow())} persistence={{ type: "autosave", onSave: store.save }}>
+                  <RecordFormBinding store={store} />
+                  <EditorLayout
+                    title={props.definition.detailTitle}
+                    fields={props.definition.fields}
+                    onClose={props.onClose}
+                  >
+                    <SaveStatus saved={store.saved} />
+                  </EditorLayout>
+                </Form>
+              )}
+            </Show>
+          )}
+        </Show>
       </Show>
-    </Show>
+    </RecordHistoryDetails>
   );
 }
 

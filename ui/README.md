@@ -349,3 +349,21 @@ label and description; Arrow Up and Arrow Down change the active result, Enter
 runs it, and Escape closes the launcher. Action execution still flows through
 `ActionProvider`, so contextual availability, pending state, and error handling
 remain shared with action buttons, hotkeys, and context menus.
+
+## How is entity history displayed?
+
+For history-enabled entities, the record detail pane offers Details and History
+tabs. Capability comes from server model metadata, not hardcoded domain names.
+The `entity-history` plugin provides a mockable service; its store loads pages
+only when History is opened and refreshes after committed record changes.
+The edit form remains mounted across tab switches, preserving drafts and autosave.
+
+History lists before/after values with the actor and timestamp. Missing values,
+JSON null, and empty strings remain distinct. Lookups resolve users/references
+when available; missing targets fall back to IDs. Historical HTML is escaped,
+and long values can be expanded. `Entity History` in the playground demonstrates
+creation, updates, deletion, system attribution, and these value-display cases.
+
+History starts when enabled and retains deleted records' changes. The normal
+detail pane still closes when its live record disappears; there is no deleted
+record browser or revert command.

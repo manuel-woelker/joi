@@ -147,6 +147,9 @@ fn execute_http(
     } else {
         CommandContext::default()
     };
+    if matches!(command_name, "mutate" | "entity-history") && context.user.is_none() {
+        return Err(unauthorized());
+    }
     if command_name == USER_INFO_COMMAND || command_name == LOGOUT_COMMAND {
         let session_id = session_id.ok_or_else(unauthorized)?;
         request = serde_json::json!({ "session_id": session_id });

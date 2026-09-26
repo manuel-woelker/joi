@@ -190,14 +190,17 @@ impl CommandHandler for SaveReviewComment {
             if required_string(&existing.result_columns[0].values, 0)? != user.id {
                 return Err(joi_error!("only the comment author may edit it"));
             }
-            store.mutate(DataStoreMutation {
-                return_entities: false,
-                steps: vec![DataStoreMutationStep::Update(DataStoreUpdateMutation {
-                    table_name: TableName("review_comments".into()),
-                    ids: vec![id.as_str().into()],
-                    columns: vec![string_values("comment", text)],
-                })],
-            })?;
+            store.mutate(
+                &joi_server::mutation_contributor::MutationContext::for_user(Some(user)),
+                DataStoreMutation {
+                    return_entities: false,
+                    steps: vec![DataStoreMutationStep::Update(DataStoreUpdateMutation {
+                        table_name: TableName("review_comments".into()),
+                        ids: vec![id.as_str().into()],
+                        columns: vec![string_values("comment", text)],
+                    })],
+                },
+            )?;
             return Ok(ReviewComment {
                 id,
                 commit_id: required_string(&existing.result_columns[3].values, 0)?,
@@ -241,29 +244,32 @@ impl CommandHandler for SaveReviewComment {
         let id = ksuid::Ksuid::generate().to_base62();
         let created_at = OffsetDateTime::now_utc().format(&Rfc3339).map_err(report)?;
         let parent_values = Values::NullableString(vec![request.parent_id.clone().map(Into::into)]);
-        store.mutate(DataStoreMutation {
-            return_entities: false,
-            steps: vec![DataStoreMutationStep::Insert(DataStoreInsertMutation {
-                table_name: TableName("review_comments".into()),
-                columns: vec![
-                    string_values("id", &id),
-                    string_values("commit_id", &request.commit_id),
-                    string_values("created_at", &created_at),
-                    string_values("author_id", user.id.as_str()),
-                    AttributeColumn {
-                        attribute: AttributeName("parent_id".into()),
-                        values: parent_values,
-                    },
-                    string_values("file", &request.file),
-                    AttributeColumn {
-                        attribute: AttributeName("line".into()),
-                        values: Values::Int(vec![request.line]),
-                    },
-                    string_values("side", side),
-                    string_values("comment", text),
-                ],
-            })],
-        })?;
+        store.mutate(
+            &joi_server::mutation_contributor::MutationContext::for_user(Some(user)),
+            DataStoreMutation {
+                return_entities: false,
+                steps: vec![DataStoreMutationStep::Insert(DataStoreInsertMutation {
+                    table_name: TableName("review_comments".into()),
+                    columns: vec![
+                        string_values("id", &id),
+                        string_values("commit_id", &request.commit_id),
+                        string_values("created_at", &created_at),
+                        string_values("author_id", user.id.as_str()),
+                        AttributeColumn {
+                            attribute: AttributeName("parent_id".into()),
+                            values: parent_values,
+                        },
+                        string_values("file", &request.file),
+                        AttributeColumn {
+                            attribute: AttributeName("line".into()),
+                            values: Values::Int(vec![request.line]),
+                        },
+                        string_values("side", side),
+                        string_values("comment", text),
+                    ],
+                })],
+            },
+        )?;
         Ok(ReviewComment {
             id,
             commit_id: request.commit_id,

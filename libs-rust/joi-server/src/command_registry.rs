@@ -330,7 +330,7 @@ mod tests {
 
         assert_eq!(
             error.to_string(),
-            "commands have no registered handlers: model-info, query, user-info"
+            "commands have no registered handlers: entity-history, model-info, query, user-info"
         );
     }
 

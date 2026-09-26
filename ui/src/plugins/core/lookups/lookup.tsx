@@ -103,6 +103,11 @@ export function useLookupService(): LookupService {
   return service;
 }
 
+/** Optional lookup access for standalone record/history components and demos. */
+export function useOptionalLookupService(): LookupService | undefined {
+  return useContext(LookupContext);
+}
+
 /** Renders a lookup value and updates when its cached source has loaded. */
 export function LookupValue(props: {
   lookup: LookupId;

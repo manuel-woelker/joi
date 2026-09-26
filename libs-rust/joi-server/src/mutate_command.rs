@@ -89,7 +89,7 @@ impl CommandHandler for MutateCommand {
 
     fn execute(
         &self,
-        _context: &crate::command_handler::CommandContext,
+        context: &crate::command_handler::CommandContext,
         request: Self::Command,
     ) -> JoiResult<MutateResponse> {
         let mutation = DataStoreMutation {
@@ -99,7 +99,10 @@ impl CommandHandler for MutateCommand {
         self.data_store
             .lock()
             .map_err(|_| joi_error!("data store lock is poisoned"))?
-            .mutate(mutation)?;
+            .mutate(
+                &crate::mutation_contributor::MutationContext::for_user(context.user.as_ref()),
+                mutation,
+            )?;
         Ok(MutateResponse {})
     }
 }

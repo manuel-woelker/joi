@@ -1,0 +1,57 @@
+// @vitest-environment happy-dom
+import { cleanup, render, screen, waitFor } from "@solidjs/testing-library";
+import userEvent from "@testing-library/user-event";
+import { afterEach, expect, it, vi } from "vitest";
+import { onCleanup } from "solid-js";
+import { FetchService } from "../../../base/services/fetch-service";
+import { DataChangeService } from "../data-changes/data-change-service";
+import { EntityHistoryProvider } from "./entity-history-context";
+import { EntityHistoryService } from "./entity-history-service";
+import { RecordHistoryDetails } from "./RecordHistoryDetails";
+
+afterEach(cleanup);
+it("opens history lazily while keeping the record editor draft and lifecycle intact", async () => {
+  const requests: string[] = [];
+  const service = new EntityHistoryService(
+    new FetchService(async (input) => {
+      const path = String(input);
+      requests.push(path);
+      return {
+        ok: true,
+        json: async () =>
+          path.endsWith("model-info")
+            ? { models: [{ name: "tickets", history: true, attributes: [] }] }
+            : { enabled: true, entries: [], next_cursor: null },
+      } as Response;
+    }),
+  );
+  const unmounted = vi.fn();
+  function Draft() {
+    onCleanup(unmounted);
+    return <input aria-label="Pending title" />;
+  }
+  render(() => (
+    <EntityHistoryProvider service={service}>
+      <RecordHistoryDetails
+        definition={{ tableName: "tickets", identityAttribute: "id", detailTitle: "Ticket", fields: [] }}
+        recordId="t"
+        dataChanges={new DataChangeService()}
+        onClose={() => undefined}
+      >
+        <Draft />
+      </RecordHistoryDetails>
+    </EntityHistoryProvider>
+  ));
+  const user = userEvent.setup();
+  const input = screen.getByLabelText<HTMLInputElement>("Pending title");
+  await user.type(input, "Unsaved edit");
+  const history = await screen.findByRole("tab", { name: "History" });
+  expect(requests.filter((path) => path.endsWith("entity-history"))).toHaveLength(0);
+  await user.click(history);
+  await waitFor(() => expect(requests.filter((path) => path.endsWith("entity-history"))).toHaveLength(1));
+  expect(unmounted).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("tab", { name: "Details" }));
+  expect(screen.getByLabelText("Pending title")).toBe(input);
+  expect(input.value).toBe("Unsaved edit");
+  expect(unmounted).not.toHaveBeenCalled();
+});

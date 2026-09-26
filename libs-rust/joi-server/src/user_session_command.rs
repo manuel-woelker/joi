@@ -96,17 +96,23 @@ impl CommandHandler for LoginCommand {
             .map_err(|_| joi_error!("data store lock is poisoned"))?;
         let user = find_user(data_store.as_ref(), &request.user_id)?
             .ok_or_else(|| joi_error!("user `{}` does not exist", request.user_id))?;
+        if request.user_id == crate::mutation_contributor::SYSTEM_USER_ID {
+            joi_error::joi_bail!("system cannot log in");
+        }
         let session_id = generate_session_id()?;
-        data_store.mutate(DataStoreMutation {
-            return_entities: false,
-            steps: vec![DataStoreMutationStep::Insert(DataStoreInsertMutation {
-                table_name: TableName("user_sessions".into()),
-                columns: vec![
-                    string_column("session_id", session_id.clone()),
-                    string_column("user_id", request.user_id),
-                ],
-            })],
-        })?;
+        data_store.mutate(
+            &crate::mutation_contributor::MutationContext::system(),
+            DataStoreMutation {
+                return_entities: false,
+                steps: vec![DataStoreMutationStep::Insert(DataStoreInsertMutation {
+                    table_name: TableName("user_sessions".into()),
+                    columns: vec![
+                        string_column("session_id", session_id.clone()),
+                        string_column("user_id", request.user_id),
+                    ],
+                })],
+            },
+        )?;
         Ok(LoginResponse { session_id, user })
     }
 }
@@ -174,19 +180,22 @@ impl CommandHandler for LogoutCommand {
 
     fn execute(
         &self,
-        _context: &crate::command_handler::CommandContext,
+        context: &crate::command_handler::CommandContext,
         request: Self::Command,
     ) -> JoiResult<LogoutResponse> {
         self.data_store
             .lock()
             .map_err(|_| joi_error!("data store lock is poisoned"))?
-            .mutate(DataStoreMutation {
-                return_entities: false,
-                steps: vec![DataStoreMutationStep::Delete(DataStoreDeleteMutation {
-                    table_name: TableName("user_sessions".into()),
-                    ids: vec![request.session_id],
-                })],
-            })?;
+            .mutate(
+                &crate::mutation_contributor::MutationContext::for_user(context.user.as_ref()),
+                DataStoreMutation {
+                    return_entities: false,
+                    steps: vec![DataStoreMutationStep::Delete(DataStoreDeleteMutation {
+                        table_name: TableName("user_sessions".into()),
+                        ids: vec![request.session_id],
+                    })],
+                },
+            )?;
         Ok(LogoutResponse {})
     }
 }
@@ -348,32 +357,35 @@ impl TestDataProvider for UserTestDataProvider {
             return Ok(());
         }
 
-        data_store.mutate(DataStoreMutation {
-            return_entities: false,
-            steps: vec![DataStoreMutationStep::Insert(DataStoreInsertMutation {
-                table_name: TableName("users".into()),
-                columns: vec![
-                    string_values_column(
-                        "id",
-                        missing
-                            .iter()
-                            .map(|_| ksuid::Ksuid::generate().to_base62())
-                            .collect::<Vec<_>>(),
-                    ),
-                    string_values_column(
-                        "username",
-                        missing
-                            .iter()
-                            .map(|(username, _)| *username)
-                            .collect::<Vec<_>>(),
-                    ),
-                    string_values_column(
-                        "name",
-                        missing.iter().map(|(_, name)| *name).collect::<Vec<_>>(),
-                    ),
-                ],
-            })],
-        })?;
+        data_store.mutate(
+            &crate::mutation_contributor::MutationContext::system(),
+            DataStoreMutation {
+                return_entities: false,
+                steps: vec![DataStoreMutationStep::Insert(DataStoreInsertMutation {
+                    table_name: TableName("users".into()),
+                    columns: vec![
+                        string_values_column(
+                            "id",
+                            missing
+                                .iter()
+                                .map(|_| ksuid::Ksuid::generate().to_base62())
+                                .collect::<Vec<_>>(),
+                        ),
+                        string_values_column(
+                            "username",
+                            missing
+                                .iter()
+                                .map(|(username, _)| *username)
+                                .collect::<Vec<_>>(),
+                        ),
+                        string_values_column(
+                            "name",
+                            missing.iter().map(|(_, name)| *name).collect::<Vec<_>>(),
+                        ),
+                    ],
+                })],
+            },
+        )?;
         Ok(())
     }
 }

@@ -34,6 +34,38 @@ impl RedbKeyValueStore {
 }
 
 impl KeyValueStore for RedbKeyValueStore {
+    fn query_range_page(
+        &self,
+        table: &TableName,
+        range: std::ops::Range<&[u8]>,
+        before: Option<&[u8]>,
+        limit: usize,
+    ) -> JoiResult<Vec<KeyValue>> {
+        if range.start >= range.end || before.is_some_and(|key| !range.contains(&key)) {
+            joi_error::joi_bail!("invalid range or history cursor");
+        }
+        let transaction = self.database.begin_read().map_err(report)?;
+        let name = Self::table_name(table);
+        let table = match transaction.open_table(TableDefinition::<&[u8], &[u8]>::new(&name)) {
+            Ok(table) => table,
+            Err(redb::TableError::TableDoesNotExist(_)) => return Ok(Vec::new()),
+            Err(error) => return Err(report(error)),
+        };
+        table
+            .range(range.start..before.unwrap_or(range.end))
+            .map_err(report)?
+            .rev()
+            .take(limit)
+            .map(|entry| {
+                let (key, value) = entry.map_err(report)?;
+                Ok(KeyValue {
+                    key: key.value().to_vec(),
+                    value: value.value().to_vec(),
+                })
+            })
+            .collect()
+    }
+
     fn mutate(&mut self, mutations: KeyValueMutations<'_>) -> JoiResult<()> {
         let transaction = self.database.begin_write().map_err(report)?;
         for mutation in mutations.mutations {
