@@ -57,7 +57,16 @@ impl MutationContributor for HistoryContributor {
                 timestamp: context.timestamp().to_owned(),
                 entity_id: mutation.entity_id.to_string(),
                 r#type: mutation.operation.clone(),
-                changes: mutation.changes.clone(),
+                // Deletion diffs contain the old metadata even though timestamp
+                // finalization runs after history. Keep those out as well.
+                changes: mutation
+                    .changes
+                    .iter()
+                    .filter(|change| {
+                        !matches!(change.key.as_str(), "creation_date" | "update_date")
+                    })
+                    .cloned()
+                    .collect(),
             };
             entries.add_json(
                 history_table(&mutation.table),

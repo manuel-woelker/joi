@@ -48,6 +48,8 @@ pub mod server;
 pub mod storage;
 /// Tantivy implementation of entity search and aggregation.
 pub mod tantivy_search_index;
+/// Automatic server-owned entity creation and update timestamps.
+pub mod timestamp_contributor;
 /// User identity, login sessions, and authentication commands.
 pub mod user_session_command;
 

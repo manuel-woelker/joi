@@ -92,10 +92,12 @@ impl IndexedDataStore {
     }
 
     fn contributors(&self) -> JoiResult<Vec<&dyn MutationContributor>> {
-        match &self.contributors {
-            Some(registry) => Ok(registry.extensions::<dyn MutationContributor>()?.collect()),
-            None => Ok(Vec::new()),
-        }
+        let mut contributors: Vec<&dyn MutationContributor> = match &self.contributors {
+            Some(registry) => registry.extensions::<dyn MutationContributor>()?.collect(),
+            None => Vec::new(),
+        };
+        contributors.push(&crate::timestamp_contributor::TimestampContributor);
+        Ok(contributors)
     }
 }
 
@@ -142,7 +144,7 @@ impl DataStore for IndexedDataStore {
                 .into_iter()
                 .filter(|value| value.applies_to(&schema.name))
             {
-                for attribute in contributor.generated_attributes(&schema.name) {
+                for attribute in contributor.generated_attributes(schema) {
                     if attribute == schema.columns[0].name
                         || !schema.columns.iter().any(|column| column.name == attribute)
                         || !generated.insert(attribute)
@@ -359,7 +361,7 @@ impl IndexedDataStore {
         let mut observations = Vec::new();
         let mut state_changes = Vec::new();
         let mut ids = Vec::new();
-        let effect = match chunk.step {
+        let mut effect = match chunk.step {
             DataStoreMutationStep::Insert(mutation) => {
                 let schema = self.schema(&mutation.table_name)?;
                 let mut entities = Vec::new();
@@ -405,8 +407,24 @@ impl IndexedDataStore {
                         );
                     }
                 }
-                for object in objects {
-                    validate_prepared_object(schema, &object)?;
+                for mut object in objects {
+                    // Insert-overwrite must retain omitted server metadata before
+                    // history computes its diff, just like an ordinary update.
+                    if let Some(id) = object
+                        .get(schema.columns[0].name.0.as_str())
+                        .and_then(JsonValue::as_str)
+                        && let Some(old) = previous.get(&EntityId::new(id.as_bytes()))
+                    {
+                        for contributor in &contributors {
+                            for attribute in contributor.generated_attributes(schema) {
+                                if let Some(value) = old.get(attribute.0.as_str()) {
+                                    object
+                                        .entry(attribute.0.to_string())
+                                        .or_insert_with(|| value.clone());
+                                }
+                            }
+                        }
+                    }
                     let entity = entity_from_object(&mutation.table_name, schema, &object)?;
                     if tracked {
                         let old = previous.insert(entity.id.clone(), object.clone());
@@ -496,10 +514,37 @@ impl IndexedDataStore {
         };
         let mut additions = Vec::new();
         if !observations.is_empty() {
-            for contributor in contributors {
+            for contributor in &contributors {
                 let mut entries = MutationEntries::new(contributor.buckets());
                 contributor.contribute(context, &observations, &mut entries)?;
                 additions.extend(entries.into_mutations());
+            }
+        }
+        // History sees business changes first. Final metadata is then serialized
+        // into both the atomic entity writes and the in-memory indexing payload.
+        let schema = self.schema(&table)?;
+        for observation in &mut observations {
+            for contributor in &contributors {
+                contributor.finalize(context, schema, observation)?;
+            }
+        }
+        if let ChunkEffect::Upsert { entities, entries } = &mut effect {
+            let final_values = observations
+                .iter()
+                .filter_map(|change| {
+                    change
+                        .new_value
+                        .as_ref()
+                        .map(|value| (change.entity_id.as_str(), value))
+                })
+                .collect::<HashMap<_, _>>();
+            for (entity, entry) in entities.iter_mut().zip(entries) {
+                let id = std::str::from_utf8(entity.id.as_bytes()).map_err(report)?;
+                if let Some(value) = final_values.get(id) {
+                    validate_prepared_object(schema, value)?;
+                    entity.data = serde_json::to_vec(value).map_err(report)?;
+                    entry.value = entity.data.clone();
+                }
             }
         }
         Ok(ChunkBatch {
@@ -660,11 +705,12 @@ impl IndexedDataStore {
     /// changes chunk by chunk.
     fn validate_mutation_steps(&self, steps: &[DataStoreMutationStep]) -> JoiResult<()> {
         for step in steps {
+            let schema = self.schema(step.table())?;
             let generated = self
                 .contributors()?
                 .into_iter()
                 .filter(|contributor| contributor.applies_to(step.table()))
-                .flat_map(|contributor| contributor.generated_attributes(step.table()))
+                .flat_map(|contributor| contributor.generated_attributes(schema))
                 .collect::<HashSet<_>>();
             match step {
                 DataStoreMutationStep::Insert(mutation) => {

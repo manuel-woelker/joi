@@ -139,6 +139,126 @@ fn setup() -> IndexedDataStore {
 }
 
 #[test]
+fn automatic_timestamps_follow_history_and_are_indexed() {
+    let mut store = IndexedDataStore::in_memory().unwrap();
+    store.set_contributors(registry(false)).unwrap();
+    let schemas = tables()
+        .into_iter()
+        .map(|mut table| {
+            for name in ["creation_date", "update_date"] {
+                table.columns.push(ColumnDescription {
+                    name: AttributeName(name.into()),
+                    description: name.into(),
+                    data_type: ColumnDataType::String,
+                    optional: false,
+                });
+            }
+            table
+        })
+        .collect();
+    store.ensure_tables(schemas).unwrap();
+    for table in ["tickets", "projects"] {
+        let id = ksuid::Ksuid::generate().to_base62();
+        let created = MutationContext::system();
+        let result = store
+            .mutate(
+                &created,
+                DataStoreMutation {
+                    steps: vec![insert(table, &id, "First")],
+                    return_entities: true,
+                },
+            )
+            .unwrap();
+        let value: serde_json::Value =
+            serde_json::from_slice(&result.entities.unwrap()[0].data).unwrap();
+        assert_eq!(value["creation_date"], created.timestamp());
+        assert_eq!(value["update_date"], created.timestamp());
+        let changed = MutationContext::system();
+        let step = || {
+            DataStoreMutationStep::Update(DataStoreUpdateMutation {
+                table_name: TableName(table.into()),
+                ids: vec![id.clone().into()],
+                columns: vec![column("name", "Second")],
+            })
+        };
+        let result = store
+            .mutate(
+                &changed,
+                DataStoreMutation {
+                    steps: vec![step()],
+                    return_entities: true,
+                },
+            )
+            .unwrap();
+        let value: serde_json::Value =
+            serde_json::from_slice(&result.entities.unwrap()[0].data).unwrap();
+        assert_eq!(value["creation_date"], created.timestamp());
+        assert_eq!(value["update_date"], changed.timestamp());
+        let unchanged = store
+            .mutate(
+                &MutationContext::system(),
+                DataStoreMutation {
+                    steps: vec![step()],
+                    return_entities: true,
+                },
+            )
+            .unwrap();
+        let unchanged: serde_json::Value =
+            serde_json::from_slice(&unchanged.entities.unwrap()[0].data).unwrap();
+        assert_eq!(unchanged, value);
+        // Insert-overwrite also preserves creation metadata and excludes it from history.
+        mutate(&mut store, vec![insert(table, &id, "Third")]).unwrap();
+        let history = store.history(request(table, &id)).unwrap();
+        assert_eq!(history.entries.len(), 3);
+        assert!(
+            history
+                .entries
+                .iter()
+                .flat_map(|entry| &entry.changes)
+                .all(|change| change.key != "creation_date" && change.key != "update_date")
+        );
+        for name in ["creation_date", "update_date"] {
+            let spoof = DataStoreMutationStep::Update(DataStoreUpdateMutation {
+                table_name: TableName(table.into()),
+                ids: vec![id.clone().into()],
+                columns: vec![column(name, "forged")],
+            });
+            assert!(mutate(&mut store, vec![spoof]).is_err());
+        }
+        let indexed = store
+            .query(DataStoreQuery {
+                table_name: TableName(table.into()),
+                criterion: QueryCriterion::MatchAny,
+                sorting: vec![],
+                max_results: 10,
+                attributes: vec![AttributeName("creation_date".into())],
+            })
+            .unwrap();
+        assert_eq!(
+            indexed.result_columns[0].values.value_at(0),
+            json!(created.timestamp())
+        );
+        mutate(
+            &mut store,
+            vec![DataStoreMutationStep::Delete(DataStoreDeleteMutation {
+                table_name: TableName(table.into()),
+                ids: vec![id.clone().into()],
+            })],
+        )
+        .unwrap();
+        let history = store.history(request(table, &id)).unwrap();
+        assert_eq!(history.entries.len(), 4);
+        assert!(
+            history
+                .entries
+                .iter()
+                .flat_map(|entry| &entry.changes)
+                .all(|change| change.key != "creation_date" && change.key != "update_date")
+        );
+    }
+}
+
+#[test]
 fn records_real_changes_with_presence_and_user_attribution() {
     let mut store = setup();
     let id = ksuid::Ksuid::generate().to_base62();

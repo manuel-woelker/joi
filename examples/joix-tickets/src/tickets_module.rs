@@ -31,6 +31,12 @@ impl TableDescriptionProvider for TicketTableDescriptionProvider {
                     optional: true,
                 },
                 ColumnDescription {
+                    name: AttributeName("update_date".into()),
+                    description: "Server-assigned UTC last-change timestamp (RFC 3339)".into(),
+                    data_type: ColumnDataType::String,
+                    optional: true,
+                },
+                ColumnDescription {
                     name: AttributeName("project_id".into()),
                     description: "Project containing the ticket".into(),
                     data_type: ColumnDataType::Reference {
@@ -391,6 +397,7 @@ mod tests {
                 "id",
                 "key",
                 "creation_date",
+                "update_date",
                 "project_id",
                 "title",
                 "description",

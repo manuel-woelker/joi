@@ -17,6 +17,18 @@ dirty replay never invokes preparation again. Use this for counters and similar
 domain state; never perform external side effects in the hook. Regular
 `contribute` entries remain append-only.
 
+## How are entity timestamps maintained?
+
+Schemas declaring string columns `creation_date` and/or `update_date` automatically
+use the built-in `TimestampContributor`. Both are server-owned. Creation sets both;
+actual updates change only `update_date`. No-op updates leave timestamps unchanged.
+Use nullable columns when adding them to existing data; old dates are not invented.
+
+The `finalize` hook runs after all `contribute` hooks, including history, and before
+final validation, persistence, and indexing. Consequently automatic timestamps
+are not history changes. Finalizers must preserve identity and avoid external
+side effects. Generated attribute declarations receive the full table schema.
+
 `joi-server` is the reusable backend runtime for JOI applications. It owns
 typed command dispatch, HTTP and CLI transports, entity persistence, search,
 plugin introspection, application-model discovery, and the current user-session

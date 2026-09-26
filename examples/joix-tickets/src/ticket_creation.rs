@@ -23,15 +23,15 @@ impl MutationContributor for TicketCreation {
     fn buckets(&self) -> Vec<TableName> {
         vec![counters()]
     }
-    fn generated_attributes(&self, _: &TableName) -> Vec<AttributeName> {
-        vec![
-            AttributeName("key".into()),
-            AttributeName("creation_date".into()),
-        ]
+    fn generated_attributes(
+        &self,
+        _: &joi_server::data_store::TableDescription,
+    ) -> Vec<AttributeName> {
+        vec![AttributeName("key".into())]
     }
     fn prepare_insert(
         &self,
-        context: &MutationContext,
+        _context: &MutationContext,
         table: &TableName,
         records: &mut [Map<String, Value>],
         preparation: &mut MutationPreparation<'_>,
@@ -154,10 +154,6 @@ impl MutationContributor for TicketCreation {
                 .checked_add(1)
                 .ok_or_else(|| joi_error!("ticket number exhausted"))?;
             record.insert("key".into(), Value::String(key));
-            record.insert(
-                "creation_date".into(),
-                Value::String(context.timestamp().into()),
-            );
         }
         for (project, number) in next {
             let state = serde_json::json!({ "next_number": number, "prefix": projects[&project] });

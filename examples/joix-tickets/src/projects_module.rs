@@ -23,8 +23,19 @@ impl TableDescriptionProvider for ProjectTableDescriptionProvider {
                     optional: false,
                 },
                 project_column("prefix", "Uppercase prefix used for associated ticket keys"),
+                timestamp_column("creation_date"),
+                timestamp_column("update_date"),
             ],
         }
+    }
+}
+
+fn timestamp_column(name: &'static str) -> ColumnDescription {
+    ColumnDescription {
+        name: AttributeName(name.into()),
+        description: "Server-assigned UTC timestamp (RFC 3339)".into(),
+        data_type: ColumnDataType::String,
+        optional: true,
     }
 }
 
@@ -125,7 +136,14 @@ mod tests {
                 .iter()
                 .map(|column| column.name.0.as_str())
                 .collect::<Vec<_>>(),
-            ["id", "name", "description", "prefix"]
+            [
+                "id",
+                "name",
+                "description",
+                "prefix",
+                "creation_date",
+                "update_date"
+            ]
         );
     }
 

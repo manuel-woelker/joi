@@ -29,7 +29,10 @@ user. Fixture keys use the prefix of their associated default project.
 
 Ticket inserts supply a project and normal record fields, but not `key` or
 `creation_date`. The ticket mutation contributor assigns `<PREFIX>-<NUMBER>`
-and an RFC 3339 UTC timestamp. Both fields are immutable, including for system
+while the shared timestamp contributor assigns RFC 3339 UTC `creation_date` and
+`update_date` values to tickets and projects. Creation dates and keys are immutable;
+update dates advance on actual changes, without cluttering history. These fields
+cannot be supplied by clients, including for system
 mutations. Ticket inserts cannot overwrite existing IDs; use updates instead.
 
 Each project has a next-number counter in the private `ticket_project_counters`

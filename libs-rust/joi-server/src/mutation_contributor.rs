@@ -7,7 +7,7 @@ use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 use crate::{
     command_handler::CommandUser,
-    data_store::{AttributeName, TableName},
+    data_store::{AttributeName, TableDescription, TableName},
     generated::api::{HistoryChange, HistoryOperation},
     key_value_store::{KeyValue, KeyValueMutation, KeyValueSetMutation, KeyValueStore},
 };
@@ -65,9 +65,9 @@ pub struct EntityMutation {
     pub operation: HistoryOperation,
     /// Complete previous attributes, absent for creation.
     pub old_value: Option<Map<String, Value>>,
-    /// Complete final attributes, absent for deletion.
+    /// Complete attributes at the current contribution phase, absent for deletion.
     pub new_value: Option<Map<String, Value>>,
-    /// Sorted keys whose values or presence changed.
+    /// Sorted business changes before finalization adds automatic metadata.
     pub changes: Vec<HistoryChange>,
 }
 
@@ -178,8 +178,9 @@ pub trait MutationContributor: Send + Sync {
     fn applies_to(&self, table: &TableName) -> bool;
     /// Exclusively owned auxiliary buckets, checked against all entity namespaces.
     fn buckets(&self) -> Vec<TableName>;
-    /// Server-owned columns populated during insert preparation. Clients cannot write these.
-    fn generated_attributes(&self, _table: &TableName) -> Vec<AttributeName> {
+    /// Schema-dependent server-owned columns populated during preparation or finalization.
+    /// Clients cannot write these on either inserts or updates.
+    fn generated_attributes(&self, _table: &TableDescription) -> Vec<AttributeName> {
         Vec::new()
     }
     /// Prepares inserted records and private state before history and indexing.
@@ -196,6 +197,16 @@ pub trait MutationContributor: Send + Sync {
     /// Whether this contributor supplies the standard entity history contract.
     fn provides_history(&self, _table: &TableName) -> bool {
         false
+    }
+    /// Applies server metadata after all history contributions, before serialization/indexing.
+    /// Must preserve entity identity; failures abort the current chunk.
+    fn finalize(
+        &self,
+        _context: &MutationContext,
+        _schema: &TableDescription,
+        _mutation: &mut EntityMutation,
+    ) -> JoiResult<()> {
+        Ok(())
     }
     /// Inspects actual changes and appends entries to the same KV transaction.
     fn contribute(

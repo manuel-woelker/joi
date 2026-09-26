@@ -37,6 +37,15 @@ export const ticketEntity = defineEntity({
       table: { visibleByDefault: false, width: 190, type: "date" },
     },
     {
+      id: "update_date",
+      label: "Updated",
+      description: "Server-assigned last-change date and time.",
+      generated: true,
+      valueType: "string",
+      optional: true,
+      table: { visibleByDefault: false, width: 190, type: "date" },
+    },
+    {
       id: "project_id",
       label: "Project",
       description: "Project that owns the ticket.",

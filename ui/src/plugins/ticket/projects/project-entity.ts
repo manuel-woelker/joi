@@ -16,6 +16,24 @@ export const projectEntity = defineEntity({
   identityAttribute: "id",
   attributes: [
     {
+      id: "creation_date",
+      label: "Created",
+      description: "Server-assigned creation date and time.",
+      generated: true,
+      valueType: "string",
+      optional: true,
+      table: { visibleByDefault: false, width: 190, type: "date" },
+    },
+    {
+      id: "update_date",
+      label: "Updated",
+      description: "Server-assigned last-change date and time.",
+      generated: true,
+      valueType: "string",
+      optional: true,
+      table: { visibleByDefault: false, width: 190, type: "date" },
+    },
+    {
       id: "id",
       label: "ID",
       description: "Immutable project identifier.",

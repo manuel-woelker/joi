@@ -21,4 +21,15 @@ describe("projectEntity", () => {
     expect(validate("demo", prefix.validation).failures[0]?.message).toContain("uppercase letters");
     expect(validate("2DEMO", prefix.validation).failures[0]?.message).toContain("starting with a letter");
   });
+
+  it("exposes server timestamps as date columns, not editable form fields", () => {
+    const editor = createEntityEditorDefinition(projectEntity);
+    for (const id of ["creation_date", "update_date"]) {
+      const attribute = requireEntityAttribute(projectEntity, id);
+      expect(attribute.generated).toBe(true);
+      expect(attribute.table?.type).toBe("date");
+      expect(editor.create?.attributes.map((entry) => entry.attribute)).not.toContain(id);
+      expect(editor.fields.map((field) => field.attribute)).not.toContain(id);
+    }
+  });
 });
