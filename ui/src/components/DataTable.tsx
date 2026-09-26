@@ -3,7 +3,30 @@ import { createVirtualizer } from "@tanstack/solid-virtual";
 import ArrowDownIcon from "lucide-solid/icons/arrow-down";
 import FunnelIcon from "lucide-solid/icons/funnel";
 import GemIcon from "lucide-solid/icons/gem";
-import { createEffect, createMemo, createSignal, For, type JSX, onCleanup, onMount, Show, untrack } from "solid-js";
+import Columns3Icon from "lucide-solid/icons/columns-3";
+import Trash2Icon from "lucide-solid/icons/trash-2";
+import { IconButton } from "./IconButton";
+import { TableColumnChooser } from "./TableColumnChooser";
+import {
+  normalizeColumnConfig,
+  removeTableColumn,
+  moveTableColumn,
+  type DataTableColumnConfig,
+} from "./table-column-config";
+import { useOptionalContextMenu } from "./context-menu/ContextMenuProvider";
+import { contextMenuEntryId, contextMenuGroupId, type ContextMenuGroup } from "./context-menu/context-menu";
+import {
+  batch,
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  type JSX,
+  onCleanup,
+  onMount,
+  Show,
+  untrack,
+} from "solid-js";
 import { QuickFilterInput } from "./QuickFilterInput";
 import { Portal } from "solid-js/web";
 
@@ -13,9 +36,12 @@ import styles from "./DataTable.module.css";
 import type { CompiledTextNeedle, HighlightSegment } from "./text-highlight";
 import { highlightSegments } from "./text-highlight";
 
+export type { DataTableColumnConfig } from "./table-column-config";
+
 export interface DataTableColumn {
   readonly column: QueryColumnHandle;
   readonly header: string;
+  readonly description?: string;
   readonly width?: number;
   readonly type?: DataTableColumnType;
   readonly sortable?: boolean;
@@ -36,12 +62,6 @@ export interface DataTableSort {
   readonly direction: DataTableSortDirection;
 }
 
-/** Persistable layout state, independent of query-result column handles. */
-export interface DataTableColumnConfig {
-  readonly order: readonly string[];
-  readonly widths: Readonly<Record<string, number>>;
-}
-
 export type DataTableSelectionMode = "replace" | "toggle" | "range";
 
 export interface DataTableColumnFilter {
@@ -57,6 +77,8 @@ export interface DataTableProps {
   readonly result: QueryResult;
   readonly rows?: readonly QueryResultRow[];
   readonly columns: readonly DataTableColumn[];
+  /** Full eligible catalog. Enables column management; columns defines the defaults. */
+  readonly availableColumns?: readonly DataTableColumn[];
   /** Precompiled highlight needles per attribute, applied to text cells. */
   readonly highlights?: ReadonlyMap<string, readonly CompiledTextNeedle[]>;
   /** Per-column quick filters rendered below the column headers. */
@@ -82,7 +104,11 @@ export interface DataTableProps {
   readonly onRowSelect?: (row: QueryResultRow, mode: DataTableSelectionMode) => void;
   readonly onRowActivate?: (row: QueryResultRow) => void;
   readonly onRowContextMenu?: (event: MouseEvent, row: QueryResultRow, column?: QueryColumnHandle) => void;
-  readonly onColumnHeaderContextMenu?: (event: MouseEvent, attribute: string) => void;
+  readonly onColumnHeaderContextMenu?: (
+    event: MouseEvent,
+    attribute: string,
+    columnGroups: readonly ContextMenuGroup[],
+  ) => void;
   readonly virtualization?: {
     readonly height: number;
     readonly estimatedRowHeight?: number;
@@ -91,6 +117,22 @@ export interface DataTableProps {
 }
 
 export function DataTable(props: DataTableProps) {
+  const contextMenu = useOptionalContextMenu();
+  const [chooserOpen, setChooserOpen] = createSignal(false);
+  let chooserAnchor!: HTMLDivElement;
+  const catalog = createMemo(() => {
+    const definitions = new Map(props.columns.map((column) => [column.column.attribute, column]));
+    for (const column of props.availableColumns ?? []) {
+      if (!definitions.has(column.column.attribute)) definitions.set(column.column.attribute, column);
+    }
+    return [...definitions.values()];
+  });
+  const catalogIds = createMemo(() =>
+    catalog()
+      .map((column) => column.column.attribute)
+      .join("\0"),
+  );
+  const defaultIds = createMemo(() => props.columns.map((column) => column.column.attribute).join("\0"));
   let scrollElement: HTMLTableSectionElement | undefined;
   let tableElement: HTMLTableElement | undefined;
   let finishColumnResize: (() => void) | undefined;
@@ -113,8 +155,7 @@ export function DataTable(props: DataTableProps) {
   const [resizingColumnId, setResizingColumnId] = createSignal<string>();
   const canSort = (attribute: string) =>
     Boolean(
-      props.onSortingChange &&
-        props.columns.find((column) => column.column.attribute === attribute)?.sortable !== false,
+      props.onSortingChange && catalog().find((column) => column.column.attribute === attribute)?.sortable !== false,
     );
   const sortFor = (attribute: string) => props.sorting?.find((sort) => sort.attribute === attribute);
   const changeSorting = (attribute: string, multi: boolean) => {
@@ -122,7 +163,7 @@ export function DataTable(props: DataTableProps) {
     props.onSortingChange(nextDataTableSorting(props.sorting ?? [], attribute, multi));
   };
   const columns = createMemo<ColumnDef<QueryResultRow>[]>(() =>
-    props.columns.map((definition) => ({
+    catalog().map((definition) => ({
       id: definition.column.attribute,
       accessorFn: (row) => row.value(definition.column),
       header: definition.header,
@@ -153,17 +194,77 @@ export function DataTable(props: DataTableProps) {
     columnResizeMode: "onChange",
     enableColumnResizing: true,
   });
-  const notifyColumnConfig = () =>
-    props.onColumnConfigChange?.({
-      order: table.getAllLeafColumns().map((column) => column.id),
-      widths: { ...table.getState().columnSizing },
+  const currentColumnConfig = (): DataTableColumnConfig => ({
+    order: table.getAllLeafColumns().map((column) => column.id),
+    widths: { ...table.getState().columnSizing },
+    ...(props.availableColumns ? { visible: table.getVisibleLeafColumns().map((column) => column.id) } : {}),
+  });
+  const notifyColumnConfig = () => props.onColumnConfigChange?.(currentColumnConfig());
+  const applyColumnConfig = (config: DataTableColumnConfig) => {
+    batch(() => {
+      table.setColumnOrder([...config.order]);
+      table.setColumnSizing({ ...config.widths });
+      table.setColumnVisibility(
+        Object.fromEntries(
+          catalog().map((column) => [
+            column.column.attribute,
+            !config.visible || config.visible.includes(column.column.attribute),
+          ]),
+        ),
+      );
     });
+  };
+  const changeColumnConfig = (config: DataTableColumnConfig) => {
+    applyColumnConfig(config);
+    notifyColumnConfig();
+  };
+  const resetColumnConfig = () =>
+    changeColumnConfig(
+      normalizeColumnConfig(
+        undefined,
+        catalog().map((column) => column.column.attribute),
+        props.columns.map((column) => column.column.attribute),
+      ),
+    );
+  const columnMenu = (attribute: string): readonly ContextMenuGroup[] =>
+    props.availableColumns
+      ? [
+          {
+            id: contextMenuGroupId("table-columns"),
+            entries: [
+              {
+                id: contextMenuEntryId("remove-table-column"),
+                label: "Remove column",
+                description: table.getVisibleLeafColumns().length === 1 ? "Keep at least one column" : undefined,
+                disabled: table.getVisibleLeafColumns().length <= 1,
+                icon: () => <Trash2Icon size={16} />,
+                execute: () => changeColumnConfig(removeTableColumn(currentColumnConfig(), attribute)),
+              },
+              {
+                id: contextMenuEntryId("configure-table-columns"),
+                label: "Columns",
+                icon: () => <Columns3Icon size={16} />,
+                execute: () => {
+                  setChooserOpen(true);
+                },
+              },
+            ],
+          },
+        ]
+      : [];
   createEffect(() => {
     props.columnConfigKey;
     const config = props.columnConfig;
+    catalogIds();
+    defaultIds();
     untrack(() => {
-      table.setColumnOrder(config?.order ? [...config.order] : []);
-      table.setColumnSizing(config?.widths ? { ...config.widths } : {});
+      applyColumnConfig(
+        normalizeColumnConfig(
+          config,
+          catalog().map((column) => column.column.attribute),
+          props.columns.map((column) => column.column.attribute),
+        ),
+      );
     });
   });
   const tableRows = () => table.getRowModel().rows;
@@ -205,30 +306,33 @@ export function DataTable(props: DataTableProps) {
       .join(" ");
   };
   const reorderColumn = (sourceId: string, targetIndex: number) => {
-    const order = table.getAllLeafColumns().map((column) => column.id);
-    const sourceIndex = order.indexOf(sourceId);
-    if (sourceIndex < 0) return;
-    order.splice(sourceIndex, 1);
-    order.splice(Math.max(0, Math.min(targetIndex, order.length)), 0, sourceId);
-    table.setColumnOrder(order);
+    table.setColumnOrder([
+      ...moveTableColumn(
+        { ...currentColumnConfig(), visible: table.getVisibleLeafColumns().map((column) => column.id) },
+        sourceId,
+        targetIndex,
+      ).order,
+    ]);
   };
   const moveColumn = (columnId: string, offset: -1 | 1) => {
-    const order = table.getAllLeafColumns().map((column) => column.id);
+    const order = table.getVisibleLeafColumns().map((column) => column.id);
     const sourceIndex = order.indexOf(columnId);
     const targetIndex = sourceIndex + offset;
     if (sourceIndex < 0 || targetIndex < 0 || targetIndex >= order.length) return;
-    [order[sourceIndex], order[targetIndex]] = [order[targetIndex], order[sourceIndex]];
-    table.setColumnOrder(order);
+    reorderColumn(columnId, targetIndex);
     notifyColumnConfig();
   };
   const previewColumnAtPointer = (clientX: number, pending: NonNullable<typeof pendingColumnDrag>) => {
     const remaining = table
-      .getAllLeafColumns()
+      .getVisibleLeafColumns()
       .map((column) => column.id)
       .filter((columnId) => columnId !== pending.columnId);
     const tableBounds = tableElement?.getBoundingClientRect();
     const headerBounds = tableElement?.tHead?.getBoundingClientRect();
-    const availableWidth = headerBounds?.width || tableBounds?.width || table.getTotalSize();
+    const availableWidth =
+      headerBounds?.width ||
+      tableBounds?.width ||
+      table.getVisibleLeafColumns().reduce((sum, column) => sum + column.getSize(), 0);
     const tableLeft = headerBounds?.left ?? tableBounds?.left ?? 0;
     const candidates: { index: number; center: number }[] = [];
     for (let index = 0; index <= remaining.length; index += 1) {
@@ -401,8 +505,7 @@ export function DataTable(props: DataTableProps) {
       onContextMenu={(event) => {
         const cell = (event.target as Element | null)?.closest?.("td[data-column-id]");
         const column = cell
-          ? props.columns.find((candidate) => candidate.column.attribute === cell.getAttribute("data-column-id"))
-              ?.column
+          ? catalog().find((candidate) => candidate.column.attribute === cell.getAttribute("data-column-id"))?.column
           : undefined;
         props.onRowContextMenu?.(event, row.original, column);
       }}
@@ -430,7 +533,7 @@ export function DataTable(props: DataTableProps) {
     >
       <For each={row.getVisibleCells()}>
         {(cell) => (
-          <td data-column-id={cell.column.id} data-column-type={columnType(props.columns, cell.column.id)}>
+          <td data-column-id={cell.column.id} data-column-type={columnType(catalog(), cell.column.id)}>
             {flexRender(cell.column.columnDef.cell, cell.getContext())}
           </td>
         )}
@@ -445,8 +548,35 @@ export function DataTable(props: DataTableProps) {
         [styles.fillWidth]: props.fillWidth,
         [styles.fillHeight]: props.fillHeight,
         [styles.virtualized]: Boolean(props.virtualization),
+        [styles.withColumnControls]: Boolean(props.availableColumns),
       }}
     >
+      <Show when={props.availableColumns}>
+        <div class={styles.columnToolbar} ref={chooserAnchor}>
+          <IconButton
+            type="button"
+            label="Columns"
+            icon={<Columns3Icon size={16} />}
+            aria-expanded={chooserOpen()}
+            onClick={() => setChooserOpen((open) => !open)}
+          />
+        </div>
+        <Show when={chooserOpen()}>
+          <TableColumnChooser
+            anchor={chooserAnchor.querySelector("button") ?? chooserAnchor}
+            columns={catalog().map((column) => ({
+              id: column.column.attribute,
+              label: column.header,
+              type: columnType(catalog(), column.column.attribute),
+              description: column.description,
+            }))}
+            config={currentColumnConfig()}
+            onChange={changeColumnConfig}
+            onReset={resetColumnConfig}
+            onClose={() => setChooserOpen(false)}
+          />
+        </Show>
+      </Show>
       <table
         ref={tableElement}
         class={styles.table}
@@ -455,7 +585,7 @@ export function DataTable(props: DataTableProps) {
         data-density={props.density ?? "comfortable"}
         style={{
           "--data-table-columns": columnTemplate(),
-          "--data-table-content-width": `${table.getTotalSize()}px`,
+          "--data-table-content-width": `${table.getVisibleLeafColumns().reduce((sum, column) => sum + column.getSize(), 0)}px`,
           "--data-table-scrollbar-width": `${scrollbarWidth()}px`,
         }}
       >
@@ -474,8 +604,17 @@ export function DataTable(props: DataTableProps) {
                         [styles.draggingColumn]: draggedColumnId() === header.column.id,
                       }}
                       data-column-id={header.column.id}
-                      data-column-type={columnType(props.columns, header.column.id)}
-                      onContextMenu={(event) => props.onColumnHeaderContextMenu?.(event, header.column.id)}
+                      data-column-type={columnType(catalog(), header.column.id)}
+                      onContextMenu={(event) => {
+                        const groups = columnMenu(header.column.id);
+                        if (props.onColumnHeaderContextMenu)
+                          props.onColumnHeaderContextMenu(event, header.column.id, groups);
+                        else if (contextMenu) contextMenu.open({ event, createGroups: () => groups });
+                        else if (props.availableColumns) {
+                          event.preventDefault();
+                          setChooserOpen(true);
+                        }
+                      }}
                       tabIndex={header.isPlaceholder ? undefined : 0}
                       onPointerDown={(event) => {
                         if (header.isPlaceholder || resizingColumnId() || event.button !== 0) return;
@@ -562,7 +701,7 @@ export function DataTable(props: DataTableProps) {
                                     <span class={styles.sortDirection}>
                                       <For
                                         each={sortDirectionCharacters(
-                                          columnType(props.columns, header.column.id),
+                                          columnType(catalog(), header.column.id),
                                           sort().direction,
                                         )}
                                       >
@@ -650,7 +789,7 @@ export function DataTable(props: DataTableProps) {
                       {(filter) => (
                         <ColumnFilterInput
                           filter={filter}
-                          label={props.columns.find((column) => column.column.attribute === id)?.header}
+                          label={catalog().find((column) => column.column.attribute === id)?.header}
                         />
                       )}
                     </Show>
@@ -670,11 +809,11 @@ export function DataTable(props: DataTableProps) {
             when={props.loading}
             fallback={
               <Show
-                when={tableRows().length > 0}
+                when={tableRows().length > 0 && table.getVisibleLeafColumns().length > 0}
                 fallback={
                   <tr>
-                    <td class={styles.emptyCell} colSpan={props.columns.length}>
-                      {props.emptyMessage ?? "No results found."}
+                    <td class={styles.emptyCell} colSpan={Math.max(1, table.getVisibleLeafColumns().length)}>
+                      {catalog().length ? (props.emptyMessage ?? "No results found.") : "No columns available."}
                     </td>
                   </tr>
                 }
@@ -684,7 +823,7 @@ export function DataTable(props: DataTableProps) {
                     <tr aria-hidden="true">
                       <td
                         class={styles.virtualSpacer}
-                        colSpan={props.columns.length}
+                        colSpan={Math.max(1, table.getVisibleLeafColumns().length)}
                         style={{ height: `${paddingTop()}px` }}
                       />
                     </tr>
@@ -696,7 +835,7 @@ export function DataTable(props: DataTableProps) {
                     <tr aria-hidden="true">
                       <td
                         class={styles.virtualSpacer}
-                        colSpan={props.columns.length}
+                        colSpan={Math.max(1, table.getVisibleLeafColumns().length)}
                         style={{ height: `${paddingBottom()}px` }}
                       />
                     </tr>
@@ -706,7 +845,7 @@ export function DataTable(props: DataTableProps) {
             }
           >
             <tr class={styles.loadingRow}>
-              <td class={styles.loadingCell} colSpan={props.columns.length} role="status">
+              <td class={styles.loadingCell} colSpan={Math.max(1, table.getVisibleLeafColumns().length)} role="status">
                 <span class={styles.loadingIndicator}>
                   <span class={styles.loadingSpinner} aria-hidden="true" />
                   {props.loadingMessage ?? "Loading..."}

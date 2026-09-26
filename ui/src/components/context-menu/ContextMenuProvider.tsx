@@ -282,3 +282,8 @@ export function useContextMenu(): ContextMenuController {
   if (!controller) throw new Error("useContextMenu must be called inside a ContextMenuProvider");
   return controller;
 }
+
+/** Optional integration for standalone components that also provide direct controls. */
+export function useOptionalContextMenu(): ContextMenuController | undefined {
+  return useContext(ContextMenuContext);
+}

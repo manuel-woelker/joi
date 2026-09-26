@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { IconComponent } from "../../../icons/icon-component";
 import { parseQueryResponse } from "../query/query-result";
 import { validate } from "../../../validation/validation";
-import { bindEntity, createEntityTableColumns } from "./bound-entity";
+import { bindEntity, createEntityTableColumns, createEntityTableColumnCatalog } from "./bound-entity";
 import {
   defineEntity,
   entityId,
@@ -39,6 +39,20 @@ const result = parseQueryResponse({
 });
 
 describe("entity descriptions", () => {
+  it("offers explicitly configured hidden attributes without exposing internal IDs", () => {
+    const description = {
+      ...entity,
+      attributes: entity.attributes.map((attribute) =>
+        attribute.id === "rank" ? { ...attribute, table: { visibleByDefault: false, width: 80 } } : attribute,
+      ),
+    };
+    const bound = bindEntity(result, description);
+    expect(createEntityTableColumns(bound).map((column) => column.column.attribute)).toEqual(["name"]);
+    expect(createEntityTableColumnCatalog(bound).map((column) => [column.column.attribute, column.type])).toEqual([
+      ["name", "text"],
+      ["rank", "number"],
+    ]);
+  });
   it("binds typed attributes and creates default table columns", () => {
     const bound = bindEntity(result, entity);
     expect(bound.identity.attribute).toBe("id");

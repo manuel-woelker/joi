@@ -94,19 +94,19 @@ those remains an explicit action.
 
 ## What are the implementation steps?
 
-- [ ] Add documented visibility/catalog contracts and pure configuration
+- [x] Add documented visibility/catalog contracts and pure configuration
       normalization/transition functions, preserving old config compatibility.
-- [ ] Integrate visibility with TanStack column state and update drag geometry,
+- [x] Integrate visibility with TanStack column state and update drag geometry,
       keyboard moves, header/body rendering, quick-filter alignment, and last
       visible column width filling. Persist only committed drag changes.
-- [ ] Add the reusable chooser and header menu integration, including add-first,
+- [x] Add the reusable chooser and header menu integration, including add-first,
       remove, accessible reorder, reset, and last-column protection.
-- [ ] Build eligible entity catalogs and wire master-detail views through the
+- [x] Build eligible entity catalogs and wire master-detail views through the
       existing config store. Cover active presentation-based views as described.
-- [ ] Extend DataTable playground scenarios with many available columns, hidden
+- [x] Extend DataTable playground scenarios with many available columns, hidden
       defaults, customized widths/order, and a controlled config round-trip.
-- [ ] Document the public DataTable API and view persistence behavior in UI docs.
-- [ ] Add regression tests and complete verification below.
+- [x] Document the public DataTable API and view persistence behavior in UI docs.
+- [x] Add regression tests and complete verification below.
 
 ## How will this be verified?
 
@@ -135,3 +135,30 @@ those remains an explicit action.
   auditing those paths, especially the last column's leftover-width calculation.
 - Controlled config updates must not create save loops, interrupt a resize, or
   reapply stale config during live drag previews.
+
+## What implementation details were resolved?
+
+- The chooser lives in `TableColumnChooser.tsx`; configuration transitions are
+  pure functions in `table-column-config.ts`. TanStack owns live table layout.
+- The existing master-detail store already persists the expanded column config;
+  no second store or persistence layer was needed.
+- `SavedViewContent` and `SavedViewCommands` have no active callers in the current
+  source tree. That legacy presentation path remains untouched.
+- Standalone DataTables can open the chooser without a context-menu provider.
+  With a provider they also offer header menu actions. Custom header callbacks
+  receive the column-management groups to compose with their own actions.
+- The catalog supplements default columns, preserving explicit default renderer
+  overrides. Only explicitly table-configured entity attributes are offered.
+- Browser verification is left to the user, as requested. This repository does
+  not use a completed-plans folder; completed plans remain in this directory.
+
+## What verification completed?
+
+- Focused configuration, table, entity-catalog, view-store, and copied-view tests
+  passed. Regression coverage includes native chooser dragging, pointer header
+  dragging with hidden columns, committed-only drag callbacks, width restoration,
+  query-result replacement, empty catalogs, add-first/re-add-first, and reset.
+- Store tests confirm visibility round-trips, pending-save identity, copied-view
+  independence, unchanged selection, and no backend requests for layout edits.
+- `./n check` passed all 12 tasks, including UI tests and type checking.
+- `git diff --check` passed. Development restart requested with `./n --restart`.

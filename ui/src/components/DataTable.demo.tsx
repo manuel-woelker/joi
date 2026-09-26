@@ -1,9 +1,10 @@
-import { createMemo, createSignal } from "solid-js";
+import { createMemo, createSignal, Show } from "solid-js";
 
 import type { ComponentDemo } from "../plugins/core/playground/demo";
 import { parseQueryResponse } from "../plugins/core/query/query-result";
 import { Badge } from "./Badge";
-import { DataTable, type DataTableSort } from "./DataTable";
+import { DataTable, type DataTableSort, type DataTableColumn, type DataTableColumnConfig } from "./DataTable";
+import { ContextMenuProvider } from "./context-menu/ContextMenuProvider";
 
 const result = parseQueryResponse({
   number_of_hits: 3,
@@ -135,6 +136,56 @@ const multiColumnResult = parseQueryResponse({
   ],
 });
 
+function ConfigurableColumns() {
+  const [saved, setSaved] = createSignal<DataTableColumnConfig>({
+    order: ["status", "key", "priority"],
+    visible: ["status", "key", "priority"],
+    widths: { key: 140, status: 180 },
+  });
+  const [generation, setGeneration] = createSignal(1);
+  const columns: DataTableColumn[] = multiColumnResult.columns.map((column) => ({
+    column,
+    header: column.attribute[0].toUpperCase() + column.attribute.slice(1),
+    description: `Ticket ${column.attribute}`,
+    type: ["priority", "estimate", "delta"].includes(column.attribute)
+      ? "number"
+      : column.attribute === "updated"
+        ? "date"
+        : column.attribute === "started"
+          ? "time"
+          : "text",
+    width: 120,
+  }));
+  return (
+    <ContextMenuProvider>
+      <button
+        type="button"
+        onClick={() => {
+          setSaved(JSON.parse(JSON.stringify(saved())));
+          setGeneration((value) => value + 1);
+        }}
+      >
+        Reload table
+      </button>
+      <Show keyed when={generation()}>
+        {(_generation) => (
+          <DataTable
+            ariaLabel="Configurable ticket columns"
+            result={multiColumnResult}
+            columns={columns.slice(0, 3)}
+            availableColumns={columns}
+            columnConfig={saved()}
+            onColumnConfigChange={setSaved}
+            density="compact"
+            fillWidth
+          />
+        )}
+      </Show>
+      <pre>{JSON.stringify(saved(), null, 2)}</pre>
+    </ContextMenuProvider>
+  );
+}
+
 function MultiColumnSortedTable() {
   const numericAttributes = new Set(["priority", "estimate", "delta"]);
   const [sorting, setSorting] = createSignal<readonly DataTableSort[]>([
@@ -205,6 +256,12 @@ export default {
   name: "Data Table",
   description: "A generic TanStack-backed table over typed columnar query results.",
   scenarios: [
+    {
+      name: "Column management",
+      description:
+        "Add columns at the front, remove or reorder them, then reload the table from its saved configuration.",
+      render: ConfigurableColumns,
+    },
     {
       name: "Empty",
       render: () => (

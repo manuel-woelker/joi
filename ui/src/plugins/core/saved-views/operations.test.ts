@@ -90,7 +90,14 @@ describe("workspace operations", () => {
 
   it("duplicates a view while reusing its definitions", () => {
     const workspace = createTestWorkspace();
-    workspace.viewConfigs = { "view-active": { "master-detail": { columnSearch: { name: "Jane" } } } };
+    workspace.viewConfigs = {
+      "view-active": {
+        "master-detail": {
+          columnSearch: { name: "Jane" },
+          columns: { order: ["name", "id"], visible: ["name"], widths: { name: 210 } },
+        },
+      },
+    };
     const id = duplicateView(workspace, "view-active")!;
     expect(workspace.views[id]).toMatchObject({
       name: "Active things copy",
@@ -98,6 +105,10 @@ describe("workspace operations", () => {
       presentationId: "presentation-table",
     });
     expect(workspace.viewConfigs[id]).toEqual(workspace.viewConfigs["view-active"]);
+    (workspace.viewConfigs[id]["master-detail"] as { columns: { visible: string[] } }).columns.visible.push("id");
+    expect(
+      (workspace.viewConfigs["view-active"]["master-detail"] as { columns: { visible: string[] } }).columns.visible,
+    ).toEqual(["name"]);
     const navigation = Object.values(workspace.navigation).find((item) => item.type === "view" && item.viewId === id)!;
     deleteNavigationItem(workspace, navigation.id);
     expect(workspace.viewConfigs[id]).toBeUndefined();

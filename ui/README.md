@@ -350,6 +350,32 @@ runs it, and Escape closes the launcher. Action execution still flows through
 `ActionProvider`, so contextual availability, pending state, and error handling
 remain shared with action buttons, hotkeys, and context menus.
 
+## How can table columns be customized?
+
+`DataTable` accepts default `columns` and an optional `availableColumns` catalog.
+Supplying a catalog enables its Columns chooser: add hidden columns at the front,
+remove columns, drag to reorder, or use the up/down controls. Header dragging and
+Alt+Left/Right also reorder columns. At least one column remains visible.
+Reset columns restores default visibility, order, and widths only.
+
+`columnConfig` / `onColumnConfigChange` exchange a `DataTableColumnConfig` with
+stable attribute IDs in `order` and optional `visible`, and pixel sizes in
+`widths`. Old configs without `visible` retain default visibility. Saved widths
+survive hiding and re-adding columns. Unknown IDs and invalid sizes are ignored.
+`columnConfigKey` identifies the owning view when reusing a mounted table.
+
+Generic master-detail views persist this state in `MasterDetailViewConfig.columns`
+through their existing per-view config store. Entity attributes with `table`
+metadata are eligible, including those not visible by default; internal attributes
+without table metadata are not offered. Hiding columns never clears filters,
+facets, or sorting, and layout edits do not fetch data again.
+
+The optional header-context-menu callback receives column-management groups as its
+third argument; append these to application-specific groups. Without a callback,
+the table uses the surrounding `ContextMenuProvider`, or opens the chooser directly
+when used standalone. The Data Table playground's Column management scenario
+demonstrates a serialized config round-trip without an application store.
+
 ## How is entity history displayed?
 
 For history-enabled entities, the record detail pane offers Details and History

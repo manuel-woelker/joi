@@ -88,12 +88,24 @@ export function createEntityTableColumns(
     return {
       column,
       header: field.label ?? attribute.label,
+      description: attribute.description,
+      type: attribute.valueType === "int" ? "number" : "text",
       width: field.width ?? attribute.table?.width,
       ...lookupCell,
       ...htmlCell,
       ...overrides[attribute.id],
     };
   });
+}
+
+/** Eligible columns include explicitly configured, non-default attributes, but not internal fields. */
+export function createEntityTableColumnCatalog(entity: BoundEntity): readonly DataTableColumn[] {
+  return createEntityTableColumns(
+    entity,
+    entity.description.attributes
+      .filter((attribute) => attribute.table !== undefined)
+      .map((attribute) => ({ attribute: attribute.id })),
+  );
 }
 
 function defaultTableFields(description: EntityDescription): readonly EntityTableField[] {

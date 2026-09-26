@@ -16,7 +16,7 @@ import { QuickFilterInput } from "../../../components/QuickFilterInput";
 import { Select } from "../../../components/Select";
 import { Tooltip } from "../../../components/Tooltip";
 import { useActions } from "../actions/ActionProvider";
-import { createEntityTableColumns } from "../entities/bound-entity";
+import { createEntityTableColumns, createEntityTableColumnCatalog } from "../entities/bound-entity";
 import type { EntityId } from "../entities/entity-description";
 import { useEntityRegistry } from "../entities/entity-registry";
 import { LookupValue, useLookupService } from "../lookups/lookup";
@@ -279,14 +279,16 @@ function EntityMasterDetailContent(props: {
                   result={store.table().result}
                   rows={store.table().rows}
                   columns={createEntityTableColumns(store.table().entity)}
+                  availableColumns={createEntityTableColumnCatalog(store.table().entity)}
                   highlights={store.highlights()}
                   filteredAttributes={store.filteredAttributes()}
                   facetedAttributes={store.facetedAttributes()}
                   columnFilters={store.columnFilters()}
-                  onColumnHeaderContextMenu={(event, attribute) =>
+                  onColumnHeaderContextMenu={(event, attribute, columnGroups) =>
                     contextMenu.open({
                       event,
                       createGroups: () => [
+                        ...columnGroups,
                         {
                           id: contextMenuGroupId("column-filters"),
                           entries: [

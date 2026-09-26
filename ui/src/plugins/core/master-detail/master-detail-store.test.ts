@@ -154,6 +154,32 @@ function setup(
 }
 
 describe("master-detail store", () => {
+  it("saves visibility without querying or losing selection and restores it on view changes", async () => {
+    vi.useFakeTimers();
+    const configs: Record<string, MasterDetailViewConfig> = {};
+    const { store, requests, setIdentity, dispose } = setup(undefined, { configs });
+    await settle();
+    store.selectRow(store.table().rows![0], "replace");
+    const before = requests.length;
+    const columns = { order: ["name", "id"], visible: ["name"], widths: { name: 210 } };
+    store.setColumnConfig(columns);
+    await settle();
+    vi.advanceTimersByTime(300);
+    await settle();
+    expect(requests).toHaveLength(before);
+    expect(store.selectedRowIds()).toEqual(new Set(["a"]));
+    expect(configs.one.columns).toEqual(columns);
+    store.setColumnConfig({ ...columns, widths: { name: 240 } });
+    setIdentity("two");
+    expect(configs.one.columns?.widths.name).toBe(240);
+    expect(store.columnConfig()).toBeUndefined();
+    setIdentity("one");
+    expect(store.columnConfig()?.visible).toEqual(["name"]);
+    expect(store.columnConfig()?.widths.name).toBe(240);
+    dispose();
+    const reloaded = setup(undefined, { configs });
+    expect(reloaded.store.columnConfig()).toEqual(configs.one.columns);
+  });
   it("restores per-view filters, facets, sorting, quickfilters, and column layout", async () => {
     vi.useFakeTimers();
     const filter = createFilterCriterion(filterAttributeId("name"), filterOperatorId("contains"), {

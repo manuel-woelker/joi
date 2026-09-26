@@ -41,7 +41,7 @@ describe("DataTable", () => {
       />
     ));
     fireEvent.contextMenu(screen.getByRole("columnheader", { name: "Name" }));
-    expect(onColumnHeaderContextMenu).toHaveBeenCalledWith(expect.any(MouseEvent), "name");
+    expect(onColumnHeaderContextMenu).toHaveBeenCalledWith(expect.any(MouseEvent), "name", []);
   });
 
   it("shows a reactive filter indicator after sorted and unsortable column labels", () => {
