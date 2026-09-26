@@ -19,6 +19,8 @@ export type EntityEditControl = "text" | "textarea" | "html" | "integer" | "look
 
 /** Default table presentation for an entity attribute. */
 export interface EntityTableDescription {
+  /** Display and sorting-indicator format, independent of the stored primitive type. */
+  readonly type?: import("../../../components/DataTable").DataTableColumnType;
   readonly visibleByDefault?: boolean;
   readonly width?: number;
 }
@@ -59,6 +61,8 @@ export interface EntityAttributeDescription<
   readonly validation?: ValidationFunction<TValue>;
   readonly lookup?: LookupId;
   readonly optional?: boolean;
+  /** Server-owned value, excluded from creation payloads and editable fields. */
+  readonly generated?: boolean;
   /** Includes grouped value counts for this attribute in generic entity views. */
   readonly facet?: boolean;
 }
@@ -128,6 +132,11 @@ export function validateEntityDescription(description: EntityDescription): void 
     }
     validateEditControl(description.id, attribute);
     validateCreateControl(description.id, attribute);
+    if (attribute.generated && (attribute.create || attribute.edit)) {
+      throw new Error(
+        `Entity '${description.id}' generated attribute '${attribute.id}' cannot define create or edit controls`,
+      );
+    }
   }
 
   if (!ids.has(description.identityAttribute)) {
@@ -137,8 +146,8 @@ export function validateEntityDescription(description: EntityDescription): void 
   if (identity.valueType !== "string")
     throw new Error(`Entity '${description.id}' identity attribute must be a string`);
   const creatable = description.attributes.filter((attribute) => attribute.create);
-  if (creatable.length > 0 && creatable.length !== description.attributes.length) {
-    const missing = description.attributes.find((attribute) => !attribute.create)!;
+  const missing = description.attributes.find((attribute) => !attribute.create && !attribute.generated);
+  if (creatable.length > 0 && missing) {
     throw new Error(`Entity '${description.id}' create definition is missing attribute '${missing.id}'`);
   }
 }

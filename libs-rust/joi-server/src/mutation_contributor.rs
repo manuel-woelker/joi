@@ -7,9 +7,9 @@ use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 use crate::{
     command_handler::CommandUser,
-    data_store::TableName,
+    data_store::{AttributeName, TableName},
     generated::api::{HistoryChange, HistoryOperation},
-    key_value_store::{KeyValue, KeyValueMutation, KeyValueSetMutation},
+    key_value_store::{KeyValue, KeyValueMutation, KeyValueSetMutation, KeyValueStore},
 };
 
 /// Identity of server-initiated writes. Never assign it to a real user account.
@@ -178,6 +178,21 @@ pub trait MutationContributor: Send + Sync {
     fn applies_to(&self, table: &TableName) -> bool;
     /// Exclusively owned auxiliary buckets, checked against all entity namespaces.
     fn buckets(&self) -> Vec<TableName>;
+    /// Server-owned columns populated during insert preparation. Clients cannot write these.
+    fn generated_attributes(&self, _table: &TableName) -> Vec<AttributeName> {
+        Vec::new()
+    }
+    /// Prepares inserted records and private state before history and indexing.
+    /// State writes commit atomically with this chunk; this hook must have no external effects.
+    fn prepare_insert(
+        &self,
+        _context: &MutationContext,
+        _table: &TableName,
+        _records: &mut [Map<String, Value>],
+        _preparation: &mut MutationPreparation<'_>,
+    ) -> JoiResult<()> {
+        Ok(())
+    }
     /// Whether this contributor supplies the standard entity history contract.
     fn provides_history(&self, _table: &TableName) -> bool {
         false
@@ -189,4 +204,68 @@ pub trait MutationContributor: Send + Sync {
         mutations: &[EntityMutation],
         entries: &mut MutationEntries,
     ) -> JoiResult<()>;
+}
+
+/// Read-only storage access and staged, replaceable private state for insert preparation.
+///
+/// The datastore's exclusive mutation lock covers reads, allocation, and commit.
+/// Nothing is written until the entire chunk (including history) has been prepared.
+pub struct MutationPreparation<'a> {
+    store: &'a dyn KeyValueStore,
+    allowed: HashSet<TableName>,
+    state: HashMap<(TableName, Vec<u8>), Vec<u8>>,
+}
+
+impl<'a> MutationPreparation<'a> {
+    pub(crate) fn new(store: &'a dyn KeyValueStore, buckets: Vec<TableName>) -> Self {
+        Self {
+            store,
+            allowed: buckets.into_iter().collect(),
+            state: HashMap::new(),
+        }
+    }
+
+    /// Reads authoritative entities, not the potentially lagging search index.
+    pub fn store(&self) -> &dyn KeyValueStore {
+        self.store
+    }
+
+    /// Reads staged state first, then its persisted value from an owned private bucket.
+    pub fn state(&self, table: &TableName, key: &[u8]) -> JoiResult<Option<Vec<u8>>> {
+        if !self.allowed.contains(table) {
+            joi_bail!("contributor does not own bucket `{}`", table.0);
+        }
+        if let Some(value) = self.state.get(&(table.clone(), key.to_vec())) {
+            return Ok(Some(value.clone()));
+        }
+        Ok(self
+            .store
+            .query_ids(table, &[key])?
+            .into_iter()
+            .next()
+            .map(|entry| entry.value))
+    }
+
+    /// Stages an insert or replacement; repeated sets to a key keep its final value.
+    pub fn set_state(&mut self, table: TableName, key: Vec<u8>, value: Vec<u8>) -> JoiResult<()> {
+        if !self.allowed.contains(&table) {
+            joi_bail!("contributor does not own bucket `{}`", table.0);
+        }
+        self.state.insert((table, key), value);
+        Ok(())
+    }
+
+    pub(crate) fn into_mutations(self) -> Vec<KeyValueMutation> {
+        let mut tables: HashMap<TableName, Vec<KeyValue>> = HashMap::new();
+        for ((table, key), value) in self.state {
+            tables
+                .entry(table)
+                .or_default()
+                .push(KeyValue { key, value });
+        }
+        tables
+            .into_iter()
+            .map(|(table, entries)| KeyValueMutation::Set(KeyValueSetMutation { table, entries }))
+            .collect()
+    }
 }

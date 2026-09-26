@@ -29,6 +29,35 @@ const createResult = (name: string, age: number) =>
   });
 
 describe("DataTable", () => {
+  it("renders date columns with DateTime and updates them without breaking on missing or invalid values", () => {
+    const timestamp = "2026-09-19T16:40:44Z";
+    const result = createResult(timestamp, 34);
+    const column = result.requireColumn("name");
+    const { container } = render(() => (
+      <DataTable ariaLabel="Dates" result={result} columns={[{ column, header: "Created", type: "date" }]} />
+    ));
+    expect(container.querySelector("time")?.getAttribute("datetime")).toBe(new Date(timestamp).toISOString());
+    for (const value of ["", "invalid"]) {
+      result.updateRow(result.rows[0], [{ column, value }]);
+      expect(container.querySelector("time")).toBeNull();
+      expect(screen.getByRole("cell").textContent).toBe(value);
+    }
+    result.updateRow(result.rows[0], [{ column, value: timestamp }]);
+    expect(container.querySelector("time")).not.toBeNull();
+  });
+
+  it("preserves custom date cell renderers", () => {
+    const result = createResult("2026-09-19T16:40:44Z", 34);
+    render(() => (
+      <DataTable
+        ariaLabel="Dates"
+        result={result}
+        columns={[{ column: result.requireColumn("name"), header: "Created", type: "date", cell: () => "Custom date" }]}
+      />
+    ));
+    expect(screen.getByRole("cell").textContent).toBe("Custom date");
+  });
+
   it("reports the right-clicked header column", () => {
     const result = createResult("Jane", 34);
     const onColumnHeaderContextMenu = vi.fn();

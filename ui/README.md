@@ -352,6 +352,12 @@ remain shared with action buttons, hotkeys, and context menus.
 
 ## How can table columns be customized?
 
+Entity attributes marked `generated: true` are owned by the server: they remain
+available for display but cannot define create or edit controls. Ticket keys and
+creation dates use this mechanism. Creation submits the project and ordinary
+fields; the server assigns the key and timestamp. The Created column is available
+in the ticket column chooser.
+
 `DataTable` accepts default `columns` and an optional `availableColumns` catalog.
 Supplying a catalog enables its Columns chooser: add hidden columns at the front,
 remove columns, drag to reorder, or use the up/down controls. Header dragging and

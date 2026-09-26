@@ -114,6 +114,22 @@ impl SearchIndex for TantivySearchIndex {
             validate_table(&table)?;
             let directory = self.root.join(hex(table.name.0.as_bytes()));
             fs::create_dir_all(&directory).map_err(report)?;
+            if directory.join("meta.json").exists() {
+                let existing = Index::open_in_dir(&directory).map_err(report)?;
+                let schema = existing.schema();
+                let missing_column = table
+                    .columns
+                    .iter()
+                    .any(|column| schema.get_field(column.name.0.as_str()).is_err());
+                drop(existing);
+                if missing_column {
+                    // Tantivy schemas are immutable. Only this derived table index
+                    // is discarded; ensure_tables rebuilds it from authoritative KV data.
+                    tracing::info!(table = %table.name.0, "Rebuilding index for added attributes");
+                    fs::remove_dir_all(&directory).map_err(report)?;
+                    fs::create_dir_all(&directory).map_err(report)?;
+                }
+            }
             let (index, schema) = if directory.join("meta.json").exists() {
                 let index = Index::open_in_dir(&directory).map_err(report)?;
                 let schema = index.schema();

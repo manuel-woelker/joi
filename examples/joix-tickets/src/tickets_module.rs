@@ -24,6 +24,13 @@ impl TableDescriptionProvider for TicketTableDescriptionProvider {
                 ticket_column("id", "Immutable KSUID ticket identifier"),
                 ticket_column("key", "Human-readable ticket key in PROJECT-NUMBER form"),
                 ColumnDescription {
+                    name: AttributeName("creation_date".into()),
+                    description: "Server-assigned UTC creation timestamp (RFC 3339)".into(),
+                    data_type: ColumnDataType::String,
+                    // Historical records have no reliable creation timestamp.
+                    optional: true,
+                },
+                ColumnDescription {
                     name: AttributeName("project_id".into()),
                     description: "Project containing the ticket".into(),
                     data_type: ColumnDataType::Reference {
@@ -107,7 +114,6 @@ impl TestDataProvider for TicketTestDataProvider {
             data_store,
             &joi_server::mutation_contributor::MutationContext::system(),
             STARTUP_TICKET_COUNT.saturating_sub(existing_count),
-            existing_count,
             &projects,
             user_ids,
         )?;
@@ -138,7 +144,6 @@ fn insert_representative_tickets(
                             .map(|_| ksuid::Ksuid::generate().to_base62().into())
                             .collect(),
                     ),
-                    string_values_column("key", keys.into_iter().map(Into::into).collect()),
                     string_values_column("project_id", project_ids),
                     string_values_column(
                         "title",
@@ -205,21 +210,7 @@ pub(crate) fn generate_additional_tickets(
             "ticket test data requires at least one user"
         ));
     }
-    let existing = data_store.query(DataStoreQuery {
-        table_name: TableName("tickets".into()),
-        criterion: QueryCriterion::MatchAny,
-        sorting: Vec::new(),
-        max_results: 0,
-        attributes: Vec::new(),
-    })?;
-    generate_tickets(
-        data_store,
-        context,
-        count,
-        existing.number_of_hits,
-        &projects,
-        user_ids,
-    )?;
+    generate_tickets(data_store, context, count, &projects, user_ids)?;
     Ok(count)
 }
 
@@ -227,7 +218,6 @@ fn generate_tickets(
     data_store: &mut dyn DataStore,
     context: &joi_server::mutation_contributor::MutationContext,
     count: usize,
-    offset: usize,
     projects: &HashMap<JoiString, JoiString>,
     user_ids: &[JoiString],
 ) -> joi_error::JoiResult<()> {
@@ -238,7 +228,6 @@ fn generate_tickets(
         .get("TEST")
         .ok_or_else(|| joi_error::joi_error!("TEST project is not defined"))?;
     let mut ids = Vec::with_capacity(count);
-    let mut keys = Vec::with_capacity(count);
     let mut project_ids = Vec::with_capacity(count);
     let mut titles = Vec::with_capacity(count);
     let mut descriptions = Vec::with_capacity(count);
@@ -247,7 +236,6 @@ fn generate_tickets(
     let statuses_available = ["open", "in-progress", "closed", "wontfix"];
     for index in 0..count {
         ids.push(ksuid::Ksuid::generate().to_base62().into());
-        keys.push(format!("TEST-{}", offset + index + 1).into());
         project_ids.push(test_project.clone());
         let title: String = Sentence(4..9).fake();
         titles.push(title.trim_end_matches('.').into());
@@ -263,7 +251,6 @@ fn generate_tickets(
                 table_name: TableName("tickets".into()),
                 columns: vec![
                     string_values_column("id", ids),
-                    string_values_column("key", keys),
                     string_values_column("project_id", project_ids),
                     string_values_column("title", titles),
                     string_values_column("description", descriptions),
@@ -403,6 +390,7 @@ mod tests {
             [
                 "id",
                 "key",
+                "creation_date",
                 "project_id",
                 "title",
                 "description",
@@ -449,6 +437,7 @@ mod tests {
     #[test]
     fn inserts_test_tickets() {
         let mut store = IndexedDataStore::in_memory().unwrap();
+        crate::ticket_creation::tests::configure(&mut store);
         store
             .ensure_tables(vec![
                 UserTableDescriptionProvider.table_description(),

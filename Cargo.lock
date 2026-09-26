@@ -1695,6 +1695,8 @@ dependencies = [
  "joi-plugin",
  "joi-server",
  "ksuid",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]

@@ -181,4 +181,15 @@ describe("entity descriptions", () => {
       }),
     ).toThrow("create definition is missing attribute 'name'");
   });
+
+  it("rejects editable generated attributes", () => {
+    expect(() =>
+      validateEntityDescription({
+        ...entity,
+        attributes: entity.attributes.map((attribute) =>
+          attribute.id === "name" ? { ...attribute, generated: true, edit: { control: "text" as const } } : attribute,
+        ),
+      }),
+    ).toThrow("cannot define create or edit controls");
+  });
 });

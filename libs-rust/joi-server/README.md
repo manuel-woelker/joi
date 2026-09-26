@@ -1,5 +1,22 @@
 # joi-server
 
+## How can plugins generate immutable fields and private state?
+
+`MutationContributor::generated_attributes` declares server-owned columns.
+The datastore rejects caller-supplied values for these columns on inserts and
+updates, and allows them to be absent from insert requests.
+`prepare_insert` receives the chunk's records before serialization, history, and
+indexing. It can populate those fields using trusted mutation context and
+authoritative read-only KV access through `MutationPreparation`.
+
+`MutationPreparation::state` and `set_state` read and stage replaceable values in
+the contributor's exclusively owned private buckets. Repeated sets retain the
+last value. These writes share the entity/dirty/history transaction, under the
+datastore's exclusive mutation lock. No write occurs if preparation fails, and
+dirty replay never invokes preparation again. Use this for counters and similar
+domain state; never perform external side effects in the hook. Regular
+`contribute` entries remain append-only.
+
 `joi-server` is the reusable backend runtime for JOI applications. It owns
 typed command dispatch, HTTP and CLI transports, entity persistence, search,
 plugin introspection, application-model discovery, and the current user-session

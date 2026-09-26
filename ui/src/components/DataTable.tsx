@@ -32,6 +32,7 @@ import { Portal } from "solid-js/web";
 
 import type { QueryColumnHandle, QueryResult, QueryResultRow, QueryValue } from "../plugins/core/query/query-result";
 import { DataText, ModelText } from "./SourceText";
+import { DateTime } from "./DateTime";
 import styles from "./DataTable.module.css";
 import type { CompiledTextNeedle, HighlightSegment } from "./text-highlight";
 import { highlightSegments } from "./text-highlight";
@@ -983,6 +984,13 @@ function DataTableCell(props: {
       return props.definition.cell(value(), props.row, props.definition.column, props.highlights);
     }
     const current = value();
+    if (
+      props.definition.type === "date" &&
+      (typeof current === "string" || typeof current === "number") &&
+      Number.isFinite(new Date(current).getTime())
+    ) {
+      return <DateTime value={current} />;
+    }
     return typeof current === "string" || typeof current === "number" ? String(current) : "";
   });
   // Plain strings can be highlighted; custom JSX keeps its own rendering.

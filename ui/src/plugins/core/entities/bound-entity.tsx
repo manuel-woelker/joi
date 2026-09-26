@@ -89,7 +89,7 @@ export function createEntityTableColumns(
       column,
       header: field.label ?? attribute.label,
       description: attribute.description,
-      type: attribute.valueType === "int" ? "number" : "text",
+      type: attribute.table?.type ?? (attribute.valueType === "int" ? "number" : "text"),
       width: field.width ?? attribute.table?.width,
       ...lookupCell,
       ...htmlCell,

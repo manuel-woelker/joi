@@ -3,8 +3,6 @@ import { lookupId } from "../../core/lookups/lookup";
 import { defineEntity, entityId } from "../../core/entities/entity-description";
 import { generateKsuid } from "../../core/entities/ksuid";
 
-const ticketKey = /^(?:|[A-Z][A-Z0-9]*-[1-9][0-9]*)$/;
-
 /** Canonical UI description of ticket records. */
 export const ticketEntity = defineEntity({
   id: entityId("tickets"),
@@ -25,12 +23,18 @@ export const ticketEntity = defineEntity({
       id: "key",
       label: "Key",
       description: "Human-readable project-prefixed ticket key.",
+      generated: true,
       valueType: "string",
       table: { visibleByDefault: true, width: 120 },
-      create: { control: "text", required: true, placeholder: "PROJECT-1" },
-      validation: ({ value, addValidationFailure }) => {
-        if (!ticketKey.test(value)) addValidationFailure({ message: "Use a key such as PROJECT-1." });
-      },
+    },
+    {
+      id: "creation_date",
+      label: "Created",
+      description: "Server-assigned creation date and time.",
+      generated: true,
+      valueType: "string",
+      optional: true,
+      table: { visibleByDefault: false, width: 190, type: "date" },
     },
     {
       id: "project_id",

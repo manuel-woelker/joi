@@ -8,6 +8,7 @@ use crate::{
 };
 
 mod projects_module;
+mod ticket_creation;
 mod ticket_test_data_command;
 mod tickets_module;
 
@@ -16,6 +17,11 @@ use ticket_test_data_command::TicketTestDataCommandProvider;
 /// Creates the ticket and project domain plugin.
 pub fn tickets_plugin() -> Plugin {
     plugin("tickets", "Ticket management", |context| {
+        context.register_extension::<dyn joi_server::mutation_contributor::MutationContributor>(
+            "ticket-creation",
+            "Assigns ticket keys and creation dates with private project counters",
+            Box::new(ticket_creation::TicketCreation),
+        )?;
         context.register_extension::<dyn joi_server::mutation_contributor::MutationContributor>(
             "ticket-project-history",
             "Stores ticket and project changes atomically with entity mutations",

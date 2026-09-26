@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::mutation_contributor::{
-    EntityMutation, MutationContext, MutationContributor, MutationEntries,
+    EntityMutation, MutationContext, MutationContributor, MutationEntries, MutationPreparation,
 };
 use joi_error::{JoiResult, joi_bail, joi_error, report};
 use joi_plugin::PluginRegistry;
@@ -135,6 +135,26 @@ impl DataStore for IndexedDataStore {
                 }
             }
         }
+        for schema in schemas.values() {
+            let mut generated = HashSet::new();
+            for contributor in self
+                .contributors()?
+                .into_iter()
+                .filter(|value| value.applies_to(&schema.name))
+            {
+                for attribute in contributor.generated_attributes(&schema.name) {
+                    if attribute == schema.columns[0].name
+                        || !schema.columns.iter().any(|column| column.name == attribute)
+                        || !generated.insert(attribute)
+                    {
+                        joi_bail!(
+                            "invalid or overlapping generated attributes for `{}`",
+                            schema.name.0
+                        );
+                    }
+                }
+            }
+        }
         self.search_index.prepare(tables)?;
         for entity_type in &entity_types {
             if self.search_index.is_empty(entity_type)? || self.rebuild_in_progress(entity_type)? {
@@ -208,9 +228,10 @@ impl DataStore for IndexedDataStore {
 
         // Every chunk follows the same durable indexing workflow:
         //
-        // 1. Compute each entity's final state in the chunk in memory.
+        // 1. Prepare generated insert fields and private state, then compute
+        //    each entity's final state in the chunk in memory.
         // 2. Prepare contributor entries, then commit them with entity mutations
-        //    and the corresponding dirty entry
+        //    and the corresponding dirty entry and private state
         //    in one key/value transaction.
         // 3. Index the entities from step 1 directly; no reread is necessary.
         // 4. Remove the dirty entry only after indexing succeeds. If indexing
@@ -336,12 +357,26 @@ impl IndexedDataStore {
             .collect::<Vec<_>>();
         let tracked = !contributors.is_empty();
         let mut observations = Vec::new();
+        let mut state_changes = Vec::new();
         let mut ids = Vec::new();
         let effect = match chunk.step {
             DataStoreMutationStep::Insert(mutation) => {
                 let schema = self.schema(&mutation.table_name)?;
                 let mut entities = Vec::new();
                 let mut entries = Vec::new();
+                let mut objects = chunk
+                    .rows
+                    .clone()
+                    .map(|row| object_from_columns(&mutation.columns, row))
+                    .collect::<Vec<_>>();
+                for contributor in &contributors {
+                    let mut preparation = MutationPreparation::new(
+                        self.key_value_store.as_ref(),
+                        contributor.buckets(),
+                    );
+                    contributor.prepare_insert(context, &table, &mut objects, &mut preparation)?;
+                    state_changes.extend(preparation.into_mutations());
+                }
                 // Inserts may replace existing rows. Batch their old-state reads,
                 // then retain the working state for repeated IDs in this chunk.
                 let mut previous = HashMap::new();
@@ -370,8 +405,8 @@ impl IndexedDataStore {
                         );
                     }
                 }
-                for row in chunk.rows.clone() {
-                    let object = object_from_columns(&mutation.columns, row);
+                for object in objects {
+                    validate_prepared_object(schema, &object)?;
                     let entity = entity_from_object(&mutation.table_name, schema, &object)?;
                     if tracked {
                         let old = previous.insert(entity.id.clone(), object.clone());
@@ -468,6 +503,7 @@ impl IndexedDataStore {
             }
         }
         Ok(ChunkBatch {
+            state_changes,
             additions,
             dirty_table: dirty_table_name(&table),
             table,
@@ -486,6 +522,7 @@ impl IndexedDataStore {
             ids,
             effect,
             additions,
+            state_changes,
         } = batch;
         for addition in &additions {
             if let KeyValueMutation::Set(set) = addition {
@@ -537,6 +574,7 @@ impl IndexedDataStore {
             }),
         ];
         mutations.extend(additions);
+        mutations.extend(state_changes);
         self.key_value_store.mutate(KeyValueMutations {
             mutations: &mutations,
         })?;
@@ -622,9 +660,20 @@ impl IndexedDataStore {
     /// changes chunk by chunk.
     fn validate_mutation_steps(&self, steps: &[DataStoreMutationStep]) -> JoiResult<()> {
         for step in steps {
+            let generated = self
+                .contributors()?
+                .into_iter()
+                .filter(|contributor| contributor.applies_to(step.table()))
+                .flat_map(|contributor| contributor.generated_attributes(step.table()))
+                .collect::<HashSet<_>>();
             match step {
                 DataStoreMutationStep::Insert(mutation) => {
-                    validate_columns(self.schema(&mutation.table_name)?, &mutation.columns, true)?;
+                    validate_columns(
+                        self.schema(&mutation.table_name)?,
+                        &mutation.columns,
+                        true,
+                        &generated,
+                    )?;
                     if mutation.table_name.0 == "users"
                         && mutation.columns.iter().any(|column| {
                             column.attribute.0 == "id"
@@ -639,7 +688,7 @@ impl IndexedDataStore {
                 }
                 DataStoreMutationStep::Update(mutation) => {
                     let schema = self.schema(&mutation.table_name)?;
-                    validate_columns(schema, &mutation.columns, false)?;
+                    validate_columns(schema, &mutation.columns, false, &generated)?;
                     if mutation
                         .columns
                         .iter()
@@ -688,10 +737,17 @@ fn validate_columns(
     schema: &TableDescription,
     columns: &[AttributeColumn],
     require_complete: bool,
+    generated: &HashSet<crate::data_store::AttributeName>,
 ) -> JoiResult<()> {
     let row_count = columns.first().map_or(0, |column| column.values.len());
     let mut names = HashSet::new();
     for column in columns {
+        if generated.contains(&column.attribute) {
+            joi_bail!(
+                "attribute `{}` is generated by the server and cannot be supplied",
+                column.attribute.0
+            );
+        }
         if !names.insert(&column.attribute) {
             joi_bail!(
                 "mutation contains duplicate attribute `{}`",
@@ -729,9 +785,47 @@ fn validate_columns(
     }
     if require_complete {
         for column in &schema.columns {
-            if !column.optional && !names.contains(&column.name) {
+            if !column.optional
+                && !names.contains(&column.name)
+                && !generated.contains(&column.name)
+            {
                 joi_bail!("insert is missing required attribute `{}`", column.name.0);
             }
+        }
+    }
+    Ok(())
+}
+
+fn validate_prepared_object(
+    schema: &TableDescription,
+    object: &Map<String, JsonValue>,
+) -> JoiResult<()> {
+    for key in object.keys() {
+        if !schema
+            .columns
+            .iter()
+            .any(|column| column.name.0 == key.as_str())
+        {
+            joi_bail!("prepared record contains unknown attribute `{key}`");
+        }
+    }
+    for column in &schema.columns {
+        let value = object
+            .get(column.name.0.as_str())
+            .unwrap_or(&JsonValue::Null);
+        let valid = if value.is_null() {
+            column.optional
+        } else {
+            match column.data_type {
+                ColumnDataType::Int => value.as_i64().is_some(),
+                _ => value.is_string(),
+            }
+        };
+        if !valid {
+            joi_bail!(
+                "prepared record has missing or invalid attribute `{}`",
+                column.name.0
+            );
         }
     }
     Ok(())
@@ -784,6 +878,8 @@ struct DirtyEntry {
 /// The row vectors travel together so that adding another per-row
 /// collection touches the builders once instead of once per step type.
 struct ChunkBatch {
+    /// Private state replacements, atomically committed with prepared entities.
+    state_changes: Vec<KeyValueMutation>,
     /// Auxiliary entries prepared before the atomic entity/dirty transaction.
     additions: Vec<KeyValueMutation>,
     /// The table the chunk reads or writes.
