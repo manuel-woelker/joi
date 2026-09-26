@@ -1,12 +1,13 @@
-import { For, Show, createResource } from "solid-js";
+import { For, Show, createMemo, createResource } from "solid-js";
 import type { HistoryEntry } from "../../../generated/api/api";
 import { DataText, ModelText } from "../../../components/SourceText";
 import { DateTime } from "../../../components/DateTime";
 import type { EditFieldDefinition } from "../master-detail/definition";
 import { lookupEntryId, lookupId, useOptionalLookupService } from "../lookups/lookup";
 import styles from "./HistoryEntries.module.css";
+import { formatHistoryValue, historyValueDiff } from "./history-value";
 
-/** Read-only, escaped audit entries; unknown users and attributes retain their stored IDs. */
+/** Read-only audit entries with safe rich text; unknown users and attributes retain their stored IDs. */
 export function HistoryEntries(props: { entries: readonly HistoryEntry[]; fields: readonly EditFieldDefinition[] }) {
   const lookups = useOptionalLookupService();
   const userLabel = (userid: string) =>
@@ -18,9 +19,9 @@ export function HistoryEntries(props: { entries: readonly HistoryEntry[]; fields
     const field = props.fields.find((field) => field.attribute === key);
     if (field?.lookup && lookups && typeof value === "string" && value) {
       const label = await lookups.label(field.lookup, lookupEntryId(value)).catch(() => value);
-      return JSON.stringify(label);
+      return label;
     }
-    return JSON.stringify(value);
+    return formatHistoryValue(value);
   };
   return (
     <div class={styles.entries}>
@@ -45,27 +46,36 @@ export function HistoryEntries(props: { entries: readonly HistoryEntry[]; fields
               </thead>
               <tbody>
                 <For each={entry.changes}>
-                  {(change) => (
-                    <tr>
-                      <th scope="row">
-                        <ModelText>
-                          {props.fields.find((field) => field.attribute === change.key)?.label ?? change.key}
-                        </ModelText>
-                      </th>
-                      <td>
-                        <ResolvedText
-                          fallback={formatValue(change.oldValue)}
-                          load={() => valueLabel(change.key, change.oldValue)}
-                        />
-                      </td>
-                      <td>
-                        <ResolvedText
-                          fallback={formatValue(change.newValue)}
-                          load={() => valueLabel(change.key, change.newValue)}
-                        />
-                      </td>
-                    </tr>
-                  )}
+                  {(change) => {
+                    const [labels] = createResource(
+                      () => [change.key, change.oldValue, change.newValue] as const,
+                      ([key, before, after]) => Promise.all([valueLabel(key, before), valueLabel(key, after)]),
+                    );
+                    const diff = createMemo(() =>
+                      historyValueDiff(
+                        labels()?.[0] ?? formatHistoryValue(change.oldValue),
+                        labels()?.[1] ?? formatHistoryValue(change.newValue),
+                        props.fields.find((field) => field.attribute === change.key)?.control === "html",
+                        styles.removed,
+                        styles.added,
+                      ),
+                    );
+                    return (
+                      <tr>
+                        <th scope="row">
+                          <ModelText>
+                            {props.fields.find((field) => field.attribute === change.key)?.label ?? change.key}
+                          </ModelText>
+                        </th>
+                        <td>
+                          <div class={styles.value} innerHTML={diff().before} />
+                        </td>
+                        <td>
+                          <div class={styles.value} innerHTML={diff().after} />
+                        </td>
+                      </tr>
+                    );
+                  }}
                 </For>
               </tbody>
             </table>
@@ -74,10 +84,6 @@ export function HistoryEntries(props: { entries: readonly HistoryEntry[]; fields
       </For>
     </div>
   );
-}
-
-function formatValue(value: unknown): string {
-  return value === undefined ? "Not present" : JSON.stringify(value);
 }
 
 function ResolvedText(props: { fallback: string; load: () => Promise<string> }) {

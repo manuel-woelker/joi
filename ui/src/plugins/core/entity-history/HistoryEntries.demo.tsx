@@ -26,8 +26,10 @@ const entries: readonly HistoryEntry[] = [
       { key: "assignee", oldValue: "joe", newValue: null },
       {
         key: "description",
-        oldValue: "",
-        newValue: `<p>${"Review account and project access. ".repeat(20)}</p><script>alert('never executed')</script>`,
+        oldValue:
+          "<p>Review <strong>account</strong> permissions before release.</p><ul><li>Check read access.</li><li>Notify the team.</li></ul>",
+        newValue:
+          "<p>Review <strong>project</strong> permissions before release.</p><ul><li>Check write access.</li><li>Notify the owners.</li></ul>",
       },
     ],
   },
@@ -54,7 +56,7 @@ export default {
   scenarios: [
     {
       name: "Entity lifecycle",
-      description: "Creation, updates, deletion, absent values, null, escaped HTML, and unknown users.",
+      description: "Creation, updates, deletion, absent values, null, rich text, word changes, and unknown users.",
       render: () => (
         <div class={styles.demo}>
           <HistoryEntries entries={entries} fields={fields} />

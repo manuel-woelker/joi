@@ -1,7 +1,7 @@
 .layout { height: 100%; min-width: 0; min-height: 0; overflow: hidden; container-type: inline-size; }
 .layout.withLeadingPanel { display: grid; grid-template-columns: minmax(360px, 500px) minmax(0, 1fr); gap: 16px; }
-.layout.withDetail { display: grid; grid-template-columns: minmax(0, 1fr) minmax(440px, 560px); gap: 24px; }
-.layout.withLeadingPanel.withDetail { grid-template-columns: minmax(360px, 500px) minmax(240px, 1fr) minmax(440px, 560px); gap: 16px; }
+.layout.withDetail { display: grid; grid-template-columns: minmax(0, 1fr) minmax(480px, 40%); gap: 24px; }
+.layout.withLeadingPanel.withDetail { grid-template-columns: minmax(0, 500px) minmax(0, 1fr) minmax(480px, 40%); gap: 16px; }
 .master { display: flex; height: 100%; min-width: 0; min-height: 0; overflow: hidden; flex-direction: column; }
 .leadingPanel { min-width: 0; min-height: 0; padding-right: 16px; border-right: 1px solid var(--color-border); overflow: auto; }
 .detail { min-width: 0; min-height: 0; padding-left: 24px; border-left: 1px solid var(--color-border); overflow: auto; }
