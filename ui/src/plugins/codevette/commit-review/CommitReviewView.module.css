@@ -4,7 +4,7 @@
 .header code { color: var(--color-text-muted); }
 .status { margin-left: auto; padding: 3px 8px; border: 1px solid var(--color-border); border-radius: 4px; text-transform: capitalize; background: var(--color-surface-muted); }
 .reviewTabs { min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); }
-.reviewTabs > [role="tablist"] { padding-inline: 20px; }
+.reviewTabs > div > [role="tablist"] { padding-inline: 20px; }
 .reviewTabs > [role="tabpanel"] { height: 100%; min-height: 0; overflow: hidden; padding: 0; }
 .overviewPane { height: 100%; min-height: 0; overflow: hidden; }
 .overview { height: 100%; min-height: 0; padding: 18px 20px; display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: 18px; }

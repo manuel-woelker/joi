@@ -1,5 +1,5 @@
 import { For, Show, createUniqueId, type JSX } from "solid-js";
-import XIcon from "lucide-solid/icons/x";
+import { CloseButton } from "../../../components/CloseButton";
 
 import { Form, useFormField, useFormState } from "../../../components/form/Form";
 import { FormValidationMessages } from "../../../components/form/FormValidationMessages";
@@ -70,11 +70,7 @@ function EditRecordEditor(props: {
               {(_recordId) => (
                 <Form model={store.model(currentRow())} persistence={{ type: "autosave", onSave: store.save }}>
                   <RecordFormBinding store={store} />
-                  <EditorLayout
-                    title={props.definition.detailTitle}
-                    fields={props.definition.fields}
-                    onClose={props.onClose}
-                  >
+                  <EditorLayout title={props.definition.detailTitle} fields={props.definition.fields}>
                     <SaveStatus saved={store.saved} />
                   </EditorLayout>
                 </Form>
@@ -117,7 +113,7 @@ function CreateRecordEditor(props: {
 function EditorLayout(props: {
   title: string;
   fields: readonly EditFieldDefinition[];
-  onClose: () => void;
+  onClose?: () => void;
   children: JSX.Element;
 }) {
   return (
@@ -126,9 +122,7 @@ function EditorLayout(props: {
         <h2>
           <ModelText>{props.title}</ModelText>
         </h2>
-        <button type="button" class={styles.close} aria-label="Close details" onClick={props.onClose}>
-          <XIcon size={18} aria-hidden="true" />
-        </button>
+        <Show when={props.onClose}>{(close) => <CloseButton label="Close details" onClick={close()} />}</Show>
       </header>
       <For each={props.fields}>{(field) => <EditorField field={field} />}</For>
       {props.children}

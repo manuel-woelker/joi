@@ -26,6 +26,7 @@ it("opens history lazily while keeping the record editor draft and lifecycle int
     }),
   );
   const unmounted = vi.fn();
+  const close = vi.fn();
   function Draft() {
     onCleanup(unmounted);
     return <input aria-label="Pending title" />;
@@ -36,7 +37,7 @@ it("opens history lazily while keeping the record editor draft and lifecycle int
         definition={{ tableName: "tickets", identityAttribute: "id", detailTitle: "Ticket", fields: [] }}
         recordId="t"
         dataChanges={new DataChangeService()}
-        onClose={() => undefined}
+        onClose={close}
       >
         <Draft />
       </RecordHistoryDetails>
@@ -46,8 +47,15 @@ it("opens history lazily while keeping the record editor draft and lifecycle int
   const input = screen.getByLabelText<HTMLInputElement>("Pending title");
   await user.type(input, "Unsaved edit");
   const history = await screen.findByRole("tab", { name: "History" });
+  const closeButton = screen.getByRole("button", { name: "Close details" });
+  expect(closeButton.closest('[role="tabpanel"]')).toBeNull();
+  expect(closeButton.closest('[role="tablist"]')).toBeNull();
+  expect(screen.getByRole("tablist").parentElement?.contains(closeButton)).toBe(true);
   expect(requests.filter((path) => path.endsWith("entity-history"))).toHaveLength(0);
   await user.click(history);
+  expect(screen.getAllByRole("button", { name: "Close details" })).toHaveLength(1);
+  await user.click(closeButton);
+  expect(close).toHaveBeenCalledOnce();
   await waitFor(() => expect(requests.filter((path) => path.endsWith("entity-history"))).toHaveLength(1));
   expect(unmounted).not.toHaveBeenCalled();
   await user.click(screen.getByRole("tab", { name: "Details" }));

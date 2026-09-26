@@ -1,7 +1,7 @@
 import FunnelIcon from "lucide-solid/icons/funnel";
 import GemIcon from "lucide-solid/icons/gem";
 import RefreshCwIcon from "lucide-solid/icons/refresh-cw";
-import XIcon from "lucide-solid/icons/x";
+import { CloseButton } from "../../../components/CloseButton";
 import { For, Match, onCleanup, Show, Switch } from "solid-js";
 import { useNavigation } from "../../../base/navigation";
 import { useApplicationServices } from "../../../base/services/application-services";
@@ -107,7 +107,7 @@ function EntityMasterDetailContent(props: {
                     <FunnelIcon size={15} />
                     Filter <ModelText>{description.pluralLabel}</ModelText>
                   </h2>
-                  <IconButton label="Close filter" icon={<XIcon size={16} />} onClick={() => store.closePanel()} />
+                  <CloseButton label="Close filter" onClick={() => store.closePanel()} />
                 </header>
                 <FilterDefinitionEditor
                   attributes={store.filterAttributes}
@@ -123,7 +123,7 @@ function EntityMasterDetailContent(props: {
                     <GemIcon size={15} />
                     <ModelText>{description.pluralLabel}</ModelText> facets
                   </h2>
-                  <IconButton label="Close facets" icon={<XIcon size={16} />} onClick={() => store.closePanel()} />
+                  <CloseButton label="Close facets" onClick={() => store.closePanel()} />
                 </header>
                 <For each={store.facetErrors()}>
                   {(failure) => (

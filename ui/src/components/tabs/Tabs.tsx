@@ -17,6 +17,8 @@ export interface TabsProps {
   readonly onSelect: (id: string) => void;
   /** Keeps panels mounted when hidden, preserving form drafts and pending autosaves. */
   readonly keepMounted?: boolean;
+  /** Controls beside the tab list, outside its keyboard navigation. */
+  readonly headerActions?: JSX.Element;
 }
 
 /** Renders a controlled, keyboard-accessible tab list and its selected panel. */
@@ -46,32 +48,37 @@ export function Tabs(props: TabsProps) {
 
   return (
     <div class={`${styles.tabs} ${props.class ?? ""}`}>
-      <div class={styles.tabList} role="tablist" aria-label={props.ariaLabel}>
-        <For each={props.tabs}>
-          {(tab) => (
-            <button
-              ref={(element) => tabElements.set(tab.id, element)}
-              id={tabId(tab.id)}
-              type="button"
-              role="tab"
-              aria-selected={tab.id === props.selected}
-              aria-controls={panelId(tab.id)}
-              disabled={tab.disabled}
-              tabIndex={tab.id === props.selected ? 0 : -1}
-              onClick={() => select(tab)}
-              onKeyDown={(event) => {
-                if (event.key === "ArrowLeft") moveSelection(-1);
-                else if (event.key === "ArrowRight") moveSelection(1);
-                else if (event.key === "Home") selectEdge("first");
-                else if (event.key === "End") selectEdge("last");
-                else return;
-                event.preventDefault();
-              }}
-            >
-              {tab.label}
-            </button>
-          )}
-        </For>
+      <div class={styles.header}>
+        <div class={styles.tabList} role="tablist" aria-label={props.ariaLabel}>
+          <For each={props.tabs}>
+            {(tab) => (
+              <button
+                ref={(element) => tabElements.set(tab.id, element)}
+                id={tabId(tab.id)}
+                type="button"
+                role="tab"
+                aria-selected={tab.id === props.selected}
+                aria-controls={panelId(tab.id)}
+                disabled={tab.disabled}
+                tabIndex={tab.id === props.selected ? 0 : -1}
+                onClick={() => select(tab)}
+                onKeyDown={(event) => {
+                  if (event.key === "ArrowLeft") moveSelection(-1);
+                  else if (event.key === "ArrowRight") moveSelection(1);
+                  else if (event.key === "Home") selectEdge("first");
+                  else if (event.key === "End") selectEdge("last");
+                  else return;
+                  event.preventDefault();
+                }}
+              >
+                {tab.label}
+              </button>
+            )}
+          </For>
+        </div>
+        <Show when={props.headerActions}>
+          <div class={styles.headerActions}>{props.headerActions}</div>
+        </Show>
       </div>
       <Show
         when={props.keepMounted}

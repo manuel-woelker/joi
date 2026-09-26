@@ -1,5 +1,5 @@
 import { createMemo, Show, type ParentProps } from "solid-js";
-import XIcon from "lucide-solid/icons/x";
+import { CloseButton } from "../../../components/CloseButton";
 import { Tabs, type TabDefinition } from "../../../components/tabs/Tabs";
 import type { MasterDetailDefinition } from "../master-detail/definition";
 import type { DataChangeService } from "../data-changes/data-change-service";
@@ -18,7 +18,14 @@ export function RecordHistoryDetails(
   }>,
 ) {
   const service = useOptionalEntityHistoryService();
-  if (!service) return props.children;
+  const closeButton = () => <CloseButton label="Close details" onClick={props.onClose} />;
+  if (!service)
+    return (
+      <>
+        <div class={styles.toolbar}>{closeButton()}</div>
+        {props.children}
+      </>
+    );
   const store = createEntityHistoryStore(
     { table: () => props.definition.tableName, recordId: () => props.recordId },
     { service, dataChanges: props.dataChanges },
@@ -29,11 +36,6 @@ export function RecordHistoryDetails(
     label: "History",
     render: () => (
       <>
-        <div class={styles.toolbar}>
-          <button type="button" aria-label="Close details" onClick={props.onClose}>
-            <XIcon size={16} />
-          </button>
-        </div>
         <Show when={store.loading()}>
           <p role="status">Loading history...</p>
         </Show>
@@ -63,6 +65,7 @@ export function RecordHistoryDetails(
       </Show>
       <Tabs
         ariaLabel="Record details"
+        headerActions={closeButton()}
         keepMounted
         tabs={tabs()}
         selected={store.enabled() ? store.tab() : "details"}
