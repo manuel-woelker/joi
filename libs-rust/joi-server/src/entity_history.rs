@@ -2,10 +2,14 @@ use joi_error::{JoiResult, joi_bail, joi_error, report};
 
 use crate::{
     command_handler::{CommandContext, CommandHandler},
-    data_store::{SharedDataStore, TableName},
+    data_store::{SharedDataStore, TableDescription, TableName},
     generated::api::{EntityHistoryRequest, EntityHistoryResponse, HistoryEntry},
     key_value_store::KeyValueStore,
-    mutation_contributor::{EntityMutation, MutationContext, MutationContributor, MutationEntries},
+    mutation_contributor::{
+        ChunkMutationContributor, ConfiguredMutationContributor, ContributionChunk,
+        ContributionOrder, MutationContext, MutationContributor, MutationEntries,
+        MutationPreparation,
+    },
 };
 
 /// Opt-in contributor that stores history in one auxiliary bucket per table.
@@ -34,22 +38,35 @@ fn validate_id(id: &str) -> JoiResult<()> {
 }
 
 impl MutationContributor for HistoryContributor {
-    fn applies_to(&self, table: &TableName) -> bool {
-        self.tables.contains(table)
-    }
-    fn buckets(&self) -> Vec<TableName> {
-        self.tables.iter().map(history_table).collect()
+    fn configure(
+        &self,
+        schema: &TableDescription,
+    ) -> JoiResult<Option<ConfiguredMutationContributor>> {
+        Ok(self
+            .tables
+            .contains(&schema.name)
+            .then(|| ConfiguredMutationContributor {
+                generated_attributes: vec![],
+                buckets: vec![history_table(&schema.name)],
+                order: ContributionOrder::History,
+                handler: Box::new(HistoryWriter),
+            }))
     }
     fn provides_history(&self, table: &TableName) -> bool {
-        self.applies_to(table)
+        self.tables.contains(table)
     }
+}
+
+struct HistoryWriter;
+impl ChunkMutationContributor for HistoryWriter {
     fn contribute(
         &self,
         context: &MutationContext,
-        mutations: &[EntityMutation],
+        chunk: &mut ContributionChunk,
         entries: &mut MutationEntries,
+        _: &mut MutationPreparation<'_>,
     ) -> JoiResult<()> {
-        for mutation in mutations {
+        for mutation in chunk.changes() {
             validate_id(&mutation.entity_id)?;
             let entry = HistoryEntry {
                 id: ksuid::Ksuid::generate().to_base62(),

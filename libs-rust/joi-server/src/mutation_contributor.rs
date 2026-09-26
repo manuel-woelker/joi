@@ -174,50 +174,157 @@ impl MutationEntries {
 /// Implementations must not perform external side effects or recursively call
 /// the datastore. Failure aborts the current chunk, not earlier committed chunks.
 pub trait MutationContributor: Send + Sync {
-    /// Tables whose changes need old/new states prepared for this contributor.
-    fn applies_to(&self, table: &TableName) -> bool;
-    /// Exclusively owned auxiliary buckets, checked against all entity namespaces.
-    fn buckets(&self) -> Vec<TableName>;
-    /// Schema-dependent server-owned columns populated during preparation or finalization.
-    /// Clients cannot write these on either inserts or updates.
-    fn generated_attributes(&self, _table: &TableDescription) -> Vec<AttributeName> {
-        Vec::new()
-    }
-    /// Prepares inserted records and private state before history and indexing.
-    /// State writes commit atomically with this chunk; this hook must have no external effects.
-    fn prepare_insert(
+    /// Binds once per table during schema registration; return None for unrelated tables.
+    fn configure(
         &self,
-        _context: &MutationContext,
-        _table: &TableName,
-        _records: &mut [Map<String, Value>],
-        _preparation: &mut MutationPreparation<'_>,
-    ) -> JoiResult<()> {
-        Ok(())
-    }
+        schema: &TableDescription,
+    ) -> JoiResult<Option<ConfiguredMutationContributor>>;
     /// Whether this contributor supplies the standard entity history contract.
     fn provides_history(&self, _table: &TableName) -> bool {
         false
     }
-    /// Applies server metadata after all history contributions, before serialization/indexing.
-    /// Must preserve entity identity; failures abort the current chunk.
-    fn finalize(
-        &self,
-        _context: &MutationContext,
-        _schema: &TableDescription,
-        _mutation: &mut EntityMutation,
-    ) -> JoiResult<()> {
-        Ok(())
-    }
-    /// Inspects actual changes and appends entries to the same KV transaction.
+}
+
+/// Stable execution order, independent of plugin registration order.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ContributionOrder {
+    /// Business fields, such as generated ticket keys.
+    #[default]
+    Domain,
+    /// Audit the business changes before automatic metadata is added.
+    History,
+    /// Automatic timestamps and other non-audited metadata.
+    Metadata,
+}
+
+/// Cached table-specific contributor, including its write permissions.
+pub struct ConfiguredMutationContributor {
+    /// Server-owned fields, protected from client writes.
+    pub generated_attributes: Vec<AttributeName>,
+    /// Exclusively owned auxiliary buckets.
+    pub buckets: Vec<TableName>,
+    /// Contributors with equal order retain registration order.
+    pub order: ContributionOrder,
+    /// Handler bound to this table's schema.
+    pub handler: Box<dyn ChunkMutationContributor>,
+}
+
+/// One callback per chunk; no separate insert/finalization phases.
+pub trait ChunkMutationContributor: Send + Sync {
+    /// Adds columns and/or transactional auxiliary writes. Never perform external side effects.
     fn contribute(
         &self,
         context: &MutationContext,
-        mutations: &[EntityMutation],
+        chunk: &mut ContributionChunk,
         entries: &mut MutationEntries,
+        preparation: &mut MutationPreparation<'_>,
     ) -> JoiResult<()>;
 }
 
-/// Read-only storage access and staged, replaceable private state for insert preparation.
+/// Original mutation operation shared by all rows in a chunk.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MutationKind {
+    /// Creates rows or replaces existing rows.
+    Insert,
+    /// Patches existing rows.
+    Update,
+    /// Removes rows.
+    Delete,
+}
+
+/// One row's immutable prior state and current, not-yet-serialized state.
+pub struct MutationRow {
+    /// Immutable identity of this row.
+    pub entity_id: JoiString,
+    /// Stored state before this chunk; None for new or nonexistent records.
+    pub old_value: Option<Map<String, Value>>,
+    /// Current state including earlier contributions; None for deletes.
+    pub new_value: Option<Map<String, Value>>,
+}
+
+impl MutationRow {
+    /// Whether the row currently differs from its stored state.
+    pub fn is_changed(&self) -> bool {
+        self.old_value != self.new_value
+    }
+}
+
+/// Mutable column-oriented contribution interface over a single-table chunk.
+/// Row order and identity never change. Later contributors see earlier columns.
+pub struct ContributionChunk {
+    /// Table being mutated.
+    pub table: TableName,
+    /// Insert, update, or delete request.
+    pub kind: MutationKind,
+    pub(crate) rows: Vec<MutationRow>,
+    pub(crate) identity: AttributeName,
+}
+
+impl ContributionChunk {
+    /// Row snapshots for inspecting old/current values without modifying identity.
+    pub fn rows(&self) -> &[MutationRow] {
+        &self.rows
+    }
+
+    /// Adds or replaces a column in row order. None leaves that row untouched;
+    /// Some(Value::Null) explicitly sets null. The length must match the chunk.
+    /// Repeated insert IDs inherit contributions to their preceding occurrence.
+    pub fn add_column(
+        &mut self,
+        attribute: AttributeName,
+        values: Vec<Option<Value>>,
+    ) -> JoiResult<()> {
+        if self.kind == MutationKind::Delete {
+            joi_bail!("cannot add columns to a delete chunk");
+        }
+        if attribute == self.identity {
+            joi_bail!("contributors cannot modify primary keys");
+        }
+        if values.len() != self.rows.len() {
+            joi_bail!("contributed column length must match chunk length");
+        }
+        let mut previous = HashMap::new();
+        for (row, value) in self.rows.iter_mut().zip(values) {
+            let current = row.new_value.as_mut().expect("upsert row");
+            // Repeated insert IDs see columns contributed to their preceding row.
+            // Preserve an explicitly changed cell, but advance inherited values.
+            if let Some(prior) = previous.get(&row.entity_id)
+                && let Some(old) = row.old_value.as_mut()
+            {
+                if old.get(attribute.0.as_str()) == current.get(attribute.0.as_str()) {
+                    current.insert(attribute.0.to_string(), Value::clone(prior));
+                }
+                old.insert(attribute.0.to_string(), Value::clone(prior));
+            }
+            if let Some(value) = value {
+                current.insert(attribute.0.to_string(), value);
+            }
+            if self.kind == MutationKind::Insert
+                && let Some(value) = current.get(attribute.0.as_str())
+            {
+                previous.insert(row.entity_id.clone(), value.clone());
+            }
+        }
+        Ok(())
+    }
+
+    /// Computes actual changes at this point in the pipeline, omitting no-ops.
+    pub fn changes(&self) -> impl Iterator<Item = EntityMutation> + '_ {
+        self.rows
+            .iter()
+            .filter(|row| row.is_changed())
+            .filter_map(|row| {
+                EntityMutation::between(
+                    &self.table,
+                    &row.entity_id,
+                    row.old_value.clone(),
+                    row.new_value.clone(),
+                )
+            })
+    }
+}
+
+/// Read-only storage access and staged, replaceable private state for a chunk.
 ///
 /// The datastore's exclusive mutation lock covers reads, allocation, and commit.
 /// Nothing is written until the entire chunk (including history) has been prepared.
@@ -278,5 +385,61 @@ impl<'a> MutationPreparation<'a> {
             .into_iter()
             .map(|(table, entries)| KeyValueMutation::Set(KeyValueSetMutation { table, entries }))
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn columns_validate_shape_and_identity_and_distinguish_null_from_unchanged() {
+        let mut chunk = ContributionChunk {
+            table: TableName("items".into()),
+            kind: MutationKind::Update,
+            identity: AttributeName("id".into()),
+            rows: ["a", "b"]
+                .into_iter()
+                .map(|id| {
+                    let value = json!({"id": id, "name": "Before"})
+                        .as_object()
+                        .unwrap()
+                        .clone();
+                    MutationRow {
+                        entity_id: id.into(),
+                        old_value: Some(value.clone()),
+                        new_value: Some(value),
+                    }
+                })
+                .collect(),
+        };
+        assert!(
+            chunk
+                .add_column(AttributeName("name".into()), vec![Some(json!("bad"))])
+                .is_err()
+        );
+        assert!(
+            chunk
+                .add_column(AttributeName("id".into()), vec![None, None])
+                .is_err()
+        );
+        assert_eq!(chunk.changes().count(), 0);
+        chunk
+            .add_column(AttributeName("name".into()), vec![None, Some(Value::Null)])
+            .unwrap();
+        assert_eq!(
+            chunk.rows()[0].new_value.as_ref().unwrap()["name"],
+            "Before"
+        );
+        let changes = chunk.changes().collect::<Vec<_>>();
+        assert_eq!(changes.len(), 1);
+        assert_eq!(changes[0].changes[0].new_value, Some(Value::Null));
+        chunk.kind = MutationKind::Delete;
+        assert!(
+            chunk
+                .add_column(AttributeName("name".into()), vec![None, None])
+                .is_err()
+        );
     }
 }

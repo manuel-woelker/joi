@@ -5,7 +5,8 @@ use std::{
 };
 
 use crate::mutation_contributor::{
-    EntityMutation, MutationContext, MutationContributor, MutationEntries, MutationPreparation,
+    ConfiguredMutationContributor, ContributionChunk, MutationContext, MutationContributor,
+    MutationEntries, MutationKind, MutationPreparation, MutationRow,
 };
 use joi_error::{JoiResult, joi_bail, joi_error, report};
 use joi_plugin::PluginRegistry;
@@ -38,6 +39,7 @@ pub struct IndexedDataStore {
     search_index: Box<dyn SearchIndex>,
     schemas: HashMap<TableName, TableDescription>,
     contributors: Option<PluginRegistry>,
+    table_contributors: HashMap<TableName, TableContributors>,
     _temporary_directory: Option<tempfile::TempDir>,
 }
 
@@ -52,6 +54,7 @@ impl IndexedDataStore {
             search_index: Box::new(TantivySearchIndex::open(search_index_path)?),
             schemas: HashMap::new(),
             contributors: None,
+            table_contributors: HashMap::new(),
             _temporary_directory: None,
         })
     }
@@ -77,6 +80,7 @@ impl IndexedDataStore {
             search_index,
             schemas: HashMap::new(),
             contributors: None,
+            table_contributors: HashMap::new(),
             _temporary_directory: None,
         }
     }
@@ -130,24 +134,27 @@ impl DataStore for IndexedDataStore {
                 joi_bail!("entity and internal bucket names overlap");
             }
         }
-        for contributor in self.contributors()? {
-            for bucket in contributor.buckets() {
-                if !buckets.insert(bucket.clone()) {
-                    joi_bail!("contributor bucket `{}` is already owned", bucket.0);
-                }
-            }
-        }
+        let factories = self.contributors()?;
+        let mut table_contributors = HashMap::new();
         for schema in schemas.values() {
-            let mut generated = HashSet::new();
-            for contributor in self
-                .contributors()?
-                .into_iter()
-                .filter(|value| value.applies_to(&schema.name))
-            {
-                for attribute in contributor.generated_attributes(schema) {
-                    if attribute == schema.columns[0].name
-                        || !schema.columns.iter().any(|column| column.name == attribute)
-                        || !generated.insert(attribute)
+            let mut pipeline = TableContributors::default();
+            for factory in &factories {
+                pipeline.history |= factory.provides_history(&schema.name);
+                let Some(configured) = factory.configure(schema)? else {
+                    continue;
+                };
+                for bucket in &configured.buckets {
+                    if !buckets.insert(bucket.clone()) {
+                        joi_bail!("contributor bucket `{}` is already owned", bucket.0);
+                    }
+                }
+                for attribute in &configured.generated_attributes {
+                    if *attribute == schema.columns[0].name
+                        || !schema
+                            .columns
+                            .iter()
+                            .any(|column| column.name == *attribute)
+                        || !pipeline.generated.insert(attribute.clone())
                     {
                         joi_bail!(
                             "invalid or overlapping generated attributes for `{}`",
@@ -155,7 +162,12 @@ impl DataStore for IndexedDataStore {
                         );
                     }
                 }
+                pipeline.handlers.push(configured);
             }
+            pipeline
+                .handlers
+                .sort_by_key(|contributor| contributor.order);
+            table_contributors.insert(schema.name.clone(), pipeline);
         }
         self.search_index.prepare(tables)?;
         for entity_type in &entity_types {
@@ -168,6 +180,7 @@ impl DataStore for IndexedDataStore {
         // failed ensure_tables leaves the previous registrations intact
         // instead of half-updated ones.
         self.schemas = schemas;
+        self.table_contributors = table_contributors;
         Ok(())
     }
 
@@ -191,11 +204,9 @@ impl DataStore for IndexedDataStore {
     }
 
     fn history_enabled(&self, table: &TableName) -> bool {
-        self.contributors().is_ok_and(|contributors| {
-            contributors
-                .iter()
-                .any(|contributor| contributor.provides_history(table))
-        })
+        self.table_contributors
+            .get(table)
+            .is_some_and(|pipeline| pipeline.history)
     }
 
     fn history(
@@ -352,208 +363,148 @@ impl IndexedDataStore {
         context: &MutationContext,
     ) -> JoiResult<ChunkBatch> {
         let table = chunk.step.table().clone();
-        let contributors = self
-            .contributors()?
-            .into_iter()
-            .filter(|contributor| contributor.applies_to(&table))
-            .collect::<Vec<_>>();
-        let tracked = !contributors.is_empty();
-        let mut observations = Vec::new();
-        let mut state_changes = Vec::new();
-        let mut ids = Vec::new();
-        let mut effect = match chunk.step {
+        let schema = self.schema(&table)?;
+        let pipeline = &self.table_contributors[&table];
+        let tracked = !pipeline.handlers.is_empty();
+        let (kind, ids, columns) = match chunk.step {
             DataStoreMutationStep::Insert(mutation) => {
-                let schema = self.schema(&mutation.table_name)?;
-                let mut entities = Vec::new();
-                let mut entries = Vec::new();
-                let mut objects = chunk
+                let identity = mutation
+                    .columns
+                    .iter()
+                    .find(|column| column.attribute == schema.columns[0].name)
+                    .ok_or_else(|| joi_error!("insert requires a primary key"))?;
+                let ids = chunk
                     .rows
                     .clone()
-                    .map(|row| object_from_columns(&mutation.columns, row))
-                    .collect::<Vec<_>>();
-                for contributor in &contributors {
-                    let mut preparation = MutationPreparation::new(
-                        self.key_value_store.as_ref(),
-                        contributor.buckets(),
-                    );
-                    contributor.prepare_insert(context, &table, &mut objects, &mut preparation)?;
-                    state_changes.extend(preparation.into_mutations());
-                }
-                // Inserts may replace existing rows. Batch their old-state reads,
-                // then retain the working state for repeated IDs in this chunk.
-                let mut previous = HashMap::new();
-                if tracked {
-                    let identity = mutation
-                        .columns
-                        .iter()
-                        .find(|column| column.attribute == schema.columns[0].name)
-                        .ok_or_else(|| joi_error!("insert requires a primary key"))?;
-                    let row_ids = chunk
-                        .rows
-                        .clone()
-                        .map(|row| {
-                            let value = identity.values.value_at(row);
-                            let id = value
-                                .as_str()
-                                .ok_or_else(|| joi_error!("primary key must be a string"))?;
-                            Ok(EntityId::new(id.as_bytes()))
-                        })
-                        .collect::<JoiResult<Vec<_>>>()?;
-                    for entity in self.read_many(&table, &row_ids)? {
-                        previous.insert(
-                            entity.id,
-                            serde_json::from_slice::<Map<String, JsonValue>>(&entity.data)
-                                .map_err(report)?,
-                        );
-                    }
-                }
-                for mut object in objects {
-                    // Insert-overwrite must retain omitted server metadata before
-                    // history computes its diff, just like an ordinary update.
-                    if let Some(id) = object
-                        .get(schema.columns[0].name.0.as_str())
-                        .and_then(JsonValue::as_str)
-                        && let Some(old) = previous.get(&EntityId::new(id.as_bytes()))
-                    {
-                        for contributor in &contributors {
-                            for attribute in contributor.generated_attributes(schema) {
-                                if let Some(value) = old.get(attribute.0.as_str()) {
-                                    object
-                                        .entry(attribute.0.to_string())
-                                        .or_insert_with(|| value.clone());
-                                }
+                    .map(|row| {
+                        identity
+                            .values
+                            .value_at(row)
+                            .as_str()
+                            .map(joi_base::JoiString::from)
+                            .ok_or_else(|| joi_error!("primary key must be a string"))
+                    })
+                    .collect::<JoiResult<Vec<_>>>()?;
+                (MutationKind::Insert, ids, mutation.columns.as_slice())
+            }
+            DataStoreMutationStep::Update(mutation) => (
+                MutationKind::Update,
+                mutation.ids[chunk.rows.clone()].to_vec(),
+                mutation.columns.as_slice(),
+            ),
+            DataStoreMutationStep::Delete(mutation) => (
+                MutationKind::Delete,
+                mutation.ids[chunk.rows.clone()].to_vec(),
+                &[][..],
+            ),
+        };
+        let entity_ids = ids
+            .iter()
+            .map(|id| EntityId::new(id.as_bytes()))
+            .collect::<Vec<_>>();
+        let mut previous = HashMap::new();
+        if tracked || kind == MutationKind::Update {
+            for entity in self.read_many(&table, &entity_ids)? {
+                previous.insert(
+                    entity.id,
+                    serde_json::from_slice::<Map<String, JsonValue>>(&entity.data)
+                        .map_err(report)?,
+                );
+            }
+        }
+        let mut rows = Vec::with_capacity(ids.len());
+        for ((id, entity_id), row) in ids.into_iter().zip(&entity_ids).zip(chunk.rows.clone()) {
+            let old = previous.get(entity_id).cloned();
+            let new = match kind {
+                MutationKind::Insert => {
+                    let mut object = object_from_columns(columns, row);
+                    // Preserve omitted server fields on insert-overwrite before auditing.
+                    if let Some(old) = &old {
+                        for attribute in &pipeline.generated {
+                            if let Some(value) = old.get(attribute.0.as_str()) {
+                                object
+                                    .entry(attribute.0.to_string())
+                                    .or_insert_with(|| value.clone());
                             }
                         }
                     }
-                    let entity = entity_from_object(&mutation.table_name, schema, &object)?;
-                    if tracked {
-                        let old = previous.insert(entity.id.clone(), object.clone());
-                        if let Some(change) = EntityMutation::between(
-                            &table,
-                            std::str::from_utf8(entity.id.as_bytes()).map_err(report)?,
-                            old,
-                            Some(object),
-                        ) {
-                            observations.push(change);
-                        }
-                    }
-                    ids.push(entity.id.clone());
-                    entities.push(entity.clone());
-                    entries.push(KeyValue {
-                        key: entity.id.0.clone(),
-                        value: entity.data,
-                    });
+                    Some(object)
                 }
-                ChunkEffect::Upsert { entities, entries }
-            }
-            DataStoreMutationStep::Update(mutation) => {
-                let mut entities = Vec::new();
-                let mut entries = Vec::new();
-                for row in chunk.rows.clone() {
-                    let id = &mutation.ids[row];
-                    let entity_id = EntityId::new(id.as_bytes());
-                    let mut entity = read_entity(
-                        self.key_value_store.as_ref(),
-                        &mutation.table_name,
-                        &entity_id,
-                    )?
-                    .ok_or_else(|| {
-                        joi_error!(
-                            "table `{}` has no record with ID `{id}`",
-                            mutation.table_name.0
-                        )
+                MutationKind::Update => {
+                    let mut object = old.clone().ok_or_else(|| {
+                        joi_error!("table `{}` has no record with ID `{id}`", table.0)
                     })?;
-                    let mut object = serde_json::from_slice::<Map<String, JsonValue>>(&entity.data)
-                        .map_err(report)?;
-                    let old = tracked.then(|| object.clone());
-                    for column in &mutation.columns {
+                    for column in columns {
                         object.insert(column.attribute.0.to_string(), column.values.value_at(row));
                     }
-                    entity.data = serde_json::to_vec(&object).map_err(report)?;
-                    if tracked
-                        && let Some(change) = EntityMutation::between(&table, id, old, Some(object))
-                    {
-                        observations.push(change);
-                    }
-                    ids.push(entity.id.clone());
-                    entities.push(entity.clone());
-                    entries.push(KeyValue {
-                        key: entity.id.0.clone(),
-                        value: entity.data,
-                    });
+                    Some(object)
                 }
-                ChunkEffect::Upsert { entities, entries }
+                MutationKind::Delete => None,
+            };
+            // Repeated insert IDs observe the preceding row in this chunk.
+            if tracked
+                && kind == MutationKind::Insert
+                && let Some(value) = &new
+            {
+                previous.insert(entity_id.clone(), value.clone());
             }
-            DataStoreMutationStep::Delete(mutation) => {
-                let mut keys = Vec::new();
-                if tracked {
-                    let row_ids = mutation.ids[chunk.rows.clone()]
-                        .iter()
-                        .map(|id| EntityId::new(id.as_bytes()))
-                        .collect::<Vec<_>>();
-                    for entity in self.read_many(&table, &row_ids)? {
-                        let old = serde_json::from_slice(&entity.data).map_err(report)?;
-                        if let Some(change) = EntityMutation::between(
-                            &table,
-                            std::str::from_utf8(entity.id.as_bytes()).map_err(report)?,
-                            Some(old),
-                            None,
-                        ) {
-                            observations.push(change);
-                        }
-                    }
-                }
-                for row in chunk.rows.clone() {
-                    let id = &mutation.ids[row];
-                    let entity_id = EntityId::new(id.as_bytes());
-                    ids.push(entity_id.clone());
-                    keys.push(entity_id.0.clone());
-                }
-                ChunkEffect::Delete { keys }
-            }
+            rows.push(MutationRow {
+                entity_id: id,
+                old_value: old,
+                new_value: new,
+            });
+        }
+        let mut contribution = ContributionChunk {
+            table: table.clone(),
+            kind,
+            rows,
+            identity: schema.columns[0].name.clone(),
         };
         let mut additions = Vec::new();
-        if !observations.is_empty() {
-            for contributor in &contributors {
-                let mut entries = MutationEntries::new(contributor.buckets());
-                contributor.contribute(context, &observations, &mut entries)?;
-                additions.extend(entries.into_mutations());
-            }
+        let mut state_changes = Vec::new();
+        // One ordered pass: domain columns -> history -> metadata columns.
+        // All callbacks see the same chunk; no entities are serialized yet.
+        for contributor in &pipeline.handlers {
+            let mut entries = MutationEntries::new(contributor.buckets.clone());
+            let mut preparation = MutationPreparation::new(
+                self.key_value_store.as_ref(),
+                contributor.buckets.clone(),
+            );
+            contributor.handler.contribute(
+                context,
+                &mut contribution,
+                &mut entries,
+                &mut preparation,
+            )?;
+            additions.extend(entries.into_mutations());
+            state_changes.extend(preparation.into_mutations());
         }
-        // History sees business changes first. Final metadata is then serialized
-        // into both the atomic entity writes and the in-memory indexing payload.
-        let schema = self.schema(&table)?;
-        for observation in &mut observations {
-            for contributor in &contributors {
-                contributor.finalize(context, schema, observation)?;
+        let effect = if kind == MutationKind::Delete {
+            ChunkEffect::Delete {
+                keys: entity_ids.iter().map(|id| id.0.clone()).collect(),
             }
-        }
-        if let ChunkEffect::Upsert { entities, entries } = &mut effect {
-            let final_values = observations
-                .iter()
-                .filter_map(|change| {
-                    change
-                        .new_value
-                        .as_ref()
-                        .map(|value| (change.entity_id.as_str(), value))
-                })
-                .collect::<HashMap<_, _>>();
-            for (entity, entry) in entities.iter_mut().zip(entries) {
-                let id = std::str::from_utf8(entity.id.as_bytes()).map_err(report)?;
-                if let Some(value) = final_values.get(id) {
-                    validate_prepared_object(schema, value)?;
-                    entity.data = serde_json::to_vec(value).map_err(report)?;
-                    entry.value = entity.data.clone();
-                }
+        } else {
+            let mut entities = Vec::with_capacity(contribution.rows.len());
+            let mut entries = Vec::with_capacity(contribution.rows.len());
+            for row in contribution.rows {
+                let object = row.new_value.expect("upsert row");
+                validate_prepared_object(schema, &object)?;
+                let entity = entity_from_object(&table, schema, &object)?;
+                entries.push(KeyValue {
+                    key: entity.id.0.clone(),
+                    value: entity.data.clone(),
+                });
+                entities.push(entity);
             }
-        }
+            ChunkEffect::Upsert { entities, entries }
+        };
         Ok(ChunkBatch {
             state_changes,
             additions,
             dirty_table: dirty_table_name(&table),
             table,
             dirty_key: new_dirty_key(),
-            ids,
+            ids: entity_ids,
             effect,
         })
     }
@@ -706,19 +657,14 @@ impl IndexedDataStore {
     fn validate_mutation_steps(&self, steps: &[DataStoreMutationStep]) -> JoiResult<()> {
         for step in steps {
             let schema = self.schema(step.table())?;
-            let generated = self
-                .contributors()?
-                .into_iter()
-                .filter(|contributor| contributor.applies_to(step.table()))
-                .flat_map(|contributor| contributor.generated_attributes(schema))
-                .collect::<HashSet<_>>();
+            let generated = &self.table_contributors[&schema.name].generated;
             match step {
                 DataStoreMutationStep::Insert(mutation) => {
                     validate_columns(
                         self.schema(&mutation.table_name)?,
                         &mutation.columns,
                         true,
-                        &generated,
+                        generated,
                     )?;
                     if mutation.table_name.0 == "users"
                         && mutation.columns.iter().any(|column| {
@@ -734,7 +680,7 @@ impl IndexedDataStore {
                 }
                 DataStoreMutationStep::Update(mutation) => {
                     let schema = self.schema(&mutation.table_name)?;
-                    validate_columns(schema, &mutation.columns, false, &generated)?;
+                    validate_columns(schema, &mutation.columns, false, generated)?;
                     if mutation
                         .columns
                         .iter()
@@ -901,22 +847,17 @@ fn object_from_columns(columns: &[AttributeColumn], row: usize) -> Map<String, J
         .collect()
 }
 
-fn read_entity(
-    store: &dyn KeyValueStore,
-    entity_type: &TableName,
-    id: &EntityId,
-) -> JoiResult<Option<Entity>> {
-    let values = store.query_ids(entity_type, &[id.as_bytes()])?;
-    Ok(values.into_iter().next().map(|value| Entity {
-        entity_type: entity_type.clone(),
-        id: id.clone(),
-        data: value.value,
-    }))
-}
-
 struct DirtyEntry {
     table: TableName,
     key: Vec<u8>,
+}
+
+/// Schema-bound handlers and permissions, rebuilt only during table registration.
+#[derive(Default)]
+struct TableContributors {
+    handlers: Vec<ConfiguredMutationContributor>,
+    generated: HashSet<crate::data_store::AttributeName>,
+    history: bool,
 }
 
 /// One chunk with its computed row states, ready to commit.

@@ -1,60 +1,88 @@
-use joi_error::JoiResult;
+use joi_error::{JoiResult, joi_bail};
 use serde_json::Value;
 
 use crate::{
-    data_store::{AttributeName, TableDescription, TableName},
-    mutation_contributor::{EntityMutation, MutationContext, MutationContributor, MutationEntries},
+    data_store::{AttributeName, ColumnDataType, TableDescription},
+    mutation_contributor::{
+        ChunkMutationContributor, ConfiguredMutationContributor, ContributionChunk,
+        ContributionOrder, MutationContext, MutationContributor, MutationEntries, MutationKind,
+        MutationPreparation,
+    },
 };
 
-/// Built-in contributor for schemas declaring `creation_date` or `update_date`.
-/// Runs after history collection, so automatic metadata does not clutter history.
+/// Binds automatic timestamp columns once when schemas are registered.
 pub struct TimestampContributor;
 
 impl MutationContributor for TimestampContributor {
-    fn applies_to(&self, _: &TableName) -> bool {
-        true
-    }
-    fn buckets(&self) -> Vec<TableName> {
-        Vec::new()
-    }
-    fn generated_attributes(&self, table: &TableDescription) -> Vec<AttributeName> {
-        table
+    fn configure(
+        &self,
+        schema: &TableDescription,
+    ) -> JoiResult<Option<ConfiguredMutationContributor>> {
+        let columns = schema
             .columns
             .iter()
             .filter(|column| matches!(column.name.0.as_str(), "creation_date" | "update_date"))
+            .collect::<Vec<_>>();
+        if columns.is_empty() {
+            return Ok(None);
+        }
+        if columns
+            .iter()
+            .any(|column| column.data_type != ColumnDataType::String)
+        {
+            joi_bail!("timestamp columns must have string type");
+        }
+        let attributes = columns
+            .iter()
             .map(|column| column.name.clone())
-            .collect()
+            .collect::<Vec<_>>();
+        Ok(Some(ConfiguredMutationContributor {
+            generated_attributes: attributes.clone(),
+            buckets: vec![],
+            order: ContributionOrder::Metadata,
+            handler: Box::new(TimestampColumns(
+                attributes
+                    .into_iter()
+                    .map(|attribute| {
+                        let creation = attribute.0 == "creation_date";
+                        (attribute, creation)
+                    })
+                    .collect(),
+            )),
+        }))
     }
+}
+
+struct TimestampColumns(Vec<(AttributeName, bool)>);
+
+impl ChunkMutationContributor for TimestampColumns {
     fn contribute(
         &self,
-        _: &MutationContext,
-        _: &[EntityMutation],
-        _: &mut MutationEntries,
-    ) -> JoiResult<()> {
-        Ok(())
-    }
-    fn finalize(
-        &self,
         context: &MutationContext,
-        schema: &TableDescription,
-        mutation: &mut EntityMutation,
+        chunk: &mut ContributionChunk,
+        _: &mut MutationEntries,
+        _: &mut MutationPreparation<'_>,
     ) -> JoiResult<()> {
-        let Some(value) = &mut mutation.new_value else {
+        if chunk.kind == MutationKind::Delete {
             return Ok(());
-        };
-        for attribute in self.generated_attributes(schema) {
-            if attribute.0 == "update_date" || mutation.old_value.is_none() {
-                value.insert(
-                    attribute.0.to_string(),
-                    Value::String(context.timestamp().into()),
-                );
-            } else if let Some(previous) = mutation
-                .old_value
-                .as_ref()
-                .and_then(|old| old.get("creation_date"))
-            {
-                value.insert("creation_date".into(), previous.clone());
-            }
+        }
+        // Snapshot once: adding creation_date must not turn a no-op into an update.
+        let changed = chunk
+            .rows()
+            .iter()
+            .map(|row| row.is_changed())
+            .collect::<Vec<_>>();
+        for (attribute, creation) in &self.0 {
+            let values = chunk
+                .rows()
+                .iter()
+                .zip(&changed)
+                .map(|(row, changed)| {
+                    (*changed && (!creation || row.old_value.is_none()))
+                        .then(|| Value::String(context.timestamp().into()))
+                })
+                .collect();
+            chunk.add_column(attribute.clone(), values)?;
         }
         Ok(())
     }

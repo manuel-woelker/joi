@@ -50,18 +50,155 @@ fn registry(fail: bool) -> PluginRegistry {
 }
 
 struct Reject;
-impl MutationContributor for Reject {
-    fn applies_to(&self, _: &TableName) -> bool {
-        true
+struct AddColumn {
+    configured: Arc<std::sync::atomic::AtomicUsize>,
+    calls: Arc<std::sync::atomic::AtomicUsize>,
+}
+
+impl MutationContributor for AddColumn {
+    fn configure(&self, _: &TableDescription) -> JoiResult<Option<ConfiguredMutationContributor>> {
+        self.configured.fetch_add(1, Ordering::SeqCst);
+        Ok(Some(ConfiguredMutationContributor {
+            generated_attributes: vec![AttributeName("derived".into())],
+            buckets: vec![],
+            order: ContributionOrder::Domain,
+            handler: Box::new(AddColumn {
+                configured: self.configured.clone(),
+                calls: self.calls.clone(),
+            }),
+        }))
     }
-    fn buckets(&self) -> Vec<TableName> {
-        vec![]
-    }
+}
+
+impl ChunkMutationContributor for AddColumn {
     fn contribute(
         &self,
         _: &MutationContext,
-        _: &[EntityMutation],
+        chunk: &mut ContributionChunk,
         _: &mut MutationEntries,
+        _: &mut MutationPreparation<'_>,
+    ) -> JoiResult<()> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        chunk.add_column(
+            AttributeName("derived".into()),
+            chunk
+                .rows()
+                .iter()
+                .map(|_| Some(json!("generated")))
+                .collect(),
+        )
+    }
+}
+
+#[test]
+fn binds_once_and_adds_columns_before_history_despite_registration_order() {
+    use std::sync::atomic::AtomicUsize;
+    let configured = Arc::new(AtomicUsize::new(0));
+    let calls = Arc::new(AtomicUsize::new(0));
+    let (configured_plugin, calls_plugin) = (configured.clone(), calls.clone());
+    let mut builder = PluginRegistryBuilder::new();
+    builder
+        .register(plugin("ordered", "Ordered contributors", move |context| {
+            context
+                .register_extension_point::<dyn MutationContributor>("mutations", "Mutations")?;
+            context.register_extension::<dyn MutationContributor>(
+                "history",
+                "History first",
+                Box::new(HistoryContributor::new(vec![TableName("tickets".into())])),
+            )?;
+            context.register_extension::<dyn MutationContributor>(
+                "derived",
+                "Domain second",
+                Box::new(AddColumn {
+                    configured: configured_plugin.clone(),
+                    calls: calls_plugin.clone(),
+                }),
+            )
+        }))
+        .unwrap();
+    let mut schema = tables().remove(0);
+    for name in ["derived", "creation_date", "update_date"] {
+        schema.columns.push(ColumnDescription {
+            name: AttributeName(name.into()),
+            description: name.into(),
+            data_type: ColumnDataType::String,
+            optional: false,
+        });
+    }
+    let mut store = IndexedDataStore::in_memory().unwrap();
+    store.set_contributors(builder.build()).unwrap();
+    store.ensure_tables(vec![schema]).unwrap();
+    let id = ksuid::Ksuid::generate().to_base62();
+    // Two occurrences in one chunk also exercise retained generated timestamps.
+    let context = MutationContext::system();
+    let result = store
+        .mutate(
+            &context,
+            DataStoreMutation {
+                return_entities: true,
+                steps: vec![DataStoreMutationStep::Insert(DataStoreInsertMutation {
+                    table_name: TableName("tickets".into()),
+                    columns: vec![
+                        AttributeColumn {
+                            attribute: AttributeName("id".into()),
+                            values: Values::String(vec![id.clone().into(), id.clone().into()]),
+                        },
+                        AttributeColumn {
+                            attribute: AttributeName("name".into()),
+                            values: Values::String(vec!["First".into(), "Second".into()]),
+                        },
+                    ],
+                })],
+            },
+        )
+        .unwrap();
+    assert_eq!(configured.load(Ordering::SeqCst), 1);
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    let value: serde_json::Value =
+        serde_json::from_slice(&result.entities.unwrap()[0].data).unwrap();
+    assert_eq!(value["derived"], "generated");
+    assert_eq!(value["creation_date"], context.timestamp());
+    assert_eq!(value["update_date"], context.timestamp());
+    let history = store.history(request("tickets", &id)).unwrap();
+    assert_eq!(history.entries.len(), 2);
+    assert_eq!(
+        history
+            .entries
+            .iter()
+            .flat_map(|entry| &entry.changes)
+            .filter(|change| change.key == "derived")
+            .count(),
+        1
+    );
+    assert!(
+        history
+            .entries
+            .iter()
+            .flat_map(|entry| &entry.changes)
+            .all(|change| change.key != "update_date")
+    );
+    mutate(&mut store, vec![update(&id, vec![column("name", "Third")])]).unwrap();
+    assert_eq!(configured.load(Ordering::SeqCst), 1);
+    assert_eq!(calls.load(Ordering::SeqCst), 2);
+}
+
+impl MutationContributor for Reject {
+    fn configure(&self, _: &TableDescription) -> JoiResult<Option<ConfiguredMutationContributor>> {
+        Ok(Some(ConfiguredMutationContributor {
+            generated_attributes: vec![],
+            buckets: vec![],
+            order: ContributionOrder::Domain,
+            handler: Box::new(Reject),
+        }))
+    }
+}
+impl ChunkMutationContributor for Reject {
+    fn contribute(
+        &self,
+        _: &MutationContext,
+        _: &mut ContributionChunk,
+        _: &mut MutationEntries,
+        _: &mut MutationPreparation<'_>,
     ) -> JoiResult<()> {
         joi_bail!("contributor failed")
     }

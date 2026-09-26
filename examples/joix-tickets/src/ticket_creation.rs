@@ -2,14 +2,16 @@ use std::collections::{HashMap, HashSet};
 
 use joi_error::{JoiResult, joi_bail, joi_error, report};
 use joi_server::{
-    data_store::{AttributeName, TableName},
+    data_store::{AttributeName, TableDescription, TableName},
     mutation_contributor::{
-        EntityMutation, MutationContext, MutationContributor, MutationEntries, MutationPreparation,
+        ChunkMutationContributor, ConfiguredMutationContributor, ContributionChunk,
+        ContributionOrder, MutationContext, MutationContributor, MutationEntries, MutationKind,
+        MutationPreparation,
     },
 };
 use serde_json::{Map, Value};
 
-/// Assigns immutable ticket keys and creation timestamps using private per-project counters.
+/// Assigns immutable ticket keys using private per-project counters.
 pub struct TicketCreation;
 
 fn counters() -> TableName {
@@ -17,25 +19,38 @@ fn counters() -> TableName {
 }
 
 impl MutationContributor for TicketCreation {
-    fn applies_to(&self, table: &TableName) -> bool {
-        table.0 == "tickets"
-    }
-    fn buckets(&self) -> Vec<TableName> {
-        vec![counters()]
-    }
-    fn generated_attributes(
+    fn configure(
         &self,
-        _: &joi_server::data_store::TableDescription,
-    ) -> Vec<AttributeName> {
-        vec![AttributeName("key".into())]
+        schema: &TableDescription,
+    ) -> JoiResult<Option<ConfiguredMutationContributor>> {
+        Ok(
+            (schema.name.0 == "tickets").then(|| ConfiguredMutationContributor {
+                generated_attributes: vec![AttributeName("key".into())],
+                buckets: vec![counters()],
+                order: ContributionOrder::Domain,
+                handler: Box::new(TicketCreation),
+            }),
+        )
     }
-    fn prepare_insert(
+}
+
+impl ChunkMutationContributor for TicketCreation {
+    fn contribute(
         &self,
         _context: &MutationContext,
-        table: &TableName,
-        records: &mut [Map<String, Value>],
+        chunk: &mut ContributionChunk,
+        _: &mut MutationEntries,
         preparation: &mut MutationPreparation<'_>,
     ) -> JoiResult<()> {
+        if chunk.kind != MutationKind::Insert {
+            return Ok(());
+        }
+        let table = &chunk.table;
+        let records = chunk
+            .rows()
+            .iter()
+            .map(|row| row.new_value.as_ref().expect("insert row"))
+            .collect::<Vec<_>>();
         let ids = records
             .iter()
             .map(|record| string(record, "id"))
@@ -43,8 +58,7 @@ impl MutationContributor for TicketCreation {
         if ids.iter().collect::<HashSet<_>>().len() != ids.len() {
             joi_bail!("ticket insert contains duplicate IDs");
         }
-        let keys = ids.iter().map(|id| id.as_bytes()).collect::<Vec<_>>();
-        if !preparation.store().query_ids(table, &keys)?.is_empty() {
+        if chunk.rows().iter().any(|row| row.old_value.is_some()) {
             joi_bail!("ticket insert cannot replace an existing ticket; use update");
         }
 
@@ -146,6 +160,7 @@ impl MutationContributor for TicketCreation {
                 }
             }
         }
+        let mut keys = Vec::with_capacity(records.len());
         for record in records {
             let project = string(record, "project_id")?;
             let number = next.get_mut(project).expect("validated project");
@@ -153,7 +168,7 @@ impl MutationContributor for TicketCreation {
             *number = number
                 .checked_add(1)
                 .ok_or_else(|| joi_error!("ticket number exhausted"))?;
-            record.insert("key".into(), Value::String(key));
+            keys.push(Some(Value::String(key)));
         }
         for (project, number) in next {
             let state = serde_json::json!({ "next_number": number, "prefix": projects[&project] });
@@ -163,15 +178,7 @@ impl MutationContributor for TicketCreation {
                 serde_json::to_vec(&state).map_err(report)?,
             )?;
         }
-        Ok(())
-    }
-    fn contribute(
-        &self,
-        _: &MutationContext,
-        _: &[EntityMutation],
-        _: &mut MutationEntries,
-    ) -> JoiResult<()> {
-        Ok(())
+        chunk.add_column(AttributeName("key".into()), keys)
     }
 }
 

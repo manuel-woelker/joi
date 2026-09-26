@@ -2,12 +2,18 @@
 
 ## How can plugins generate immutable fields and private state?
 
-`MutationContributor::generated_attributes` declares server-owned columns.
+`MutationContributor::configure` runs once per table during schema registration.
+It returns a cached handler, server-owned columns, owned buckets, and execution
+order, or `None` when the contributor does not apply.
 The datastore rejects caller-supplied values for these columns on inserts and
 updates, and allows them to be absent from insert requests.
-`prepare_insert` receives the chunk's records before serialization, history, and
-indexing. It can populate those fields using trusted mutation context and
-authoritative read-only KV access through `MutationPreparation`.
+The handler has one method: `ChunkMutationContributor::contribute`. It receives
+the whole single-table chunk before serialization and indexing. `add_column`
+adds or replaces values in row order; `None` leaves a row untouched, while
+`Some(Value::Null)` explicitly clears a nullable field. Old/current rows are
+available for inspection and `changes()` computes the current diff. Identity,
+row count, and schema types are validated. Authoritative read-only KV access
+and private state writes are available through `MutationPreparation`.
 
 `MutationPreparation::state` and `set_state` read and stage replaceable values in
 the contributor's exclusively owned private buckets. Repeated sets retain the
@@ -24,10 +30,13 @@ use the built-in `TimestampContributor`. Both are server-owned. Creation sets bo
 actual updates change only `update_date`. No-op updates leave timestamps unchanged.
 Use nullable columns when adding them to existing data; old dates are not invented.
 
-The `finalize` hook runs after all `contribute` hooks, including history, and before
-final validation, persistence, and indexing. Consequently automatic timestamps
-are not history changes. Finalizers must preserve identity and avoid external
-side effects. Generated attribute declarations receive the full table schema.
+Handlers run in `Domain`, `History`, then `Metadata` order, regardless of plugin
+registration order (ties preserve registration order). Ticket keys are domain
+columns; timestamps are metadata columns. History therefore includes generated
+ticket keys but not timestamp changes. All columns are applied before final
+validation and a single serialization for storage and indexing. Tables without
+timestamp columns have no timestamp handler, and no mutation rescans the schema
+to select contributors or discover timestamp attributes.
 
 `joi-server` is the reusable backend runtime for JOI applications. It owns
 typed command dispatch, HTTP and CLI transports, entity persistence, search,
@@ -69,11 +78,12 @@ Repository-wide checks are available through `./t nao check`.
 
 Plugins register `dyn MutationContributor` extensions under `mutation-contributors`.
 Install the registry with `IndexedDataStore::set_contributors` before preparing
-tables. A contributor declares the entity tables it applies to and its exclusively
-owned auxiliary buckets. It receives actual old/new maps and changed attributes,
-then adds entries through `MutationEntries`. Entries join the entity and dirty
-marker writes in the same atomic transaction. Contributors cannot delete data,
-overwrite existing auxiliary entries, or write to another contributor's buckets.
+tables. Configuration binds each contributor to its applicable tables and
+exclusively owned auxiliary buckets. Handlers can add mutation columns and add
+entries through `MutationEntries`. Entries join entity, private-state, and dirty
+marker writes in the same atomic transaction. Append-only entries cannot
+overwrite existing keys; replaceable state uses `MutationPreparation::set_state`.
+Neither can write to another contributor's buckets.
 They must not recursively call the store or perform external side effects.
 
 Call `DataStore::mutate` with a `MutationContext` derived from trusted command
