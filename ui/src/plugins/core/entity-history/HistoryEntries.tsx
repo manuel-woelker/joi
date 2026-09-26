@@ -15,7 +15,6 @@ export function HistoryEntries(props: { entries: readonly HistoryEntry[]; fields
       ? Promise.resolve("System")
       : (lookups?.label(lookupId("users"), lookupEntryId(userid)).catch(() => userid) ?? Promise.resolve(userid));
   const valueLabel = async (key: string, value: unknown) => {
-    if (value === undefined) return "Not present";
     const field = props.fields.find((field) => field.attribute === key);
     if (field?.lookup && lookups && typeof value === "string" && value) {
       const label = await lookups.label(field.lookup, lookupEntryId(value)).catch(() => value);
@@ -25,26 +24,30 @@ export function HistoryEntries(props: { entries: readonly HistoryEntry[]; fields
   };
   return (
     <div class={styles.entries}>
-      <For each={props.entries} fallback={<p class={styles.empty}>No recorded changes.</p>}>
-        {(entry) => (
-          <article class={styles.entry} aria-label={`${entry.type} change`}>
-            <header class={styles.header}>
-              <span>{entry.type}</span>
-              <ResolvedText
-                fallback={entry.userid === "system" ? "System" : entry.userid}
-                load={() => userLabel(entry.userid)}
-              />
-              <DateTime value={entry.timestamp} />
-            </header>
-            <table class={styles.changes} aria-label="Attribute changes">
-              <thead>
+      <Show when={props.entries.length} fallback={<p class={styles.empty}>No recorded changes.</p>}>
+        <table class={styles.changes} aria-label="Attribute changes">
+          <thead>
+            <tr>
+              <th scope="col">Attribute</th>
+              <th scope="col">Before</th>
+              <th scope="col">After</th>
+            </tr>
+          </thead>
+          <For each={props.entries}>
+            {(entry) => (
+              <tbody aria-label={`${entry.type} change`}>
                 <tr>
-                  <th>Attribute</th>
-                  <th>Before</th>
-                  <th>After</th>
+                  <th scope="rowgroup" colSpan={3} class={styles.entry}>
+                    <div class={styles.header}>
+                      <span>{entry.type}</span>
+                      <ResolvedText
+                        fallback={entry.userid === "system" ? "System" : entry.userid}
+                        load={() => userLabel(entry.userid)}
+                      />
+                      <DateTime value={entry.timestamp} />
+                    </div>
+                  </th>
                 </tr>
-              </thead>
-              <tbody>
                 <For each={entry.changes}>
                   {(change) => {
                     const [labels] = createResource(
@@ -58,6 +61,7 @@ export function HistoryEntries(props: { entries: readonly HistoryEntry[]; fields
                         props.fields.find((field) => field.attribute === change.key)?.control === "html",
                         styles.removed,
                         styles.added,
+                        change.oldValue !== undefined && change.newValue !== undefined,
                       ),
                     );
                     return (
@@ -78,10 +82,10 @@ export function HistoryEntries(props: { entries: readonly HistoryEntry[]; fields
                   }}
                 </For>
               </tbody>
-            </table>
-          </article>
-        )}
-      </For>
+            )}
+          </For>
+        </table>
+      </Show>
     </div>
   );
 }

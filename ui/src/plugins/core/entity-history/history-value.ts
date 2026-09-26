@@ -2,7 +2,7 @@ import { diffWords, type WordDiffFragment } from "../../../components/diff-viewe
 
 /** Format scalar data without JSON quoting; keep missing, null and empty distinct. */
 export function formatHistoryValue(value: unknown): string {
-  if (value === undefined) return "Not present";
+  if (value === undefined) return "-";
   if (value === "") return "Empty";
   return typeof value === "string" ? value : JSON.stringify(value);
 }
@@ -84,16 +84,18 @@ function highlight(root: HTMLElement, fragments: readonly WordDiffFragment[], cl
   return root.innerHTML;
 }
 
-/** Safe HTML with word-level changes applied to visible text, not HTML tags. */
+/** Safe HTML with optional word-level changes applied to visible text, not HTML tags. */
 export function historyValueDiff(
   before: string,
   after: string,
   rich: boolean,
   removedClass: string,
   addedClass: string,
+  highlightChanges = true,
 ) {
   const oldRoot = valueDocument(before, rich);
   const newRoot = valueDocument(after, rich);
+  if (!highlightChanges) return { before: oldRoot.innerHTML, after: newRoot.innerHTML };
   const diff = diffWords(oldRoot.textContent ?? "", newRoot.textContent ?? "");
   return {
     before: highlight(oldRoot, diff.deletion, removedClass),

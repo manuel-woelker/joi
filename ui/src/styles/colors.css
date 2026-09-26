@@ -18,7 +18,7 @@
   --color-surface-selected: #eceff2;
   --color-background: var(--color-surface);
   --color-border: #d2d6dc;
-  --color-border-strong: #bfc5cd;
+  --color-border-strong: #8a8a8a;
   --color-border-soft: #e6e8ec;
   --color-control-background: var(--color-surface);
   --color-control-background-hover: var(--color-surface-hover);
