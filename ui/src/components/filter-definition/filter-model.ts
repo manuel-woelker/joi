@@ -12,7 +12,7 @@ export type FilterAttributeId = string & { readonly [filterAttributeIdBrand]: tr
 export type FilterOperatorId = string & { readonly [filterOperatorIdBrand]: true };
 
 export type FilterValue = string | number;
-export type FilterValueType = "string" | "int";
+export type FilterValueType = "string" | "int" | "reference_list";
 export type CompositeFilterKind = "all" | "one" | "none";
 
 export interface ValueFilterOperand {

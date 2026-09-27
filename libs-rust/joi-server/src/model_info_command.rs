@@ -61,10 +61,14 @@ impl CommandHandler for ModelInfoCommand {
                             | ColumnDataType::Text
                             | ColumnDataType::Reference { .. } => ModelAttributeType::String,
                             ColumnDataType::Int => ModelAttributeType::Int,
+                            ColumnDataType::ReferenceList { .. } => {
+                                ModelAttributeType::ReferenceList
+                            }
                         };
                         let references = match &column.data_type {
                             // References always address the target's primary key.
-                            ColumnDataType::Reference { entity } => {
+                            ColumnDataType::Reference { entity }
+                            | ColumnDataType::ReferenceList { entity } => {
                                 let target = tables
                                     .iter()
                                     .find(|candidate| candidate.name == *entity)

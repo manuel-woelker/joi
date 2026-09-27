@@ -1670,6 +1670,7 @@ dependencies = [
  "joi-server",
  "joix-codevette",
  "joix-tickets",
+ "joix-wiki",
 ]
 
 [[package]]
@@ -1696,6 +1697,17 @@ dependencies = [
  "joi-plugin",
  "joi-server",
  "ksuid",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
+name = "joix-wiki"
+version = "0.1.0"
+dependencies = [
+ "joi-error",
+ "joi-plugin",
+ "joi-server",
  "serde_json",
  "tempfile",
 ]

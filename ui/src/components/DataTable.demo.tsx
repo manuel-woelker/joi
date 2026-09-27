@@ -34,7 +34,7 @@ function InteractiveTable() {
             header: "Status",
             cell: (value) => (
               <Badge size="compact" tone={value === "Closed" ? "success" : "primary"}>
-                {value}
+                {String(value ?? "")}
               </Badge>
             ),
           },

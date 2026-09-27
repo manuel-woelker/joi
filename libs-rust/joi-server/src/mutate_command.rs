@@ -75,6 +75,7 @@ enum MutationValues {
     String(Vec<JoiString>),
     NullableString(Vec<Option<JoiString>>),
     Int(Vec<i64>),
+    ReferenceList(Vec<Vec<JoiString>>),
 }
 
 #[derive(Debug, PartialEq, Serialize)]
@@ -167,6 +168,7 @@ fn attribute_column(column: MutationColumn) -> AttributeColumn {
             MutationValues::String(values) => Values::String(values),
             MutationValues::NullableString(values) => Values::NullableString(values),
             MutationValues::Int(values) => Values::Int(values),
+            MutationValues::ReferenceList(values) => Values::ReferenceList(values),
         },
     }
 }

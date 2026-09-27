@@ -45,6 +45,7 @@ Cross-library examples:
 - [`examples/joix`](examples/joix/README.md) - Combined server application for exercising JOI domain plugins.
 - [`examples/joix-codevette`](examples/joix-codevette/README.md) - Trunk-based code review server plugin.
 - [`examples/joix-tickets`](examples/joix-tickets/README.md) - Issue-tracker server plugin.
+- [`examples/joix-wiki`](examples/joix-wiki/README.md) - Rich-text wiki pages with automatic author attribution.
 
 ## Working in This Repo
 

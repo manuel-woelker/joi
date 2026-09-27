@@ -149,7 +149,7 @@ impl SearchIndex for TantivySearchIndex {
                         }
                         // Foreign ids need exact matching with sorting and
                         // faceting, but no substring or token search.
-                        ColumnDataType::Reference { .. } => {
+                        ColumnDataType::Reference { .. } | ColumnDataType::ReferenceList { .. } => {
                             schema.add_text_field(name, STRING | STORED | FAST);
                         }
                         // Prose is only indexed as tokenized text; row values
@@ -186,7 +186,7 @@ impl SearchIndex for TantivySearchIndex {
                             None,
                         )
                     }
-                    ColumnDataType::Reference { .. } => {
+                    ColumnDataType::Reference { .. } | ColumnDataType::ReferenceList { .. } => {
                         (schema.get_field(name).map_err(report)?, None, None, None)
                     }
                     ColumnDataType::Text => {
@@ -297,6 +297,17 @@ impl SearchIndex for TantivySearchIndex {
 
     fn query_rows(&self, query: DataStoreQuery) -> JoiResult<DataStoreQueryResult> {
         let index = self.entity_index(&query.table_name)?;
+        for sort in &query.sorting {
+            if matches!(
+                indexed_attribute(index, &sort.attribute)?.data_type,
+                ColumnDataType::ReferenceList { .. }
+            ) {
+                joi_bail!(
+                    "sorting is not supported for reference-list attribute `{}`",
+                    sort.attribute.0
+                );
+            }
+        }
         let tantivy_query = criterion_query(index, &query.criterion)?;
         let searcher = index.reader.searcher();
         if query.max_results == 0 && query.attributes.is_empty() && query.sorting.is_empty() {
@@ -324,6 +335,7 @@ impl SearchIndex for TantivySearchIndex {
                 QuerySortDirection::Descending => Order::Desc,
             };
             match field.data_type {
+                ColumnDataType::ReferenceList { .. } => unreachable!("list sorting rejected above"),
                 ColumnDataType::String
                 | ColumnDataType::Text
                 | ColumnDataType::Reference { .. } => searcher
@@ -396,6 +408,19 @@ impl SearchIndex for TantivySearchIndex {
                 )
             })?;
             let values = match indexed.data_type {
+                ColumnDataType::ReferenceList { .. } => Values::ReferenceList(
+                    rows.iter()
+                        .map(|(_, row)| {
+                            row.get(attribute.0.as_str())
+                                .and_then(JsonValue::as_array)
+                                .into_iter()
+                                .flatten()
+                                .filter_map(JsonValue::as_str)
+                                .map(Into::into)
+                                .collect()
+                        })
+                        .collect(),
+                ),
                 // Text and references are physically stored as strings in the entity payload.
                 ColumnDataType::String
                 | ColumnDataType::Text
@@ -517,17 +542,15 @@ fn count_terms(
         .map(|bucket| {
             Ok(DataStoreCountValue {
                 value: Some(match attribute.data_type {
-                    ColumnDataType::String | ColumnDataType::Reference { .. } => {
-                        DataStoreValue::String(
-                            bucket
-                                .get("key")
-                                .and_then(JsonValue::as_str)
-                                .ok_or_else(|| {
-                                    joi_error!("Tantivy returned an invalid term bucket")
-                                })?
-                                .into(),
-                        )
-                    }
+                    ColumnDataType::String
+                    | ColumnDataType::Reference { .. }
+                    | ColumnDataType::ReferenceList { .. } => DataStoreValue::String(
+                        bucket
+                            .get("key")
+                            .and_then(JsonValue::as_str)
+                            .ok_or_else(|| joi_error!("Tantivy returned an invalid term bucket"))?
+                            .into(),
+                    ),
                     ColumnDataType::Int => DataStoreValue::Int(
                         bucket
                             .get("key")
@@ -606,6 +629,18 @@ fn add_entity(
             continue;
         };
         match attribute.data_type {
+            ColumnDataType::ReferenceList { .. } => {
+                // Repeated IDs count only once per document in membership facets.
+                let members = value
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(JsonValue::as_str)
+                    .collect::<std::collections::BTreeSet<_>>();
+                for member in members {
+                    document.add_text(attribute.field, member);
+                }
+            }
             ColumnDataType::String => {
                 if let Some(value) = value.as_str() {
                     document.add_text(attribute.field, value);
@@ -756,7 +791,10 @@ fn criterion_query(index: &EntityIndex, criterion: &QueryCriterion) -> JoiResult
         }
         QueryCriterion::Contains { attribute, value } => {
             let field = indexed_attribute(index, attribute)?;
-            if matches!(field.data_type, ColumnDataType::Reference { .. }) {
+            if matches!(
+                field.data_type,
+                ColumnDataType::Reference { .. } | ColumnDataType::ReferenceList { .. }
+            ) {
                 joi_bail!(
                     "contains is not supported for reference attribute `{}`; match the exact id with equals",
                     attribute.0
@@ -850,7 +888,7 @@ fn term_query(
                     ));
                 }
                 // References carry no token field: pasted ids cannot match.
-                ColumnDataType::Reference { .. } => continue,
+                ColumnDataType::Reference { .. } | ColumnDataType::ReferenceList { .. } => continue,
                 // Prose is already tokenized in its own field.
                 ColumnDataType::Text => {
                     disjunction.push((
@@ -944,9 +982,9 @@ fn composite_query(
 
 fn exact_query(field: &IndexedAttribute, value: &str) -> JoiResult<Box<dyn Query>> {
     let term = match field.data_type {
-        ColumnDataType::String | ColumnDataType::Reference { .. } => {
-            Term::from_field_text(field.field, value)
-        }
+        ColumnDataType::String
+        | ColumnDataType::Reference { .. }
+        | ColumnDataType::ReferenceList { .. } => Term::from_field_text(field.field, value),
         // Rejected in `criterion_query` before exact matching.
         ColumnDataType::Text => joi_bail!("equality is word-based for text attributes"),
         ColumnDataType::Int => Term::from_field_i64(
@@ -964,9 +1002,15 @@ fn range_query(
     minimum: Bound<&JoiString>,
     maximum: Bound<&JoiString>,
 ) -> JoiResult<Box<dyn Query>> {
+    if matches!(field.data_type, ColumnDataType::ReferenceList { .. }) {
+        joi_bail!("ranges are not supported for reference lists");
+    }
     let convert = |bound: Bound<&JoiString>| -> JoiResult<Bound<Term>> {
         Ok(match bound {
             Bound::Included(value) => Bound::Included(match field.data_type {
+                ColumnDataType::ReferenceList { .. } => {
+                    joi_bail!("ranges are not supported for reference lists")
+                }
                 ColumnDataType::String | ColumnDataType::Reference { .. } => {
                     Term::from_field_text(field.field, value)
                 }
@@ -980,6 +1024,9 @@ fn range_query(
                 ),
             }),
             Bound::Excluded(value) => Bound::Excluded(match field.data_type {
+                ColumnDataType::ReferenceList { .. } => {
+                    joi_bail!("ranges are not supported for reference lists")
+                }
                 ColumnDataType::String | ColumnDataType::Reference { .. } => {
                     Term::from_field_text(field.field, value)
                 }

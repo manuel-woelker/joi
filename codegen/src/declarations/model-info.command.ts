@@ -106,6 +106,7 @@ export const ModelAttributeType = defineEnum({
   name: "ModelAttributeType",
   description: "A data type supported by a model attribute.",
   values: [
+    { name: "reference_list", description: "An ordered list of references to one entity type." },
     { name: "string", description: "A UTF-8 string value." },
     { name: "int", description: "A signed integer value." },
   ],

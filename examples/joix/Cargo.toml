@@ -10,3 +10,4 @@ publish = false
 joi-server = { path = "../../libs-rust/joi-server" }
 joix-codevette = { path = "../joix-codevette" }
 joix-tickets = { path = "../joix-tickets" }
+joix-wiki = { path = "../joix-wiki" }

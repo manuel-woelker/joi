@@ -117,7 +117,8 @@ impl DataStore for IndexedDataStore {
         let entity_types = schemas.keys().cloned().collect::<Vec<_>>();
         for table in schemas.values() {
             for column in &table.columns {
-                if let ColumnDataType::Reference { entity } = &column.data_type
+                if let ColumnDataType::Reference { entity }
+                | ColumnDataType::ReferenceList { entity } = &column.data_type
                     && !schemas.contains_key(entity)
                 {
                     joi_bail!(
@@ -816,6 +817,11 @@ fn validate_prepared_object(
         } else {
             match column.data_type {
                 ColumnDataType::Int => value.as_i64().is_some(),
+                ColumnDataType::ReferenceList { .. } => value.as_array().is_some_and(|values| {
+                    values
+                        .iter()
+                        .all(|value| value.as_str().is_some_and(|id| !id.is_empty()))
+                }),
                 _ => value.is_string(),
             }
         };

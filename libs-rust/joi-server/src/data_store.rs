@@ -124,6 +124,8 @@ pub enum Values {
     NullableString(Vec<Option<JoiString>>),
     /// Integer values.
     Int(Vec<i64>),
+    /// One ordered list of referenced entity IDs per row (an empty list has no members).
+    ReferenceList(Vec<Vec<JoiString>>),
 }
 
 impl Values {
@@ -133,20 +135,13 @@ impl Values {
             Values::String(values) => values.len(),
             Values::NullableString(values) => values.len(),
             Values::Int(values) => values.len(),
+            Values::ReferenceList(values) => values.len(),
         }
     }
 
     /// Whether this column contains no values.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
-    }
-
-    /// The column type these values belong to.
-    pub fn data_type(&self) -> ColumnDataType {
-        match self {
-            Values::String(_) | Values::NullableString(_) => ColumnDataType::String,
-            Values::Int(_) => ColumnDataType::Int,
-        }
     }
 
     /// The JSON representation of the value at `index`.
@@ -162,6 +157,12 @@ impl Values {
                 })
             }
             Values::Int(values) => JsonValue::Number(values[index].into()),
+            Values::ReferenceList(values) => JsonValue::Array(
+                values[index]
+                    .iter()
+                    .map(|value| JsonValue::String(value.to_string()))
+                    .collect(),
+            ),
         }
     }
 }
@@ -241,6 +242,12 @@ pub enum ColumnDataType {
         /// The referenced entity type.
         entity: TableName,
     },
+    /// An ordered list of foreign IDs, stored as a JSON array. Equality means membership;
+    /// aggregations count each distinct member once per entity. Sorting/ranges are unsupported.
+    ReferenceList {
+        /// Entity type shared by every member.
+        entity: TableName,
+    },
     /// Integer values.
     Int,
 }
@@ -255,6 +262,7 @@ impl ColumnDataType {
                 strings
             }
             ColumnDataType::Int => matches!(values, Values::Int(_)),
+            ColumnDataType::ReferenceList { .. } => matches!(values, Values::ReferenceList(_)),
         }
     }
 }

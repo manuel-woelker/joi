@@ -75,6 +75,7 @@ export function createEntityEditorDefinition(description: EntityDescription): Ma
 }
 
 function attributeValidation(attribute: AnyEntityAttribute): ValidationFunction<string> | undefined {
+  if (attribute.valueType === "reference_list") return undefined;
   if (!attribute.validation) return undefined;
   if (attribute.valueType === "string") return attribute.validation;
   const validation = attribute.validation;
@@ -99,6 +100,8 @@ function entityValidation(
     for (const attribute of description.attributes) {
       const raw = attribute.edit ? value[attribute.id] : row.value(result.requireColumn(attribute.id));
       if (attribute.valueType === "string" && typeof raw === "string") {
+        values[attribute.id] = raw;
+      } else if (attribute.valueType === "reference_list" && Array.isArray(raw)) {
         values[attribute.id] = raw;
       } else if (attribute.valueType === "int") {
         const parsed = typeof raw === "number" ? raw : parseInteger(raw);

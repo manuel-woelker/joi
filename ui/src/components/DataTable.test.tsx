@@ -115,7 +115,7 @@ describe("DataTable", () => {
       {
         column: result.requireColumn("age"),
         header: "Age",
-        cell: (value) => <strong>{value} years</strong>,
+        cell: (value) => <strong>{String(value ?? "")} years</strong>,
       },
     ];
     render(() => (
@@ -199,7 +199,13 @@ describe("DataTable", () => {
       <DataTable
         ariaLabel="People"
         result={result}
-        columns={[{ column: result.requireColumn("name"), header: "Name", cell: (value) => <strong>{value}!</strong> }]}
+        columns={[
+          {
+            column: result.requireColumn("name"),
+            header: "Name",
+            cell: (value) => <strong>{String(value ?? "")}!</strong>,
+          },
+        ]}
         highlights={deriveColumnHighlights("jane", ["name"])}
       />
     ));

@@ -146,6 +146,8 @@ pub struct QueryResultColumn {
 #[serde(tag = "type", content = "values", rename_all = "snake_case")]
 /// A homogeneous sequence of query result values.
 pub enum QueryValues {
+    /// An ordered list of referenced IDs per result row.
+    ReferenceList(Vec<Vec<JoiString>>),
     /// String values.
     String(Vec<JoiString>),
     /// Signed integer values.
@@ -210,6 +212,9 @@ impl CommandHandler for QueryCommand {
                                         unreachable!("queries never return mutation-only values")
                                     }
                                     Values::Int(values) => QueryValues::Int(values),
+                                    Values::ReferenceList(values) => {
+                                        QueryValues::ReferenceList(values)
+                                    }
                                 },
                             })
                             .collect(),

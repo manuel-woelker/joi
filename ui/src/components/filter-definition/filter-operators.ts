@@ -47,15 +47,16 @@ export const inRangeFilterOperator = filterOperatorId("in-range");
 export const inSetFilterOperator = filterOperatorId("in-set");
 export const containsFilterOperator = filterOperatorId("contains");
 
-const allTypes: readonly FilterValueType[] = ["string", "int"];
+const scalarTypes: readonly FilterValueType[] = ["string", "int"];
+const allTypes: readonly FilterValueType[] = [...scalarTypes, "reference_list"];
 
 export const defaultFilterOperators: readonly FilterOperatorDefinition[] = [
   { id: equalsFilterOperator, label: "=", compatibleTypes: allTypes, operand: "value" },
   { id: notEqualsFilterOperator, label: "!=", compatibleTypes: allTypes, operand: "value" },
-  { id: lessThanFilterOperator, label: "<", compatibleTypes: allTypes, operand: "value" },
+  { id: lessThanFilterOperator, label: "<", compatibleTypes: scalarTypes, operand: "value" },
   { id: setFilterOperator, label: "is set", compatibleTypes: allTypes, operand: "none" },
   { id: unsetFilterOperator, label: "is unset", compatibleTypes: allTypes, operand: "none" },
-  { id: inRangeFilterOperator, label: "is in range", compatibleTypes: allTypes, operand: "range" },
+  { id: inRangeFilterOperator, label: "is in range", compatibleTypes: scalarTypes, operand: "range" },
   { id: inSetFilterOperator, label: "is one of", compatibleTypes: allTypes, operand: "set" },
   { id: containsFilterOperator, label: "contains", compatibleTypes: ["string"], operand: "value" },
 ];

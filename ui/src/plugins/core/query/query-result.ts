@@ -8,10 +8,11 @@ export type QueryColumnIndex = BrandedIndex<"query-column">;
 export type QueryRowIndex = BrandedIndex<"query-row">;
 
 export type QueryColumnValues =
+  | { readonly type: "reference_list"; readonly values: readonly (readonly string[])[] }
   | { readonly type: "string"; readonly values: readonly string[] }
   | { readonly type: "int"; readonly values: readonly number[] };
 
-export type QueryValue = string | number;
+export type QueryValue = string | number | readonly string[];
 export type QueryValueType = QueryColumnValues["type"];
 
 export interface QueryResultColumn {
@@ -46,7 +47,9 @@ export function emptyResultFor(columns: readonly { attribute: string; type: Quer
     result_columns: columns.map((column) =>
       column.type === "int"
         ? { attribute: column.attribute, values: { type: "int" as const, values: [] as number[] } }
-        : { attribute: column.attribute, values: { type: "string" as const, values: [] as string[] } },
+        : column.type === "reference_list"
+          ? { attribute: column.attribute, values: { type: "reference_list" as const, values: [] as string[][] } }
+          : { attribute: column.attribute, values: { type: "string" as const, values: [] as string[] } },
     ),
   });
 }
@@ -139,6 +142,8 @@ export function parseQueryResponse(value: unknown, aggregates: readonly QueryAgg
 }
 
 function isValueOfType(value: QueryValue, type: QueryValueType): boolean {
+  if (type === "reference_list")
+    return Array.isArray(value) && value.every((id) => typeof id === "string" && id.length > 0);
   return type === "string" ? typeof value === "string" : Number.isSafeInteger(value);
 }
 
@@ -179,5 +184,6 @@ function isColumnValues(value: unknown): value is QueryColumnValues {
   if (!Array.isArray(values.values)) return false;
   if (values.type === "string") return values.values.every((item) => typeof item === "string");
   if (values.type === "int") return values.values.every((item) => Number.isSafeInteger(item));
+  if (values.type === "reference_list") return values.values.every((item) => isValueOfType(item, "reference_list"));
   return false;
 }

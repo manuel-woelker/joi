@@ -4,6 +4,7 @@ import type { CompiledTextNeedle } from "../../../components/text-highlight";
 import type { QueryColumnHandle, QueryResult, QueryResultRow } from "../query/query-result";
 import { requireEntityAttribute, type AnyEntityAttribute, type EntityDescription } from "./entity-description";
 import { LookupValue } from "../lookups/lookup";
+import { For } from "solid-js";
 
 /** Presentation override selecting one entity attribute for a table. */
 export interface EntityTableField {
@@ -72,7 +73,19 @@ export function createEntityTableColumns(
             _row: QueryResultRow,
             _column: QueryColumnHandle,
             highlights?: readonly CompiledTextNeedle[],
-          ) => <LookupValue lookup={attribute.lookup!} value={String(value ?? "")} highlight={highlights} />,
+          ) =>
+            Array.isArray(value) ? (
+              <For each={value}>
+                {(id, index) => (
+                  <>
+                    {index() > 0 ? ", " : ""}
+                    <LookupValue lookup={attribute.lookup!} value={id} highlight={highlights} />
+                  </>
+                )}
+              </For>
+            ) : (
+              <LookupValue lookup={attribute.lookup!} value={String(value ?? "")} highlight={highlights} />
+            ),
         }
       : {};
     const htmlCell =
@@ -83,6 +96,7 @@ export function createEntityTableColumns(
       description: attribute.description,
       type: attribute.table?.type ?? (attribute.valueType === "int" ? "number" : "text"),
       width: field.width ?? attribute.table?.width,
+      sortable: attribute.valueType !== "reference_list",
       ...lookupCell,
       ...htmlCell,
       ...overrides[attribute.id],

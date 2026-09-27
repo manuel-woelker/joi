@@ -28,7 +28,11 @@ export interface EntityTableDescription {
 
 /** Form presentation for an entity attribute. */
 export interface EntityEditDescription<TValue extends QueryValue> {
-  readonly control: TValue extends string ? "text" | "textarea" | "html" | "lookup" : "integer";
+  readonly control: TValue extends string
+    ? "text" | "textarea" | "html" | "lookup"
+    : TValue extends number
+      ? "integer"
+      : never;
   readonly required?: boolean;
   readonly rows?: number;
   readonly placeholder?: string;
@@ -38,7 +42,11 @@ export interface EntityEditDescription<TValue extends QueryValue> {
 
 /** Form presentation and initial value used when creating an entity attribute. */
 export interface EntityCreateDescription<TValue extends QueryValue> {
-  readonly control?: TValue extends string ? "text" | "textarea" | "html" | "lookup" : "integer";
+  readonly control?: TValue extends string
+    ? "text" | "textarea" | "html" | "lookup"
+    : TValue extends number
+      ? "integer"
+      : never;
   readonly required?: boolean;
   readonly rows?: number;
   readonly placeholder?: string;
@@ -75,12 +83,15 @@ export type StringEntityAttribute<TId extends string = string> = EntityAttribute
 export type IntegerEntityAttribute<TId extends string = string> = EntityAttributeDescription<TId, number, "int">;
 
 /** Entity attribute accepted by generic binding infrastructure. */
-export type AnyEntityAttribute = StringEntityAttribute | IntegerEntityAttribute;
+export type ReferenceListEntityAttribute = EntityAttributeDescription<string, readonly string[], "reference_list">;
+export type AnyEntityAttribute = StringEntityAttribute | IntegerEntityAttribute | ReferenceListEntityAttribute;
 
 /** Extracts the domain value type from an entity attribute description. */
 export type EntityAttributeValue<TAttribute extends AnyEntityAttribute> = TAttribute["valueType"] extends "string"
   ? string
-  : number;
+  : TAttribute["valueType"] extends "int"
+    ? number
+    : readonly string[];
 
 /** Typed value record inferred from an entity's attribute tuple. */
 export type EntityValues<TAttributes extends readonly AnyEntityAttribute[]> = {

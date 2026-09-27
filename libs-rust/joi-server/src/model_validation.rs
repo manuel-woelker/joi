@@ -76,7 +76,10 @@ impl ModelValidator {
                 rules.push(match rule.kind {
                     ModelValidationKind::Required => Rule::Required(rule.message.clone()),
                     ModelValidationKind::Regex => {
-                        if matches!(column.data_type, ColumnDataType::Int) {
+                        if matches!(
+                            column.data_type,
+                            ColumnDataType::Int | ColumnDataType::ReferenceList { .. }
+                        ) {
                             joi_bail!("regex requires a string attribute");
                         }
                         let pattern = rule
@@ -128,6 +131,7 @@ impl ModelValidator {
                                     !text.trim().is_empty()
                                 }
                             }
+                            Some(Value::Array(values)) => !values.is_empty(),
                             _ => true,
                         };
                         (valid, message)

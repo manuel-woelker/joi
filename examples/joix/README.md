@@ -1,7 +1,7 @@
 # joix
 
 `joix` is the combined example server application for the JOI workspace. It
-composes the Tickets and Codevette domain plugins with the reusable
+composes the Tickets, Codevette, and Wiki domain plugins with the reusable
 `joi-server` runtime.
 
 ## How do I run it?

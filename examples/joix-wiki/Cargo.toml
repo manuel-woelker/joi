@@ -1,0 +1,16 @@
+[package]
+name = "joix-wiki"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Wiki domain plugin for JOI applications"
+publish = false
+
+[dependencies]
+joi-error = { path = "../../libs-rust/joi-error" }
+joi-plugin = { path = "../../libs-rust/joi-plugin" }
+joi-server = { path = "../../libs-rust/joi-server" }
+serde_json = "1"
+
+[dev-dependencies]
+tempfile = "3"

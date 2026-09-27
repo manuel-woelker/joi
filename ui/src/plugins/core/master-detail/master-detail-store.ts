@@ -469,7 +469,9 @@ export function createMasterDetailStore(
       const id = row.value(identity);
       if (typeof id !== "string" || !selected.has(id)) continue;
       const value = row.value(column);
-      if (value !== undefined) uniqueValues.set(facetValueKey(value), value);
+      if (value !== undefined) {
+        for (const member of Array.isArray(value) ? value : [value]) uniqueValues.set(facetValueKey(member), member);
+      }
     }
     const values = [...uniqueValues.values()];
     if (!values.length) return undefined;

@@ -7,6 +7,9 @@
 
 #![warn(missing_docs)]
 
+#[cfg(test)]
+mod reference_list_tests;
+
 /// Static command declarations shared by handlers and generated inventories.
 pub mod command;
 /// Type-safe command handler contracts.

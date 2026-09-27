@@ -286,11 +286,11 @@ export function SavedViewContent() {
                             const value = () => row.value(queryResult()!.requireColumn(field.field));
                             return index() === 0 ? (
                               <strong>
-                                <DataText>{value()}</DataText>
+                                <DataText>{String(value() ?? "")}</DataText>
                               </strong>
                             ) : (
                               <span>
-                                <DataText>{value()}</DataText>
+                                <DataText>{String(value() ?? "")}</DataText>
                               </span>
                             );
                           }}

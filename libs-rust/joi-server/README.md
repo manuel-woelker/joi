@@ -145,3 +145,16 @@ Repeated writes return the final state once; deleted entities are omitted.
 These values reuse the datastore's mutation results without another query.
 Interactive UI edits request them and publish the committed values to existing
 table rows and detail forms. Imports and test-data generation leave this disabled.
+
+## How do reference lists behave?
+
+`ColumnDataType::ReferenceList { entity }` stores a JSON array of IDs. Mutations
+and queries use `reference_list` column values (one array per row). An empty array
+has no members; nonempty member IDs are required. Like scalar references, the
+target schema is checked, but referenced record existence is not enforced.
+Equality matches any member, `set`/`unset` test whether members exist, and facet
+counts count each member once per matching record. Lists preserve their stored
+order and duplicates, although domain contributors may deduplicate them. Range,
+substring and sort operations on lists are rejected. UI lists render through the
+target model's labels and expose membership filters, not text/range operations.
+List controls are currently read-only; wiki attribution is generated on the server.
