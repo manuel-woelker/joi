@@ -1,5 +1,5 @@
-import { userEntity } from "./user-entity";
-import { entityDescriptions } from "../../entities/entity-registry";
+import { userEntityId } from "./user-entity";
+import { modelServiceKey } from "../../entities/model-service";
 import { plugin } from "../../../../base/plugin-registry";
 import { administrationContributions } from "../contribution";
 import { EntityMasterDetailView } from "../../master-detail/EntityMasterDetailView";
@@ -7,13 +7,8 @@ import { EntityMasterDetailView } from "../../master-detail/EntityMasterDetailVi
 export default plugin({
   name: "users-administration",
   description: "User administration",
+  requires: { models: modelServiceKey },
   registerExtensions(context) {
-    context.registerExtension({
-      point: entityDescriptions,
-      id: "user-entity",
-      description: "Defines user records",
-      value: userEntity,
-    });
     context.registerExtension({
       point: administrationContributions,
       id: "users",
@@ -22,8 +17,8 @@ export default plugin({
         id: "users",
         name: "Users",
         section: "Administration",
-        icon: userEntity.icon,
-        content: () => <EntityMasterDetailView entityId={userEntity.id} />,
+        icon: context.services.models.icon(userEntityId),
+        content: () => <EntityMasterDetailView entityId={userEntityId} />,
       },
     });
   },

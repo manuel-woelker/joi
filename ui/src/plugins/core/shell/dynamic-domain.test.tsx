@@ -6,9 +6,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createApplication, discoveredApplicationPlugins } from "../../../base/application-registry";
 import { PluginRegistryBuilder, plugin } from "../../../base/plugin-registry";
 import { FetchService } from "../../../base/services/fetch-service";
-import entitiesPlugin from "../entities/entities.plugin";
-import { defineEntity, entityId } from "../entities/entity-description";
-import { entityDescriptions } from "../entities/entity-registry";
 import { navigationEntryId, navigationSection, navigationSectionId } from "../navigation/contribution";
 import navigationPlugin from "../navigation/navigation.plugin";
 import { savedViewDefaults, savedViewDefaultsContributionId } from "../saved-views/contribution";
@@ -24,25 +21,10 @@ afterEach(cleanup);
 
 describe("dynamic domain plugins", () => {
   it("registers and resolves a second domain without shell changes", () => {
-    const milestones = defineEntity({
-      id: entityId("test.milestones"),
-      tableName: "milestones",
-      label: "Milestone",
-      pluralLabel: "Milestones",
-      icon: ExampleIcon,
-      identityAttribute: "id",
-      attributes: [{ id: "id", label: "ID", valueType: "string" }],
-    });
     const domain = plugin({
       name: "test-milestones",
       description: "Synthetic acceptance-test domain",
       registerExtensions(context) {
-        context.registerExtension({
-          point: entityDescriptions,
-          id: "test-milestone-entity",
-          description: "Defines milestones",
-          value: milestones,
-        });
         context.registerExtension({
           point: navigationSection,
           id: "test-milestone-navigation",
@@ -103,27 +85,46 @@ describe("dynamic domain plugins", () => {
     });
     const registry = new PluginRegistryBuilder()
       .register(shellPlugin)
-      .register(entitiesPlugin)
       .register(savedViewsPlugin)
       .register(navigationPlugin)
       .register(domain)
       .build();
 
-    expect(registry.extensions(entityDescriptions)).toEqual([milestones]);
     expect(registry.extensions(navigationSection)[0]?.id).toBe("test-milestone-navigation");
     expect(registry.extensions(savedViewDefaults)[0]?.id).toBe("test-milestone-defaults");
     expect(registry.extensions(shellOverlays)[0]?.id).toBe("test-milestone-editor");
     expect(resolveApplicationView(registry, { type: "view", id: "test.milestones" })?.name).toBe("Milestones");
   });
 
-  it("constructs the application without the ticket domain", () => {
+  it("constructs the application without the ticket domain", async () => {
     vi.spyOn(console, "info").mockImplementation(() => undefined);
     const plugins = discoveredApplicationPlugins().filter(
       (candidate) => !candidate.location?.file.includes("/plugins/ticket/"),
     );
     expect(plugins.some((candidate) => candidate.name === "tickets")).toBe(false);
 
-    const fetchService = new FetchService(async (_input, init) => {
+    const fetchService = new FetchService(async (input, init) => {
+      if (String(input).endsWith("model-info"))
+        return {
+          ok: true,
+          json: async () => ({
+            models: ["repositories", "users"].map((name) => ({
+              name,
+              history: false,
+              presentation: null,
+              attributes: [
+                {
+                  name: "id",
+                  description: "Identity",
+                  data_type: "string",
+                  key: true,
+                  optional: false,
+                  references: null,
+                },
+              ],
+            })),
+          }),
+        } as Response;
       const request = JSON.parse(String(init?.body)) as { table_name: string };
       const attributes =
         request.table_name === "repositories" ? ["id", "key", "name"] : ["id", "repository_id", "name"];
@@ -145,10 +146,6 @@ describe("dynamic domain plugins", () => {
     const application = createApplication({ plugins, fetchService });
 
     expect(application.registry.metadata().plugins.some((candidate) => candidate.name === "administration")).toBe(true);
-    expect(application.registry.extensions(entityDescriptions).map((entity) => entity.id)).toEqual([
-      "repositories",
-      "users",
-    ]);
 
     window.location.hash = "#/not-a-domain-route";
     render(() => (
@@ -159,7 +156,7 @@ describe("dynamic domain plugins", () => {
         onLogout={async () => undefined}
       />
     ));
-    expect(screen.getByRole("complementary", { name: "Workspace navigation" })).toBeTruthy();
+    expect(await screen.findByRole("complementary", { name: "Workspace navigation" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Administration" }));
     expect(screen.getByText("Repositories")).toBeTruthy();
     expect(screen.getByText("Users")).toBeTruthy();

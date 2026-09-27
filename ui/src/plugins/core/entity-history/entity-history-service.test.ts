@@ -12,8 +12,8 @@ describe("EntityHistoryService", () => {
         const data = path.endsWith("model-info")
           ? {
               models: [
-                { name: "tickets", history: true, attributes: [] },
-                { name: "users", history: false, attributes: [] },
+                { name: "tickets", history: true, attributes: [], presentation: null },
+                { name: "users", history: false, attributes: [], presentation: null },
               ],
             }
           : {

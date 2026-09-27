@@ -6,6 +6,18 @@ import { describe, expect, it } from "vitest";
 const sourceRoot = path.resolve(import.meta.dirname, "..");
 
 describe("UI domain boundaries", () => {
+  it("keeps entity fixtures out of production imports", async () => {
+    const violations: string[] = [];
+    for await (const file of glob("**/*.{ts,tsx}", { cwd: sourceRoot })) {
+      if (/\.(test|fixture)\./.test(file) || file.endsWith("model-fixtures.ts")) continue;
+      const source = await readFile(path.join(sourceRoot, file), "utf8");
+      for (const specifier of relativeImports(source)) {
+        if (specifier.endsWith(".fixture") || specifier.endsWith("/model-fixtures"))
+          violations.push(`${file}: ${specifier}`);
+      }
+    }
+    expect(violations).toEqual([]);
+  });
   it("prevents base, core, and the app shell from importing ticket code", async () => {
     const files = ["App.tsx", "Root.tsx"];
     for await (const file of glob(["base/**/*.{ts,tsx}", "plugins/core/**/*.{ts,tsx}"], { cwd: sourceRoot })) {

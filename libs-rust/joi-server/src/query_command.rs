@@ -490,6 +490,7 @@ mod tests {
                 TableDescription {
                     name: TableName("notes".into()),
                     discoverable: false,
+                    presentation: None,
                     columns: vec![
                         column("id", ColumnDataType::String),
                         column("title", ColumnDataType::Text),

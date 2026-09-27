@@ -193,6 +193,8 @@ pub enum DataStoreValue {
 /// Describes a table and its required column definition.
 #[derive(Clone)]
 pub struct TableDescription {
+    /// Canonical form, table, label, icon and validation metadata, when this model has a UI.
+    pub presentation: Option<crate::generated::api::ModelPresentation>,
     /// The table name.
     pub name: TableName,
     /// Whether this table is part of the discoverable application model.

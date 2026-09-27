@@ -9,11 +9,13 @@ import { useWorkspace } from "../../core/saved-views/controller";
 import type { PresentationDefinition, QueryDefinition } from "../../core/saved-views/model";
 import { cloneValue } from "../../core/saved-views/operations";
 import { validatePresentation } from "../../core/saved-views/query";
-import { ticketEntity } from "../entities/ticket-entity";
+import { ticketEntityId } from "../entities/ticket-entity";
+import { useEntityRegistry } from "../../core/entities/entity-registry";
 import { ModelText } from "../../../components/SourceText";
 import styles from "./ViewEditor.module.css";
 
 export function ViewEditor() {
+  const ticketEntity = useEntityRegistry().require(ticketEntityId);
   const controller = useWorkspace();
   const [name, setName] = createSignal("");
   const [description, setDescription] = createSignal("");

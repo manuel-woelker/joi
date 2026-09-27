@@ -113,3 +113,25 @@ duplicate history. Later chunk failures do not roll back earlier chunks. A faile
 HTTP response is therefore not proof that no data was committed. History retains
 deleted content indefinitely for now; retention and sensitive-field exclusions
 are separate policy decisions.
+
+## How is entity metadata shared with the UI?
+
+`TableDescription.presentation` contains server-owned labels, a label template,
+an icon name, ordered field presentation, create defaults, facets, and declarative
+validation. Storage column definitions supply authoritative types, nullability,
+identity and references. `model-info` returns both pieces without duplicating the
+physical schema. Models without presentation metadata remain discoverable and
+read-only in generic clients. Non-discoverable tables are still omitted.
+
+Use `model_metadata::field` and its builder methods to describe fields. Required
+and regex rules are compiled once by `IndexedDataStore::ensure_tables`. Each
+mutation chunk validates the complete resulting entities, including generated
+columns, before writing its entity, contributor and dirty entries transactionally.
+An invalid chunk writes nothing; earlier completed chunks keep the existing
+commit semantics. Deletes and index replay do not revalidate historical data.
+Existing invalid records can be read, but must satisfy the rules when updated.
+
+Rules are also exposed for immediate form feedback, but client validation is never
+trusted. Patterns must use the shared Rust/JavaScript Unicode regex subset.
+UI controls are declarative; icons are symbolic names resolved by clients, and
+default strategies are literals or KSUID generation rather than serialized code.

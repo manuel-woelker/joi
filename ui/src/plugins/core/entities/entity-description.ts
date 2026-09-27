@@ -6,7 +6,7 @@ import { parseLabelTemplate, type EntityLabelPart } from "./entity-label-templat
 
 declare const entityIdBrand: unique symbol;
 
-/** Stable identity of an entity description contributed by a plugin. */
+/** Stable identity used to look up a server-owned entity definition. */
 export type EntityId = string & { readonly [entityIdBrand]: true };
 
 /** Brands a stable entity ID. */
@@ -87,7 +87,7 @@ export type EntityValues<TAttributes extends readonly AnyEntityAttribute[]> = {
   readonly [TAttribute in TAttributes[number] as TAttribute["id"]]: EntityAttributeValue<TAttribute>;
 };
 
-/** Canonical UI description of one entity kind. */
+/** Compiled runtime representation of a server-owned entity kind. */
 export interface EntityDescription<TAttributes extends readonly AnyEntityAttribute[] = readonly AnyEntityAttribute[]> {
   readonly id: EntityId;
   readonly tableName: string;
@@ -103,13 +103,13 @@ export interface EntityDescription<TAttributes extends readonly AnyEntityAttribu
   readonly validation?: ValidationFunction<EntityValues<TAttributes>>;
 }
 
-/** Author-supplied definition; compiled label parts are derived rather than configured. */
+/** Decoder input; compiled label parts are derived rather than configured. Also used by tests. */
 export type EntityDefinition<TAttributes extends readonly AnyEntityAttribute[] = readonly AnyEntityAttribute[]> = Omit<
   EntityDescription<TAttributes>,
   "labelParts"
 >;
 
-/** Defines and validates an entity while preserving literal attribute IDs and value types. */
+/** Compiles decoded metadata (or a test fixture), preserving attribute IDs and value types. */
 export function defineEntity<const TAttributes extends readonly AnyEntityAttribute[]>(
   description: EntityDefinition<TAttributes>,
 ): EntityDescription<TAttributes> {

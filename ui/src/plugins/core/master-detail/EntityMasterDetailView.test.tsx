@@ -20,7 +20,7 @@ import { ActionProvider } from "../actions/ActionProvider";
 import { DataChangeService } from "../data-changes/data-change-service";
 import { RecordMutationService } from "../data-changes/record-mutation-service";
 import { type EntityDescription, entityId } from "../entities/entity-description";
-import { EntityRegistryProvider, entityDescriptions } from "../entities/entity-registry";
+import { EntityRegistryProvider, EntityRegistry } from "../entities/entity-registry";
 import { LookupProvider } from "../lookups/lookup";
 import { EntityMasterDetailView } from "./EntityMasterDetailView";
 
@@ -64,7 +64,7 @@ function renderView(fetcher: Fetcher, initialFilter?: FilterDefinition) {
   const fetchService = new FetchService(fetcher);
   const dataChanges = new DataChangeService();
   const registry = {
-    extensions: (point: unknown) => (point === entityDescriptions ? [ticketEntity] : []),
+    extensions: () => [],
     extensionEntries: () => [],
   } as unknown as PluginRegistryAccess;
   render(() => (
@@ -74,7 +74,7 @@ function renderView(fetcher: Fetcher, initialFilter?: FilterDefinition) {
       >
         <ContextMenuProvider>
           <LookupProvider registry={registry}>
-            <EntityRegistryProvider pluginRegistry={registry}>
+            <EntityRegistryProvider registry={new EntityRegistry([ticketEntity])}>
               <ActionProvider registry={registry} currentUser={{ id: "user-1", username: "jane", name: "Jane" }}>
                 <EntityMasterDetailView entityId={entityId("ticket")} initialFilter={initialFilter} />
               </ActionProvider>

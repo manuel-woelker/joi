@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ticketEntity } from "./ticket-entity";
+import { ticketEntity } from "./ticket-entity.fixture";
 import { createEntityEditorDefinition } from "../../core/entities/entity-editor";
 
 describe("ticketEntity", () => {

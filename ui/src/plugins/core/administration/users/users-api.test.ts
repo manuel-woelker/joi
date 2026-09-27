@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import { FetchService } from "../../../../base/services/fetch-service";
 import { loadUsers } from "./users-api";
+import { userEntity } from "./user-entity.fixture";
+import { modelWireFixture } from "../../entities/model-fixtures";
 
 describe("loadUsers", () => {
   it("loads users without exposing their internal ids", async () => {
@@ -20,6 +22,7 @@ describe("loadUsers", () => {
       }),
     });
 
+    fetcher.mockResolvedValueOnce({ ok: true, json: async () => ({ models: [modelWireFixture(userEntity)] }) });
     const result = await loadUsers(new FetchService(fetcher));
     const username = result.requireColumn("username");
     const name = result.requireColumn("name");

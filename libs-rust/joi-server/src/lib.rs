@@ -28,6 +28,10 @@ pub mod info_command;
 pub mod key_value_store;
 /// Application model inspection command handling.
 pub mod model_info_command;
+pub mod model_metadata;
+mod model_validation;
+#[cfg(test)]
+mod model_validation_tests;
 /// Generic data mutation command handling.
 pub mod mutate_command;
 /// Transactional additions contributed alongside entity mutations.

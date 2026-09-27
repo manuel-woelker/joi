@@ -10,7 +10,7 @@ import { ApplicationServicesProvider } from "../../../base/services/application-
 import { DataChangeService } from "../data-changes/data-change-service";
 import { RecordMutationService } from "../data-changes/record-mutation-service";
 import { RecordEditor } from "./RecordEditor";
-import { userEntity } from "../administration/users/user-entity";
+import { userEntity } from "../administration/users/user-entity.fixture";
 import { createEntityEditorDefinition } from "../entities/entity-editor";
 
 afterEach(cleanup);

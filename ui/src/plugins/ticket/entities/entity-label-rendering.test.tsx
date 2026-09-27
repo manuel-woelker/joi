@@ -6,18 +6,18 @@ import { PluginRegistryBuilder, plugin } from "../../../base/plugin-registry";
 import { FetchService, fetchServiceKey } from "../../../base/services/fetch-service";
 import { DataTable } from "../../../components/DataTable";
 import { administrationContributions } from "../../core/administration/contribution";
-import { userEntity } from "../../core/administration/users/user-entity";
-import usersLookupPlugin from "../../core/administration/users/users-lookup.plugin";
+import { userEntity } from "../../core/administration/users/user-entity.fixture";
 import { bindEntity, createEntityTableColumns } from "../../core/entities/bound-entity";
 import type { EntityDescription } from "../../core/entities/entity-description";
 import { createEntityEditorDefinition } from "../../core/entities/entity-editor";
-import { entityDescriptions } from "../../core/entities/entity-registry";
+import entitiesPlugin from "../../core/entities/entities.plugin";
+import { modelWireFixture } from "../../core/entities/model-fixtures";
 import { LookupProvider, lookupDefinitions } from "../../core/lookups/lookup";
 import { RecordEditor } from "../../core/master-detail/RecordEditor";
 import { parseQueryResponse } from "../../core/query/query-result";
-import { projectEntity } from "../projects/project-entity";
+import { projectEntity } from "../projects/project-entity.fixture";
 import projectsPlugin from "../projects/projects.plugin";
-import { ticketEntity } from "./ticket-entity";
+import { ticketEntity } from "./ticket-entity.fixture";
 
 afterEach(cleanup);
 
@@ -43,7 +43,12 @@ function columns(description: EntityDescription) {
 }
 
 function setup() {
-  const fetchService = new FetchService(async (_input, init) => {
+  const fetchService = new FetchService(async (input, init) => {
+    if (String(input).endsWith("model-info"))
+      return {
+        ok: true,
+        json: async () => ({ models: [userEntity, projectEntity].map(modelWireFixture) }),
+      } as Response;
     const { table_name } = JSON.parse(String(init?.body));
     const description = [userEntity, projectEntity].find((entity) => entity.tableName === table_name);
     if (!description) throw new Error(`Unexpected query: ${table_name}`);
@@ -59,23 +64,22 @@ function setup() {
         description: "Entity rendering test extension points",
         registerExtensionPoints(context) {
           context.registerExtensionPoint({ point: lookupDefinitions });
-          context.registerExtensionPoint({ point: entityDescriptions });
           context.registerExtensionPoint({ point: administrationContributions });
         },
       }),
     )
-    .register(usersLookupPlugin)
+    .register(entitiesPlugin)
     .register(projectsPlugin)
     .build();
   return { registry, fetchService };
 }
 
 it("renders reference table cells using the referenced entity's compiled label", async () => {
-  const { registry } = setup();
+  const { registry, fetchService } = setup();
   const result = parseQueryResponse({ number_of_hits: 1, result_columns: columns(ticketEntity) });
   const bound = bindEntity(result, ticketEntity);
   render(() => (
-    <LookupProvider registry={registry}>
+    <LookupProvider registry={registry} fetchService={fetchService}>
       <DataTable result={result} columns={createEntityTableColumns(bound)} ariaLabel="Tickets" />
     </LookupProvider>
   ));
@@ -93,7 +97,7 @@ it.each([
   const { registry, fetchService } = setup();
   const result = parseQueryResponse({ number_of_hits: 1, result_columns: columns(description) });
   render(() => (
-    <LookupProvider registry={registry}>
+    <LookupProvider registry={registry} fetchService={fetchService}>
       <RecordEditor
         definition={createEntityEditorDefinition(description)}
         fetchService={fetchService}

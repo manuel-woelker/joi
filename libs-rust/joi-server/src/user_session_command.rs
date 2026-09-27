@@ -28,6 +28,7 @@ impl TableDescriptionProvider for UserSessionTableDescriptionProvider {
         TableDescription {
             name: TableName("user_sessions".into()),
             discoverable: false,
+            presentation: None,
             columns: vec![
                 ColumnDescription {
                     name: AttributeName("session_id".into()),
@@ -305,6 +306,7 @@ impl TableDescriptionProvider for UserTableDescriptionProvider {
         TableDescription {
             name: TableName("users".into()),
             discoverable: true,
+            presentation: Some(crate::model_metadata::user_presentation()),
             columns: vec![
                 user_column("id", "Immutable KSUID user identifier"),
                 user_column("username", "Unique user login name"),

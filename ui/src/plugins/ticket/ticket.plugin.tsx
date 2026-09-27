@@ -5,8 +5,8 @@ import { IconButton } from "../../components/IconButton";
 import { shellOverlays, topBarContributions, viewResolvers, shellContributionId } from "../core/shell/contribution";
 import { EntityMasterDetailView } from "../core/master-detail/EntityMasterDetailView";
 import { ViewEditor } from "./saved-views/ViewEditor";
-import { ticketEntity } from "./entities/ticket-entity";
-import { entityDescriptions } from "../core/entities/entity-registry";
+import { ticketEntityId } from "./entities/ticket-entity";
+import { modelServiceKey } from "../core/entities/model-service";
 import { savedViewDefaults, savedViewDefaultsContributionId } from "../core/saved-views/contribution";
 import { useWorkspace } from "../core/saved-views/controller";
 import { createTicketDefaultWorkspace } from "./saved-views/ticket-default-views";
@@ -69,7 +69,7 @@ function TicketMasterDetailView() {
   };
   return (
     <EntityMasterDetailView
-      entityId={ticketEntity.id}
+      entityId={ticketEntityId}
       initialFilter={query()?.filter}
       initialSorting={query()?.sorting.map((sort) => ({ attribute: sort.field, direction: sort.direction }))}
       filterIdentity={controller.navigation.selectedViewId()}
@@ -80,13 +80,8 @@ function TicketMasterDetailView() {
 export default plugin({
   name: "tickets",
   description: "Ticket domain views and workspace",
+  requires: { models: modelServiceKey },
   registerExtensions(context) {
-    context.registerExtension({
-      point: entityDescriptions,
-      id: "ticket-entity",
-      description: "Defines ticket records",
-      value: ticketEntity,
-    });
     context.registerExtension({
       point: savedViewDefaults,
       id: "ticket-default-views",
@@ -112,7 +107,7 @@ export default plugin({
               type: "leaf" as const,
               label: view.name,
               description: view.description,
-              icon: ticketEntity.icon,
+              icon: context.services.models.icon(ticketEntityId),
               selection: { type: "view" as const, id: `system:tickets:${viewId}` },
               copyToWorkspace: () => ({
                 type: "view" as const,
@@ -173,7 +168,7 @@ export default plugin({
                 ...view,
                 id: systemView ? `tickets/${id}` : view.id,
                 section: "Saved view",
-                icon: ticketEntity.icon,
+                icon: context.services.models.icon(ticketEntityId),
                 content: TicketMasterDetailView,
                 commands: TicketViewCommands,
               }

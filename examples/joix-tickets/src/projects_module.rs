@@ -13,6 +13,7 @@ impl TableDescriptionProvider for ProjectTableDescriptionProvider {
         TableDescription {
             name: TableName("projects".into()),
             discoverable: true,
+            presentation: Some(crate::model_metadata::project_presentation()),
             columns: vec![
                 project_column("id", "Immutable KSUID project identifier"),
                 project_column("name", "Human-readable project name"),

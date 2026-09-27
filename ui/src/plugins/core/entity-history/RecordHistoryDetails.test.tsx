@@ -20,7 +20,7 @@ it("opens history lazily while keeping the record editor draft and lifecycle int
         ok: true,
         json: async () =>
           path.endsWith("model-info")
-            ? { models: [{ name: "tickets", history: true, attributes: [] }] }
+            ? { models: [{ name: "tickets", history: true, attributes: [], presentation: null }] }
             : { enabled: true, entries: [], next_cursor: null },
       } as Response;
     }),

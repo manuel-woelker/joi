@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { EntityRegistry, entityDescriptions } from "./entity-registry";
+import { EntityRegistry } from "./entity-registry";
 import { testEntity } from "../saved-views/test-fixtures";
 
 describe("EntityRegistry", () => {
@@ -15,8 +15,6 @@ describe("EntityRegistry", () => {
   });
 
   it("rejects duplicate entity contributions", () => {
-    expect(() => entityDescriptions.validate?.([testEntity, testEntity])).toThrow(
-      "Entity 'things' is registered more than once",
-    );
+    expect(() => new EntityRegistry([testEntity, testEntity])).toThrow("Duplicate entity IDs");
   });
 });

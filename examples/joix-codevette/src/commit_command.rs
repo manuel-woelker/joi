@@ -22,6 +22,7 @@ impl TableDescriptionProvider for CommitTableDescriptionProvider {
         TableDescription {
             name: TableName("codevette_commits".into()),
             discoverable: false,
+            presentation: None,
             columns: [
                 ("commit_id", "Full Git object ID"),
                 ("repository_id", "Owning repository ID"),

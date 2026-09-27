@@ -93,6 +93,7 @@ impl CommandHandler for ModelInfoCommand {
                     })
                     .collect::<JoiResult<Vec<_>>>()?;
                 Ok(ModelTypeDescription {
+                    presentation: table.presentation.clone(),
                     name: table.name.0.to_string(),
                     history: self
                         .plugin_registry
@@ -150,6 +151,7 @@ mod tests {
                 });
             }
             TableDescription {
+                presentation: None,
                 name: TableName(self.name.into()),
                 discoverable: self.discoverable,
                 columns,

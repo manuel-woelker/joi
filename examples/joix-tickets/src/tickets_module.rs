@@ -20,6 +20,7 @@ impl TableDescriptionProvider for TicketTableDescriptionProvider {
         TableDescription {
             name: TableName("tickets".into()),
             discoverable: true,
+            presentation: Some(crate::model_metadata::ticket_presentation()),
             columns: vec![
                 ticket_column("id", "Immutable KSUID ticket identifier"),
                 ticket_column("key", "Human-readable ticket key in PROJECT-NUMBER form"),

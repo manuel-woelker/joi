@@ -4,6 +4,11 @@ import type { PluginRegistryAccess } from "../../../base/plugin-registry";
 import { extensionPoint } from "../../../base/plugin-registry";
 import { highlightSegments, type CompiledTextNeedle } from "../../../components/text-highlight";
 import { DataText } from "../../../components/SourceText";
+import type { FetchService } from "../../../base/services/fetch-service";
+import { modelServiceFor } from "../entities/model-service";
+import { entityId } from "../entities/entity-description";
+import { entityRowLabel } from "../entities/entity-label";
+import { loadEntityRecords } from "../saved-views/entity-query";
 
 declare const lookupIdBrand: unique symbol;
 declare const lookupEntryIdBrand: unique symbol;
@@ -50,7 +55,10 @@ export class LookupService {
   private readonly loads = new Map<LookupId, Promise<readonly LookupEntry[]>>();
   private readonly definitions: ReadonlyMap<LookupId, LookupDefinition>;
 
-  constructor(registry: PluginRegistryAccess) {
+  constructor(
+    registry: PluginRegistryAccess,
+    private readonly fetchService?: FetchService,
+  ) {
     const definitions = registry.extensions(lookupDefinitions);
     this.definitions = new Map(definitions.map((definition) => [definition.id, definition]));
     if (this.definitions.size !== definitions.length) throw new Error("Lookup IDs must be unique");
@@ -58,11 +66,10 @@ export class LookupService {
 
   entries(id: LookupId): Promise<readonly LookupEntry[]> {
     const definition = this.definitions.get(id);
-    if (!definition) return Promise.reject(new Error(`Lookup '${id}' is not registered`));
+    if (!definition && !this.fetchService) return Promise.reject(new Error(`Lookup '${id}' is not registered`));
     let load = this.loads.get(id);
     if (!load) {
-      load = definition
-        .load()
+      load = (definition ? definition.load() : this.loadEntity(id))
         .then((entries) => Object.freeze([...entries]))
         .catch((error) => {
           this.loads.delete(id);
@@ -73,14 +80,27 @@ export class LookupService {
     return load;
   }
 
+  private async loadEntity(id: LookupId): Promise<readonly LookupEntry[]> {
+    const models = modelServiceFor(this.fetchService!);
+    await models.load();
+    const description = models.require(entityId(id));
+    const result = await loadEntityRecords(description, this.fetchService!);
+    const identity = result.requireColumn(description.identityAttribute);
+    return result.rows.map((row) => ({
+      id: lookupEntryId(String(row.value(identity))),
+      label: entityRowLabel(description, result, row),
+    }));
+  }
+
   /** Removes cached entries so the next lookup observes current source data. */
   invalidate(id: LookupId): void {
-    if (!this.definitions.has(id)) throw new Error(`Lookup '${id}' is not registered`);
+    if (!this.definitions.has(id) && !this.fetchService) throw new Error(`Lookup '${id}' is not registered`);
     this.loads.delete(id);
   }
 
   /** Invalidates every lookup backed by the changed table. */
   invalidateSource(tableName: string): void {
+    this.loads.delete(lookupId(tableName));
     for (const definition of this.definitions.values()) {
       if (definition.sourceTableName === tableName) this.loads.delete(definition.id);
     }
@@ -93,8 +113,16 @@ export class LookupService {
 
 const LookupContext = createContext<LookupService>();
 
-export function LookupProvider(props: { registry: PluginRegistryAccess; children: JSX.Element }) {
-  return <LookupContext.Provider value={new LookupService(props.registry)}>{props.children}</LookupContext.Provider>;
+export function LookupProvider(props: {
+  registry: PluginRegistryAccess;
+  fetchService?: FetchService;
+  children: JSX.Element;
+}) {
+  return (
+    <LookupContext.Provider value={new LookupService(props.registry, props.fetchService)}>
+      {props.children}
+    </LookupContext.Provider>
+  );
 }
 
 export function useLookupService(): LookupService {

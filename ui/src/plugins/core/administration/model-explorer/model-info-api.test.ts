@@ -5,7 +5,7 @@ import { loadModelInfo } from "./model-info-api";
 
 describe("loadModelInfo", () => {
   it("loads model metadata through the generated command service", async () => {
-    const response = { models: [{ name: "tickets", attributes: [] }] };
+    const response = { models: [{ name: "tickets", attributes: [], history: false, presentation: null }] };
     const fetcher = vi.fn().mockResolvedValue({ ok: true, json: async () => response });
 
     await expect(loadModelInfo(new FetchService(fetcher))).resolves.toEqual(response);

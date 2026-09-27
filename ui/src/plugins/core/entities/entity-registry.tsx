@@ -1,27 +1,14 @@
 import { createContext, useContext, type ParentProps } from "solid-js";
 
-import type { PluginRegistryAccess } from "../../../base/plugin-registry";
-import { extensionPoint } from "../../../base/plugin-registry";
 import type { EntityDescription, EntityId } from "./entity-description";
 
-export const entityDescriptions = extensionPoint<EntityDescription>(
-  "entity-descriptions",
-  "Defines entities available to generic UI infrastructure",
-  (descriptions) => {
-    const ids = new Set<EntityId>();
-    for (const description of descriptions) {
-      if (ids.has(description.id)) throw new Error(`Entity '${description.id}' is registered more than once`);
-      ids.add(description.id);
-    }
-  },
-);
-
-/** Immutable lookup of plugin-contributed entity descriptions. */
+/** Immutable lookup of compiled server entity descriptions. */
 export class EntityRegistry {
   readonly #entities: ReadonlyMap<EntityId, EntityDescription>;
 
   constructor(descriptions: readonly EntityDescription[]) {
     this.#entities = new Map(descriptions.map((description) => [description.id, description]));
+    if (this.#entities.size !== descriptions.length) throw new Error("Duplicate entity IDs in application model");
   }
 
   get(id: EntityId): EntityDescription | undefined {
@@ -41,9 +28,8 @@ export class EntityRegistry {
 
 const EntityRegistryContext = createContext<EntityRegistry>();
 
-export function EntityRegistryProvider(props: ParentProps<{ pluginRegistry: PluginRegistryAccess }>) {
-  const registry = new EntityRegistry(props.pluginRegistry.extensions(entityDescriptions));
-  return <EntityRegistryContext.Provider value={registry}>{props.children}</EntityRegistryContext.Provider>;
+export function EntityRegistryProvider(props: ParentProps<{ registry: EntityRegistry }>) {
+  return <EntityRegistryContext.Provider value={props.registry}>{props.children}</EntityRegistryContext.Provider>;
 }
 
 export function useEntityRegistry(): EntityRegistry {

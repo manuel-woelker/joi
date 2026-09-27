@@ -5,7 +5,7 @@ import { validate } from "../../../validation/validation";
 import { bindEntity, createEntityTableColumns, createEntityTableColumnCatalog } from "./bound-entity";
 import { defineEntity, entityId, requireEntityAttribute, validateEntityDescription } from "./entity-description";
 import { createEntityEditorDefinition } from "./entity-editor";
-import { userEntity } from "../administration/users/user-entity";
+import { userEntity } from "../administration/users/user-entity.fixture";
 
 const TestIcon = (() => null) as IconComponent;
 

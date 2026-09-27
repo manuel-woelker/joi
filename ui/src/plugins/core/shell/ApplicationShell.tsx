@@ -16,7 +16,8 @@ import { ActionQuickLauncher } from "../actions/ActionQuickLauncher";
 import type { AuthenticatedUser } from "../authentication/authentication-service";
 import { UserMenu } from "../authentication/UserMenu";
 import { LookupProvider } from "../lookups/lookup";
-import { EntityRegistryProvider } from "../entities/entity-registry";
+import { ModelProvider } from "../entities/ModelProvider";
+import { modelServiceFor } from "../entities/model-service";
 import { InspectableExtension, InspectableExtensionPoint } from "../debug/inspector/extension-inspector";
 import { StatusBar } from "../status-bar/StatusBar";
 import { ApplicationNavigation } from "../navigation/ApplicationNavigation";
@@ -158,14 +159,14 @@ export function ApplicationShell(props: {
         <ActionProvider registry={props.registry} currentUser={props.user}>
           <ActionQuickLauncher />
           <PluginRegistryProvider registry={props.registry}>
-            <LookupProvider registry={props.registry}>
-              <EntityRegistryProvider pluginRegistry={props.registry}>
+            <LookupProvider registry={props.registry} fetchService={props.services.fetchService}>
+              <ModelProvider service={modelServiceFor(props.services.fetchService)}>
                 <NavigationProvider controller={navigation}>
                   <ProviderChain registry={props.registry}>
                     <ShellContent registry={props.registry} user={props.user} onLogout={props.onLogout} />
                   </ProviderChain>
                 </NavigationProvider>
-              </EntityRegistryProvider>
+              </ModelProvider>
             </LookupProvider>
           </PluginRegistryProvider>
         </ActionProvider>

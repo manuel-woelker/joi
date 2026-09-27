@@ -13,6 +13,7 @@ joi-error = { path = "../joi-error" }
 joi-plugin = { path = "../joi-plugin" }
 ksuid = "0.2"
 redb = "4.2"
+regex = "1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tantivy = "0.26"

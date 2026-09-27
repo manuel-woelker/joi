@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createRoot, createMemo } from "solid-js";
-import { userEntity } from "../administration/users/user-entity";
+import { userEntity } from "../administration/users/user-entity.fixture";
 import { defineEntity } from "./entity-description";
 import { entityLabel, entityRowLabel } from "./entity-label";
 import { createEntityEditorDefinition } from "./entity-editor";

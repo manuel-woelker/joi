@@ -137,7 +137,10 @@ impl DataStore for IndexedDataStore {
         let factories = self.contributors()?;
         let mut table_contributors = HashMap::new();
         for schema in schemas.values() {
-            let mut pipeline = TableContributors::default();
+            let mut pipeline = TableContributors {
+                validation: crate::model_validation::ModelValidator::compile(schema)?,
+                ..Default::default()
+            };
             for factory in &factories {
                 pipeline.history |= factory.provides_history(&schema.name);
                 let Some(configured) = factory.configure(schema)? else {
@@ -489,6 +492,9 @@ impl IndexedDataStore {
             for row in contribution.rows {
                 let object = row.new_value.expect("upsert row");
                 validate_prepared_object(schema, &object)?;
+                // Validate the final state, including contributor-added columns, before any
+                // entity, history, counter or dirty entry in this chunk reaches storage.
+                pipeline.validation.validate(schema, &object)?;
                 let entity = entity_from_object(&table, schema, &object)?;
                 entries.push(KeyValue {
                     key: entity.id.0.clone(),
@@ -855,6 +861,7 @@ struct DirtyEntry {
 /// Schema-bound handlers and permissions, rebuilt only during table registration.
 #[derive(Default)]
 struct TableContributors {
+    validation: crate::model_validation::ModelValidator,
     handlers: Vec<ConfiguredMutationContributor>,
     generated: HashSet<crate::data_store::AttributeName>,
     history: bool,
@@ -1069,6 +1076,7 @@ mod tests {
         TableDescription {
             name: TableName("users".into()),
             discoverable: true,
+            presentation: None,
             columns: vec![column("id"), column("name")],
         }
     }

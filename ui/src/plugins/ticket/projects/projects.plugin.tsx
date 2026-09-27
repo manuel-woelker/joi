@@ -1,43 +1,14 @@
 import { plugin } from "../../../base/plugin-registry";
-import { fetchServiceKey } from "../../../base/services/fetch-service";
 import { administrationContributions } from "../../core/administration/contribution";
-import { entityDescriptions } from "../../core/entities/entity-registry";
-import { lookupDefinitions, lookupEntryId } from "../../core/lookups/lookup";
+import { modelServiceKey } from "../../core/entities/model-service";
 import { EntityMasterDetailView } from "../../core/master-detail/EntityMasterDetailView";
-import { loadEntityRecords } from "../../core/saved-views/entity-query";
-import { projectEntity } from "./project-entity";
-import { entityRowLabel } from "../../core/entities/entity-label";
-import { projectLookupId } from "./project-lookup";
+import { projectEntityId } from "./project-entity";
 
 export default plugin({
   name: "ticket-projects",
   description: "Ticket project administration and lookup",
-  requires: { fetchService: fetchServiceKey },
+  requires: { models: modelServiceKey },
   registerExtensions(context) {
-    context.registerExtension({
-      point: entityDescriptions,
-      id: "project-entity",
-      description: "Defines ticket projects",
-      value: projectEntity,
-    });
-    context.registerExtension({
-      point: lookupDefinitions,
-      id: "projects-by-id",
-      description: "Resolves project IDs to names",
-      value: {
-        id: projectLookupId,
-        label: "Project",
-        sourceTableName: projectEntity.tableName,
-        async load() {
-          const result = await loadEntityRecords(projectEntity, context.services.fetchService);
-          const id = result.requireColumn("id");
-          return result.rows.map((row) => ({
-            id: lookupEntryId(String(row.value(id))),
-            label: entityRowLabel(projectEntity, result, row),
-          }));
-        },
-      },
-    });
     context.registerExtension({
       point: administrationContributions,
       id: "projects",
@@ -46,8 +17,8 @@ export default plugin({
         id: "projects",
         name: "Projects",
         section: "Administration",
-        icon: projectEntity.icon,
-        content: () => <EntityMasterDetailView entityId={projectEntity.id} />,
+        icon: context.services.models.icon(projectEntityId),
+        content: () => <EntityMasterDetailView entityId={projectEntityId} />,
       },
     });
   },

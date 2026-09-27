@@ -61,26 +61,28 @@ standalone editors and the master-detail view use these stores. Store tests run
 under Node with Solid client reactivity and no mounted components; DOM tests cover
 focus, control wiring, and virtualization.
 
-Code-defined entity descriptions are the
-canonical UI source for table names, identity attributes, attribute labels and
-types, icons, default table columns, edit/create controls, initial values, and
-validation functions. Entity icons use direct `lucide-solid/icons/<name>`
-imports so production builds include only icons referenced by entity
-descriptions. Binding
-an entity description to a query result resolves response-local column handles
-and rejects missing or mismatched attributes. Saved presentations still choose
-ticket column order, density, widths, and intentional label overrides.
+Server `TableDescription`s are the canonical source of entity types, references,
+labels, templates, icon names, table defaults, forms, defaults, facets and validation.
+Their presentation metadata is returned by `model-info`. Client domain modules
+export branded entity-ID constants only, such as `ticketEntityId`.
 
-Reusable entity infrastructure lives under `src/plugins/core/entities`, while
-domain descriptions stay with their owning plugin, such as
-`src/plugins/ticket/entities/ticket-entity.ts`. Entity descriptions use
-`defineEntity` to retain literal attribute IDs and typed string or integer validators. Attribute
-validation uses `ValidationFunction<T>` with the domain value type. The editor
-adapter parses input text before invoking integer validators and combines
-edited values with the current row for typed multi-attribute validation. These
-UI descriptions are intentionally separate from backend `TableDescription`s,
-which describe physical persistence and cannot contain executable TypeScript
-validation or UI controls.
+`ModelService` shares a single metadata request across startup, history, model
+exploration and entity lookups. `ModelProvider` gates the authenticated shell until
+loading and compilation succeed, and offers retry on failure. Runtime descriptions
+are compiled once from metadata into label parts, icon components and typed
+`ValidationFunction<T>` adapters. Icons use an explicit map of direct Lucide imports
+with a generic fallback; no whole-library dynamic icon import is needed.
+
+Required and Unicode regex rules are interpreted by both the UI and server. Use the
+common Rust/JavaScript regex syntax (no lookaround, backreferences, or engine-specific
+flags). Defaults are declarative literals or a KSUID strategy, never executable code
+from the server. Physical types/references remain authoritative. Reference lookups
+are built generically from the target entity and its label template.
+
+Binding descriptions to results resolves response-local column handles and rejects
+missing or mismatched attributes. Saved view configuration still overrides default
+column order, density and widths. Files ending in `.fixture.ts` contain test data
+only and are not application model definitions or shipped in the UI bundle.
 
 The shared `Form` context owns local field values and debounces changed values
 into atomic `/api/mutate` updates. A shared mutation service serializes writes
@@ -146,18 +148,11 @@ callback, so extensions do not depend on plugin discovery order.
 
 The authenticated shell is domain-neutral. Core extension points compose its
 ordered providers, URL-backed view resolvers, top-bar
-items, and overlays. Entity descriptions and saved-view defaults are separate
-extension points, allowing a domain plugin to add a complete record domain
-without editing `App.tsx`, `Root.tsx`, or core modules. For example:
+items, and overlays. Entity definitions come from server plugins; UI plugins
+contribute navigation and saved-view defaults using their branded IDs, without
+editing `App.tsx`, `Root.tsx`, or core modules. For example:
 
 ```tsx
-context.registerExtension({
-  point: entityDescriptions,
-  id: "inventory-product-entity",
-  description: "Defines products",
-  value: productEntity,
-});
-
 context.registerExtension({
   point: navigationSection,
   id: "inventory-navigation",
@@ -384,18 +379,19 @@ demonstrates a serialized config round-trip without an application store.
 
 ## How are entity labels defined?
 
-Set `labelTemplate` in `defineEntity` to describe a record's plain-text label:
+Set `label_template` in the server's `ModelPresentation` to describe a record's plain-text label:
 
-```ts
-labelTemplate: "${key}: ${title}" // Tickets
-labelTemplate: "${name} (${username})" // Users
-labelTemplate: "${name}" // Projects
+```rust
+label_template: "${key}: ${title}".into(), // Tickets
+label_template: "${name} (${username})".into(), // Users
+label_template: "${name}".into(), // Projects
 ```
 
-`defineEntity` parses the template once into `labelParts`, an ordered list of
+When `model-info` loads, the generic decoder uses `defineEntity` to parse each
+template once into `labelParts`, an ordered list of
 literal text and attribute references. Rendering uses these parts without parsing
-the template again. Pass an `EntityDefinition` to `defineEntity` to obtain the
-compiled `EntityDescription`; redefine it if the template changes.
+the template again. Application code reads the compiled `EntityDescription` from
+the model service or `useEntityRegistry()`; it must not define a duplicate client model.
 
 Templates substitute attribute values only; they do not evaluate JavaScript or
 render HTML. Attribute references are validated when the entity is defined.

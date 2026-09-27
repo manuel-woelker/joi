@@ -259,7 +259,7 @@ pub(crate) mod tests {
                             column("id", &["test", "demo"]),
                             column("prefix", &["TEST", "DEMO"]),
                             column("name", &["Test", "Demo"]),
-                            column("description", &["", ""]),
+                            column("description", &["Test project", "Demo project"]),
                         ],
                     })],
                 },
@@ -405,6 +405,8 @@ pub(crate) mod tests {
         let mut legacy = IndexedDataStore::open(&path, &index).unwrap();
         let mut old_schemas = schemas();
         for schema in &mut old_schemas {
+            // The legacy schema predates model presentation metadata as well.
+            schema.presentation = None;
             schema
                 .columns
                 .retain(|column| column.name.0 != "creation_date");

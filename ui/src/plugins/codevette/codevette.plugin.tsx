@@ -8,7 +8,7 @@ import { GitHistory } from "../../components/git-history/GitHistory";
 import type { GitHistorySource } from "../../components/git-history/git-history";
 import { CommandService } from "../../generated/api/command-service";
 import { administrationContributions } from "../core/administration/contribution";
-import { entityDescriptions } from "../core/entities/entity-registry";
+import { modelServiceKey } from "../core/entities/model-service";
 import { EntityMasterDetailView } from "../core/master-detail/EntityMasterDetailView";
 import {
   type NavigationRootContribution,
@@ -20,7 +20,7 @@ import { executeDataQuery } from "../core/query/query-client";
 import { useWorkspace } from "../core/saved-views/controller";
 import { shellContributionId, viewResolvers } from "../core/shell/contribution";
 import { CommitReviewView } from "./commit-review/CommitReviewView";
-import { repositoryEntity } from "./repository-entity";
+import { repositoryEntityId } from "./repository-entity";
 
 interface RepositoryBranch {
   readonly id: string;
@@ -52,15 +52,9 @@ const commitViewPrefix = "codevette-commit/";
 export default plugin({
   name: "codevette",
   description: "Trunk-based code review tools",
-  requires: { fetchService: fetchServiceKey },
+  requires: { fetchService: fetchServiceKey, models: modelServiceKey },
   registerExtensions(context) {
     const branches = createRepositoryNavigation(context.services.fetchService);
-    context.registerExtension({
-      point: entityDescriptions,
-      id: "repository-entity",
-      description: "Defines repositories available for code review",
-      value: repositoryEntity,
-    });
     context.registerExtension({
       point: administrationContributions,
       id: "repositories",
@@ -70,8 +64,8 @@ export default plugin({
         name: "Repositories",
         description: "Repositories configured for trunk-based code review.",
         section: "Administration",
-        icon: repositoryEntity.icon,
-        content: () => <EntityMasterDetailView entityId={repositoryEntity.id} />,
+        icon: context.services.models.icon(repositoryEntityId),
+        content: () => <EntityMasterDetailView entityId={repositoryEntityId} />,
       },
     });
     context.registerExtension({

@@ -105,6 +105,23 @@ mod tests {
             )
             .unwrap()
             .models;
+        for (name, template, icon) in [
+            ("tickets", "${key}: ${title}", "ticket"),
+            ("projects", "${name}", "folder-kanban"),
+            ("users", "${name} (${username})", "users"),
+        ] {
+            let model = models.iter().find(|model| model.name == name).unwrap();
+            let presentation = model.presentation.as_ref().unwrap();
+            assert_eq!(presentation.label_template, template);
+            assert_eq!(presentation.icon, icon);
+            assert_eq!(presentation.fields.len(), model.attributes.len());
+            assert!(
+                presentation
+                    .fields
+                    .iter()
+                    .any(|field| !field.validation.is_empty())
+            );
+        }
         assert_eq!(
             models
                 .iter()
@@ -160,3 +177,4 @@ mod tests {
         assert!(!store.history_enabled(&TableName("users".into())));
     }
 }
+mod model_metadata;

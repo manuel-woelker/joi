@@ -210,6 +210,7 @@ fn tables() -> Vec<TableDescription> {
         .map(|name| TableDescription {
             name: TableName(name.into()),
             discoverable: true,
+            presentation: None,
             columns: ["id", "name", "assignee"]
                 .into_iter()
                 .map(|name| ColumnDescription {

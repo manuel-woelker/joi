@@ -23,6 +23,7 @@ impl TableDescriptionProvider for ReviewCommentTableDescriptionProvider {
         TableDescription {
             name: TableName("review_comments".into()),
             discoverable: false,
+            presentation: None,
             columns: vec![
                 string_column("id", "Immutable KSUID review comment identifier"),
                 reference_column(

@@ -72,6 +72,7 @@ impl TableDescriptionProvider for RepositoryBranchTableDescriptionProvider {
         TableDescription {
             name: TableName("repository_branches".into()),
             discoverable: true,
+            presentation: None,
             columns: vec![
                 repository_column("id", "Immutable KSUID branch identifier"),
                 ColumnDescription {
@@ -96,6 +97,7 @@ impl TableDescriptionProvider for RepositoryTableDescriptionProvider {
         TableDescription {
             name: TableName("repositories".into()),
             discoverable: true,
+            presentation: Some(crate::model_metadata::repository_presentation()),
             columns: vec![
                 repository_column("id", "Immutable KSUID repository identifier"),
                 repository_column("key", "Stable short key identifying the repository"),
@@ -245,6 +247,9 @@ mod tests {
         let table = RepositoryTableDescriptionProvider.table_description();
 
         assert_eq!(table.name.0, "repositories");
+        let presentation = table.presentation.as_ref().unwrap();
+        assert_eq!(presentation.label_template, "${name}");
+        assert_eq!(presentation.icon, "git-pull-request");
         assert!(table.discoverable);
         assert_eq!(
             table
@@ -311,3 +316,4 @@ mod tests {
         );
     }
 }
+mod model_metadata;

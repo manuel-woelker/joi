@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { validate } from "../../../validation/validation";
 import { createEntityEditorDefinition } from "../../core/entities/entity-editor";
 import { requireEntityAttribute } from "../../core/entities/entity-description";
-import { projectEntity } from "./project-entity";
+import { projectEntity } from "./project-entity.fixture";
 
 describe("projectEntity", () => {
   it("describes editable and creatable project fields", () => {

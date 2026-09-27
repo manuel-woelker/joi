@@ -1649,6 +1649,7 @@ dependencies = [
  "joi-plugin",
  "ksuid",
  "redb",
+ "regex",
  "serde",
  "serde_json",
  "tantivy",
