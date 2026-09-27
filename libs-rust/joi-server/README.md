@@ -135,3 +135,13 @@ Rules are also exposed for immediate form feedback, but client validation is nev
 trusted. Patterns must use the shared Rust/JavaScript Unicode regex subset.
 UI controls are declarative; icons are symbolic names resolved by clients, and
 default strategies are literals or KSUID generation rather than serialized code.
+
+## How can editors receive server-generated values after saving?
+
+The `mutate` command accepts optional `return_entities: true` (default: false).
+Its response then includes `entities`, each with `table_name`, `id`, and a `values`
+object containing the complete final state, including generated timestamps.
+Repeated writes return the final state once; deleted entities are omitted.
+These values reuse the datastore's mutation results without another query.
+Interactive UI edits request them and publish the committed values to existing
+table rows and detail forms. Imports and test-data generation leave this disabled.

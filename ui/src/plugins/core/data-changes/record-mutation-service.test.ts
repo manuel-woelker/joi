@@ -12,6 +12,42 @@ const definition = {
 };
 
 describe("RecordMutationService", () => {
+  it("requests final values and publishes server-generated fields for each edited record", async () => {
+    const fetcher = vi.fn(
+      async () =>
+        ({
+          ok: true,
+          json: async () => ({
+            entities: [
+              {
+                table_name: "tickets",
+                id: "b",
+                values: { title: "Second", update_date: "2026-09-27T12:00:00Z", assignee: null },
+              },
+              { table_name: "tickets", id: "a", values: { title: "First", update_date: "2026-09-27T12:00:00Z" } },
+            ],
+          }),
+        }) as Response,
+    );
+    const changes = new DataChangeService();
+    const listener = vi.fn();
+    changes.subscribe({ tableName: "tickets" }, listener);
+    const mutations = new RecordMutationService(new FetchService(fetcher), changes);
+    await mutations.updateMany(definition, [
+      { recordId: "a", changes: { title: "First" } },
+      { recordId: "b", changes: { title: "Second" } },
+    ]);
+    expect(fetcher).toHaveBeenCalledWith(
+      "/api/mutate",
+      expect.objectContaining({
+        body: expect.stringContaining('"return_entities":true'),
+      }),
+    );
+    expect(listener.mock.calls.map(([change]) => [change.recordId, change.changes])).toEqual([
+      ["a", { title: "First", update_date: "2026-09-27T12:00:00Z" }],
+      ["b", { title: "Second", update_date: "2026-09-27T12:00:00Z", assignee: "" }],
+    ]);
+  });
   it("serializes writes and publishes them after persistence", async () => {
     const resolvers: Array<() => void> = [];
     const fetcher = vi.fn(

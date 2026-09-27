@@ -2,6 +2,7 @@ import { createRoot, createSignal } from "solid-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FetchService } from "../../../base/services/fetch-service";
 import { DataChangeService } from "../data-changes/data-change-service";
+import { RecordMutationService } from "../data-changes/record-mutation-service";
 import { parseQueryResponse } from "../query/query-result";
 import type { MasterDetailDefinition } from "./definition";
 import { createRecordCreationStore, createRecordEditorStore } from "./record-editor-store";
@@ -43,6 +44,54 @@ function result() {
 }
 
 describe("record editor stores", () => {
+  it("reconciles saved server values into the existing detail result and form without requerying", async () => {
+    const fetcher = vi.fn(
+      async () =>
+        ({
+          ok: true,
+          json: async () => ({
+            entities: [
+              {
+                table_name: "tests",
+                id: "a",
+                values: { name: "Changed", rank: 1, update_date: "2026-09-27T12:00:00Z" },
+              },
+            ],
+          }),
+        }) as Response,
+    );
+    const fetchService = new FetchService(fetcher);
+    const dataChanges = new DataChangeService();
+    const current = parseQueryResponse({
+      number_of_hits: 1,
+      result_columns: [
+        { attribute: "id", values: { type: "string", values: ["a"] } },
+        { attribute: "name", values: { type: "string", values: ["Original"] } },
+        { attribute: "rank", values: { type: "int", values: [1] } },
+        { attribute: "update_date", values: { type: "string", values: ["old"] } },
+      ],
+    });
+    const row = current.rows[0];
+    const reconcile = vi.fn();
+    const store = createRoot((dispose) => {
+      disposers.push(dispose);
+      const store = createRecordEditorStore(
+        { definition, result: () => current, recordId: () => "a" },
+        {
+          fetchService,
+          dataChanges,
+          recordMutations: new RecordMutationService(fetchService, dataChanges),
+        },
+      );
+      store.attachForm({ reconcile });
+      return store;
+    });
+    await store.save({ name: "Changed" });
+    expect(current.rows[0]).toBe(row);
+    expect(row.value(current.requireColumn("update_date"))).toBe("2026-09-27T12:00:00Z");
+    expect(reconcile).toHaveBeenCalledWith({ name: "Changed", rank: "1", update_date: "2026-09-27T12:00:00Z" });
+    expect(fetcher).toHaveBeenCalledOnce();
+  });
   it("converts partial changes, propagates failures to Form, and reports successful saves", async () => {
     const update = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValue(undefined);
     const store = createRoot((dispose) => {

@@ -12,6 +12,17 @@ export interface RecordUpdate {
   readonly fields: readonly RecordFieldValue[];
 }
 
+/** Complete final states returned only when requested, including server-generated values. */
+export interface MutatedEntity {
+  readonly table_name: string;
+  readonly id: string;
+  readonly values: Readonly<Record<string, QueryValue | null>>;
+}
+
+interface MutateResponse {
+  readonly entities?: readonly MutatedEntity[];
+}
+
 export async function createRecord(
   service: FetchService,
   definition: MasterDetailDefinition,
@@ -51,8 +62,9 @@ export async function updateRecords(
   service: FetchService,
   definition: MasterDetailDefinition,
   updates: readonly RecordUpdate[],
-): Promise<void> {
-  if (!updates.length) return;
+  returnEntities = false,
+): Promise<readonly MutatedEntity[]> {
+  if (!updates.length) return [];
   const groups = new Map<
     string,
     {
@@ -79,7 +91,8 @@ export async function updateRecords(
     group.ids.push(id);
     encoded.forEach(({ value }, index) => group.columns[index].values.values.push(value));
   }
-  await service.post("/api/mutate", {
+  const response = await service.post("/api/mutate", {
+    ...(returnEntities ? { return_entities: true } : {}),
     steps: [...groups.values()].map(({ ids, columns }) => ({
       update: {
         table_name: definition.tableName,
@@ -88,6 +101,7 @@ export async function updateRecords(
       },
     })),
   });
+  return (response as MutateResponse).entities ?? [];
 }
 
 function validateCreateValue(attribute: CreateRecordDefinition["attributes"][number], value: QueryValue | undefined) {

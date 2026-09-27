@@ -36,16 +36,27 @@ export class RecordMutationService {
     if (new Set(keys).size !== keys.length) throw new Error("A record may only be updated once per batch");
     const previous = keys.map((key) => this.pending.get(key)).filter((pending): pending is Promise<void> => !!pending);
     const operation = Promise.all(previous.map((pending) => pending.catch(() => undefined))).then(async () => {
-      await updateRecords(
+      const entities = await updateRecords(
         this.fetchService,
         definition,
         prepared.map(({ recordId, fields }) => ({ id: recordId, fields })),
+        true,
+      );
+      const committed = new Map(
+        entities
+          .filter((entity) => entity.table_name === definition.tableName)
+          .map((entity) => [entity.id, entity.values]),
       );
       for (const { recordId, changes } of prepared) {
         this.dataChanges.publish({
           tableName: definition.tableName,
           recordId,
-          changes: Object.freeze({ ...changes }),
+          changes: Object.freeze({
+            ...changes,
+            ...Object.fromEntries(
+              Object.entries(committed.get(recordId) ?? {}).map(([key, value]) => [key, value ?? ""]),
+            ),
+          }),
           source,
         });
       }
