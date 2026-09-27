@@ -27,6 +27,8 @@
 }
 
 .selected {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
   color: var(--color-ink);
   background: var(--color-surface-selected);
   box-shadow: inset 2px 0 var(--color-primary);
