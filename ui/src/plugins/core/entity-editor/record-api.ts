@@ -1,6 +1,6 @@
-import type { QueryValue } from "../query/query-result";
 import type { FetchService } from "../../../base/services/fetch-service";
-import type { CreateRecordDefinition, EditFieldDefinition, MasterDetailDefinition } from "./definition";
+import type { QueryValue } from "../query/query-result";
+import type { CreateRecordDefinition, EditFieldDefinition, EntityEditorDefinition } from "./definition";
 
 export interface RecordFieldValue {
   readonly field: EditFieldDefinition;
@@ -25,7 +25,7 @@ interface MutateResponse {
 
 export async function createRecord(
   service: FetchService,
-  definition: MasterDetailDefinition,
+  definition: EntityEditorDefinition,
   values: Readonly<Record<string, QueryValue>>,
 ): Promise<string> {
   const create = definition.create;
@@ -51,7 +51,7 @@ export async function createRecord(
 
 export async function updateRecord(
   service: FetchService,
-  definition: MasterDetailDefinition,
+  definition: EntityEditorDefinition,
   id: string,
   fields: readonly RecordFieldValue[],
 ): Promise<void> {
@@ -60,7 +60,7 @@ export async function updateRecord(
 
 export async function updateRecords(
   service: FetchService,
-  definition: MasterDetailDefinition,
+  definition: EntityEditorDefinition,
   updates: readonly RecordUpdate[],
   returnEntities = false,
 ): Promise<readonly MutatedEntity[]> {

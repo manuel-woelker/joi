@@ -1,8 +1,8 @@
-import type { MasterDetailDefinition } from "../master-detail/definition";
-import { updateRecords, type RecordFieldValue } from "../master-detail/record-api";
 import { serviceKey } from "../../../base/service-registry";
-import type { QueryValue } from "../query/query-result";
 import type { FetchService } from "../../../base/services/fetch-service";
+import type { EntityEditorDefinition } from "../entity-editor/definition";
+import { type RecordFieldValue, updateRecords } from "../entity-editor/record-api";
+import type { QueryValue } from "../query/query-result";
 import type { DataChangeService } from "./data-change-service";
 
 /** Serializes record writes and publishes only changes committed by the backend. */
@@ -15,7 +15,7 @@ export class RecordMutationService {
   ) {}
 
   update(
-    definition: MasterDetailDefinition,
+    definition: EntityEditorDefinition,
     recordId: string,
     changes: Readonly<Record<string, QueryValue>>,
     source?: string,
@@ -24,7 +24,7 @@ export class RecordMutationService {
   }
 
   updateMany(
-    definition: MasterDetailDefinition,
+    definition: EntityEditorDefinition,
     updates: readonly { readonly recordId: string; readonly changes: Readonly<Record<string, QueryValue>> }[],
     source?: string,
   ): Promise<void> {
@@ -75,7 +75,7 @@ export class RecordMutationService {
 }
 
 function toFieldValues(
-  definition: MasterDetailDefinition,
+  definition: EntityEditorDefinition,
   changes: Readonly<Record<string, QueryValue>>,
 ): RecordFieldValue[] {
   return Object.entries(changes).map(([attribute, value]) => {

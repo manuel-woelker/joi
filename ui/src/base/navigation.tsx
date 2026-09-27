@@ -11,6 +11,7 @@ export type NavigationOwner = { type: "view"; id: string; route?: NavigationRout
 export type NavigationSelection =
   | { type: "none" }
   | { type: "unknown"; hash: string }
+  | { type: "entity"; reference: string }
   | NavigationOwner
   | { type: "record"; owner: NavigationOwner; recordId: string }
   | { type: "create"; owner: NavigationOwner };
@@ -28,11 +29,17 @@ export interface NavigationController {
   createRecord(): void;
   finishCreatingRecord(id: string): void;
   closeRecord(): void;
+  /** Opens a standalone entity page using the server-defined type and public key. */
+  selectEntity(reference: string): void;
+  /** Removes the entity parameter, restoring the underlying hash route. */
+  closeEntity(): void;
 }
 
 const NavigationContext = createContext<NavigationController>();
 
 function selectionFromHash(): NavigationSelection {
+  const entity = new URLSearchParams(window.location.search).get("entity");
+  if (entity !== null) return { type: "entity", reference: entity };
   const parts = hashPath().replace(/^\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
   if (!parts.length) return { type: "none" };
   const recent = parts[0] === "recent";
@@ -81,7 +88,11 @@ export function createNavigationController(): NavigationController {
     setRouteState(hashParameters());
   };
   window.addEventListener("hashchange", onHashChange);
-  onCleanup(() => window.removeEventListener("hashchange", onHashChange));
+  window.addEventListener("popstate", onHashChange);
+  onCleanup(() => {
+    window.removeEventListener("hashchange", onHashChange);
+    window.removeEventListener("popstate", onHashChange);
+  });
 
   return {
     selection,
@@ -112,11 +123,16 @@ export function createNavigationController(): NavigationController {
     selectView(id, route = { source: "workspace", section: "workspace", id }) {
       setSelection({ type: "view", id, route });
       setRouteState(new URLSearchParams());
-      window.location.hash = routeHash(route);
+      if (new URLSearchParams(window.location.search).has("entity")) {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("entity");
+        url.hash = routeHash(route);
+        window.history.pushState(undefined, "", url);
+      } else window.location.hash = routeHash(route);
     },
     selectRecord(recordId) {
       const current = selection();
-      if (current.type === "none" || current.type === "unknown") return;
+      if (current.type === "none" || current.type === "unknown" || current.type === "entity") return;
       const owner = current.type === "record" || current.type === "create" ? current.owner : current;
       setSelection({ type: "record", owner, recordId });
       setRouteState(new URLSearchParams());
@@ -124,7 +140,7 @@ export function createNavigationController(): NavigationController {
     },
     createRecord() {
       const current = selection();
-      if (current.type === "none" || current.type === "unknown") return;
+      if (current.type === "none" || current.type === "unknown" || current.type === "entity") return;
       const owner = current.type === "record" || current.type === "create" ? current.owner : current;
       setSelection({ type: "create", owner });
       setRouteState(new URLSearchParams());
@@ -144,6 +160,18 @@ export function createNavigationController(): NavigationController {
       setSelection(current.owner);
       setRouteState(new URLSearchParams());
       window.location.hash = routeHash(ownerRoute(current.owner));
+    },
+    selectEntity(reference) {
+      const url = new URL(window.location.href);
+      url.searchParams.set("entity", reference);
+      window.history.pushState(undefined, "", url);
+      onHashChange();
+    },
+    closeEntity() {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("entity");
+      window.history.pushState(undefined, "", url);
+      onHashChange();
     },
   };
 }

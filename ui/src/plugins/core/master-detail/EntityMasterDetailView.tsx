@@ -1,10 +1,10 @@
 import FunnelIcon from "lucide-solid/icons/funnel";
 import GemIcon from "lucide-solid/icons/gem";
 import RefreshCwIcon from "lucide-solid/icons/refresh-cw";
-import { CloseButton } from "../../../components/CloseButton";
 import { For, Match, onCleanup, Show, Switch } from "solid-js";
 import { useNavigation } from "../../../base/navigation";
 import { useApplicationServices } from "../../../base/services/application-services";
+import { CloseButton } from "../../../components/CloseButton";
 import { useContextMenu } from "../../../components/context-menu/ContextMenuProvider";
 import { contextMenuEntryId, contextMenuGroupId } from "../../../components/context-menu/context-menu";
 import { DataTable, type DataTableSort } from "../../../components/DataTable";
@@ -14,19 +14,20 @@ import type { FilterDefinition } from "../../../components/filter-definition/fil
 import { IconButton } from "../../../components/IconButton";
 import { QuickFilterInput } from "../../../components/QuickFilterInput";
 import { Select } from "../../../components/Select";
+import { DataText, FilterText, ModelText } from "../../../components/SourceText";
 import { Tooltip } from "../../../components/Tooltip";
 import { useActions } from "../actions/ActionProvider";
-import { createEntityTableColumns, createEntityTableColumnCatalog } from "../entities/bound-entity";
+import { createEntityTableColumnCatalog, createEntityTableColumns } from "../entities/bound-entity";
 import type { EntityId } from "../entities/entity-description";
 import { useEntityRegistry } from "../entities/entity-registry";
+import { entityReference } from "../entity-pages/entity-reference";
 import { LookupValue, useLookupService } from "../lookups/lookup";
-import { useOptionalWorkspace } from "../saved-views/controller";
 import type { QueryColumnHandle, QueryResultRow } from "../query/query-result";
-import { createMasterDetailStore } from "./master-detail-store";
-import { DataText, FilterText, ModelText } from "../../../components/SourceText";
-import type { MasterDetailViewConfig } from "./master-detail-view-config";
+import { useOptionalWorkspace } from "../saved-views/controller";
 import styles from "./EntityMasterDetailView.module.css";
 import { MasterDetailView } from "./MasterDetailView";
+import { createMasterDetailStore } from "./master-detail-store";
+import type { MasterDetailViewConfig } from "./master-detail-view-config";
 
 /** Renders the entity store and adapts browser events and measurements. */
 export function EntityMasterDetailView(props: {
@@ -330,6 +331,13 @@ function EntityMasterDetailContent(props: {
           creating={store.creatingRecord()}
           onCreated={store.completeCreation}
           onClose={store.closeRecord}
+          onOpenPage={() => {
+            const result = store.records();
+            if (!result) return;
+            const identity = result.requireColumn(description.identityAttribute);
+            const row = result.rows.find((row) => row.value(identity) === store.selectedRecordId());
+            if (row) navigation.selectEntity(entityReference(description, result, row));
+          }}
         />
       </Match>
     </Switch>

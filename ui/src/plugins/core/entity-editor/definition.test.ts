@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { parseQueryResponse } from "../query/query-result";
-import { validateMasterDetailDefinition, type MasterDetailDefinition } from "./definition";
+import { type EntityEditorDefinition, validateEntityEditorDefinition } from "./definition";
 
 const result = parseQueryResponse({
   number_of_hits: 1,
@@ -12,7 +12,7 @@ const result = parseQueryResponse({
   ],
 });
 
-const definition = (fields: MasterDetailDefinition["fields"]): MasterDetailDefinition => ({
+const definition = (fields: EntityEditorDefinition["fields"]): EntityEditorDefinition => ({
   tableName: "records",
   identityAttribute: "id",
   detailTitle: "Record details",
@@ -22,7 +22,7 @@ const definition = (fields: MasterDetailDefinition["fields"]): MasterDetailDefin
 describe("master-detail definition", () => {
   it("accepts compatible string and integer fields", () => {
     expect(() =>
-      validateMasterDetailDefinition(
+      validateEntityEditorDefinition(
         result,
         definition([
           { attribute: "name", label: "Name", control: "text" },
@@ -34,10 +34,10 @@ describe("master-detail definition", () => {
 
   it("rejects missing, duplicate, and incompatible fields", () => {
     expect(() =>
-      validateMasterDetailDefinition(result, definition([{ attribute: "missing", label: "Missing", control: "text" }])),
+      validateEntityEditorDefinition(result, definition([{ attribute: "missing", label: "Missing", control: "text" }])),
     ).toThrow("does not contain attribute missing");
     expect(() =>
-      validateMasterDetailDefinition(
+      validateEntityEditorDefinition(
         result,
         definition([
           { attribute: "name", label: "Name", control: "text" },
@@ -46,7 +46,7 @@ describe("master-detail definition", () => {
       ),
     ).toThrow("Duplicate");
     expect(() =>
-      validateMasterDetailDefinition(result, definition([{ attribute: "rank", label: "Rank", control: "text" }])),
+      validateEntityEditorDefinition(result, definition([{ attribute: "rank", label: "Rank", control: "text" }])),
     ).toThrow("requires string values");
   });
 });

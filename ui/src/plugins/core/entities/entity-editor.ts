@@ -1,12 +1,12 @@
 import type { FormValues } from "../../../components/form/Form";
-import type { MasterDetailDefinition } from "../master-detail/definition";
-import type { QueryResult, QueryResultRow, QueryValue } from "../query/query-result";
 import type { ValidationContext, ValidationFunction } from "../../../validation/validation";
+import type { EntityEditorDefinition } from "../entity-editor/definition";
+import type { QueryResult, QueryResultRow, QueryValue } from "../query/query-result";
 import type { AnyEntityAttribute, EntityDescription } from "./entity-description";
 import { entityRowLabel } from "./entity-label";
 
 /** Derives the existing master-detail editor contract from an entity description. */
-export function createEntityEditorDefinition(description: EntityDescription): MasterDetailDefinition {
+export function createEntityEditorDefinition(description: EntityDescription): EntityEditorDefinition {
   const createAttributes = description.attributes.filter((attribute) => attribute.create);
   return {
     tableName: description.tableName,

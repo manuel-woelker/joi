@@ -1,8 +1,8 @@
 import type { IconComponent } from "../../../icons/icon-component";
+import type { ValidationFunction } from "../../../validation/validation";
 import type { LookupId } from "../lookups/lookup";
 import type { QueryValue, QueryValueType } from "../query/query-result";
-import type { ValidationFunction } from "../../../validation/validation";
-import { parseLabelTemplate, type EntityLabelPart } from "./entity-label-template";
+import { type EntityLabelPart, parseLabelTemplate } from "./entity-label-template";
 
 declare const entityIdBrand: unique symbol;
 
@@ -100,6 +100,8 @@ export type EntityValues<TAttributes extends readonly AnyEntityAttribute[]> = {
 
 /** Compiled runtime representation of a server-owned entity kind. */
 export interface EntityDescription<TAttributes extends readonly AnyEntityAttribute[] = readonly AnyEntityAttribute[]> {
+  /** Server-defined public URL prefix and lookup key; defaults to entity ID and primary key. */
+  readonly route?: { readonly type: string; readonly attribute: string };
   readonly id: EntityId;
   readonly tableName: string;
   readonly label: string;
@@ -169,6 +171,12 @@ export function validateEntityDescription(description: EntityDefinition): readon
     if (part.type === "attribute") requireEntityAttribute(description, part.attribute);
   }
   const identity = requireEntityAttribute(description, description.identityAttribute);
+  if (description.route) {
+    if (!description.route.type.trim() || description.route.type.includes(":"))
+      throw new Error("Invalid entity route type");
+    if (requireEntityAttribute(description, description.route.attribute).valueType !== "string")
+      throw new Error("Entity route attribute must be a string");
+  }
   if (identity.valueType !== "string")
     throw new Error(`Entity '${description.id}' identity attribute must be a string`);
   const creatable = description.attributes.filter((attribute) => attribute.create);

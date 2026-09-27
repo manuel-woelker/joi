@@ -1,21 +1,21 @@
-import { Show, type JSX } from "solid-js";
-
-import type { QueryResult } from "../query/query-result";
+import { type JSX, Show } from "solid-js";
 import type { FetchService } from "../../../base/services/fetch-service";
-import type { MasterDetailDefinition } from "./definition";
-import { RecordEditor } from "./RecordEditor";
+import type { EntityEditorDefinition } from "../entity-editor/definition";
+import { RecordEditor } from "../entity-editor/RecordEditor";
+import type { QueryResult } from "../query/query-result";
 import styles from "./MasterDetailView.module.css";
 
 export function MasterDetailView(props: {
   master: JSX.Element;
   leadingPanel?: JSX.Element;
-  definition: MasterDetailDefinition;
+  definition: EntityEditorDefinition;
   fetchService: FetchService;
   result?: QueryResult;
   selectedRecordId?: string;
   creating?: boolean;
   onCreated: (recordId: string) => void | Promise<void>;
   onClose: () => void;
+  onOpenPage?: () => void;
 }) {
   return (
     <div
@@ -36,6 +36,7 @@ export function MasterDetailView(props: {
             fetchService={props.fetchService}
             mode={{ type: "edit", result: props.result!, recordId: props.selectedRecordId! }}
             onClose={props.onClose}
+            onOpenPage={props.onOpenPage}
           />
         </aside>
       </Show>

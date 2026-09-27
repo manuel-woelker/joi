@@ -404,6 +404,34 @@ representations. Lookup consumers (references, selectors, facets, and history)
 inherit the label from their lookup provider. Creation headings remain `New User`,
 `New Ticket`, etc., since generated attributes may not exist until creation.
 
+## How are standalone entity pages displayed?
+
+Use the URL search parameter `?entity=type:identifier`, for example
+`/?entity=ticket:TEST-123` or `/?entity=wikipage:<ksuid>`. Server presentation
+metadata defines each public route type and its lookup attribute. Canonical
+model IDs also work with the immutable primary key, e.g. `?entity=tickets:<ksuid>`.
+The underlying hash route is preserved; closing the entity restores that view.
+The detail toolbar's **Open entity page** button creates these links.
+
+The `entity-pages` plugin registers the `entityDisplays` extension point. A
+domain plugin can register one display per canonical branded entity type:
+
+```tsx
+context.registerExtension({
+  point: entityDisplays,
+  id: "ticket-page",
+  description: "Standalone ticket display",
+  value: { entityType: ticketEntityId, component: TicketPage },
+});
+```
+
+Display components receive `entity`, `result`, `recordId`, and `onClose`.
+Loading, missing records, ambiguous keys, and errors are handled before rendering
+the display. Without a contribution, the page uses the shared `RecordEditor`
+in `plugins/core/entity-editor`, also used by master-detail views. It retains
+validation, autosaving and history. Committed mutations update loaded data
+through the existing data-change service without refetching the form.
+
 ## How is entity history displayed?
 
 For history-enabled entities, the record detail pane offers Details and History

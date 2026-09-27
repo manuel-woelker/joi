@@ -1,31 +1,31 @@
-import { For, Show, createUniqueId, type JSX } from "solid-js";
+import { createUniqueId, For, type JSX, Show } from "solid-js";
+import { useOptionalApplicationServices } from "../../../base/services/application-services";
+import type { FetchService } from "../../../base/services/fetch-service";
 import { CloseButton } from "../../../components/CloseButton";
-
 import { Form, useFormField, useFormState } from "../../../components/form/Form";
 import { FormValidationMessages } from "../../../components/form/FormValidationMessages";
-import { Select } from "../../../components/Select";
 import { RichTextEditor } from "../../../components/rich-text/RichTextEditor";
-import type { QueryResult } from "../query/query-result";
-import type { FetchService } from "../../../base/services/fetch-service";
-import { useLookupService, type LookupEntry } from "../lookups/lookup";
-import { useOptionalApplicationServices } from "../../../base/services/application-services";
+import { Select } from "../../../components/Select";
+import { DataText, ModelText } from "../../../components/SourceText";
 import { DataChangeService } from "../data-changes/data-change-service";
 import { RecordMutationService } from "../data-changes/record-mutation-service";
-import { type EditFieldDefinition, type MasterDetailDefinition } from "./definition";
-import { DataText, ModelText } from "../../../components/SourceText";
-import { createRecordEditorStore, createRecordCreationStore, type RecordEditorStore } from "./record-editor-store";
-import styles from "./RecordEditor.module.css";
 import { RecordHistoryDetails } from "../entity-history/RecordHistoryDetails";
+import { type LookupEntry, useLookupService } from "../lookups/lookup";
+import type { QueryResult } from "../query/query-result";
+import { type EditFieldDefinition, type EntityEditorDefinition } from "./definition";
+import styles from "./RecordEditor.module.css";
+import { createRecordCreationStore, createRecordEditorStore, type RecordEditorStore } from "./record-editor-store";
 
 export type EntityEditorMode =
   | { readonly type: "edit"; readonly result: QueryResult; readonly recordId: string }
   | { readonly type: "create"; readonly onCreated: (recordId: string) => void | Promise<void> };
 
 export function RecordEditor(props: {
-  definition: MasterDetailDefinition;
+  definition: EntityEditorDefinition;
   fetchService: FetchService;
   mode: EntityEditorMode;
   onClose: () => void;
+  onOpenPage?: () => void;
 }) {
   return (
     <Show
@@ -38,10 +38,11 @@ export function RecordEditor(props: {
 }
 
 function EditRecordEditor(props: {
-  definition: MasterDetailDefinition;
+  definition: EntityEditorDefinition;
   fetchService: FetchService;
   mode: Extract<EntityEditorMode, { type: "edit" }>;
   onClose: () => void;
+  onOpenPage?: () => void;
 }) {
   const applicationServices = useOptionalApplicationServices();
   const dataChanges = applicationServices?.dataChanges ?? new DataChangeService();
@@ -62,6 +63,7 @@ function EditRecordEditor(props: {
       recordId={props.mode.recordId}
       dataChanges={dataChanges}
       onClose={props.onClose}
+      onOpenPage={props.onOpenPage}
       heading={
         <h2 class={styles.detailTitle}>
           <Show
@@ -105,7 +107,7 @@ function RecordFormBinding(props: { store: RecordEditorStore }) {
 }
 
 function CreateRecordEditor(props: {
-  definition: MasterDetailDefinition;
+  definition: EntityEditorDefinition;
   fetchService: FetchService;
   mode: Extract<EntityEditorMode, { type: "create" }>;
   onClose: () => void;

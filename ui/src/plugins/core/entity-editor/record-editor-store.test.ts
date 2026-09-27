@@ -4,10 +4,10 @@ import { FetchService } from "../../../base/services/fetch-service";
 import { DataChangeService } from "../data-changes/data-change-service";
 import { RecordMutationService } from "../data-changes/record-mutation-service";
 import { parseQueryResponse } from "../query/query-result";
-import type { MasterDetailDefinition } from "./definition";
+import type { EntityEditorDefinition } from "./definition";
 import { createRecordCreationStore, createRecordEditorStore } from "./record-editor-store";
 
-const definition: MasterDetailDefinition = {
+const definition: EntityEditorDefinition = {
   tableName: "tests",
   identityAttribute: "id",
   detailTitle: "Test",

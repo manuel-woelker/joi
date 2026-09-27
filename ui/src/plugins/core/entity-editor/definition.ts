@@ -1,7 +1,7 @@
 import type { FormValues } from "../../../components/form/Form";
-import type { QueryResult, QueryResultRow, QueryValue, QueryValueType } from "../query/query-result";
 import type { ValidationFunction } from "../../../validation/validation";
 import type { LookupId } from "../lookups/lookup";
+import type { QueryResult, QueryResultRow, QueryValue, QueryValueType } from "../query/query-result";
 
 export type EditControl = "text" | "textarea" | "html" | "integer" | "lookup";
 
@@ -20,7 +20,7 @@ export interface EditFieldDefinition {
   readonly validation?: ValidationFunction<string>;
 }
 
-export interface MasterDetailDefinition {
+export interface EntityEditorDefinition {
   readonly tableName: string;
   readonly identityAttribute: string;
   readonly detailTitle: string;
@@ -45,7 +45,7 @@ export interface CreateRecordDefinition {
   readonly validation?: ValidationFunction<Readonly<Record<string, QueryValue>>>;
 }
 
-export function validateMasterDetailDefinition(result: QueryResult, definition: MasterDetailDefinition): void {
+export function validateEntityEditorDefinition(result: QueryResult, definition: EntityEditorDefinition): void {
   const identity = result.requireColumn(definition.identityAttribute);
   if (identity.type !== "string") throw new Error("Record identity attribute must be a string");
 

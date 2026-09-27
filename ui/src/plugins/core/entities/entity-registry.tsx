@@ -1,4 +1,4 @@
-import { createContext, useContext, type ParentProps } from "solid-js";
+import { createContext, type ParentProps, useContext } from "solid-js";
 
 import type { EntityDescription, EntityId } from "./entity-description";
 
@@ -9,6 +9,13 @@ export class EntityRegistry {
   constructor(descriptions: readonly EntityDescription[]) {
     this.#entities = new Map(descriptions.map((description) => [description.id, description]));
     if (this.#entities.size !== descriptions.length) throw new Error("Duplicate entity IDs in application model");
+    const routes = new Map<string, EntityId>();
+    for (const entity of descriptions) {
+      for (const key of new Set([entity.id, entity.route?.type ?? entity.id])) {
+        if (routes.has(key) && routes.get(key) !== entity.id) throw new Error(`Duplicate entity route type '${key}'`);
+        routes.set(key, entity.id);
+      }
+    }
   }
 
   get(id: EntityId): EntityDescription | undefined {

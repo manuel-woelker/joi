@@ -27,6 +27,19 @@ impl ModelValidator {
         let Some(presentation) = &table.presentation else {
             return Ok(Self::default());
         };
+        if let Some(route) = &presentation.route {
+            if route.r#type.trim().is_empty() || route.r#type.contains(':') {
+                joi_bail!("invalid entity route type for `{}`", table.name.0);
+            }
+            if !table.columns.iter().any(|column| {
+                column.name.0 == route.attribute && column.data_type == ColumnDataType::String
+            }) {
+                joi_bail!(
+                    "entity route for `{}` requires a string attribute",
+                    table.name.0
+                );
+            }
+        }
         if presentation.label.trim().is_empty()
             || presentation.plural_label.trim().is_empty()
             || presentation.icon.trim().is_empty()

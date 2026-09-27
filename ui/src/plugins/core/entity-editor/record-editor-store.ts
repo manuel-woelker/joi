@@ -1,17 +1,17 @@
-import { createMemo, createSignal, onCleanup, type Accessor } from "solid-js";
-import type { FormChanges, FormModel, FormValues, FormRuntimeState } from "../../../components/form/Form";
-import { richTextPlainText } from "../../../components/rich-text/html";
-import type { QueryResult, QueryResultRow, QueryValue } from "../query/query-result";
+import { type Accessor, createMemo, createSignal, onCleanup } from "solid-js";
 import type { FetchService } from "../../../base/services/fetch-service";
+import type { FormChanges, FormModel, FormRuntimeState, FormValues } from "../../../components/form/Form";
+import { richTextPlainText } from "../../../components/rich-text/html";
 import type { ValidationFunction } from "../../../validation/validation";
 import { notEmpty } from "../../../validation/validation-functions";
 import type { DataChangeService } from "../data-changes/data-change-service";
 import type { RecordMutationService } from "../data-changes/record-mutation-service";
+import type { QueryResult, QueryResultRow, QueryValue } from "../query/query-result";
 import {
-  validateMasterDetailDefinition,
   type CreateRecordDefinition,
   type EditFieldDefinition,
-  type MasterDetailDefinition,
+  type EntityEditorDefinition,
+  validateEntityEditorDefinition,
 } from "./definition";
 import { createRecord, type RecordFieldValue } from "./record-api";
 
@@ -25,7 +25,7 @@ export interface RecordEditorDependencies {
 /** Coordinates one selected record; the Form runtime retains all draft state. */
 export function createRecordEditorStore(
   options: {
-    readonly definition: MasterDetailDefinition;
+    readonly definition: EntityEditorDefinition;
     readonly result: Accessor<QueryResult>;
     readonly recordId: Accessor<string>;
   },
@@ -38,7 +38,7 @@ export function createRecordEditorStore(
   });
   const validationError = createMemo(() => {
     try {
-      validateMasterDetailDefinition(options.result(), options.definition);
+      validateEntityEditorDefinition(options.result(), options.definition);
       return undefined;
     } catch (error) {
       return error instanceof Error ? error.message : "Invalid editor definition";
@@ -86,7 +86,7 @@ export function createRecordEditorStore(
 
 /** Creates defaults once and coordinates explicit submission for a new record. */
 export function createRecordCreationStore(
-  definition: MasterDetailDefinition,
+  definition: EntityEditorDefinition,
   dependencies: Pick<RecordEditorDependencies, "fetchService">,
   onCreated: (recordId: string) => void | Promise<void>,
 ) {
@@ -134,7 +134,7 @@ function findRecord(result: QueryResult, identityAttribute: string, id: string):
   return identity ? result.rows.find((row) => row.value(identity) === id) : undefined;
 }
 
-function editFormModel(result: QueryResult, definition: MasterDetailDefinition, row: QueryResultRow): FormModel {
+function editFormModel(result: QueryResult, definition: EntityEditorDefinition, row: QueryResultRow): FormModel {
   return {
     attributes: definition.fields.map((field) => ({
       id: field.attribute,

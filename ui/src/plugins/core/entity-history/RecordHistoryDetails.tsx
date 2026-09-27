@@ -1,8 +1,10 @@
-import { createMemo, Show, type JSX, type ParentProps } from "solid-js";
+import Maximize2Icon from "lucide-solid/icons/maximize-2";
+import { createMemo, type JSX, type ParentProps, Show } from "solid-js";
 import { CloseButton } from "../../../components/CloseButton";
-import { Tabs, type TabDefinition } from "../../../components/tabs/Tabs";
-import type { MasterDetailDefinition } from "../master-detail/definition";
+import { IconButton } from "../../../components/IconButton";
+import { type TabDefinition, Tabs } from "../../../components/tabs/Tabs";
 import type { DataChangeService } from "../data-changes/data-change-service";
+import type { EntityEditorDefinition } from "../entity-editor/definition";
 import { useOptionalEntityHistoryService } from "./entity-history-context";
 import { createEntityHistoryStore } from "./entity-history-store";
 import { HistoryEntries } from "./HistoryEntries";
@@ -11,15 +13,23 @@ import styles from "./HistoryEntries.module.css";
 /** Rendering adapter retaining the edit form while a separate history store loads audit pages. */
 export function RecordHistoryDetails(
   props: ParentProps<{
-    definition: MasterDetailDefinition;
+    definition: EntityEditorDefinition;
     recordId: string;
     dataChanges: DataChangeService;
     onClose: () => void;
+    onOpenPage?: () => void;
     heading?: JSX.Element;
   }>,
 ) {
   const service = useOptionalEntityHistoryService();
-  const closeButton = () => <CloseButton label="Close details" onClick={props.onClose} />;
+  const closeButton = () => (
+    <>
+      <Show when={props.onOpenPage}>
+        {(open) => <IconButton label="Open entity page" icon={<Maximize2Icon size={16} />} onClick={open()} />}
+      </Show>
+      <CloseButton label="Close details" onClick={props.onClose} />
+    </>
+  );
   if (!service)
     return (
       <>

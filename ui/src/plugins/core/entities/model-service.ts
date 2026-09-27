@@ -1,22 +1,22 @@
 import { createComponent } from "solid-js";
 import { serviceKey } from "../../../base/service-registry";
 import type { FetchService } from "../../../base/services/fetch-service";
-import { CommandService } from "../../../generated/api/command-service";
-import type { ModelInfoResponse, ModelTypeDescription, ModelFieldPresentation } from "../../../generated/api/api";
-import type { IconComponent } from "../../../icons/icon-component";
 import { richTextPlainText } from "../../../components/rich-text/html";
+import type { ModelFieldPresentation, ModelInfoResponse, ModelTypeDescription } from "../../../generated/api/api";
+import { CommandService } from "../../../generated/api/command-service";
+import type { IconComponent } from "../../../icons/icon-component";
+import type { ValidationContext } from "../../../validation/validation";
+import { lookupId } from "../lookups/lookup";
 import {
+  type AnyEntityAttribute,
   defineEntity,
-  entityId,
   type EntityDescription,
   type EntityId,
-  type AnyEntityAttribute,
+  entityId,
 } from "./entity-description";
 import { EntityRegistry } from "./entity-registry";
 import { generateKsuid } from "./ksuid";
-import { lookupId } from "../lookups/lookup";
 import { modelIcon } from "./model-icons";
-import type { ValidationContext } from "../../../validation/validation";
 
 /** One cached model-info request per service; failed loads can be explicitly retried. */
 export class ModelService {
@@ -139,6 +139,7 @@ export function decodeEntity(model: ModelTypeDescription): EntityDescription {
   if (attributes.length !== model.attributes.length)
     throw new Error(`Incomplete model presentation for '${model.name}'`);
   return defineEntity({
+    route: presentation?.route ?? undefined,
     id: entityId(model.name),
     tableName: model.name,
     identityAttribute: key[0].name,

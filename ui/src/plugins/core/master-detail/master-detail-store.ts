@@ -1,4 +1,5 @@
 import {
+  type Accessor,
   batch,
   createEffect,
   createMemo,
@@ -6,25 +7,25 @@ import {
   createSignal,
   onCleanup,
   untrack,
-  type Accessor,
 } from "solid-js";
 import type { NavigationController } from "../../../base/navigation";
 import type { ApplicationServices } from "../../../base/services/application-services";
-import type { useActions } from "../actions/ActionProvider";
-import type { LookupService } from "../lookups/lookup";
-import { lookupEntryId } from "../lookups/lookup";
+import { contextMenuEntryId, contextMenuGroupId } from "../../../components/context-menu/context-menu";
 import type { DataTableColumnConfig, DataTableSelectionMode, DataTableSort } from "../../../components/DataTable";
 import type { Facet, FacetValueState } from "../../../components/facet/FacetFilter";
 import { entityFilterAttributes } from "../../../components/filter-definition/entity-filter-attributes";
 import { createCompositeFilter, type FilterDefinition } from "../../../components/filter-definition/filter-model";
 import { hasAttributeFilter, removeAttributeFilters } from "../../../components/filter-definition/filter-operations";
 import { deriveColumnHighlights } from "../../../components/text-highlight";
+import type { useActions } from "../actions/ActionProvider";
 import type { ActionTargetSelection, EntityRecordActionTarget } from "../actions/action";
 import { actionsToContextMenuEntries } from "../actions/action-context-menu";
-import { contextMenuEntryId, contextMenuGroupId } from "../../../components/context-menu/context-menu";
 import { bindEntity } from "../entities/bound-entity";
 import type { EntityDescription } from "../entities/entity-description";
 import { createEntityEditorDefinition } from "../entities/entity-editor";
+import { reconcileRecordResult } from "../entity-editor/record-editor-store";
+import type { LookupService } from "../lookups/lookup";
+import { lookupEntryId } from "../lookups/lookup";
 import {
   emptyResultFor,
   type QueryAggregateResult,
@@ -39,10 +40,9 @@ import {
   loadEntityRecordCount,
   loadEntityRecords,
 } from "../saved-views/entity-query";
-import { recordTablePerformance } from "./table-performance";
-import { reconcileRecordResult } from "./record-editor-store";
 import { summarizeFacets, summarizeFilter } from "./constraint-summary";
 import type { MasterDetailViewConfig } from "./master-detail-view-config";
+import { recordTablePerformance } from "./table-performance";
 
 /** Reactive inputs for one fixed entity type and a changing owning view. */
 export interface MasterDetailStoreOptions {

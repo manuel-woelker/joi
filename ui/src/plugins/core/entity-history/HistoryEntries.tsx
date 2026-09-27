@@ -1,8 +1,8 @@
-import { For, Show, createMemo, createResource } from "solid-js";
-import type { HistoryEntry } from "../../../generated/api/api";
-import { DataText, ModelText } from "../../../components/SourceText";
+import { createMemo, createResource, For, Show } from "solid-js";
 import { DateTime } from "../../../components/DateTime";
-import type { EditFieldDefinition } from "../master-detail/definition";
+import { DataText, ModelText } from "../../../components/SourceText";
+import type { HistoryEntry } from "../../../generated/api/api";
+import type { EditFieldDefinition } from "../entity-editor/definition";
 import { lookupEntryId, lookupId, useOptionalLookupService } from "../lookups/lookup";
 import styles from "./HistoryEntries.module.css";
 import { formatHistoryValue, historyValueDiff } from "./history-value";

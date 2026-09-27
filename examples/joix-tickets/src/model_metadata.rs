@@ -6,6 +6,7 @@ use joi_server::{
 
 pub fn ticket_presentation() -> ModelPresentation {
     ModelPresentation {
+        route: Some(joi_server::model_metadata::entity_route("ticket", "key")),
         label: "Ticket".into(),
         plural_label: "Tickets".into(),
         label_template: "${key}: ${title}".into(),
@@ -40,6 +41,7 @@ pub fn ticket_presentation() -> ModelPresentation {
 
 pub fn project_presentation() -> ModelPresentation {
     ModelPresentation {
+        route: Some(joi_server::model_metadata::entity_route("project", "id")),
         label: "Project".into(),
         plural_label: "Projects".into(),
         label_template: "${name}".into(),

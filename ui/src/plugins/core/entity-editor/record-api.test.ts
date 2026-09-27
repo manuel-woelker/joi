@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { FetchService } from "../../../base/services/fetch-service";
-import type { MasterDetailDefinition } from "./definition";
+import type { EntityEditorDefinition } from "./definition";
 import { createRecord, updateRecord, updateRecords } from "./record-api";
 
 describe("record API", () => {
@@ -10,7 +10,7 @@ describe("record API", () => {
       async (_input: RequestInfo | URL, _init?: RequestInit) => ({ ok: true, json: async () => ({}) }) as Response,
     );
     const service = new FetchService(fetcher);
-    const definition: MasterDetailDefinition = {
+    const definition: EntityEditorDefinition = {
       tableName: "things",
       identityAttribute: "id",
       detailTitle: "Thing",
@@ -165,7 +165,7 @@ describe("record API", () => {
     const fetcher = vi.fn(
       async (_input: RequestInfo | URL, _init?: RequestInit) => ({ ok: true, json: async () => ({}) }) as Response,
     );
-    const definition: MasterDetailDefinition = {
+    const definition: EntityEditorDefinition = {
       tableName: "things",
       identityAttribute: "id",
       detailTitle: "Thing",
@@ -199,7 +199,7 @@ describe("record API", () => {
   });
 
   it("rejects create values that do not match the described type", async () => {
-    const definition: MasterDetailDefinition = {
+    const definition: EntityEditorDefinition = {
       tableName: "things",
       identityAttribute: "id",
       detailTitle: "Thing",

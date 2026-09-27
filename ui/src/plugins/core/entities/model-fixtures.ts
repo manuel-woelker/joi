@@ -1,5 +1,5 @@
-import type { EntityDescription } from "./entity-description";
 import type { ModelTypeDescription } from "../../../generated/api/api";
+import type { EntityDescription } from "./entity-description";
 
 /** Converts test-only runtime fixtures into mock model-info responses. Never used by application code. */
 export function modelFixture(entity: EntityDescription): ModelTypeDescription {
@@ -15,6 +15,7 @@ export function modelFixture(entity: EntityDescription): ModelTypeDescription {
       references: attribute.lookup ? { model: attribute.lookup, attribute: "id" } : null,
     })),
     presentation: {
+      route: entity.route ?? null,
       label: entity.label,
       pluralLabel: entity.pluralLabel,
       icon: "unknown",

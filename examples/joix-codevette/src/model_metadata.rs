@@ -6,6 +6,7 @@ use joi_server::{
 
 pub fn repository_presentation() -> ModelPresentation {
     ModelPresentation {
+        route: Some(joi_server::model_metadata::entity_route("repository", "id")),
         label: "Repository".into(),
         plural_label: "Repositories".into(),
         label_template: "${name}".into(),

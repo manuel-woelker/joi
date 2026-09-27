@@ -3,10 +3,10 @@ import {
   defineCommand,
   defineEnum,
   defineStruct,
+  integerType,
   list,
   optional,
   stringType,
-  integerType,
 } from "../engine/model/declarations.ts";
 
 export const ModelValidationRule = defineStruct({
@@ -90,6 +90,24 @@ export const ModelPresentation = defineStruct({
   name: "ModelPresentation",
   description: "Canonical presentation and validation metadata for an entity.",
   fields: [
+    {
+      name: "route",
+      type: optional(
+        defineStruct({
+          name: "ModelEntityRoute",
+          description: "Public entity-page links.",
+          fields: [
+            { name: "type", type: stringType, description: "URL type prefix, such as ticket." },
+            {
+              name: "attribute",
+              type: stringType,
+              description: "String attribute used to resolve a public entity identifier.",
+            },
+          ],
+        }),
+      ),
+      description: "Optional public link type and lookup attribute; otherwise use the entity type and primary key.",
+    },
     { name: "label", type: stringType, description: "Singular entity label." },
     { name: "pluralLabel", type: stringType, description: "Plural entity label." },
     { name: "labelTemplate", type: stringType, description: "Plain-text label with attribute substitutions." },

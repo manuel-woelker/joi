@@ -59,6 +59,7 @@ impl TableDescriptionProvider for WikiPageTableDescriptionProvider {
                 ),
             ],
             presentation: Some(ModelPresentation {
+                route: Some(joi_server::model_metadata::entity_route("wikipage", "id")),
                 label: "Wiki page".into(),
                 plural_label: "Wiki pages".into(),
                 label_template: "${title}".into(),

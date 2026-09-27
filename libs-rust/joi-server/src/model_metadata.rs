@@ -102,6 +102,7 @@ pub fn timestamp(attribute: &str, label: &str) -> ModelFieldPresentation {
 /// Canonical user form, label, icon and validation rules.
 pub fn user_presentation() -> ModelPresentation {
     ModelPresentation {
+        route: Some(entity_route("user", "id")),
         label: "User".into(),
         plural_label: "Users".into(),
         label_template: "${name} (${username})".into(),
@@ -121,5 +122,13 @@ pub fn user_presentation() -> ModelPresentation {
                     "Use only letters, spaces, periods, and hyphens.",
                 ),
         ],
+    }
+}
+
+/// Declares the public URL type and string attribute used to locate an entity.
+pub fn entity_route(entity_type: &str, attribute: &str) -> crate::generated::api::ModelEntityRoute {
+    crate::generated::api::ModelEntityRoute {
+        r#type: entity_type.into(),
+        attribute: attribute.into(),
     }
 }

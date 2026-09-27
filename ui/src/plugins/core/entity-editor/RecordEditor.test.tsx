@@ -3,15 +3,14 @@
 import { cleanup, render, screen } from "@solidjs/testing-library";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-
-import { parseQueryResponse } from "../query/query-result";
-import { FetchService } from "../../../base/services/fetch-service";
 import { ApplicationServicesProvider } from "../../../base/services/application-services";
+import { FetchService } from "../../../base/services/fetch-service";
+import { userEntity } from "../administration/users/user-entity.fixture";
 import { DataChangeService } from "../data-changes/data-change-service";
 import { RecordMutationService } from "../data-changes/record-mutation-service";
-import { RecordEditor } from "./RecordEditor";
-import { userEntity } from "../administration/users/user-entity.fixture";
 import { createEntityEditorDefinition } from "../entities/entity-editor";
+import { parseQueryResponse } from "../query/query-result";
+import { RecordEditor } from "./RecordEditor";
 
 afterEach(cleanup);
 
