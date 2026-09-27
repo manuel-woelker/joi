@@ -65,7 +65,6 @@ export function createEntityTableColumns(
   return selected.map((field) => {
     const attribute = requireEntityAttribute(entity.description, field.attribute);
     const column = entity.attribute(attribute.id).column;
-    const hideProjectPrefix = entity.description.tableName === "tickets" && attribute.id === "project_id";
     const lookupCell = attribute.lookup
       ? {
           cell: (
@@ -73,14 +72,7 @@ export function createEntityTableColumns(
             _row: QueryResultRow,
             _column: QueryColumnHandle,
             highlights?: readonly CompiledTextNeedle[],
-          ) => (
-            <LookupValue
-              lookup={attribute.lookup!}
-              value={String(value ?? "")}
-              format={hideProjectPrefix ? (label) => label.replace(/\s+\([^)]*\)$/, "") : undefined}
-              highlight={highlights}
-            />
-          ),
+          ) => <LookupValue lookup={attribute.lookup!} value={String(value ?? "")} highlight={highlights} />,
         }
       : {};
     const htmlCell =

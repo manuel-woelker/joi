@@ -27,6 +27,7 @@ import { EntityMasterDetailView } from "./EntityMasterDetailView";
 afterEach(cleanup);
 
 const ticketEntity: EntityDescription = {
+  labelParts: [],
   id: entityId("ticket"),
   tableName: "tickets",
   label: "Ticket",

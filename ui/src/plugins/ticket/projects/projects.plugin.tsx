@@ -6,6 +6,7 @@ import { lookupDefinitions, lookupEntryId } from "../../core/lookups/lookup";
 import { EntityMasterDetailView } from "../../core/master-detail/EntityMasterDetailView";
 import { loadEntityRecords } from "../../core/saved-views/entity-query";
 import { projectEntity } from "./project-entity";
+import { entityRowLabel } from "../../core/entities/entity-label";
 import { projectLookupId } from "./project-lookup";
 
 export default plugin({
@@ -30,11 +31,9 @@ export default plugin({
         async load() {
           const result = await loadEntityRecords(projectEntity, context.services.fetchService);
           const id = result.requireColumn("id");
-          const name = result.requireColumn("name");
-          const prefix = result.requireColumn("prefix");
           return result.rows.map((row) => ({
             id: lookupEntryId(String(row.value(id))),
-            label: `${String(row.value(name))} (${String(row.value(prefix))})`,
+            label: entityRowLabel(projectEntity, result, row),
           }));
         },
       },

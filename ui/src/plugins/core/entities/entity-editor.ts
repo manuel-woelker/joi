@@ -3,6 +3,7 @@ import type { MasterDetailDefinition } from "../master-detail/definition";
 import type { QueryResult, QueryResultRow, QueryValue } from "../query/query-result";
 import type { ValidationContext, ValidationFunction } from "../../../validation/validation";
 import type { AnyEntityAttribute, EntityDescription } from "./entity-description";
+import { entityRowLabel } from "./entity-label";
 
 /** Derives the existing master-detail editor contract from an entity description. */
 export function createEntityEditorDefinition(description: EntityDescription): MasterDetailDefinition {
@@ -11,6 +12,7 @@ export function createEntityEditorDefinition(description: EntityDescription): Ma
     tableName: description.tableName,
     identityAttribute: description.identityAttribute,
     detailTitle: `${description.label} details`,
+    recordLabel: (result, row) => entityRowLabel(description, result, row),
     fields: description.attributes.flatMap((attribute) =>
       attribute.edit
         ? [

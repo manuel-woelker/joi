@@ -24,6 +24,8 @@ export interface MasterDetailDefinition {
   readonly tableName: string;
   readonly identityAttribute: string;
   readonly detailTitle: string;
+  /** Optional record-specific heading, rendered as data text. */
+  readonly recordLabel?: (result: QueryResult, row: QueryResultRow) => string;
   readonly fields: readonly EditFieldDefinition[];
   readonly validation?: (result: QueryResult, row: QueryResultRow) => ValidationFunction<FormValues>;
   readonly create?: CreateRecordDefinition;

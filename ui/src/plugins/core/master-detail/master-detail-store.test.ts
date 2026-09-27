@@ -15,6 +15,7 @@ import { createMasterDetailStore } from "./master-detail-store";
 import type { MasterDetailViewConfig } from "./master-detail-view-config";
 
 const description: EntityDescription = {
+  labelParts: [],
   id: entityId("test"),
   tableName: "tests",
   label: "Test",

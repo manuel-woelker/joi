@@ -11,6 +11,7 @@ export const projectEntity = defineEntity({
   id: entityId("projects"),
   tableName: "projects",
   label: "Project",
+  labelTemplate: "${name}",
   pluralLabel: "Projects",
   icon: FolderKanbanIcon,
   identityAttribute: "id",

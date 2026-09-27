@@ -382,6 +382,32 @@ the table uses the surrounding `ContextMenuProvider`, or opens the chooser direc
 when used standalone. The Data Table playground's Column management scenario
 demonstrates a serialized config round-trip without an application store.
 
+## How are entity labels defined?
+
+Set `labelTemplate` in `defineEntity` to describe a record's plain-text label:
+
+```ts
+labelTemplate: "${key}: ${title}" // Tickets
+labelTemplate: "${name} (${username})" // Users
+labelTemplate: "${name}" // Projects
+```
+
+`defineEntity` parses the template once into `labelParts`, an ordered list of
+literal text and attribute references. Rendering uses these parts without parsing
+the template again. Pass an `EntityDefinition` to `defineEntity` to obtain the
+compiled `EntityDescription`; redefine it if the template changes.
+
+Templates substitute attribute values only; they do not evaluate JavaScript or
+render HTML. Attribute references are validated when the entity is defined.
+Missing values become empty strings. Empty labels, or definitions without a
+template, fall back to the record identity and then the entity kind.
+
+Detail headings and entity lookup loaders share `entityRowLabel(description,
+result, row)`. Use `entityLabel(description, readAttribute)` for other record
+representations. Lookup consumers (references, selectors, facets, and history)
+inherit the label from their lookup provider. Creation headings remain `New User`,
+`New Ticket`, etc., since generated attributes may not exist until creation.
+
 ## How is entity history displayed?
 
 For history-enabled entities, the record detail pane offers Details and History

@@ -38,6 +38,7 @@ it("opens history lazily while keeping the record editor draft and lifecycle int
         recordId="t"
         dataChanges={new DataChangeService()}
         onClose={close}
+        heading={<h2>TEST-1: Fix rendering</h2>}
       >
         <Draft />
       </RecordHistoryDetails>
@@ -47,12 +48,16 @@ it("opens history lazily while keeping the record editor draft and lifecycle int
   const input = screen.getByLabelText<HTMLInputElement>("Pending title");
   await user.type(input, "Unsaved edit");
   const history = await screen.findByRole("tab", { name: "History" });
+  const heading = screen.getByRole("heading", { name: "TEST-1: Fix rendering" });
+  expect(heading.compareDocumentPosition(screen.getByRole("tablist")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(heading.closest('[role="tabpanel"]')).toBeNull();
   const closeButton = screen.getByRole("button", { name: "Close details" });
   expect(closeButton.closest('[role="tabpanel"]')).toBeNull();
   expect(closeButton.closest('[role="tablist"]')).toBeNull();
   expect(screen.getByRole("tablist").parentElement?.contains(closeButton)).toBe(true);
   expect(requests.filter((path) => path.endsWith("entity-history"))).toHaveLength(0);
   await user.click(history);
+  expect(screen.getByRole("heading", { name: "TEST-1: Fix rendering" })).toBe(heading);
   expect(screen.getAllByRole("button", { name: "Close details" })).toHaveLength(1);
   await user.click(closeButton);
   expect(close).toHaveBeenCalledOnce();

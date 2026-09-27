@@ -1,4 +1,4 @@
-import { createMemo, Show, type ParentProps } from "solid-js";
+import { createMemo, Show, type JSX, type ParentProps } from "solid-js";
 import { CloseButton } from "../../../components/CloseButton";
 import { Tabs, type TabDefinition } from "../../../components/tabs/Tabs";
 import type { MasterDetailDefinition } from "../master-detail/definition";
@@ -15,6 +15,7 @@ export function RecordHistoryDetails(
     recordId: string;
     dataChanges: DataChangeService;
     onClose: () => void;
+    heading?: JSX.Element;
   }>,
 ) {
   const service = useOptionalEntityHistoryService();
@@ -22,6 +23,7 @@ export function RecordHistoryDetails(
   if (!service)
     return (
       <>
+        {props.heading}
         <div class={styles.toolbar}>{closeButton()}</div>
         {props.children}
       </>
@@ -55,6 +57,7 @@ export function RecordHistoryDetails(
   const tabs = createMemo(() => (store.enabled() ? [details, history] : [details]));
   return (
     <>
+      {props.heading}
       <Show when={store.error()}>
         <div class={styles.error} role="alert">
           {store.error()}{" "}

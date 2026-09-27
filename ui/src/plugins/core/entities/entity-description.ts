@@ -2,6 +2,7 @@ import type { IconComponent } from "../../../icons/icon-component";
 import type { LookupId } from "../lookups/lookup";
 import type { QueryValue, QueryValueType } from "../query/query-result";
 import type { ValidationFunction } from "../../../validation/validation";
+import { parseLabelTemplate, type EntityLabelPart } from "./entity-label-template";
 
 declare const entityIdBrand: unique symbol;
 
@@ -92,29 +93,39 @@ export interface EntityDescription<TAttributes extends readonly AnyEntityAttribu
   readonly tableName: string;
   readonly label: string;
   readonly pluralLabel: string;
+  /** Plain-text record label, e.g. "${key}: ${title}". Only attribute substitution is supported. */
+  readonly labelTemplate?: string;
+  /** Compiled once by defineEntity; label rendering only reads these parts. */
+  readonly labelParts: readonly EntityLabelPart[];
   readonly icon: IconComponent;
   readonly identityAttribute: TAttributes[number]["id"];
   readonly attributes: TAttributes;
   readonly validation?: ValidationFunction<EntityValues<TAttributes>>;
 }
 
+/** Author-supplied definition; compiled label parts are derived rather than configured. */
+export type EntityDefinition<TAttributes extends readonly AnyEntityAttribute[] = readonly AnyEntityAttribute[]> = Omit<
+  EntityDescription<TAttributes>,
+  "labelParts"
+>;
+
 /** Defines and validates an entity while preserving literal attribute IDs and value types. */
 export function defineEntity<const TAttributes extends readonly AnyEntityAttribute[]>(
-  description: EntityDescription<TAttributes>,
+  description: EntityDefinition<TAttributes>,
 ): EntityDescription<TAttributes> {
-  validateEntityDescription(description);
-  return description;
+  const labelParts = validateEntityDescription(description);
+  return { ...description, labelParts };
 }
 
 /** Returns an attribute or throws an entity-aware error when it is not described. */
-export function requireEntityAttribute(description: EntityDescription, attributeId: string): AnyEntityAttribute {
+export function requireEntityAttribute(description: EntityDefinition, attributeId: string): AnyEntityAttribute {
   const attribute = description.attributes.find((candidate) => candidate.id === attributeId);
   if (!attribute) throw new Error(`Entity '${description.id}' does not define attribute '${attributeId}'`);
   return attribute;
 }
 
-/** Validates structural invariants of an entity description. */
-export function validateEntityDescription(description: EntityDescription): void {
+/** Validates structural invariants and returns the parsed, validated label template. */
+export function validateEntityDescription(description: EntityDefinition): readonly EntityLabelPart[] {
   if (!description.id.trim()) throw new Error("Entity must have a non-empty ID");
   if (!description.tableName.trim()) throw new Error(`Entity '${description.id}' must have a non-empty table name`);
   if (!description.label.trim()) throw new Error(`Entity '${description.id}' must have a non-empty label`);
@@ -142,6 +153,10 @@ export function validateEntityDescription(description: EntityDescription): void 
   if (!ids.has(description.identityAttribute)) {
     throw new Error(`Entity '${description.id}' identity attribute '${description.identityAttribute}' is not defined`);
   }
+  const labelParts = parseLabelTemplate(description.labelTemplate);
+  for (const part of labelParts) {
+    if (part.type === "attribute") requireEntityAttribute(description, part.attribute);
+  }
   const identity = requireEntityAttribute(description, description.identityAttribute);
   if (identity.valueType !== "string")
     throw new Error(`Entity '${description.id}' identity attribute must be a string`);
@@ -150,6 +165,7 @@ export function validateEntityDescription(description: EntityDescription): void 
   if (creatable.length > 0 && missing) {
     throw new Error(`Entity '${description.id}' create definition is missing attribute '${missing.id}'`);
   }
+  return labelParts;
 }
 
 function validateCreateControl(entityId: string, attribute: AnyEntityAttribute): void {

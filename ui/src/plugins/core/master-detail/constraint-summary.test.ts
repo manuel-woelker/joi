@@ -10,6 +10,7 @@ import { entityId } from "../entities/entity-description";
 import { summarizeFacets, summarizeFilter } from "./constraint-summary";
 
 const entity: EntityDescription = {
+  labelParts: [],
   id: entityId("ticket"),
   tableName: "tickets",
   label: "Ticket",

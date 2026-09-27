@@ -10,10 +10,36 @@ import { ApplicationServicesProvider } from "../../../base/services/application-
 import { DataChangeService } from "../data-changes/data-change-service";
 import { RecordMutationService } from "../data-changes/record-mutation-service";
 import { RecordEditor } from "./RecordEditor";
+import { userEntity } from "../administration/users/user-entity";
+import { createEntityEditorDefinition } from "../entities/entity-editor";
 
 afterEach(cleanup);
 
 describe("RecordEditor", () => {
+  it("renders the entity template as a reactive plain-text heading", () => {
+    const result = parseQueryResponse({
+      number_of_hits: 1,
+      result_columns: [
+        { attribute: "id", values: { type: "string", values: ["user-1"] } },
+        { attribute: "name", values: { type: "string", values: ["<b>Jane</b>"] } },
+        { attribute: "username", values: { type: "string", values: ["jane"] } },
+      ],
+    });
+    render(() => (
+      <RecordEditor
+        definition={createEntityEditorDefinition(userEntity)}
+        fetchService={new FetchService(vi.fn())}
+        mode={{ type: "edit", result, recordId: "user-1" }}
+        onClose={() => undefined}
+      />
+    ));
+    const heading = screen.getByRole("heading", { name: "<b>Jane</b> (jane)" });
+    expect(heading.querySelector("b")).toBeNull();
+    result.updateRow(result.rows[0], [{ column: result.requireColumn("name"), value: "Jane Developer" }]);
+    expect(screen.getByRole("heading", { name: "Jane Developer (jane)" })).toBe(heading);
+    expect(heading.querySelector("strong")?.textContent).toBe("Jane Developer (jane)");
+  });
+
   it("uses the rich text editor for HTML fields", async () => {
     const result = parseQueryResponse({
       number_of_hits: 1,

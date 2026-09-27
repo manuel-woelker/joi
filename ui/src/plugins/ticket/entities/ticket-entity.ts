@@ -8,6 +8,7 @@ export const ticketEntity = defineEntity({
   id: entityId("tickets"),
   tableName: "tickets",
   label: "Ticket",
+  labelTemplate: "${key}: ${title}",
   pluralLabel: "Tickets",
   icon: TicketIcon,
   identityAttribute: "id",

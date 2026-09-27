@@ -12,7 +12,7 @@ import { useOptionalApplicationServices } from "../../../base/services/applicati
 import { DataChangeService } from "../data-changes/data-change-service";
 import { RecordMutationService } from "../data-changes/record-mutation-service";
 import { type EditFieldDefinition, type MasterDetailDefinition } from "./definition";
-import { ModelText } from "../../../components/SourceText";
+import { DataText, ModelText } from "../../../components/SourceText";
 import { createRecordEditorStore, createRecordCreationStore, type RecordEditorStore } from "./record-editor-store";
 import styles from "./RecordEditor.module.css";
 import { RecordHistoryDetails } from "../entity-history/RecordHistoryDetails";
@@ -62,6 +62,22 @@ function EditRecordEditor(props: {
       recordId={props.mode.recordId}
       dataChanges={dataChanges}
       onClose={props.onClose}
+      heading={
+        <h2 class={styles.detailTitle}>
+          <Show
+            when={store.row() && props.definition.recordLabel}
+            fallback={
+              <ModelText>
+                <strong>{props.definition.detailTitle}</strong>
+              </ModelText>
+            }
+          >
+            <DataText>
+              <strong>{props.definition.recordLabel!(props.mode.result, store.row()!)}</strong>
+            </DataText>
+          </Show>
+        </h2>
+      }
     >
       <Show when={!store.validationError()} fallback={<div class={styles.state}>{store.validationError()}</div>}>
         <Show when={store.row()} fallback={<div class={styles.state}>Record not found.</div>}>
@@ -70,7 +86,7 @@ function EditRecordEditor(props: {
               {(_recordId) => (
                 <Form model={store.model(currentRow())} persistence={{ type: "autosave", onSave: store.save }}>
                   <RecordFormBinding store={store} />
-                  <EditorLayout title={props.definition.detailTitle} fields={props.definition.fields}>
+                  <EditorLayout fields={props.definition.fields}>
                     <SaveStatus saved={store.saved} />
                   </EditorLayout>
                 </Form>
@@ -111,19 +127,23 @@ function CreateRecordEditor(props: {
 }
 
 function EditorLayout(props: {
-  title: string;
+  title?: string;
   fields: readonly EditFieldDefinition[];
   onClose?: () => void;
   children: JSX.Element;
 }) {
   return (
     <div class={styles.form}>
-      <header class={styles.header}>
-        <h2>
-          <ModelText>{props.title}</ModelText>
-        </h2>
-        <Show when={props.onClose}>{(close) => <CloseButton label="Close details" onClick={close()} />}</Show>
-      </header>
+      <Show when={props.title}>
+        <header class={styles.header}>
+          <h2>
+            <ModelText>
+              <strong>{props.title}</strong>
+            </ModelText>
+          </h2>
+          <Show when={props.onClose}>{(close) => <CloseButton label="Close details" onClick={close()} />}</Show>
+        </header>
+      </Show>
       <For each={props.fields}>{(field) => <EditorField field={field} />}</For>
       {props.children}
     </div>

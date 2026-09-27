@@ -1,4 +1,6 @@
 .form { display: grid; min-width: 0; gap: 18px; }
+.detailTitle { margin: 0 0 8px; min-width: 0; overflow-wrap: anywhere; color: var(--color-ink); font-size: 18px; flex-shrink: 0; }
+.detailTitle strong, .header strong { font-weight: 700; }
 .header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .header h2 { margin: 0; color: var(--color-ink); font-size: 18px; }
 .field { display: grid; min-width: 0; gap: 7px; }

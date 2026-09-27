@@ -2,6 +2,8 @@ import { lookupDefinitions, lookupEntryId, lookupId } from "../../lookups/lookup
 import { plugin } from "../../../../base/plugin-registry";
 import { fetchServiceKey } from "../../../../base/services/fetch-service";
 import { loadUsers } from "./users-api";
+import { userEntity } from "./user-entity";
+import { entityRowLabel } from "../../entities/entity-label";
 
 export default plugin({
   name: "user-lookup",
@@ -19,10 +21,9 @@ export default plugin({
         async load() {
           const result = await loadUsers(context.services.fetchService);
           const id = result.requireColumn("id");
-          const name = result.requireColumn("name");
           return result.rows.map((row) => ({
             id: lookupEntryId(String(row.value(id))),
-            label: String(row.value(name)),
+            label: entityRowLabel(userEntity, result, row),
           }));
         },
       },

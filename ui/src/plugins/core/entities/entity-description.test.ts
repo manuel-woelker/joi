@@ -3,13 +3,7 @@ import type { IconComponent } from "../../../icons/icon-component";
 import { parseQueryResponse } from "../query/query-result";
 import { validate } from "../../../validation/validation";
 import { bindEntity, createEntityTableColumns, createEntityTableColumnCatalog } from "./bound-entity";
-import {
-  defineEntity,
-  entityId,
-  type EntityDescription,
-  requireEntityAttribute,
-  validateEntityDescription,
-} from "./entity-description";
+import { defineEntity, entityId, requireEntityAttribute, validateEntityDescription } from "./entity-description";
 import { createEntityEditorDefinition } from "./entity-editor";
 import { userEntity } from "../administration/users/user-entity";
 
@@ -88,7 +82,7 @@ describe("entity descriptions", () => {
         icon: TestIcon,
         identityAttribute: "missing",
         attributes: [{ id: "id", label: "ID", valueType: "string" }],
-      } as EntityDescription),
+      }),
     ).toThrow("identity attribute 'missing' is not defined");
     expect(() =>
       validateEntityDescription({
@@ -102,7 +96,7 @@ describe("entity descriptions", () => {
           { id: "id", label: "ID", valueType: "string" },
           { id: "id", label: "Other ID", valueType: "string" },
         ],
-      } as EntityDescription),
+      }),
     ).toThrow("duplicate attribute 'id'");
 
     const wrongResult = parseQueryResponse({
