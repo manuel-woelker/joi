@@ -100,15 +100,14 @@
 }
 
 .toggle[data-active="true"] {
-  border-color: var(--color-ink-soft);
-  background: var(--color-ink-soft);
-  color: white;
+  --facet-indicator-color: color-mix(in srgb, #23864b 80%, var(--color-text-muted));
+  border-color: color-mix(in srgb, var(--facet-indicator-color) 35%, var(--color-border));
+  background: color-mix(in srgb, var(--facet-indicator-color) 8%, var(--color-surface));
+  color: var(--facet-indicator-color);
 }
 
 .values > li[data-state="excluded"] .toggle[data-active="true"] {
-  border-color: var(--color-text-muted);
-  background: var(--color-border-soft);
-  color: var(--color-text-muted);
+  --facet-indicator-color: color-mix(in srgb, var(--color-danger) 80%, var(--color-text-muted));
 }
 
 .label {
