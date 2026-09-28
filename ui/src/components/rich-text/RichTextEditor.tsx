@@ -9,7 +9,7 @@ import QuoteIcon from "lucide-solid/icons/quote";
 import RedoIcon from "lucide-solid/icons/redo-2";
 import StrikethroughIcon from "lucide-solid/icons/strikethrough";
 import UndoIcon from "lucide-solid/icons/undo-2";
-import { createEffect, createSignal, createUniqueId, Show, type JSX } from "solid-js";
+import { createEffect, createSignal, createUniqueId, type JSX, Show } from "solid-js";
 import { createEditor, EditorContent } from "tiptap-solid";
 
 import styles from "./RichTextEditor.module.css";
@@ -39,6 +39,8 @@ export interface RichTextEditorProps {
   readonly describedBy?: string;
   /** Available heading levels, or `false` to disable headings. Defaults to levels 1 through 3. */
   readonly headingLevels?: readonly RichTextHeadingLevel[] | false;
+  /** Renders the editing surface without a surrounding input frame. */
+  readonly plain?: boolean;
 }
 
 /** A controlled rich-text editor whose value is represented as HTML. */
@@ -100,7 +102,10 @@ export function RichTextEditor(props: RichTextEditorProps) {
   };
 
   return (
-    <div class={styles.editor} classList={{ [styles.readOnly]: props.readOnly, [styles.disabled]: props.disabled }}>
+    <div
+      class={styles.editor}
+      classList={{ [styles.readOnly]: props.readOnly, [styles.disabled]: props.disabled, [styles.plain]: props.plain }}
+    >
       <Show when={!props.readOnly && !props.disabled}>
         <div class={styles.toolbar} role="toolbar" aria-label="Text formatting">
           <EditorButton

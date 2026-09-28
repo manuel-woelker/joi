@@ -406,12 +406,18 @@ inherit the label from their lookup provider. Creation headings remain `New User
 
 ## How are standalone entity pages displayed?
 
-Use the URL search parameter `?entity=type:identifier`, for example
-`/?entity=ticket:TEST-123` or `/?entity=wikipage:<ksuid>`. Server presentation
+Use the dedicated hash route with an entity parameter, for example
+`/#/entity?entity=ticket:TEST-123` or `/#/entity?entity=wikipage:<ksuid>`. Server presentation
 metadata defines each public route type and its lookup attribute. Canonical
-model IDs also work with the immutable primary key, e.g. `?entity=tickets:<ksuid>`.
-The underlying hash route is preserved; closing the entity restores that view.
+model IDs also work with the immutable primary key, e.g. `#/entity?entity=tickets:<ksuid>`.
+Opening the page replaces the visible view route; closing it restores the originating view.
+Previously shared top-level `?entity=` links are normalized to the hash route on load.
 The detail toolbar's **Open entity page** button creates these links.
+
+Wiki pages use a dedicated read-only display by default. **Edit** sets the
+hash's `edit` parameter; **View page** removes it. A direct link containing
+`#/entity?entity=wikipage:<ksuid>&edit` opens the editor. The wiki edit form omits visible attribute labels
+while retaining accessible names for its inputs.
 
 The `entity-pages` plugin registers the `entityDisplays` extension point. A
 domain plugin can register one display per canonical branded entity type:

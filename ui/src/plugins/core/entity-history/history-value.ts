@@ -1,4 +1,5 @@
 import { diffWords, type WordDiffFragment } from "../../../components/diff-viewer/word-diff";
+import { sanitizedRichTextDocument } from "../../../components/rich-text/sanitize-html";
 
 /** Format scalar data without JSON quoting; keep missing, null and empty distinct. */
 export function formatHistoryValue(value: unknown): string {
@@ -7,48 +8,10 @@ export function formatHistoryValue(value: unknown): string {
   return typeof value === "string" ? value : JSON.stringify(value);
 }
 
-const allowedTags = new Set([
-  "p",
-  "br",
-  "strong",
-  "b",
-  "em",
-  "i",
-  "s",
-  "strike",
-  "code",
-  "pre",
-  "blockquote",
-  "ul",
-  "ol",
-  "li",
-  "h1",
-  "h2",
-  "h3",
-  "h4",
-  "h5",
-  "h6",
-]);
-const omittedTags = new Set(["script", "style", "iframe", "object", "embed", "svg", "math", "template"]);
-
-/** Rebuild only formatting elements, without attributes, links or executable content. */
 function valueDocument(value: string, rich: boolean): HTMLElement {
+  if (rich) return sanitizedRichTextDocument(value);
   const root = document.createElement("div");
-  if (!rich) {
-    root.textContent = value;
-    return root;
-  }
-  const parsed = new DOMParser().parseFromString(value, "text/html");
-  const append = (node: Node, parent: Node) => {
-    if (node.nodeType === Node.TEXT_NODE) {
-      parent.appendChild(document.createTextNode(node.textContent ?? ""));
-    } else if (node instanceof Element && !omittedTags.has(node.localName)) {
-      const target = allowedTags.has(node.localName) ? document.createElement(node.localName) : parent;
-      if (target !== parent) parent.appendChild(target);
-      for (const child of node.childNodes) append(child, target);
-    }
-  };
-  for (const child of parsed.body.childNodes) append(child, root);
+  root.textContent = value;
   return root;
 }
 

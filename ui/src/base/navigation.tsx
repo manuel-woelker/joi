@@ -31,15 +31,17 @@ export interface NavigationController {
   closeRecord(): void;
   /** Opens a standalone entity page using the server-defined type and public key. */
   selectEntity(reference: string): void;
-  /** Removes the entity parameter, restoring the underlying hash route. */
+  /** Returns to the route that opened this entity, if one exists. */
   closeEntity(): void;
 }
 
 const NavigationContext = createContext<NavigationController>();
 
 function selectionFromHash(): NavigationSelection {
-  const entity = new URLSearchParams(window.location.search).get("entity");
-  if (entity !== null) return { type: "entity", reference: entity };
+  if (hashPath() === "/entity") {
+    const entity = hashParameters().get("entity");
+    return entity !== null ? { type: "entity", reference: entity } : { type: "unknown", hash: window.location.hash };
+  }
   const parts = hashPath().replace(/^\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
   if (!parts.length) return { type: "none" };
   const recent = parts[0] === "recent";
@@ -73,6 +75,7 @@ function selectionFromHash(): NavigationSelection {
 
 /** Creates a reactive hash navigation controller for the current window. */
 export function createNavigationController(): NavigationController {
+  normalizeLegacyEntityLink();
   const [selection, setSelection] = createSignal(selectionFromHash());
   const [routeState, setRouteState] = createSignal(hashParameters());
   const selectedViewId = createMemo(() => {
@@ -117,18 +120,13 @@ export function createNavigationController(): NavigationController {
       else parameters.set(key, value);
       const query = parameters.toString();
       const hash = `#${hashPath()}${query ? `?${query}` : ""}`;
-      window.history.replaceState(undefined, "", hash);
+      window.history.replaceState(window.history.state, "", hash);
       setRouteState(parameters);
     },
     selectView(id, route = { source: "workspace", section: "workspace", id }) {
       setSelection({ type: "view", id, route });
       setRouteState(new URLSearchParams());
-      if (new URLSearchParams(window.location.search).has("entity")) {
-        const url = new URL(window.location.href);
-        url.searchParams.delete("entity");
-        url.hash = routeHash(route);
-        window.history.pushState(undefined, "", url);
-      } else window.location.hash = routeHash(route);
+      window.location.hash = routeHash(route);
     },
     selectRecord(recordId) {
       const current = selection();
@@ -163,17 +161,33 @@ export function createNavigationController(): NavigationController {
     },
     selectEntity(reference) {
       const url = new URL(window.location.href);
-      url.searchParams.set("entity", reference);
-      window.history.pushState(undefined, "", url);
+      const parameters = new URLSearchParams({ entity: reference });
+      url.hash = `/entity?${parameters}`;
+      window.history.pushState(
+        { entityReturnUrl: `${window.location.pathname}${window.location.search}${window.location.hash}` },
+        "",
+        url,
+      );
       onHashChange();
     },
     closeEntity() {
-      const url = new URL(window.location.href);
-      url.searchParams.delete("entity");
-      window.history.pushState(undefined, "", url);
+      const returnUrl = window.history.state?.entityReturnUrl;
+      window.history.replaceState(undefined, "", typeof returnUrl === "string" ? returnUrl : "#/");
       onHashChange();
     },
   };
+}
+
+function normalizeLegacyEntityLink(): void {
+  const url = new URL(window.location.href);
+  const entity = url.searchParams.get("entity");
+  if (entity === null) return;
+  const previous = new URL(url);
+  previous.searchParams.delete("entity");
+  const returnUrl = `${previous.pathname}${previous.search}${previous.hash}`;
+  url.searchParams.delete("entity");
+  url.hash = `/entity?${new URLSearchParams({ entity })}`;
+  window.history.replaceState({ entityReturnUrl: returnUrl }, "", url);
 }
 
 function hashPath(): string {

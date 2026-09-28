@@ -13,6 +13,7 @@
 :root {
   --font-ui: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
   --font-data: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-content: ui-serif, Georgia, "Times New Roman", serif;
   --font-monospace: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 
   color: var(--color-ink);

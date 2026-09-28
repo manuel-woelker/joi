@@ -141,6 +141,10 @@
   background: var(--color-surface-muted);
 }
 
+.plain { border-color: transparent; background: transparent; box-shadow: none; }
+.plain .toolbar { padding-left: 0; padding-right: 0; background: transparent; }
+.plain .document { padding: 0; }
+
 .disabled {
   color: var(--color-text-muted);
   background: var(--color-surface-muted);

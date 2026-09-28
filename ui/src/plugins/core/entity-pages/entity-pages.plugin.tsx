@@ -25,6 +25,7 @@ export default plugin({
                 id: `entity:${selection.reference}`,
                 name: "Entity",
                 section: "Record",
+                hideHeading: true,
                 content: () => (
                   <EntityPage
                     reference={selection.reference}

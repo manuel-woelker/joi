@@ -1,11 +1,13 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from "vitest";
 import { PluginRegistryBuilder, plugin } from "../../base/plugin-registry";
-import { ModelService, modelServiceKey } from "../core/entities/model-service";
 import { FetchService } from "../../base/services/fetch-service";
+import { ModelService, modelServiceKey } from "../core/entities/model-service";
+import { entityDisplays } from "../core/entity-pages/contribution";
 import { navigationSection } from "../core/navigation/contribution";
 import { viewResolvers } from "../core/shell/contribution";
 import wikiPlugin from "./wiki.plugin";
+import { wikiPageEntityId } from "./wikipage-entity";
 
 describe("wiki plugin", () => {
   it("registers a copyable wiki entry and resolves list, creation and detail views", () => {
@@ -17,6 +19,7 @@ describe("wiki plugin", () => {
           registerExtensionPoints(context) {
             context.registerExtensionPoint({ point: navigationSection });
             context.registerExtensionPoint({ point: viewResolvers });
+            context.registerExtensionPoint({ point: entityDisplays });
           },
         }),
       )
@@ -32,6 +35,7 @@ describe("wiki plugin", () => {
       shortcut: { selection: { type: "view", id: "wiki-pages" } },
     });
     const resolver = registry.extensions(viewResolvers)[0];
+    expect(registry.extensions(entityDisplays)[0].entityType).toBe(wikiPageEntityId);
     expect(resolver.resolve(root.selection)?.name).toBe("Wiki pages");
     const owner = { type: "view" as const, id: "wiki-pages" };
     expect(resolver.resolve(owner)?.section).toBe("Wiki");

@@ -8,32 +8,50 @@ import { createNavigationController } from "./navigation";
 afterEach(() => window.history.replaceState(undefined, "", "/"));
 
 describe("NavigationController", () => {
-  it("restores standalone entity links and keeps other query parameters and the underlying view", () => {
-    window.history.replaceState(undefined, "", "/?debug=1&entity=ticket%3ATEST-123#/tickets/view-all");
+  it("opens a dedicated entity hash route and restores the originating view on close", () => {
+    window.history.replaceState(undefined, "", "/?debug=1#/tickets/view-all");
     createRoot((dispose) => {
       const navigation = createNavigationController();
-      expect(navigation.selection()).toEqual({ type: "entity", reference: "ticket:TEST-123" });
-      expect(navigation.selectedViewId()).toBeUndefined();
       navigation.selectEntity("wikipage:page/with:colon & spaces");
-      expect(new URLSearchParams(window.location.search).get("entity")).toBe("wikipage:page/with:colon & spaces");
-      expect(window.location.hash).toBe("#/tickets/view-all");
-      navigation.closeEntity();
       expect(window.location.search).toBe("?debug=1");
+      expect(window.location.hash.startsWith("#/entity?entity=")).toBe(true);
+      expect(navigation.hashState("entity")).toBe("wikipage:page/with:colon & spaces");
+      expect(navigation.selection()).toEqual({ type: "entity", reference: "wikipage:page/with:colon & spaces" });
+      expect(navigation.selectedViewId()).toBeUndefined();
+      navigation.setHashState("edit", "");
+      expect(window.location.hash).toContain("&edit=");
+      expect(navigation.selection()).toEqual({ type: "entity", reference: "wikipage:page/with:colon & spaces" });
+      expect(navigation.hashState("entity")).toBe("wikipage:page/with:colon & spaces");
+      navigation.closeEntity();
+      expect(window.location.href).toContain("?debug=1#/tickets/view-all");
       expect(navigation.selectedViewId()).toBe("view-all");
       dispose();
     });
   });
 
   it("leaves standalone pages when selecting a view and responds to browser history", () => {
-    window.history.replaceState(undefined, "", "/?entity=ticket:TEST-123#/tickets/view-all");
+    window.history.replaceState(undefined, "", "/#/entity?entity=ticket%3ATEST-123");
     createRoot((dispose) => {
       const navigation = createNavigationController();
       navigation.selectView("users", { source: "system", section: "administration", id: "users" });
-      expect(window.location.search).toBe("");
+      expect(window.location.hash).toBe("#/administration/users");
       expect(navigation.selectedViewId()).toBe("users");
-      window.history.replaceState(undefined, "", "/?entity=ticket:TEST-123#/tickets/view-all");
+      window.history.replaceState(undefined, "", "/#/entity?entity=ticket%3ATEST-123");
       window.dispatchEvent(new PopStateEvent("popstate"));
       expect(navigation.selection()).toEqual({ type: "entity", reference: "ticket:TEST-123" });
+      dispose();
+    });
+  });
+
+  it("normalizes previously shared top-level entity links into the hash", () => {
+    window.history.replaceState(undefined, "", "/?debug=1&entity=ticket%3ATEST-123#/tickets/view-all");
+    createRoot((dispose) => {
+      const navigation = createNavigationController();
+      expect(window.location.search).toBe("?debug=1");
+      expect(window.location.hash).toBe("#/entity?entity=ticket%3ATEST-123");
+      expect(navigation.selection()).toEqual({ type: "entity", reference: "ticket:TEST-123" });
+      navigation.closeEntity();
+      expect(window.location.href).toContain("?debug=1#/tickets/view-all");
       dispose();
     });
   });
@@ -122,7 +140,7 @@ describe("NavigationController", () => {
 
       navigation.setHashState("tab", undefined);
       expect(navigation.hashState("tab")).toBeUndefined();
-      expect(replaceState).toHaveBeenLastCalledWith(undefined, "", "#/codevette/commit%2F123");
+      expect(replaceState).toHaveBeenLastCalledWith(null, "", "#/codevette/commit%2F123");
       dispose();
     });
   });

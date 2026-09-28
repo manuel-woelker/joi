@@ -19,26 +19,28 @@ export function ViewContent(props: { view?: ApplicationView }) {
       >
         {(view) => (
           <>
-            <div class={styles.viewHeading}>
-              <div>
-                <p class={styles.eyebrow}>
-                  <ModelText>{view().section}</ModelText>
-                </p>
-                <div class={styles.title}>
-                  <Show when={view().icon}>
-                    {(Icon) => <Dynamic component={Icon()} size={25} aria-hidden="true" />}
-                  </Show>
-                  <h1>
-                    <ModelText>{view().name}</ModelText>
-                  </h1>
+            <Show when={!view().hideHeading}>
+              <div class={styles.viewHeading}>
+                <div>
+                  <p class={styles.eyebrow}>
+                    <ModelText>{view().section}</ModelText>
+                  </p>
+                  <div class={styles.title}>
+                    <Show when={view().icon}>
+                      {(Icon) => <Dynamic component={Icon()} size={25} aria-hidden="true" />}
+                    </Show>
+                    <h1>
+                      <ModelText>{view().name}</ModelText>
+                    </h1>
+                  </div>
+                  <Show when={view().description}>{(description) => <p>{description()}</p>}</Show>
                 </div>
-                <Show when={view().description}>{(description) => <p>{description()}</p>}</Show>
+                <div class={styles.headingCommands}>
+                  <Show when={view().commands}>{(Commands) => <Dynamic component={Commands()} />}</Show>
+                  <ActionCommands />
+                </div>
               </div>
-              <div class={styles.headingCommands}>
-                <Show when={view().commands}>{(Commands) => <Dynamic component={Commands()} />}</Show>
-                <ActionCommands />
-              </div>
-            </div>
+            </Show>
             <div class={styles.viewBody}>
               <Dynamic component={view().content} />
             </div>

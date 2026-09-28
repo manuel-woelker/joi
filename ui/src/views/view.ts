@@ -9,4 +9,6 @@ export interface ApplicationView {
   readonly icon?: IconComponent;
   readonly content: Component;
   readonly commands?: Component;
+  /** The content provides its own page heading and actions. */
+  readonly hideHeading?: boolean;
 }

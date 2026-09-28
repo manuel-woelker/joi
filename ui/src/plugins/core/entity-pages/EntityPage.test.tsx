@@ -36,7 +36,7 @@ function showPage(
 ) {
   const fetchService = new FetchService(fetcher);
   const dataChanges = new DataChangeService();
-  window.history.replaceState(null, "", "/?entity=users:u1#administration/users");
+  window.history.replaceState({ entityReturnUrl: "/#/administration/users" }, "", "/#/entity?entity=users%3Au1");
   render(() => (
     <NavigationProvider controller={createNavigationController()}>
       <ApplicationServicesProvider
@@ -66,7 +66,7 @@ it("selects a custom display by canonical type and supports closing", async () =
   ]);
   fireEvent.click(await screen.findByRole("button", { name: "Custom u1" }));
   expect(window.location.search).toBe("");
-  expect(window.location.hash).toBe("#administration/users");
+  expect(window.location.hash).toBe("#/administration/users");
   expect(screen.queryByRole("textbox")).toBeNull();
 });
 

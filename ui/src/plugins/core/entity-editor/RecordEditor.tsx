@@ -26,6 +26,8 @@ export function RecordEditor(props: {
   mode: EntityEditorMode;
   onClose: () => void;
   onOpenPage?: () => void;
+  hideFieldLabels?: boolean;
+  bare?: boolean;
 }) {
   return (
     <Show
@@ -43,6 +45,8 @@ function EditRecordEditor(props: {
   mode: Extract<EntityEditorMode, { type: "edit" }>;
   onClose: () => void;
   onOpenPage?: () => void;
+  hideFieldLabels?: boolean;
+  bare?: boolean;
 }) {
   const applicationServices = useOptionalApplicationServices();
   const dataChanges = applicationServices?.dataChanges ?? new DataChangeService();
@@ -57,6 +61,29 @@ function EditRecordEditor(props: {
     { fetchService: props.fetchService, dataChanges, recordMutations },
   );
 
+  const content = () => (
+    <Show when={!store.validationError()} fallback={<div class={styles.state}>{store.validationError()}</div>}>
+      <Show when={store.row()} fallback={<div class={styles.state}>Record not found.</div>}>
+        {(currentRow) => (
+          <Show keyed when={props.mode.recordId}>
+            {(_recordId) => (
+              <Form model={store.model(currentRow())} persistence={{ type: "autosave", onSave: store.save }}>
+                <RecordFormBinding store={store} />
+                <EditorLayout
+                  fields={props.definition.fields}
+                  hideFieldLabels={props.hideFieldLabels}
+                  plainRichText={props.bare}
+                >
+                  <SaveStatus saved={store.saved} />
+                </EditorLayout>
+              </Form>
+            )}
+          </Show>
+        )}
+      </Show>
+    </Show>
+  );
+  if (props.bare) return content();
   return (
     <RecordHistoryDetails
       definition={props.definition}
@@ -81,22 +108,7 @@ function EditRecordEditor(props: {
         </h2>
       }
     >
-      <Show when={!store.validationError()} fallback={<div class={styles.state}>{store.validationError()}</div>}>
-        <Show when={store.row()} fallback={<div class={styles.state}>Record not found.</div>}>
-          {(currentRow) => (
-            <Show keyed when={props.mode.recordId}>
-              {(_recordId) => (
-                <Form model={store.model(currentRow())} persistence={{ type: "autosave", onSave: store.save }}>
-                  <RecordFormBinding store={store} />
-                  <EditorLayout fields={props.definition.fields}>
-                    <SaveStatus saved={store.saved} />
-                  </EditorLayout>
-                </Form>
-              )}
-            </Show>
-          )}
-        </Show>
-      </Show>
+      {content()}
     </RecordHistoryDetails>
   );
 }
@@ -133,6 +145,8 @@ function EditorLayout(props: {
   fields: readonly EditFieldDefinition[];
   onClose?: () => void;
   children: JSX.Element;
+  hideFieldLabels?: boolean;
+  plainRichText?: boolean;
 }) {
   return (
     <div class={styles.form}>
@@ -146,7 +160,9 @@ function EditorLayout(props: {
           <Show when={props.onClose}>{(close) => <CloseButton label="Close details" onClick={close()} />}</Show>
         </header>
       </Show>
-      <For each={props.fields}>{(field) => <EditorField field={field} />}</For>
+      <For each={props.fields}>
+        {(field) => <EditorField field={field} hideLabel={props.hideFieldLabels} plainRichText={props.plainRichText} />}
+      </For>
       {props.children}
     </div>
   );
@@ -199,7 +215,7 @@ function SaveStatus(props: { saved: () => boolean }) {
   );
 }
 
-function EditorField(props: { field: EditFieldDefinition }) {
+function EditorField(props: { field: EditFieldDefinition; hideLabel?: boolean; plainRichText?: boolean }) {
   const formField = useFormField(props.field.attribute);
   const lookupService = props.field.lookup ? useLookupService() : undefined;
   const inputId = createUniqueId();
@@ -207,9 +223,11 @@ function EditorField(props: { field: EditFieldDefinition }) {
   const hasValidationMessages = () => formField.validationMessages().some((failure) => failure.touched);
   return (
     <div class={styles.field}>
-      <label for={inputId}>
-        <ModelText>{formField.label}</ModelText>
-      </label>
+      <Show when={!props.hideLabel}>
+        <label for={inputId}>
+          <ModelText>{formField.label}</ModelText>
+        </label>
+      </Show>
       <Show
         when={props.field.control === "html"}
         fallback={
@@ -242,6 +260,7 @@ function EditorField(props: { field: EditFieldDefinition }) {
               fallback={
                 <input
                   id={inputId}
+                  aria-label={props.hideLabel ? formField.label : undefined}
                   type={props.field.control === "integer" ? "number" : "text"}
                   value={formField.value}
                   placeholder={formField.placeholder}
@@ -257,6 +276,7 @@ function EditorField(props: { field: EditFieldDefinition }) {
             >
               <textarea
                 id={inputId}
+                aria-label={props.hideLabel ? formField.label : undefined}
                 value={formField.value}
                 placeholder={formField.placeholder}
                 readOnly={formField.readonly}
@@ -273,6 +293,7 @@ function EditorField(props: { field: EditFieldDefinition }) {
         }
       >
         <RichTextEditor
+          plain={props.plainRichText}
           id={inputId}
           ariaLabel={formField.label}
           value={formField.value}

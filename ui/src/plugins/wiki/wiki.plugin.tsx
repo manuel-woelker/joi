@@ -1,8 +1,10 @@
 import { plugin } from "../../base/plugin-registry";
 import { modelServiceKey } from "../core/entities/model-service";
+import { entityDisplays } from "../core/entity-pages/contribution";
 import { EntityMasterDetailView } from "../core/master-detail/EntityMasterDetailView";
 import { navigationEntryId, navigationSection, navigationSectionId } from "../core/navigation/contribution";
 import { shellContributionId, viewResolvers } from "../core/shell/contribution";
+import { WikiPage } from "./WikiPage";
 import { wikiPageEntityId } from "./wikipage-entity";
 
 const viewId = "wiki-pages";
@@ -12,6 +14,12 @@ export default plugin({
   description: "Wiki page browsing and rich-text editing",
   requires: { models: modelServiceKey },
   registerExtensions(context) {
+    context.registerExtension({
+      point: entityDisplays,
+      id: "wiki-page-display",
+      description: "Read and edit wiki pages",
+      value: { entityType: wikiPageEntityId, component: WikiPage },
+    });
     const icon = context.services.models.icon(wikiPageEntityId);
     context.registerExtension({
       point: navigationSection,
