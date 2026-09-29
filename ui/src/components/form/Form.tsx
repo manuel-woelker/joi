@@ -1,16 +1,16 @@
 import {
+  type Accessor,
   createContext,
   createMemo,
   createSignal,
-  onCleanup,
-  useContext,
-  type Accessor,
   type JSX,
+  onCleanup,
   type ParentProps,
+  useContext,
 } from "solid-js";
 import { createStore } from "solid-js/store";
 
-import { validate, type ValidationFailure, type ValidationFunction } from "../../validation/validation";
+import { type ValidationFailure, type ValidationFunction, validate } from "../../validation/validation";
 
 /** Field values changed since the previous debounced save. */
 export type FormChanges = Readonly<Record<string, string>>;
@@ -93,6 +93,8 @@ interface FormContextValue {
   readonly setTouched: (fieldId: string) => void;
   readonly reset: () => void;
   readonly submit: () => Promise<boolean>;
+  /** Flushes pending autosave changes and reports whether all values are persisted. */
+  readonly saveNow: () => Promise<boolean>;
   readonly reconcile: (changes: FormChanges) => void;
 }
 
@@ -114,6 +116,8 @@ export interface FormRuntimeState {
   readonly values: Accessor<FormValues>;
   /** Explicitly submits a submit-mode form. Returns whether it succeeded. */
   readonly submit: () => Promise<boolean>;
+  /** Flushes pending autosave changes and reports whether all values are persisted. */
+  readonly saveNow: () => Promise<boolean>;
   /** Restores the most recently saved values and clears touched state. */
   readonly reset: () => void;
   /** Applies values persisted outside this form while preserving locally dirty fields. */
@@ -185,7 +189,7 @@ export function Form(props: FormProps) {
   });
   const submittedValues = { ...initialValues };
   let saveTimer: ReturnType<typeof setTimeout> | undefined;
-  let saveRequested = false;
+  let activeSave: Promise<void> | undefined;
 
   const hasChanges = () =>
     model.attributes.some(
@@ -195,11 +199,14 @@ export function Form(props: FormProps) {
 
   const flushSave = async () => {
     saveTimer = undefined;
-    if (props.persistence?.type !== "autosave") return;
+    const persistence = props.persistence;
+    if (persistence?.type !== "autosave") return;
     if (!validationResult().valid) return;
-    if (saving()) {
-      saveRequested = true;
-      return;
+    if (activeSave) {
+      const pending = activeSave;
+      await pending;
+      if (activeSave === pending) activeSave = undefined;
+      return flushSave();
     }
     const changes = Object.fromEntries(
       model.attributes
@@ -212,20 +219,43 @@ export function Form(props: FormProps) {
     }
     setSaving(true);
     setSaveError(undefined);
-    try {
-      const result = props.persistence.onSave(Object.freeze(changes));
-      if (result) await result;
-      Object.assign(submittedValues, changes);
-    } catch (cause) {
-      setSaveError(cause instanceof Error ? cause : new Error(String(cause)));
-    } finally {
+    const finish = () => {
       setSaving(false);
       setDirty(hasChanges());
-      if (saveRequested) {
-        saveRequested = false;
-        void flushSave();
-      }
+    };
+    let result: void | Promise<void>;
+    try {
+      result = persistence.onSave(Object.freeze(changes));
+    } catch (cause) {
+      setSaveError(cause instanceof Error ? cause : new Error(String(cause)));
+      finish();
+      return;
     }
+    if (!result) {
+      Object.assign(submittedValues, changes);
+      finish();
+      return;
+    }
+    const operation = Promise.resolve(result)
+      .then(() => {
+        Object.assign(submittedValues, changes);
+      })
+      .catch((cause: unknown) => {
+        setSaveError(cause instanceof Error ? cause : new Error(String(cause)));
+      })
+      .finally(finish);
+    activeSave = operation;
+    await operation;
+    if (activeSave === operation) activeSave = undefined;
+  };
+
+  const saveNow = async () => {
+    if (props.persistence?.type !== "autosave") throw new Error("Form is not configured for autosave");
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = undefined;
+    if (!validationResult().valid) return false;
+    await flushSave();
+    return !hasChanges() && !saveError();
   };
 
   const setValue = (fieldId: string, value: string) => {
@@ -243,7 +273,6 @@ export function Form(props: FormProps) {
     if (saving()) throw new Error("Form cannot be reset while a save is in progress");
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = undefined;
-    saveRequested = false;
     for (const attribute of model.attributes) {
       setState("values", attribute.id, submittedValues[attribute.id]);
       setState("touched", attribute.id, false);
@@ -304,6 +333,7 @@ export function Form(props: FormProps) {
         setTouched,
         reset,
         submit,
+        saveNow,
         reconcile,
       }}
     >
@@ -325,6 +355,7 @@ export function useFormState(): FormRuntimeState {
     validate: form.validationResult,
     values: () => Object.freeze({ ...form.state.values }),
     submit: form.submit,
+    saveNow: form.saveNow,
     reset: form.reset,
     reconcile: form.reconcile,
   };

@@ -66,6 +66,15 @@ function SubmitButton() {
   );
 }
 
+function SaveNowButton(props: { onResult: (saved: boolean) => void }) {
+  const form = useFormState();
+  return (
+    <button type="button" onClick={() => void form.saveNow().then(props.onResult)}>
+      Save now
+    </button>
+  );
+}
+
 function ValidatedField() {
   const field = useFormField("name");
   const visibleValidationMessages = () => field.validationMessages().filter((failure) => failure.touched);
@@ -340,9 +349,41 @@ describe("Form", () => {
     expect(screen.getByText("Dirty")).toBeTruthy();
     expect(screen.getByTestId("form-saving").textContent).toBe("true");
     completeSave?.();
-    await Promise.resolve();
-    expect(screen.getByText("Clean")).toBeTruthy();
+    await vi.waitFor(() => expect(screen.getByText("Clean")).toBeTruthy());
     expect(screen.getByTestId("form-saving").textContent).toBe("false");
+  });
+
+  it("flushes newer values after an in-flight autosave before reporting success", async () => {
+    vi.useFakeTimers();
+    let finishFirst: (() => void) | undefined;
+    const onSave = vi.fn((changes: Readonly<Record<string, string>>) =>
+      changes.name === "First"
+        ? new Promise<void>((resolve) => {
+            finishFirst = resolve;
+          })
+        : Promise.resolve(),
+    );
+    const onResult = vi.fn();
+    render(() => (
+      <Form
+        model={{ attributes: [{ id: "name", label: "Name", initialValue: "Original" }] }}
+        saveDebounceMs={100}
+        persistence={{ type: "autosave", onSave }}
+      >
+        <TestField />
+        <SaveNowButton onResult={onResult} />
+      </Form>
+    ));
+
+    fireEvent.input(screen.getByRole("textbox", { name: "Name" }), { target: { value: "First" } });
+    vi.advanceTimersByTime(100);
+    fireEvent.input(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Second" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save now" }));
+    expect(onResult).not.toHaveBeenCalled();
+    finishFirst?.();
+    await vi.waitFor(() => expect(onResult).toHaveBeenCalledWith(true));
+    expect(onSave).toHaveBeenNthCalledWith(1, { name: "First" });
+    expect(onSave).toHaveBeenNthCalledWith(2, { name: "Second" });
   });
 
   it("exposes save errors and clears them on reset", async () => {

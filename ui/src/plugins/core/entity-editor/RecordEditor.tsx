@@ -1,4 +1,4 @@
-import { createUniqueId, For, type JSX, Show } from "solid-js";
+import { createSignal, createUniqueId, For, type JSX, Show } from "solid-js";
 import { useOptionalApplicationServices } from "../../../base/services/application-services";
 import type { FetchService } from "../../../base/services/fetch-service";
 import { CloseButton } from "../../../components/CloseButton";
@@ -28,6 +28,7 @@ export function RecordEditor(props: {
   onOpenPage?: () => void;
   hideFieldLabels?: boolean;
   bare?: boolean;
+  onPublish?: () => Promise<void>;
 }) {
   return (
     <Show
@@ -47,6 +48,7 @@ function EditRecordEditor(props: {
   onOpenPage?: () => void;
   hideFieldLabels?: boolean;
   bare?: boolean;
+  onPublish?: () => Promise<void>;
 }) {
   const applicationServices = useOptionalApplicationServices();
   const dataChanges = applicationServices?.dataChanges ?? new DataChangeService();
@@ -75,6 +77,7 @@ function EditRecordEditor(props: {
                   plainRichText={props.bare}
                 >
                   <SaveStatus saved={store.saved} />
+                  <Show when={props.onPublish}>{(publish) => <PublishButton onPublish={publish()} />}</Show>
                 </EditorLayout>
               </Form>
             )}
@@ -211,6 +214,41 @@ function SaveStatus(props: { saved: () => boolean }) {
       <Show when={props.saved() && !form.saving() && !form.dirty()}>
         <span class={styles.saved}>Saved</span>
       </Show>
+    </div>
+  );
+}
+
+function PublishButton(props: { onPublish: () => Promise<void> }) {
+  const form = useFormState();
+  const [publishing, setPublishing] = createSignal(false);
+  const [error, setError] = createSignal<string>();
+  const publish = async () => {
+    setError(undefined);
+    if (!(await form.saveNow())) {
+      setError(form.saveError()?.message ?? "Save the draft before publishing.");
+      return;
+    }
+    setPublishing(true);
+    try {
+      await props.onPublish();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setPublishing(false);
+    }
+  };
+  return (
+    <div class={styles.actions}>
+      <Show when={error()}>
+        {(message) => (
+          <span class={styles.error} role="alert">
+            {message()}
+          </span>
+        )}
+      </Show>
+      <button type="button" class={styles.primary} disabled={publishing()} onClick={() => void publish()}>
+        {publishing() ? "Publishing" : "Publish"}
+      </button>
     </div>
   );
 }

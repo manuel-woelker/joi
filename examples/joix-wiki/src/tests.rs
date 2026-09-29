@@ -1,6 +1,7 @@
 use joi_plugin::{PluginRegistry, PluginRegistryBuilder, plugin};
 use joi_server::{
     command_handler::{CommandHandler, CommandUser},
+    command_registry::{CommandProvider, CommandRegistryBuilder},
     data_store::*,
     generated::api::{ModelAttributeType, ModelInfoRequest},
     model_info_command::ModelInfoCommand,
@@ -9,6 +10,7 @@ use joi_server::{
     user_session_command::UserTableDescriptionProvider,
 };
 use serde_json::{Value, json};
+use std::sync::{Arc, Mutex};
 
 fn registry() -> PluginRegistry {
     let mut builder = PluginRegistryBuilder::new();
@@ -17,6 +19,7 @@ fn registry() -> PluginRegistry {
             context.register_extension_point::<dyn TableDescriptionProvider>("tables", "Tables")?;
             context
                 .register_extension_point::<dyn MutationContributor>("mutations", "Mutations")?;
+            context.register_extension_point::<dyn CommandProvider>("commands", "Commands")?;
             context.register_extension::<dyn TableDescriptionProvider>(
                 "users",
                 "Users",
@@ -218,4 +221,117 @@ fn attribution_survives_reopening_on_disk() {
     let updated = &mutate(&mut store, &user("joe"), vec![update("page-1", "Changed")])[0];
     assert_eq!(updated["creator"], "jane");
     assert_eq!(updated["authors"], json!(["jane", "joe"]));
+}
+
+#[test]
+fn drafts_remain_unpublished_until_explicit_publish() {
+    let mut store = IndexedDataStore::in_memory().unwrap();
+    prepare(&mut store);
+    mutate(
+        &mut store,
+        &user("jane"),
+        vec![insert("page-1", "Published")],
+    );
+    let store: SharedDataStore = Arc::new(Mutex::new(Box::new(store)));
+    let mut builder = CommandRegistryBuilder::new();
+    super::draft_commands::WikiDraftCommandProvider
+        .register_commands(&mut builder, store.clone())
+        .unwrap();
+    let commands = builder.build();
+    let context = joi_server::command_handler::CommandContext {
+        user: Some(CommandUser {
+            id: "joe".into(),
+            username: "joe".into(),
+        }),
+    };
+    let read = || {
+        commands
+            .execute(
+                &context,
+                "wiki-draft",
+                json!({"id":"page-1","create":false}),
+            )
+            .unwrap()
+            .unwrap()
+    };
+    assert_eq!(read()["exists"], false);
+    commands
+        .execute(&context, "wiki-draft", json!({"id":"page-1","create":true}))
+        .unwrap()
+        .unwrap();
+    store
+        .lock()
+        .unwrap()
+        .mutate(
+            &user("joe"),
+            DataStoreMutation {
+                steps: vec![DataStoreMutationStep::Update(DataStoreUpdateMutation {
+                    table_name: TableName("wikipage_drafts".into()),
+                    ids: vec!["page-1".into()],
+                    columns: vec![
+                        strings("title", &["Draft title"]),
+                        strings("content", &["<p>Draft body</p>"]),
+                    ],
+                })],
+                return_entities: false,
+            },
+        )
+        .unwrap();
+    assert_eq!(read()["title"], "Draft title");
+    assert_eq!(read()["content"], "<p>Draft body</p>");
+    assert_eq!(read()["exists"], true);
+    let published = store
+        .lock()
+        .unwrap()
+        .query(DataStoreQuery {
+            table_name: TableName("wikipages".into()),
+            criterion: QueryCriterion::Equals {
+                attribute: AttributeName("id".into()),
+                values: vec!["page-1".into()],
+            },
+            sorting: vec![],
+            max_results: 1,
+            attributes: vec![
+                AttributeName("title".into()),
+                AttributeName("authors".into()),
+            ],
+        })
+        .unwrap();
+    assert!(
+        matches!(&published.result_columns[0].values, Values::String(values) if values[0] == "Published")
+    );
+    assert!(
+        matches!(&published.result_columns[1].values, Values::ReferenceList(values) if values[0].iter().map(ToString::to_string).collect::<Vec<_>>() == vec!["jane".to_string()])
+    );
+    let result = commands
+        .execute(&context, "wiki-publish", json!({"id":"page-1"}))
+        .unwrap()
+        .unwrap();
+    assert_eq!(result["title"], "Draft title");
+    assert_eq!(result["content"], "<p>Draft body</p>");
+    assert_eq!(read()["exists"], false);
+    let published = store
+        .lock()
+        .unwrap()
+        .query(DataStoreQuery {
+            table_name: TableName("wikipages".into()),
+            criterion: QueryCriterion::MatchAny,
+            sorting: vec![],
+            max_results: 1,
+            attributes: vec![
+                AttributeName("title".into()),
+                AttributeName("content".into()),
+                AttributeName("authors".into()),
+            ],
+        })
+        .unwrap();
+    assert!(
+        matches!(&published.result_columns[0].values, Values::String(values) if values[0] == "Draft title")
+    );
+    assert!(
+        matches!(&published.result_columns[1].values, Values::String(values) if values[0] == "<p>Draft body</p>")
+    );
+    assert!(
+        matches!(&published.result_columns[2].values, Values::ReferenceList(values) if values[0].iter().map(ToString::to_string).collect::<Vec<_>>() == vec!["jane".to_string(), "joe".to_string()])
+    );
 }

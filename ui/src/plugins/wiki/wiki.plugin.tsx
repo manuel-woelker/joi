@@ -66,7 +66,7 @@ export default plugin({
                 name: "Wiki pages",
                 section: "Wiki",
                 icon,
-                content: () => <EntityMasterDetailView entityId={wikiPageEntityId} />,
+                content: () => <EntityMasterDetailView entityId={wikiPageEntityId} openRecordOnSelect />,
               }
             : undefined;
         },

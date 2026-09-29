@@ -35,6 +35,7 @@ export function EntityMasterDetailView(props: {
   initialFilter?: FilterDefinition;
   initialSorting?: readonly DataTableSort[];
   filterIdentity?: string;
+  openRecordOnSelect?: boolean;
 }) {
   return (
     <Show keyed when={props.entityId}>
@@ -48,6 +49,7 @@ function EntityMasterDetailContent(props: {
   initialFilter?: FilterDefinition;
   initialSorting?: readonly DataTableSort[];
   filterIdentity?: string;
+  openRecordOnSelect?: boolean;
 }) {
   const services = useApplicationServices();
   const { fetchService } = services;
@@ -318,7 +320,14 @@ function EntityMasterDetailContent(props: {
                   selectedRowKeys={store.selectedRowIds()}
                   density="compact"
                   emptyMessage={`No matching ${description.pluralLabel.toLowerCase()} found.`}
-                  onRowSelect={store.selectRow}
+                  onRowSelect={(row, mode) => {
+                    if (props.openRecordOnSelect && mode === "replace") {
+                      const result = store.records();
+                      if (result) navigation.selectEntity(entityReference(description, result, row));
+                      return;
+                    }
+                    store.selectRow(row, mode);
+                  }}
                   onRowContextMenu={openContextMenu}
                 />
               </div>
@@ -327,7 +336,7 @@ function EntityMasterDetailContent(props: {
           definition={store.editor}
           fetchService={fetchService}
           result={store.records()}
-          selectedRecordId={store.selectedRecordId()}
+          selectedRecordId={props.openRecordOnSelect ? undefined : store.selectedRecordId()}
           creating={store.creatingRecord()}
           onCreated={store.completeCreation}
           onClose={store.closeRecord}
