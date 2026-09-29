@@ -3,6 +3,7 @@ use joi_server::{
     command_handler::{CommandHandler, CommandUser},
     command_registry::{CommandProvider, CommandRegistryBuilder},
     data_store::*,
+    entity_keys::{EntityKeysTable, find_entity_key},
     generated::api::{ModelAttributeType, ModelInfoRequest},
     model_info_command::ModelInfoCommand,
     mutation_contributor::{MutationContext, MutationContributor},
@@ -20,6 +21,10 @@ fn registry() -> PluginRegistry {
             context
                 .register_extension_point::<dyn MutationContributor>("mutations", "Mutations")?;
             context.register_extension_point::<dyn CommandProvider>("commands", "Commands")?;
+            context.register_extension_point::<dyn StartupDataProvider>(
+                "startup-data",
+                "Startup data",
+            )?;
             context.register_extension::<dyn TableDescriptionProvider>(
                 "users",
                 "Users",
@@ -38,8 +43,44 @@ fn prepare(store: &mut IndexedDataStore) {
         .unwrap()
         .map(TableDescriptionProvider::table_description)
         .collect();
+    let mut schemas: Vec<TableDescription> = schemas;
+    schemas.push(EntityKeysTable.table_description());
     store.set_contributors(registry).unwrap();
     store.ensure_tables(schemas).unwrap();
+}
+
+#[test]
+fn start_page_is_initialized_once_without_overwriting_edits() {
+    let mut store = IndexedDataStore::in_memory().unwrap();
+    prepare(&mut store);
+    super::start_page::StartPageInitializer
+        .initialize(&mut store)
+        .unwrap();
+    let first = find_entity_key(&store, "wiki", "Start").unwrap().unwrap();
+    assert_eq!(first.entity_type, "wikipages");
+    let id = first.entity_id.clone();
+    mutate(&mut store, &user("jane"), vec![update(&id, "My Start")]);
+    super::start_page::StartPageInitializer
+        .initialize(&mut store)
+        .unwrap();
+    let second = find_entity_key(&store, "wiki", "Start").unwrap().unwrap();
+    assert_eq!(second.entity_id, id);
+    let pages = store
+        .query(DataStoreQuery {
+            table_name: TableName("wikipages".into()),
+            criterion: QueryCriterion::Equals {
+                attribute: AttributeName("id".into()),
+                values: vec![id],
+            },
+            sorting: vec![],
+            max_results: 2,
+            attributes: vec![AttributeName("title".into())],
+        })
+        .unwrap();
+    assert_eq!(pages.number_of_hits, 1);
+    assert!(
+        matches!(&pages.result_columns[0].values, Values::String(values) if values[0] == "My Start")
+    );
 }
 
 fn user(id: &str) -> MutationContext {

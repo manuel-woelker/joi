@@ -12,7 +12,10 @@ use serde_json::Value as JsonValue;
 use crate::{
     command_registry::{CommandProvider, CommandRegistry, CommandRegistryBuilder},
     command_service::CommandService,
-    data_store::{DataStore, SharedDataStore, TableDescriptionProvider, TestDataProvider},
+    data_store::{
+        DataStore, SharedDataStore, StartupDataProvider, TableDescriptionProvider, TestDataProvider,
+    },
+    entity_keys::{EntityKeysTable, ResolveEntityKeyCommand},
     generated::api::COMMAND_DESCRIPTORS,
     info_command::{InfoCollector, InfoCommand, InfoProvider},
     model_info_command::ModelInfoCommand,
@@ -134,6 +137,10 @@ fn create_plugin_registry(config: &mut ServerConfig) -> JoiResult<PluginRegistry
                 "test-data-providers",
                 "Populates tables with development data",
             )?;
+            context.register_extension_point::<dyn StartupDataProvider>(
+                "startup-data-providers",
+                "Initializes required application records",
+            )?;
             context.register_extension_point::<dyn CommandProvider>(
                 "command-providers",
                 "Registers domain command handlers",
@@ -161,6 +168,11 @@ fn create_plugin_registry(config: &mut ServerConfig) -> JoiResult<PluginRegistry
                 "Defines authenticated user sessions",
                 Box::new(UserSessionTableDescriptionProvider),
             )?;
+            context.register_extension::<dyn TableDescriptionProvider>(
+                "entity-keys-table",
+                "Defines human-readable entity aliases",
+                Box::new(EntityKeysTable),
+            )?;
             context.register_extension::<dyn TestDataProvider>(
                 "user-test-data",
                 "Adds representative users for development",
@@ -183,6 +195,7 @@ fn build_command_registry(
     builder.register(ModelInfoCommand::new(plugin_registry.clone()))?;
     builder.register(PluginsCommand::new(plugin_registry.clone()))?;
     builder.register(QueryCommand::new(data_store.clone()))?;
+    builder.register(ResolveEntityKeyCommand::new(data_store.clone()))?;
     builder.register(MutateCommand::new(data_store.clone()))?;
     builder.register(crate::entity_history::EntityHistoryCommand::new(
         data_store.clone(),
@@ -207,6 +220,9 @@ fn initialize_data_store(
         .map(TableDescriptionProvider::table_description)
         .collect();
     data_store.ensure_tables(tables)?;
+    for provider in plugin_registry.extensions::<dyn StartupDataProvider>()? {
+        provider.initialize(data_store)?;
+    }
     if insert_test_data {
         for provider in plugin_registry.extensions::<dyn TestDataProvider>()? {
             provider.insert_test_data(data_store)?;

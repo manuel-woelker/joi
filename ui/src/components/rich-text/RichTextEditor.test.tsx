@@ -18,6 +18,14 @@ describe("RichTextEditor", () => {
     expect(screen.getByRole("toolbar", { name: "Text formatting" })).toBeTruthy();
   });
 
+  it("preserves editable wiki links in stored HTML", async () => {
+    render(() => <RichTextEditor ariaLabel="Wiki content" value={'<p><a href="#:wiki:Start">Start</a></p>'} />);
+
+    const document = await screen.findByRole("textbox", { name: "Wiki content" });
+    await waitFor(() => expect(document.querySelector("a")?.getAttribute("href")).toBe("#:wiki:Start"));
+    expect(screen.getByRole("button", { name: "Link" })).toBeTruthy();
+  });
+
   it("synchronizes externally supplied HTML", async () => {
     const [html, setHtml] = createSignal("<p>First version</p>");
     render(() => <RichTextEditor ariaLabel="Description" value={html()} onChange={setHtml} />);

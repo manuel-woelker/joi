@@ -31,6 +31,13 @@ export default plugin({
         order: 20,
         roots: () => [
           {
+            id: navigationEntryId("wiki-start"),
+            type: "leaf" as const,
+            label: "Start",
+            icon,
+            selection: { type: "entity" as const, reference: ":wiki:Start" },
+          },
+          {
             id: navigationEntryId(viewId),
             type: "leaf" as const,
             label: "Wiki pages",

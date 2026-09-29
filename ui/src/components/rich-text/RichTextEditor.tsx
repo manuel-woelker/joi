@@ -2,17 +2,21 @@ import StarterKit from "@tiptap/starter-kit";
 import BoldIcon from "lucide-solid/icons/bold";
 import CodeIcon from "lucide-solid/icons/code";
 import ItalicIcon from "lucide-solid/icons/italic";
+import LinkIcon from "lucide-solid/icons/link-2";
 import ListIcon from "lucide-solid/icons/list";
 import ListOrderedIcon from "lucide-solid/icons/list-ordered";
 import PilcrowIcon from "lucide-solid/icons/pilcrow";
 import QuoteIcon from "lucide-solid/icons/quote";
 import RedoIcon from "lucide-solid/icons/redo-2";
 import StrikethroughIcon from "lucide-solid/icons/strikethrough";
+import UnlinkIcon from "lucide-solid/icons/link-2-off";
 import UndoIcon from "lucide-solid/icons/undo-2";
 import { createEffect, createSignal, createUniqueId, type JSX, Show } from "solid-js";
 import { createEditor, EditorContent } from "tiptap-solid";
 
 import styles from "./RichTextEditor.module.css";
+import { RichTextLink } from "./rich-text-link";
+import { safeRichTextHref } from "./safe-rich-text-href";
 
 /** Heading levels supported by the rich-text document model. */
 export type RichTextHeadingLevel = 1 | 2 | 3 | 4 | 5 | 6;
@@ -47,8 +51,14 @@ export interface RichTextEditorProps {
 export function RichTextEditor(props: RichTextEditorProps) {
   const headingLevels = normalizeHeadingLevels(props.headingLevels);
   const [revision, setRevision] = createSignal(0);
+  const [linkOpen, setLinkOpen] = createSignal(false);
+  const [linkUrl, setLinkUrl] = createSignal("");
+  const [linkError, setLinkError] = createSignal("");
   const editor = createEditor({
-    extensions: [StarterKit.configure({ heading: headingLevels === false ? false : { levels: headingLevels } })],
+    extensions: [
+      StarterKit.configure({ heading: headingLevels === false ? false : { levels: headingLevels } }),
+      RichTextLink,
+    ],
     content: props.value,
     editable: !props.readOnly && !props.disabled,
     editorProps: {
@@ -164,6 +174,17 @@ export function RichTextEditor(props: RichTextEditorProps) {
           >
             <CodeIcon size={15} />
           </EditorButton>
+          <EditorButton
+            label="Link"
+            active={isActive("link")}
+            onClick={() => {
+              setLinkUrl(String(editor()?.getAttributes("link").href ?? ""));
+              setLinkError("");
+              setLinkOpen((open) => !open);
+            }}
+          >
+            <LinkIcon size={15} />
+          </EditorButton>
           <span class={styles.separator} aria-hidden="true" />
           <EditorButton
             label="Bulleted list"
@@ -194,6 +215,40 @@ export function RichTextEditor(props: RichTextEditorProps) {
             <RedoIcon size={15} />
           </EditorButton>
         </div>
+        <Show when={linkOpen()}>
+          <form
+            class={styles.linkForm}
+            onSubmit={(event) => {
+              event.preventDefault();
+              const href = safeRichTextHref(linkUrl());
+              if (!href) {
+                setLinkError("Enter a valid URL or #:namespace:key link.");
+                return;
+              }
+              editor()?.chain().focus().setMark("link", { href }).run();
+              setLinkOpen(false);
+            }}
+          >
+            <input
+              aria-label="Link URL"
+              value={linkUrl()}
+              onInput={(event) => setLinkUrl(event.currentTarget.value)}
+              placeholder="#:wiki:Start"
+            />
+            <button type="submit">Apply link</button>
+            <button
+              type="button"
+              aria-label="Remove link"
+              onClick={() => {
+                editor()?.chain().focus().unsetMark("link").run();
+                setLinkOpen(false);
+              }}
+            >
+              <UnlinkIcon size={15} />
+            </button>
+            <Show when={linkError()}>{(message) => <span role="alert">{message()}</span>}</Show>
+          </form>
+        </Show>
       </Show>
       <EditorContent editor={editor()} />
     </div>

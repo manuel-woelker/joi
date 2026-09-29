@@ -1,3 +1,5 @@
+import { safeRichTextHref } from "./safe-rich-text-href";
+
 const allowedTags = new Set([
   "p",
   "br",
@@ -22,7 +24,7 @@ const allowedTags = new Set([
 ]);
 const omittedTags = new Set(["script", "style", "iframe", "object", "embed", "svg", "math", "template"]);
 
-/** Rebuild only formatting elements, without attributes, links or executable content. */
+/** Rebuild formatting and safe links without executable content or arbitrary attributes. */
 export function sanitizedRichTextDocument(value: string): HTMLElement {
   const root = document.createElement("div");
   const parsed = new DOMParser().parseFromString(value, "text/html");
@@ -30,7 +32,9 @@ export function sanitizedRichTextDocument(value: string): HTMLElement {
     if (node.nodeType === Node.TEXT_NODE) {
       parent.appendChild(document.createTextNode(node.textContent ?? ""));
     } else if (node instanceof Element && !omittedTags.has(node.localName)) {
-      const target = allowedTags.has(node.localName) ? document.createElement(node.localName) : parent;
+      const href = node.localName === "a" ? safeRichTextHref(node.getAttribute("href") ?? "") : undefined;
+      const target = allowedTags.has(node.localName) || href ? document.createElement(node.localName) : parent;
+      if (href && target instanceof Element) target.setAttribute("href", href);
       if (target !== parent) parent.appendChild(target);
       for (const child of node.childNodes) append(child, target);
     }

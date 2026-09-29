@@ -40,6 +40,33 @@ const response = (ids = ["internal-id"]) => ({
 });
 
 describe("entity pages", () => {
+  it("resolves namespace aliases before querying the canonical entity ID", async () => {
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      const payload =
+        String(input) === "/api/entity-key-resolve"
+          ? { found: true, entity_type: "tickets", entity_id: "internal-id" }
+          : response();
+      return { ok: true, json: async () => payload } as Response;
+    });
+    const store = createRoot((dispose) => {
+      disposers.push(dispose);
+      return createEntityPageStore(() => ":issues:TEST-123", {
+        models,
+        fetchService: new FetchService(fetcher),
+        dataChanges: new DataChangeService(),
+      });
+    });
+    await vi.waitFor(() => expect(store.page()?.recordId).toBe("internal-id"));
+    expect(fetcher).toHaveBeenCalledWith(
+      "/api/entity-key-resolve",
+      expect.objectContaining({ body: JSON.stringify({ namespace: "issues", key: "TEST-123" }) }),
+    );
+    expect(fetcher).toHaveBeenCalledWith(
+      expect.stringContaining("/api/query"),
+      expect.objectContaining({ body: expect.stringContaining('"attribute":"id"') }),
+    );
+  });
+
   it("loads public keys through an exact bounded query and reconciles in place", async () => {
     const fetcher = vi.fn(async () => ({ ok: true, json: async () => response() }) as Response);
     const changes = new DataChangeService();

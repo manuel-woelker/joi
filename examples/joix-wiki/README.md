@@ -21,6 +21,13 @@ existing draft or creates one from the published title and content. A separate
 The `wiki-draft` command checks for unpublished edits without creating a draft.
 Draft changes do not update published timestamps, attribution or history.
 
+On startup, the plugin ensures a **Start** page exists and registers the
+`wiki:Start` alias in the server's `entity_keys` table. This runs even when
+development test data is disabled. It preserves edits to an existing Start
+page. The shareable `#:wiki:Start` URL resolves the alias to the page's
+immutable ID. Wiki content can use the same URL as a clickable link; the
+rich-text editor preserves it and read mode renders it safely.
+
 The attribution mutation contributor assigns the creator on insertion and adds
 distinct editors to authors in first-contribution order. Real title/content
 changes count; no-op saves do not. Replacement writes preserve attribution.
@@ -34,6 +41,7 @@ The standard master-detail view supports creating pages, filtering and author
 facets. Selecting an existing page opens its dedicated read view. Editing there
 autosaves a draft; **Publish** makes it visible. Pages with a draft show an
 "Unpublished edits" note. User references display the server-defined user label.
+The Wiki navigation section links directly to **Start** and to the page list.
 The navigation entry can also be copied into My workspace.
 
 ## How do I run it and check it?

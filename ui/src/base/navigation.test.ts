@@ -8,6 +8,20 @@ import { createNavigationController } from "./navigation";
 afterEach(() => window.history.replaceState(undefined, "", "/"));
 
 describe("NavigationController", () => {
+  it("loads and navigates to a namespace key hash", () => {
+    window.history.replaceState(undefined, "", "/#:wiki:Start");
+    createRoot((dispose) => {
+      const navigation = createNavigationController();
+      expect(navigation.selection()).toEqual({ type: "entity", reference: ":wiki:Start" });
+      navigation.selectView("wiki-pages", { source: "system", section: "wiki", id: "wiki-pages" });
+      navigation.selectEntity(":wiki:Start");
+      expect(window.location.hash).toBe("#:wiki:Start");
+      navigation.closeEntity();
+      expect(window.location.hash).toBe("#/wiki/wiki-pages");
+      dispose();
+    });
+  });
+
   it("opens a dedicated entity hash route and restores the originating view on close", () => {
     window.history.replaceState(undefined, "", "/?debug=1#/tickets/view-all");
     createRoot((dispose) => {

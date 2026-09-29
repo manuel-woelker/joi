@@ -22,6 +22,8 @@ pub mod command_service;
 pub mod data_store;
 /// Durable, opt-in entity history and its read command.
 pub mod entity_history;
+/// Namespace-scoped human-readable entity aliases and their lookup command.
+pub mod entity_keys;
 mod entity_store;
 /// Code-generated command declarations.
 pub mod generated;

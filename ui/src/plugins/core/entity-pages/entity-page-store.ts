@@ -1,5 +1,6 @@
 import { type Accessor, createEffect, createResource, onCleanup } from "solid-js";
 import type { FetchService } from "../../../base/services/fetch-service";
+import { CommandService } from "../../../generated/api/command-service";
 import type { DataChangeService } from "../data-changes/data-change-service";
 import type { EntityRegistry } from "../entities/entity-registry";
 import { reconcileRecordResult } from "../entity-editor/record-editor-store";
@@ -16,7 +17,21 @@ export function createEntityPageStore(
   },
 ) {
   const [page, { refetch }] = createResource(reference, async (reference) => {
-    const { entity, attribute, key } = resolveEntityReference(reference, dependencies.models);
+    let resolved = reference;
+    if (reference.startsWith(":")) {
+      const alias = reference.slice(1);
+      const separator = alias.indexOf(":");
+      if (separator <= 0 || separator === alias.length - 1) {
+        throw new Error("Entity aliases must have the form #:namespace:key.");
+      }
+      const target = await new CommandService(dependencies.fetchService).entityKeyResolve({
+        namespace: alias.slice(0, separator),
+        key: alias.slice(separator + 1),
+      });
+      if (!target.found) throw new Error(`Entity alias '${alias}' was not found.`);
+      resolved = `${target.entityType}:${target.entityId}`;
+    }
+    const { entity, attribute, key } = resolveEntityReference(resolved, dependencies.models);
     const result = await executeDataQuery(dependencies.fetchService, {
       tableName: entity.tableName,
       criterion: { equals: { attribute, values: [key] } },

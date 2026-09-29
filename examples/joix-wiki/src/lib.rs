@@ -1,13 +1,15 @@
 //! Wiki pages with server-owned attribution and rich-text content.
 use joi_plugin::{Plugin, plugin};
 use joi_server::{
-    command_registry::CommandProvider, data_store::TableDescriptionProvider,
+    command_registry::CommandProvider,
+    data_store::{StartupDataProvider, TableDescriptionProvider},
     mutation_contributor::MutationContributor,
 };
 
 mod draft_commands;
 mod drafts;
 mod page_attribution;
+mod start_page;
 mod wikipages;
 
 pub use wikipages::WikiPageTableDescriptionProvider;
@@ -24,6 +26,11 @@ pub fn wiki_plugin() -> Plugin {
             "wikipage-drafts-table",
             "Stores unpublished wiki page drafts",
             Box::new(drafts::WikiDraftTableDescriptionProvider),
+        )?;
+        context.register_extension::<dyn StartupDataProvider>(
+            "wiki-start-page",
+            "Creates the initial Start wiki page and its alias",
+            Box::new(start_page::StartPageInitializer),
         )?;
         context.register_extension::<dyn MutationContributor>(
             "wiki-attribution",

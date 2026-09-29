@@ -38,6 +38,9 @@ export interface NavigationController {
 const NavigationContext = createContext<NavigationController>();
 
 function selectionFromHash(): NavigationSelection {
+  if (hashPath().startsWith(":")) {
+    return { type: "entity", reference: hashPath() };
+  }
   if (hashPath() === "/entity") {
     const entity = hashParameters().get("entity");
     return entity !== null ? { type: "entity", reference: entity } : { type: "unknown", hash: window.location.hash };
@@ -162,7 +165,7 @@ export function createNavigationController(): NavigationController {
     selectEntity(reference) {
       const url = new URL(window.location.href);
       const parameters = new URLSearchParams({ entity: reference });
-      url.hash = `/entity?${parameters}`;
+      url.hash = reference.startsWith(":") ? reference : `/entity?${parameters}`;
       window.history.pushState(
         { entityReturnUrl: `${window.location.pathname}${window.location.search}${window.location.hash}` },
         "",

@@ -66,6 +66,10 @@ export function ApplicationNavigation(props: { registry: PluginRegistry; userId:
     localStorage.getItem("joi.navigation.system-open") ?? undefined,
   );
   const [workspaceDropActive, setWorkspaceDropActive] = createSignal(false);
+  const activeEntityReference = () => {
+    const selection = workspace.navigation.selection();
+    return selection.type === "entity" ? selection.reference : undefined;
+  };
 
   createEffect(() => {
     const reference = referenceForSelection(workspace.navigation.selection(), allLeaves(), workspace.workspace);
@@ -93,6 +97,7 @@ export function ApplicationNavigation(props: { registry: PluginRegistry; userId:
   const navigate = (selection: NavigationSelection, route: NavigationRoute) => {
     const owner = selection.type === "record" || selection.type === "create" ? selection.owner : selection;
     if (owner.type === "view") workspace.navigation.selectView(owner.id, route);
+    if (owner.type === "entity") workspace.navigation.selectEntity(owner.reference);
   };
   const setSystemOpen = (id: string | undefined) => {
     setOpenSystem(id);
@@ -222,6 +227,7 @@ export function ApplicationNavigation(props: { registry: PluginRegistry; userId:
                     roots={section.roots()}
                     sectionId={section.id}
                     activeRoute={workspace.navigation.activeRoute()}
+                    activeEntityReference={activeEntityReference()}
                     onActivate={navigate}
                     openContextMenu={(event, leaf) => {
                       const copy = copyForLeaf(leaf, section.id);
@@ -260,6 +266,7 @@ export function SystemTree(props: {
   roots: readonly NavigationRootContribution[];
   sectionId: string;
   activeRoute?: NavigationRoute;
+  activeEntityReference?: string;
   onActivate: (selection: NavigationSelection, route: NavigationRoute) => void;
   openContextMenu: (event: MouseEvent, leaf: NavigationLeafContribution) => void;
 }) {
@@ -329,10 +336,17 @@ export function SystemTree(props: {
     .build();
   const definition: TreeDefinition = {
     renderers,
-    isSelected: (node) =>
-      props.activeRoute?.source === "system" &&
-      props.activeRoute.section === props.sectionId &&
-      props.activeRoute.id === node.id,
+    isSelected: (node) => {
+      const entry = entryFor(node);
+      if (entry.type === "leaf" && entry.selection.type === "entity") {
+        return entry.selection.reference === props.activeEntityReference;
+      }
+      return (
+        props.activeRoute?.source === "system" &&
+        props.activeRoute.section === props.sectionId &&
+        props.activeRoute.id === node.id
+      );
+    },
     onActivate: (node) => {
       const entry = entryFor(node);
       if (entry.type === "leaf") {

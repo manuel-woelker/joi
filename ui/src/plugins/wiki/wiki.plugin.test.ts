@@ -27,7 +27,10 @@ describe("wiki plugin", () => {
       .build();
     const section = registry.extensions(navigationSection)[0];
     expect(section.label).toBe("Wiki");
-    const root = section.roots()[0];
+    const start = section.roots()[0];
+    if (start.type !== "leaf") throw new Error("Expected Start leaf");
+    expect(start.selection).toEqual({ type: "entity", reference: ":wiki:Start" });
+    const root = section.roots()[1];
     if (root.type !== "leaf") throw new Error("Expected pages leaf");
     expect(root.label).toBe("Wiki pages");
     expect(root.copyToWorkspace?.()).toMatchObject({

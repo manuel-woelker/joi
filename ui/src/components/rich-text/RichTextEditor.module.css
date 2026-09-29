@@ -80,6 +80,20 @@
   font-size: 11px;
 }
 
+.linkForm {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-canvas);
+}
+
+.linkForm input { flex: 1 1 160px; min-width: 0; }
+.linkForm button { height: 26px; }
+.linkForm [role="alert"] { color: var(--color-danger); font-size: 12px; }
+
 .separator {
   width: 1px;
   height: 18px;
@@ -136,6 +150,8 @@
   background: var(--color-surface-muted);
   font-family: var(--font-monospace);
 }
+
+.document a { color: var(--color-primary-dark); text-decoration: underline; }
 
 .readOnly {
   background: var(--color-surface-muted);

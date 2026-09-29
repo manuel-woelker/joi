@@ -397,4 +397,10 @@ pub trait TestDataProvider: Send + Sync {
     fn insert_test_data(&self, data_store: &mut dyn DataStore) -> JoiResult<()>;
 }
 
+/// Initializes required application data on every startup, after tables exist.
+pub trait StartupDataProvider: Send + Sync {
+    /// Ensures durable application records exist without overwriting existing data.
+    fn initialize(&self, data_store: &mut dyn DataStore) -> JoiResult<()>;
+}
+
 fn _assert_test_data_provider_dyn_compatible(_: &dyn TestDataProvider) {}

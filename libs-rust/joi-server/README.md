@@ -74,6 +74,15 @@ From the repository root, run:
 
 Repository-wide checks are available through `./t nao check`.
 
+## How are human-readable entity links resolved?
+
+The hidden `entity_keys` table maps a unique `namespace:key` alias to an entity
+table and immutable ID. `find_entity_key` reads a mapping;
+`register_entity_key` creates one without silently reassigning an existing alias.
+The authenticated `entity-key-resolve` command lets clients follow links such as
+`#:wiki:Start`. Domain plugins can register `StartupDataProvider` extensions to
+create required data after schemas are ready, independently of optional test data.
+
 ## How do mutation contributors work?
 
 Plugins register `dyn MutationContributor` extensions under `mutation-contributors`.
