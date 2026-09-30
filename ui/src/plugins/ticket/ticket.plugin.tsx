@@ -96,6 +96,7 @@ export default plugin({
         table: "tickets",
         key: "key",
         title: "title",
+        formatLabel: (key, title) => `${key} - ${title}`,
         href: (key) => `#/entity?entity=${encodeURIComponent(`ticket:${key}`)}`,
       }),
     });

@@ -11,6 +11,7 @@ export function queryLinkProvider(config: {
   readonly table: string;
   readonly key: string;
   readonly title: string;
+  readonly formatLabel?: (key: string, title: string) => string;
   readonly href: (key: string, row: { id: string }) => string;
 }): LinkTargetProvider {
   const fields = [...new Set([config.key, config.title, "id"])];
@@ -27,9 +28,14 @@ export function queryLinkProvider(config: {
     const idColumn = result.requireColumn("id");
     return result.rows.map((row): LinkCandidate => {
       const key = String(row.value(keyColumn));
-      const label = String(row.value(titleColumn));
+      const title = String(row.value(titleColumn));
       const id = String(row.value(idColumn));
-      return { reference: `${config.type}:${key}`, label, description: key, href: config.href(key, { id }) };
+      return {
+        reference: `${config.type}:${key}`,
+        label: config.formatLabel?.(key, title) ?? title,
+        description: key,
+        href: config.href(key, { id }),
+      };
     });
   };
   return {

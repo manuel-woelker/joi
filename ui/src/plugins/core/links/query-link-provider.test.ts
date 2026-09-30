@@ -38,3 +38,43 @@ it("uses indexed terms and exact keys for link searches", async () => {
     ],
   });
 });
+
+it("formats ticket labels without changing their link reference", async () => {
+  const service = new FetchService(
+    async () =>
+      ({
+        ok: true,
+        json: async () => ({
+          results: [
+            {
+              type: "rows",
+              result_columns: [
+                { attribute: "key", values: { type: "string", values: ["TEST-123"] } },
+                { attribute: "title", values: { type: "string", values: ["foo"] } },
+                { attribute: "id", values: { type: "string", values: ["ticket-id"] } },
+              ],
+            },
+          ],
+        }),
+      }) as Response,
+  );
+  const provider = queryLinkProvider({
+    service,
+    type: "ticket",
+    label: "Ticket",
+    table: "tickets",
+    key: "key",
+    title: "title",
+    formatLabel: (key, title) => `${key} - ${title}`,
+    href: (key) => `#/entity?entity=${key}`,
+  });
+
+  expect(await provider.search?.("TEST-123", new AbortController().signal, 20)).toEqual([
+    {
+      reference: "ticket:TEST-123",
+      label: "TEST-123 - foo",
+      description: "TEST-123",
+      href: "#/entity?entity=TEST-123",
+    },
+  ]);
+});
