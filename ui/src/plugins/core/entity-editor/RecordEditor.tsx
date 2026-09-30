@@ -5,6 +5,7 @@ import { CloseButton } from "../../../components/CloseButton";
 import { Form, useFormField, useFormState } from "../../../components/form/Form";
 import { FormValidationMessages } from "../../../components/form/FormValidationMessages";
 import { RichTextEditor } from "../../../components/rich-text/RichTextEditor";
+import { useOptionalLinkService } from "../links/link-service";
 import { Select } from "../../../components/Select";
 import { DataText, ModelText } from "../../../components/SourceText";
 import { DataChangeService } from "../data-changes/data-change-service";
@@ -255,6 +256,7 @@ function PublishButton(props: { onPublish: () => Promise<void> }) {
 
 function EditorField(props: { field: EditFieldDefinition; hideLabel?: boolean; plainRichText?: boolean }) {
   const formField = useFormField(props.field.attribute);
+  const linkService = useOptionalLinkService();
   const lookupService = props.field.lookup ? useLookupService() : undefined;
   const inputId = createUniqueId();
   const messagesId = `${inputId}-messages`;
@@ -331,6 +333,7 @@ function EditorField(props: { field: EditFieldDefinition; hideLabel?: boolean; p
         }
       >
         <RichTextEditor
+          links={linkService}
           plain={props.plainRichText}
           id={inputId}
           ariaLabel={formField.label}

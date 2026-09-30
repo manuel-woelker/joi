@@ -1,17 +1,22 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from "vitest";
 import { PluginRegistryBuilder, plugin } from "../../base/plugin-registry";
-import { FetchService } from "../../base/services/fetch-service";
+import { FetchService, fetchServiceKey } from "../../base/services/fetch-service";
 import { ModelService, modelServiceKey } from "../core/entities/model-service";
 import { entityDisplays } from "../core/entity-pages/contribution";
 import { navigationSection } from "../core/navigation/contribution";
+import { linkTargetProviders } from "../core/links/link-targets";
 import { viewResolvers } from "../core/shell/contribution";
 import wikiPlugin from "./wiki.plugin";
 import { wikiPageEntityId } from "./wikipage-entity";
 
 describe("wiki plugin", () => {
   it("registers a copyable wiki entry and resolves list, creation and detail views", () => {
-    const registry = new PluginRegistryBuilder([{ key: modelServiceKey, value: new ModelService(new FetchService()) }])
+    const service = new FetchService();
+    const registry = new PluginRegistryBuilder([
+      { key: modelServiceKey, value: new ModelService(service) },
+      { key: fetchServiceKey, value: service },
+    ])
       .register(
         plugin({
           name: "host",
@@ -20,6 +25,7 @@ describe("wiki plugin", () => {
             context.registerExtensionPoint({ point: navigationSection });
             context.registerExtensionPoint({ point: viewResolvers });
             context.registerExtensionPoint({ point: entityDisplays });
+            context.registerExtensionPoint({ point: linkTargetProviders });
           },
         }),
       )

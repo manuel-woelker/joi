@@ -1,4 +1,5 @@
 import { safeRichTextHref } from "./safe-rich-text-href";
+import { parseLinkReference } from "./link-reference";
 
 const allowedTags = new Set([
   "p",
@@ -33,8 +34,11 @@ export function sanitizedRichTextDocument(value: string): HTMLElement {
       parent.appendChild(document.createTextNode(node.textContent ?? ""));
     } else if (node instanceof Element && !omittedTags.has(node.localName)) {
       const href = node.localName === "a" ? safeRichTextHref(node.getAttribute("href") ?? "") : undefined;
+      const reference = node.localName === "a" ? node.getAttribute("data-joi-ref") : null;
+      const internal = !!(href && reference && parseLinkReference(reference));
       const target = allowedTags.has(node.localName) || href ? document.createElement(node.localName) : parent;
-      if (href && target instanceof Element) target.setAttribute("href", href);
+      if (href && !internal && target instanceof Element) target.setAttribute("href", href);
+      if (internal && reference && target instanceof Element) target.setAttribute("data-joi-ref", reference);
       if (target !== parent) parent.appendChild(target);
       for (const child of node.childNodes) append(child, target);
     }

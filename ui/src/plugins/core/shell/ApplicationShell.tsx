@@ -17,6 +17,7 @@ import type { AuthenticatedUser } from "../authentication/authentication-service
 import { UserMenu } from "../authentication/UserMenu";
 import { LookupProvider } from "../lookups/lookup";
 import { ModelProvider } from "../entities/ModelProvider";
+import { LinkProvider } from "../links/link-service";
 import { modelServiceFor } from "../entities/model-service";
 import { InspectableExtension, InspectableExtensionPoint } from "../debug/inspector/extension-inspector";
 import { StatusBar } from "../status-bar/StatusBar";
@@ -159,15 +160,17 @@ export function ApplicationShell(props: {
         <ActionProvider registry={props.registry} currentUser={props.user}>
           <ActionQuickLauncher />
           <PluginRegistryProvider registry={props.registry}>
-            <LookupProvider registry={props.registry} fetchService={props.services.fetchService}>
-              <ModelProvider service={modelServiceFor(props.services.fetchService)}>
-                <NavigationProvider controller={navigation}>
-                  <ProviderChain registry={props.registry}>
-                    <ShellContent registry={props.registry} user={props.user} onLogout={props.onLogout} />
-                  </ProviderChain>
-                </NavigationProvider>
-              </ModelProvider>
-            </LookupProvider>
+            <LinkProvider registry={props.registry} dataChanges={props.services.dataChanges}>
+              <LookupProvider registry={props.registry} fetchService={props.services.fetchService}>
+                <ModelProvider service={modelServiceFor(props.services.fetchService)}>
+                  <NavigationProvider controller={navigation}>
+                    <ProviderChain registry={props.registry}>
+                      <ShellContent registry={props.registry} user={props.user} onLogout={props.onLogout} />
+                    </ProviderChain>
+                  </NavigationProvider>
+                </ModelProvider>
+              </LookupProvider>
+            </LinkProvider>
           </PluginRegistryProvider>
         </ActionProvider>
       </ContextMenuProvider>

@@ -2,6 +2,27 @@
 
 SolidJS workspace for creating and organizing customizable application views.
 
+## How do rich-text entity links work?
+
+Wiki authors can type `[[wiki:Start]]`, `[[ticket:TEST-42]]`,
+`[[user:jane]]`, or `[[commit:repo-key@full-sha]]`. An optional `|label`
+sets the visible text, for example `[[wiki:Start|Home]]`. The editor's
+entity-link command opens a searchable picker; the ordinary link command is
+still used for external URLs. Internal links are stored as safe anchors with a
+`data-joi-ref` reference and a fallback href. Missing targets retain their
+visible text.
+
+Domain plugins contribute to `linkTargetProviders` with a unique lowercase
+`type`, a batched `resolve(keys, signal)` method, and optionally a bounded
+`search(query, signal, limit)` method. Providers return labels and safe URLs,
+never HTML. The shell owns a session-scoped `LinkService`, which groups
+resolution requests, caches hits, and invalidates them after entity changes.
+`RichTextEditor` only receives the narrow `LinkPickerSource` interface.
+Picker search uses indexed whole-word terms and exact public keys, rather than
+substring scans across large entity tables.
+Codevette search currently offers commits already loaded into its review cache;
+the repository-qualified reference and route remain stable across branches.
+
 On startup the UI requests `GET /api/user-info`. A valid HTTP-only session
 opens the workspace; otherwise a passwordless login view loads the available
 users and asks the visitor to select one. Successful login sets the backend

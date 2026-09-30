@@ -2,6 +2,7 @@
 export function safeRichTextHref(value: string): string | undefined {
   const href = value.trim();
   if (/^#:[^:\s]+:[^\s]+$/u.test(href)) return href;
+  if (/^#\/(?:entity\?entity=|codevette\/)[^\s<>"']+$/u.test(href)) return href;
   try {
     const url = new URL(href);
     if (["http:", "https:", "mailto:"].includes(url.protocol)) return href;

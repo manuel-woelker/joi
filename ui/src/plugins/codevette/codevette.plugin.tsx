@@ -1,6 +1,6 @@
 import GitBranchIcon from "lucide-solid/icons/git-branch";
 import GitPullRequestIcon from "lucide-solid/icons/git-pull-request";
-import { createSignal } from "solid-js";
+import { createResource, createSignal, Show } from "solid-js";
 
 import { plugin } from "../../base/plugin-registry";
 import { type FetchService, fetchServiceKey } from "../../base/services/fetch-service";
@@ -17,6 +17,8 @@ import {
   navigationSectionId,
 } from "../core/navigation/contribution";
 import { executeDataQuery } from "../core/query/query-client";
+import { linkTargetProviders } from "../core/links/link-targets";
+import { commitLinkProvider } from "./commit-link-provider";
 import { useWorkspace } from "../core/saved-views/controller";
 import { shellContributionId, viewResolvers } from "../core/shell/contribution";
 import { CommitReviewView } from "./commit-review/CommitReviewView";
@@ -48,6 +50,7 @@ export function parseBranchViewId(id: string): { repositoryKey: string; branchNa
 
 const legacyBranchViewPrefix = "codevette-branch/";
 const commitViewPrefix = "codevette-commit/";
+const stableCommitViewPrefix = "codevette-link/";
 
 export default plugin({
   name: "codevette",
@@ -55,6 +58,12 @@ export default plugin({
   requires: { fetchService: fetchServiceKey, models: modelServiceKey },
   registerExtensions(context) {
     const branches = createRepositoryNavigation(context.services.fetchService);
+    context.registerExtension({
+      point: linkTargetProviders,
+      id: "commit-links",
+      description: "Repository-scoped commit links",
+      value: commitLinkProvider(context.services.fetchService),
+    });
     context.registerExtension({
       point: administrationContributions,
       id: "repositories",
@@ -88,6 +97,28 @@ export default plugin({
         order: 10,
         resolve(selection) {
           const id = selection.type === "view" ? selection.id : undefined;
+          if (id?.startsWith(stableCommitViewPrefix)) {
+            const key = id.slice(stableCommitViewPrefix.length);
+            const separator = key.lastIndexOf("@");
+            const repositoryKey = key.slice(0, separator);
+            const commitId = key.slice(separator + 1);
+            if (separator > 0 && /^[a-f0-9]{40,64}$/u.test(commitId))
+              return {
+                id,
+                name: commitId.slice(0, 8),
+                description: `${repositoryKey} commit review`,
+                section: "Codevette",
+                icon: GitPullRequestIcon,
+                content: () => (
+                  <CommitByRepositoryView
+                    service={context.services.fetchService}
+                    branches={branches}
+                    repositoryKey={repositoryKey}
+                    commitId={commitId}
+                  />
+                ),
+              };
+          }
           const commitParts = id?.startsWith(commitViewPrefix)
             ? id.slice(commitViewPrefix.length).split("/")
             : undefined;
@@ -127,14 +158,16 @@ export default plugin({
 
 function createRepositoryNavigation(service: FetchService): {
   readonly roots: () => readonly NavigationRootContribution[];
+  readonly load: () => Promise<void>;
   readonly byId: (id: string) => RepositoryBranch | undefined;
+  readonly byRepositoryKey: (key: string) => RepositoryBranch | undefined;
   readonly byPath: (path: string) => RepositoryBranch | undefined;
   readonly byLegacyId: (id: string) => RepositoryBranch | undefined;
 } {
   const [items, setItems] = createSignal<RepositoryBranch[]>([]);
   let loading: Promise<void> | undefined;
   const load = () => {
-    loading ??= Promise.all([
+    return (loading ??= Promise.all([
       executeDataQuery(service, {
         tableName: "repositories",
         criterion: "match_any",
@@ -184,10 +217,11 @@ function createRepositoryNavigation(service: FetchService): {
           }),
         );
       })
-      .catch((error: unknown) => console.error("Failed to load Codevette repository navigation", error));
+      .catch((error: unknown) => console.error("Failed to load Codevette repository navigation", error)));
   };
   const byId = (id: string) => items().find((branch) => branch.id === id);
   return {
+    load,
     roots: () => {
       void load();
       const grouped = new Map<string, RepositoryBranch[]>();
@@ -215,6 +249,7 @@ function createRepositoryNavigation(service: FetchService): {
       }));
     },
     byId,
+    byRepositoryKey: (key) => items().find((branch) => branch.repositoryKey === key),
     byPath: (path) => {
       const parsed = parseBranchViewId(path);
       return parsed
@@ -224,6 +259,26 @@ function createRepositoryNavigation(service: FetchService): {
     byLegacyId: (id) =>
       id.startsWith(legacyBranchViewPrefix) ? byId(id.slice(legacyBranchViewPrefix.length)) : undefined,
   };
+}
+
+function CommitByRepositoryView(props: {
+  readonly service: FetchService;
+  readonly branches: ReturnType<typeof createRepositoryNavigation>;
+  readonly repositoryKey: string;
+  readonly commitId: string;
+}) {
+  const [branch] = createResource(async () => {
+    await props.branches.load();
+    return props.branches.byRepositoryKey(props.repositoryKey);
+  });
+  return (
+    <Show
+      when={branch()}
+      fallback={<p role="status">{branch.loading ? "Loading repository..." : "Repository or branch unavailable."}</p>}
+    >
+      {(current) => <CommitReviewView service={props.service} branchId={current().id} commitId={props.commitId} />}
+    </Show>
+  );
 }
 
 function BranchHistoryView(props: { readonly service: FetchService; readonly branch: RepositoryBranch }) {

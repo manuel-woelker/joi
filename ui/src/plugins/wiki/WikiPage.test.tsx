@@ -1,11 +1,15 @@
 // @vitest-environment happy-dom
 
 import { cleanup, fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
+import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
 import { createNavigationController, NavigationProvider } from "../../base/navigation";
+import { PluginRegistryBuilder, plugin } from "../../base/plugin-registry";
 import { ApplicationServicesProvider } from "../../base/services/application-services";
 import { FetchService } from "../../base/services/fetch-service";
 import { DataChangeService } from "../core/data-changes/data-change-service";
+import { LinkProvider } from "../core/links/link-service";
+import { linkTargetProviders } from "../core/links/link-targets";
 import { RecordMutationService } from "../core/data-changes/record-mutation-service";
 import { defineEntity } from "../core/entities/entity-description";
 import { parseQueryResponse } from "../core/query/query-result";
@@ -64,6 +68,28 @@ function mount(edit = false) {
   const fetchService = new FetchService(fetcher);
   const dataChanges = new DataChangeService();
   const onClose = vi.fn();
+  const searchLinks = vi.fn(async (query: string) => [
+    { reference: "wiki:Start", label: `Start ${query}`, href: "#:wiki:Start" },
+  ]);
+  const registry = new PluginRegistryBuilder()
+    .register(
+      plugin({
+        name: "test-links",
+        description: "Test wiki links",
+        registerExtensionPoints(context) {
+          context.registerExtensionPoint({ point: linkTargetProviders });
+        },
+        registerExtensions(context) {
+          context.registerExtension({
+            point: linkTargetProviders,
+            id: "wiki-links",
+            description: "Wiki links",
+            value: { type: "wiki", label: "Wiki page", resolve: async () => [], search: searchLinks },
+          });
+        },
+      }),
+    )
+    .build();
   const result = parseQueryResponse({
     number_of_hits: 1,
     result_columns: [
@@ -76,16 +102,31 @@ function mount(edit = false) {
     ],
   });
   render(() => (
-    <NavigationProvider controller={createNavigationController()}>
-      <ApplicationServicesProvider
-        services={{ fetchService, dataChanges, recordMutations: new RecordMutationService(fetchService, dataChanges) }}
-      >
-        <WikiPage entity={entity} result={result} recordId="page-1" onClose={onClose} />
-      </ApplicationServicesProvider>
-    </NavigationProvider>
+    <LinkProvider registry={registry}>
+      <NavigationProvider controller={createNavigationController()}>
+        <ApplicationServicesProvider
+          services={{
+            fetchService,
+            dataChanges,
+            recordMutations: new RecordMutationService(fetchService, dataChanges),
+          }}
+        >
+          <WikiPage entity={entity} result={result} recordId="page-1" onClose={onClose} />
+        </ApplicationServicesProvider>
+      </NavigationProvider>
+    </LinkProvider>
   ));
-  return { result, onClose, published, requests, getDraft: () => draft };
+  return { result, onClose, published, requests, searchLinks, getDraft: () => draft };
 }
+
+it("searches through the link service from the wiki draft editor", async () => {
+  const state = mount(true);
+  await screen.findByRole("textbox", { name: "Content" });
+  await userEvent.click(screen.getByRole("button", { name: "Link to entity" }));
+  expect(screen.getByText("Type to search")).toBeTruthy();
+  await userEvent.type(screen.getByRole("textbox", { name: "Search link targets" }), "Start");
+  await waitFor(() => expect(state.searchLinks).toHaveBeenCalledWith("Start", expect.any(AbortSignal), 20));
+});
 
 it("shows a safe document without attribute labels and enters edit mode explicitly", async () => {
   mount();

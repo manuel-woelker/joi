@@ -166,3 +166,20 @@
   background: var(--color-surface-muted);
   opacity: 0.7;
 }
+
+.linkPicker {
+  position: fixed;
+  z-index: 1000;
+  width: min(320px, calc(100vw - 16px));
+  max-height: 270px;
+  overflow: auto;
+  padding: 4px;
+  border: 1px solid var(--color-control-border);
+  background: var(--color-surface);
+  box-shadow: 0 5px 18px var(--color-control-inset-shadow);
+}
+.linkPicker input { width: 100%; }
+.pickerEntry { display: flex; width: 100%; flex-direction: column; align-items: flex-start; padding: 5px 8px; border: 0; background: transparent; text-align: left; }
+.pickerEntry:hover, .pickerEntry[aria-selected="true"] { background: var(--color-primary-soft); }
+.pickerEntry small, .pickerStatus { color: var(--color-text-muted); font-size: 11px; }
+.pickerStatus { padding: 7px; }

@@ -1,4 +1,7 @@
 import { plugin } from "../../base/plugin-registry";
+import { fetchServiceKey } from "../../base/services/fetch-service";
+import { linkTargetProviders } from "../core/links/link-targets";
+import { wikiLinkProvider } from "./wiki-link-provider";
 import { modelServiceKey } from "../core/entities/model-service";
 import { entityDisplays } from "../core/entity-pages/contribution";
 import { EntityMasterDetailView } from "../core/master-detail/EntityMasterDetailView";
@@ -12,8 +15,14 @@ const viewId = "wiki-pages";
 export default plugin({
   name: "wiki",
   description: "Wiki page browsing and rich-text editing",
-  requires: { models: modelServiceKey },
+  requires: { models: modelServiceKey, fetchService: fetchServiceKey },
   registerExtensions(context) {
+    context.registerExtension({
+      point: linkTargetProviders,
+      id: "wiki-links",
+      description: "Wiki page links",
+      value: wikiLinkProvider(context.services.fetchService),
+    });
     context.registerExtension({
       point: entityDisplays,
       id: "wiki-page-display",

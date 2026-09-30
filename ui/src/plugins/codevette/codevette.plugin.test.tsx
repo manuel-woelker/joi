@@ -9,6 +9,7 @@ import { createNavigationController } from "../../base/navigation";
 import { FetchService } from "../../base/services/fetch-service";
 import administrationPlugin from "../core/administration/administration.plugin";
 import entitiesPlugin from "../core/entities/entities.plugin";
+import linksPlugin from "../core/links/links.plugin";
 import { navigationSection } from "../core/navigation/contribution";
 import navigationPlugin from "../core/navigation/navigation.plugin";
 import { leafEntries } from "../core/navigation/recent-views";
@@ -70,7 +71,7 @@ describe("codevette branch urls", () => {
   it("exposes branches under readable repo/branch view ids and resolves them", async () => {
     vi.spyOn(console, "info").mockImplementation(() => undefined);
     const application = createApplication({
-      plugins: [shellPlugin, entitiesPlugin, navigationPlugin, administrationPlugin, codevettePlugin],
+      plugins: [shellPlugin, entitiesPlugin, navigationPlugin, administrationPlugin, linksPlugin, codevettePlugin],
       fetchService,
     });
     const section = application.registry
@@ -102,6 +103,11 @@ describe("codevette branch urls", () => {
     // Unknown repositories and branches resolve to nothing.
     expect(resolveApplicationView(application.registry, { type: "view", id: "branches/joi/nope" })).toBeUndefined();
     expect(resolveApplicationView(application.registry, { type: "view", id: "branches/other/main" })).toBeUndefined();
+    const stable = resolveApplicationView(application.registry, {
+      type: "view",
+      id: `codevette-link/joi@${"a".repeat(40)}`,
+    });
+    expect(stable?.name).toBe("aaaaaaaa");
   });
 
   it("round-trips the branch url through the hash", () => {

@@ -1,6 +1,9 @@
 import { Show } from "solid-js";
 
 import { plugin } from "../../base/plugin-registry";
+import { fetchServiceKey } from "../../base/services/fetch-service";
+import { linkTargetProviders } from "../core/links/link-targets";
+import { queryLinkProvider } from "../core/links/query-link-provider";
 import { IconButton } from "../../components/IconButton";
 import { shellOverlays, topBarContributions, viewResolvers, shellContributionId } from "../core/shell/contribution";
 import { EntityMasterDetailView } from "../core/master-detail/EntityMasterDetailView";
@@ -80,8 +83,22 @@ function TicketMasterDetailView() {
 export default plugin({
   name: "tickets",
   description: "Ticket domain views and workspace",
-  requires: { models: modelServiceKey },
+  requires: { models: modelServiceKey, fetchService: fetchServiceKey },
   registerExtensions(context) {
+    context.registerExtension({
+      point: linkTargetProviders,
+      id: "ticket-links",
+      description: "Ticket links",
+      value: queryLinkProvider({
+        service: context.services.fetchService,
+        type: "ticket",
+        label: "Ticket",
+        table: "tickets",
+        key: "key",
+        title: "title",
+        href: (key) => `#/entity?entity=${encodeURIComponent(`ticket:${key}`)}`,
+      }),
+    });
     context.registerExtension({
       point: savedViewDefaults,
       id: "ticket-default-views",

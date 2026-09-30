@@ -112,20 +112,20 @@ deleted targets must be handled as unavailable.
 
 ## What are the implementation steps?
 
-- [ ] Define and test the reference grammar, link mark HTML round-trip, safe
+- [x] Define and test the reference grammar, link mark HTML round-trip, safe
       href generation, and malformed/unknown-reference behavior.
-- [ ] Add the typed extension point and session-scoped `LinkService`, with
+- [x] Add the typed extension point and session-scoped `LinkService`, with
       duplicate-provider checks, bounded search, cancellation, caching, and
       clear failure semantics. Register it through the core links plugin.
-- [ ] Add the generic caret/toolbar picker interface to `RichTextEditor` with
+- [x] Add the generic caret/toolbar picker interface to `RichTextEditor` with
       keyboard navigation, anchored unclipped popup, selection preservation,
       link editing/unlinking, and no registry/backend imports.
-- [ ] Implement wiki, ticket, and user provider extensions using existing
+- [x] Implement wiki, ticket, and user provider extensions using existing
       generated commands/query APIs. Add the Codevette provider and stable
       repository-scoped commit navigation after resolving the route question.
-- [ ] Update the wiki read renderer/sanitizer to display internal links safely
+- [x] Update the wiki read renderer/sanitizer to display internal links safely
       and handle missing targets. Avoid N+1 resolution when rendering a page.
-- [ ] Add playground scenarios for typing, search, explicit labels, external
+- [x] Add playground scenarios for typing, search, explicit labels, external
       links, slow/error responses, missing targets, and many links. Document
       syntax and extension authoring in the UI/server docs.
 
@@ -152,9 +152,10 @@ deleted targets must be handled as unavailable.
 - **Assumption:** a single extension point with optional search keeps provider
   registration lean. Split search and resolution only if a real provider needs
   one without the other beyond the optional method.
-- **Decision needed for commits:** use `repo-key@full-sha` and add a branch-
-  independent review route, or require a branch in every link? The former is
-  recommended because a commit can appear on multiple branches.
+- **Decision:** commit links use `repo-key@full-sha` and a repository-scoped
+  route. The current commit provider searches/resolves commits already cached
+  by Codevette review; broad Git-history search needs a dedicated bounded
+  server API before it can cover uncached commits efficiently.
 - Usernames and wiki aliases may eventually be renamed. Decide whether old
   links remain as aliases before adding rename UI; do not silently reassign an
   alias to a different entity.

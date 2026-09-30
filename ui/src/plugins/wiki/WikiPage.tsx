@@ -1,11 +1,12 @@
 import EyeIcon from "lucide-solid/icons/eye";
 import PencilIcon from "lucide-solid/icons/pencil";
-import { createMemo, createResource, Show } from "solid-js";
+import { createEffect, createMemo, createResource, onCleanup, Show } from "solid-js";
 import { useNavigation } from "../../base/navigation";
 import { useApplicationServices } from "../../base/services/application-services";
 import { CloseButton } from "../../components/CloseButton";
 import { IconButton } from "../../components/IconButton";
 import { sanitizedRichTextHtml } from "../../components/rich-text/sanitize-html";
+import { useOptionalLinkService } from "../core/links/link-service";
 import { DataText } from "../../components/SourceText";
 import { CommandService } from "../../generated/api/command-service";
 import { createEntityEditorDefinition } from "../core/entities/entity-editor";
@@ -19,6 +20,8 @@ import styles from "./WikiPage.module.css";
 export function WikiPage(props: EntityDisplayProps) {
   const navigation = useNavigation();
   const services = useApplicationServices();
+  const links = useOptionalLinkService();
+  let contentElement: HTMLDivElement | undefined;
   const commands = new CommandService(services.fetchService);
   const editing = () => navigation.hashState("edit") !== undefined;
   const [draft, { refetch }] = createResource(
@@ -56,6 +59,37 @@ export function WikiPage(props: EntityDisplayProps) {
     const result = column && current?.value(column);
     return typeof result === "string" ? result : "";
   };
+  createEffect(() => {
+    value("content");
+    if (!links || draft.loading || !contentElement || editing()) return;
+    const controller = new AbortController();
+    const anchors = [...contentElement.querySelectorAll<HTMLAnchorElement>("a[data-joi-ref]")];
+    const references = [
+      ...new Set(anchors.map((anchor) => anchor.dataset.joiRef).filter((ref): ref is string => !!ref)),
+    ];
+    void (async () => {
+      for (let offset = 0; offset < references.length; offset += 100) {
+        const chunk = references.slice(offset, offset + 100);
+        const resolved = await links.resolve(chunk, controller.signal);
+        if (controller.signal.aborted) return;
+        const byReference = new Map(chunk.map((reference, index) => [reference, resolved[index]]));
+        for (const anchor of anchors) {
+          const reference = anchor.dataset.joiRef;
+          if (!reference || !byReference.has(reference)) continue;
+          const target = byReference.get(reference);
+          if (target) anchor.href = target.href;
+          else {
+            anchor.removeAttribute("href");
+            anchor.setAttribute("aria-label", `${anchor.textContent ?? reference} (unavailable)`);
+            anchor.classList.add(styles.unavailableLink);
+          }
+        }
+      }
+    })().catch((error: unknown) => {
+      if (!controller.signal.aborted) console.error("Failed to resolve wiki links", error);
+    });
+    onCleanup(() => controller.abort());
+  });
   const stopEditing = () => navigation.setHashState("edit");
   const publish = async () => {
     const published = await commands.wikiPublish({ id: props.recordId });
@@ -122,7 +156,7 @@ export function WikiPage(props: EntityDisplayProps) {
             <Show when={draft()?.exists}>
               <p class={styles.draftNotice}>Unpublished edits</p>
             </Show>
-            <div class={styles.content} innerHTML={sanitizedRichTextHtml(value("content"))} />
+            <div ref={contentElement} class={styles.content} innerHTML={sanitizedRichTextHtml(value("content"))} />
           </Show>
         </Show>
       </Show>
