@@ -476,3 +476,12 @@ creation, updates, deletion, system attribution, and these value-display cases.
 History starts when enabled and retains deleted records' changes. The normal
 detail pane still closes when its live record disappears; there is no deleted
 record browser or revert command.
+
+## How are UI plugin imports constrained?
+
+Domain plugins in `src/plugins` may import core plugins but not one another.
+Core plugins may not import domain plugins. Share behavior through core
+extension points and services instead. Run `./n ui-import-boundaries` from the
+repository root to check resolved imports; this also runs as part of `./n check`.
+The dependency-cruiser tool uses its own compatible TypeScript version; the UI
+typecheck continues to use the repository's pinned TypeScript toolchain.

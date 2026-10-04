@@ -1,3 +1,8 @@
 packages:
   - codegen
   - ui
+
+packageExtensions:
+  dependency-cruiser@18.5.0:
+    dependencies:
+      typescript: ^6.0.0

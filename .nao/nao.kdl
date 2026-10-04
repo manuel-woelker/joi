@@ -41,14 +41,19 @@ recipe "default" {
   task "biome-lint" description="Run Biome linting" {
     depends-on "pnpm-install"
     depends-on "codegen"
-    run shell="./t node ui/node_modules/@biomejs/biome/bin/biome lint codegen/src codegen/package.json codegen/tsconfig.json ui/src ui/vite.config.ts"
+    run shell="./t node ui/node_modules/@biomejs/biome/bin/biome lint codegen/src codegen/package.json codegen/tsconfig.json ui/src ui/scripts ui/vite.config.ts"
+  }
+
+  task "ui-import-boundaries" description="Check UI plugin import boundaries" {
+    depends-on "pnpm-install"
+    run shell="./t node ui/scripts/check-import-boundaries.mjs"
   }
 
   task "biome-format" description="Check Biome formatting" {
     depends-on "pnpm-install"
     depends-on "codegen"
     run shell="""
-      paths="codegen/src codegen/tsconfig.json codegen/package.json ui/src ui/vite.config.ts ui/tsconfig.json ui/package.json biome.json"
+      paths="codegen/src codegen/tsconfig.json codegen/package.json ui/src ui/scripts ui/vite.config.ts ui/tsconfig.json ui/package.json biome.json"
       before=$(mktemp)
       trap 'rm -f "$before"' EXIT
       git diff --binary -- $paths > "$before"
@@ -102,6 +107,7 @@ recipe "default" {
     depends-on "cargo-fmt"
     depends-on "cargo-clippy"
     depends-on "biome-lint"
+    depends-on "ui-import-boundaries"
     depends-on "biome-format"
     depends-on "ui-typecheck"
     depends-on "ui-test"
