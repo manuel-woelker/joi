@@ -29,6 +29,40 @@ Each library should have enough documentation for a new contributor to understan
 When writing longer documentation, prefer headings framed as questions and answer them directly in the following paragraphs.
 This makes documentation easier to scan and helps keep each section purposeful.
 
+### Decision Records
+
+Consult [decision records](docs/decisions/README.md) before changing architecture,
+public APIs, project conventions, or product behavior. Record significant choices
+in `docs/decisions/` following [DR-000](<docs/decisions/DR-000 Record decisions in the repository.md>).
+Use the next unused `DR-NNN Decision title.md` identifier and include the
+decision, rationale, context, consequences, and alternatives.
+
+Review records alongside the work. A proposal is not Accepted merely because
+it was written. Preserve accepted history; supersede changed decisions with a
+new, bidirectionally linked record. Ground retrospective records in code, plans,
+or commits, and distinguish reconstructed reasoning from known history. Routine
+changes do not require a record.
+
+### Development Learnings
+
+Consult [development learnings](docs/learnings/README.md) when investigating
+unfamiliar behavior or working in an area with recorded findings. Create or
+update a learning alongside work that establishes a reusable finding, such as a
+surprising debugging result, disproved assumption, or performance or platform
+pitfall. Routine changes and untested guesses do not need an entry.
+
+Use `YYYY-MM-DD Finding title.md`, dated when the finding was established.
+Include context, evidence, and references; distinguish observation from inference.
+Update findings when evidence changes, preserving useful context. Link related
+plans and decisions rather than duplicating them.
+
+### Code Documentation
+
+Document public functions, types, and interfaces using the language's standard
+syntax, such as Rustdoc or TSDoc. Document fields when their purpose is not
+clear from their name. Use ordinary comments sparingly to preserve non-obvious
+rationale or workarounds; explain why, not what the code visibly does.
+
 ## UI Text Sources
 
 Use the children-only span components in `ui/src/components/SourceText.tsx` to distinguish text by its source:
@@ -89,7 +123,14 @@ Important:
 - Always run `git add` and `git commit` as separate commands.
 - Never push code or ask to push code.
 
-When crafting multiline commit messages, prefer `git commit -F -` with heredoc syntax to avoid shell escaping issues.
+Commit each verified, coherent unit of work after `./n check` passes. Keep
+unrelated changes in separate commits. For a minor follow-up to the latest
+commit from the current task, rerun `./n check` and amend that commit rather
+than creating a separate one.
+
+Write multiline commit messages to a temporary file and use
+`git commit -F <message-file>` (or `git commit --amend -F <message-file>`).
+Do not use heredocs or heredoc delimiters to supply commit messages.
 
 ## File Naming and Organization
 
