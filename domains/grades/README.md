@@ -4,8 +4,8 @@ Status: experimental model definitions. `Student` has a name and date of birth;
 `Subject` has a name; `Class` refers to sets of both; `School Year` refers to
 classes. `Assessment` describes a class-level event with a subject, date, and
 `Assessment Method` (`verbal` or `written`). `Assessment Grade` links one student
-to that assessment and records their result. The grade is text so the model does
-not assume a particular grading scale.
+to that assessment and records their numeric result. The model does not assume
+a particular grading scale.
 
 The definitions use the shared [`@joi/domain`](../../libs-ts/joi-domain/README.md)
 contract for primitive types, collections, references, enums, and branded types.

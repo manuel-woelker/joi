@@ -65,6 +65,6 @@ export const assessmentGradeType = defineEntity({
   attributes: [
     { name: "Assessment", description: "Assessment for which the grade was awarded.", type: Types.ref(assessmentType) },
     { name: "Student", description: "Student receiving the grade.", type: Types.ref(studentType) },
-    { name: "Grade", description: "Recorded result, using the applicable grading scale.", type: Types.String },
+    { name: "Grade", description: "Numeric result, using the applicable grading scale.", type: Types.Number },
   ],
 });

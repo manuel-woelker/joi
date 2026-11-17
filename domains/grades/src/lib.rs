@@ -83,7 +83,7 @@ mod tests {
             [
                 ("Assessment", "ref<Assessment>"),
                 ("Student", "ref<Student>"),
-                ("Grade", "string"),
+                ("Grade", "number"),
             ]
         );
         let student = response

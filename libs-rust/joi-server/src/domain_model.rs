@@ -70,6 +70,8 @@ pub struct DomainAttribute {
 pub enum DomainType {
     /// Text value.
     String,
+    /// Numeric value, including fractional values.
+    Number,
     /// Calendar date.
     Date,
     /// Start and end dates.
@@ -96,6 +98,7 @@ impl DomainType {
     pub fn display(&self) -> String {
         match self {
             Self::String => "string".into(),
+            Self::Number => "number".into(),
             Self::Date => "date".into(),
             Self::DateRange => "date range".into(),
             Self::Set { element } => format!("set<{}>", element.display()),

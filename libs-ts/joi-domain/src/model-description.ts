@@ -1,7 +1,7 @@
 import type { EntityType, EnumType, TypeDefinition } from "./entity-definition.ts";
 
 export type DescribedType =
-  | { readonly kind: "string" | "date" | "date-range" }
+  | { readonly kind: "string" | "number" | "date" | "date-range" }
   | { readonly kind: "set"; readonly element: DescribedType }
   | { readonly kind: "ref"; readonly entity: string }
   | { readonly kind: "enum"; readonly enumeration: string };
@@ -55,6 +55,7 @@ export function describeModel(
   const describeType = (type: TypeDefinition): DescribedType => {
     switch (type.kind) {
       case "string":
+      case "number":
       case "date":
       case "date-range":
         return { kind: type.kind };

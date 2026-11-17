@@ -3,6 +3,7 @@ const enumTypeBrand: unique symbol = Symbol("enum-type");
 
 export type TypeDefinition =
   | { readonly kind: "string" }
+  | { readonly kind: "number" }
   | { readonly kind: "date" }
   | { readonly kind: "date-range" }
   | { readonly kind: "set"; readonly element: TypeDefinition }
@@ -45,6 +46,7 @@ export interface EntityType<
 /** Primitive types and constructors for collection and entity-reference attributes. */
 export const Types = {
   String: { kind: "string" } as const,
+  Number: { kind: "number" } as const,
   Date: { kind: "date" } as const,
   DateRange: { kind: "date-range" } as const,
   set: <T extends TypeDefinition>(element: T) => ({ kind: "set" as const, element }),

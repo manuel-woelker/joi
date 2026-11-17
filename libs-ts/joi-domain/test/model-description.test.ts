@@ -87,3 +87,11 @@ test("preserves entity and attribute descriptions", () => {
     attributes: [{ name: "Title", description: "The course title.", type: { kind: "string" } }],
   });
 });
+
+test("serializes numeric attributes", () => {
+  const score = defineEntity({
+    name: "Score",
+    attributes: [{ name: "Value", type: Types.Number }],
+  });
+  assert.deepEqual(describeModel([score]).entities[0]?.attributes[0]?.type, { kind: "number" });
+});
