@@ -37,7 +37,7 @@ export const schoolYearType = defineEntity({
 
 export const assessmentMethod = defineEnum({
   name: "Assessment Method",
-  description: "How a student's performance was assessed.",
+  description: "How the class assessment was conducted.",
   values: [
     { name: "verbal", description: "An oral or spoken assessment." },
     { name: "written", description: "A written assessment." },
@@ -46,17 +46,25 @@ export const assessmentMethod = defineEnum({
 
 export const assessmentType = defineEntity({
   name: "Assessment",
-  description: "A recorded evaluation of one student's performance in a subject.",
+  description: "An assessment given to a class in a subject.",
   attributes: [
-    { name: "Student", description: "Student being assessed.", type: Types.ref(studentType) },
     { name: "Subject", description: "Subject being assessed.", type: Types.ref(subjectType) },
-    { name: "Class", description: "Class in which the assessment took place.", type: Types.ref(classType) },
+    { name: "Class", description: "Class taking the assessment.", type: Types.ref(classType) },
     { name: "Date", description: "Date of the assessment.", type: Types.Date },
     {
       name: "Method",
       description: "Whether the assessment was verbal or written.",
       type: Types.enumeration(assessmentMethod),
     },
+  ],
+});
+
+export const assessmentGradeType = defineEntity({
+  name: "Assessment Grade",
+  description: "One student's result for an assessment.",
+  attributes: [
+    { name: "Assessment", description: "Assessment for which the grade was awarded.", type: Types.ref(assessmentType) },
+    { name: "Student", description: "Student receiving the grade.", type: Types.ref(studentType) },
     { name: "Grade", description: "Recorded result, using the applicable grading scale.", type: Types.String },
   ],
 });

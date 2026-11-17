@@ -40,7 +40,7 @@ mod tests {
         let response = ModelInfoCommand::new(builder.build())
             .execute(&Default::default(), ModelInfoRequest {})
             .unwrap();
-        assert_eq!(response.domain_models.len(), 5);
+        assert_eq!(response.domain_models.len(), 6);
         assert_eq!(response.domain_enums.len(), 1);
         let method = &response.domain_enums[0];
         assert_eq!(method.id, "grades.Assessment Method");
@@ -63,6 +63,29 @@ mod tests {
             .find(|attribute| attribute.name == "Method")
             .unwrap();
         assert_eq!(kind.data_type, "enum<Assessment Method>");
+        assert!(
+            assessment
+                .attributes
+                .iter()
+                .all(|attribute| attribute.name != "Student" && attribute.name != "Grade")
+        );
+        let grade = response
+            .domain_models
+            .iter()
+            .find(|model| model.id == "grades.Assessment Grade")
+            .unwrap();
+        assert_eq!(
+            grade
+                .attributes
+                .iter()
+                .map(|attribute| (attribute.name.as_str(), attribute.data_type.as_str()))
+                .collect::<Vec<_>>(),
+            [
+                ("Assessment", "ref<Assessment>"),
+                ("Student", "ref<Student>"),
+                ("Grade", "string"),
+            ]
+        );
         let student = response
             .domain_models
             .iter()
