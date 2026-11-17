@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "domains/grades",
     "examples/joix",
     "examples/joix-codevette",
     "examples/joix-tickets",

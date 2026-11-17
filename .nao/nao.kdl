@@ -41,7 +41,7 @@ recipe "default" {
   task "biome-lint" description="Run Biome linting" {
     depends-on "pnpm-install"
     depends-on "codegen"
-    run shell="./t node ui/node_modules/@biomejs/biome/bin/biome lint codegen/src codegen/package.json codegen/tsconfig.json ui/src ui/scripts ui/vite.config.ts"
+    run shell="./t node ui/node_modules/@biomejs/biome/bin/biome lint codegen/src codegen/package.json codegen/tsconfig.json domains/grades/definitions domains/grades/package.json libs-ts/joi-domain/src libs-ts/joi-domain/test libs-ts/joi-domain/package.json ui/src ui/scripts ui/vite.config.ts"
   }
 
   task "ui-import-boundaries" description="Check UI plugin import boundaries" {
@@ -53,7 +53,7 @@ recipe "default" {
     depends-on "pnpm-install"
     depends-on "codegen"
     run shell="""
-      paths="codegen/src codegen/tsconfig.json codegen/package.json ui/src ui/scripts ui/vite.config.ts ui/tsconfig.json ui/package.json biome.json"
+      paths="codegen/src codegen/tsconfig.json codegen/package.json domains/grades/definitions domains/grades/package.json libs-ts/joi-domain/src libs-ts/joi-domain/test libs-ts/joi-domain/package.json ui/src ui/scripts ui/vite.config.ts ui/tsconfig.json ui/package.json biome.json"
       before=$(mktemp)
       trap 'rm -f "$before"' EXIT
       git diff --binary -- $paths > "$before"
@@ -66,6 +66,20 @@ recipe "default" {
     depends-on "pnpm-install"
     depends-on "codegen"
     run shell="./t node ui/node_modules/@typescript/native-preview/bin/tsgo --noEmit --project ui/tsconfig.json"
+  }
+
+  task "grades-typecheck" description="Typecheck the grades domain definitions" {
+    depends-on "pnpm-install"
+    run shell="./t node ui/node_modules/@typescript/native-preview/bin/tsgo --noEmit --strict --target ES2022 --module NodeNext --moduleResolution NodeNext --allowImportingTsExtensions domains/grades/definitions/data-model.ts"
+  }
+
+  task "domain-typecheck" description="Typecheck the shared domain contract and examples" {
+    depends-on "pnpm-install"
+    run shell="./t node ui/node_modules/@typescript/native-preview/bin/tsgo --noEmit --strict --target ES2022 --module NodeNext --moduleResolution NodeNext --allowImportingTsExtensions --typeRoots ui/node_modules/@types --types node libs-ts/joi-domain/test/entity-definition.test.ts libs-ts/joi-domain/test/entity-definition.typecheck.ts"
+  }
+
+  task "domain-test" description="Test the shared domain contract" {
+    run shell="./t node --test libs-ts/joi-domain/test/*.test.ts"
   }
 
   task "ui-test" description="Run the UI tests" {
@@ -110,6 +124,9 @@ recipe "default" {
     depends-on "ui-import-boundaries"
     depends-on "biome-format"
     depends-on "ui-typecheck"
+    depends-on "grades-typecheck"
+    depends-on "domain-typecheck"
+    depends-on "domain-test"
     depends-on "ui-test"
     depends-on "codegen-test"
     depends-on "codegen-check"

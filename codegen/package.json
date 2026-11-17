@@ -9,6 +9,9 @@
     "check-generated": "node src/cli.ts check",
     "test": "vitest run"
   },
+  "dependencies": {
+    "@joi/domain": "workspace:*"
+  },
   "devDependencies": {
     "@types/node": "^26.4.0",
     "@typescript/native-preview": "7.0.0-dev.20260707.2",

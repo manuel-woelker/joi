@@ -1,0 +1,14 @@
+<mxGraphModel adaptiveColors="auto">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+    <mxCell id="domains" value="&lt;b&gt;Domain packages&lt;/b&gt;&lt;br&gt;Entities and actions&lt;br&gt;grades, future domains" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F4FAF6;strokeColor=#56916A;fontColor=#183827;fontSize=15;" vertex="1" parent="1"><mxGeometry x="40" y="50" width="240" height="100" as="geometry"/></mxCell>
+    <mxCell id="composition" value="&lt;b&gt;Composition root&lt;/b&gt;&lt;br&gt;Loads declarations and wires runtime" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#667085;fontColor=#202833;fontSize=15;" vertex="1" parent="1"><mxGeometry x="350" y="50" width="240" height="100" as="geometry"/></mxCell>
+    <mxCell id="infrastructure" value="&lt;b&gt;Generic infrastructure&lt;/b&gt;&lt;br&gt;Storage, APIs, UI, action dispatch" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F5F8FC;strokeColor=#627D9B;fontColor=#203040;fontSize=15;" vertex="1" parent="1"><mxGeometry x="660" y="50" width="260" height="100" as="geometry"/></mxCell>
+    <mxCell id="contract" value="&lt;b&gt;@joi/domain&lt;/b&gt;&lt;br&gt;Shared definitions and type references" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF8EC;strokeColor=#B8873B;fontColor=#473318;fontSize=15;" vertex="1" parent="1"><mxGeometry x="350" y="280" width="240" height="90" as="geometry"/></mxCell>
+    <mxCell id="load" value="loads" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#667085;strokeWidth=2;fontSize=12;" edge="1" source="composition" target="domains" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="wire" value="configures" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#667085;strokeWidth=2;fontSize=12;" edge="1" source="composition" target="infrastructure" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="domain-contract" value="imports" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#667085;strokeWidth=2;fontSize=12;" edge="1" source="domains" target="contract" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="infra-contract" value="imports" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#667085;strokeWidth=2;fontSize=12;" edge="1" source="infrastructure" target="contract" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+  </root>
+</mxGraphModel>

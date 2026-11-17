@@ -65,6 +65,7 @@ mod tests {
     use joi_server::{
         command_handler::{CommandHandler, CommandUser},
         data_store::{AttributeName, DataStore, DataStoreQuery, QueryCriterion, TableName, Values},
+        domain_model::DomainModelProvider,
         generated::api::EntityHistoryRequest,
         mutation_contributor::{MutationContext, MutationContributor},
         storage::IndexedDataStore,
@@ -82,6 +83,10 @@ mod tests {
                 )?;
                 context
                     .register_extension_point::<dyn TableDescriptionProvider>("tables", "Tables")?;
+                context.register_extension_point::<dyn DomainModelProvider>(
+                    "domain-models",
+                    "Domain models",
+                )?;
                 context.register_extension_point::<dyn TestDataProvider>("seeds", "Seeds")?;
                 context.register_extension_point::<dyn CommandProvider>("commands", "Commands")?;
                 context.register_extension::<dyn TableDescriptionProvider>(
@@ -111,6 +116,10 @@ mod tests {
             ("users", "${name} (${username})", "users"),
         ] {
             let model = models.iter().find(|model| model.name == name).unwrap();
+            assert_eq!(
+                model.domain.as_deref(),
+                (name != "users").then_some("tickets")
+            );
             let presentation = model.presentation.as_ref().unwrap();
             assert_eq!(presentation.label_template, template);
             assert_eq!(presentation.icon, icon);

@@ -1,0 +1,10 @@
+{
+  "name": "@joi/domain",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/entity-definition.ts",
+    "./model-description": "./src/model-description.ts"
+  }
+}

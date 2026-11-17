@@ -37,6 +37,14 @@ tools {
 			nao "nao"
 		}
 	}
+	d2 "0.9.0" {
+		download {
+			linux "https://github.com/d2lang/d2/releases/download/v${version}/d2-v${version}-linux-amd64.tar.gz"
+		}
+		commands {
+			d2 "bin/d2"
+		}
+	}
 	zig "0.16.0" {
 		download {
 			linux "https://ziglang.org/download/${version}/zig-x86_64-linux-${version}.tar.xz"

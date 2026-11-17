@@ -8,6 +8,7 @@ publish = false
 
 [dependencies]
 joi-server = { path = "../../libs-rust/joi-server" }
+joi-grades = { path = "../../domains/grades" }
 joix-codevette = { path = "../joix-codevette" }
 joix-tickets = { path = "../joix-tickets" }
 joix-wiki = { path = "../joix-wiki" }

@@ -9,6 +9,10 @@ packageExtensionsChecksum: sha256-Z/BjHWYLs9J/jgZhfRbqow526cSXh9SXsvmQo53Z0hQ=
 importers:
 
   codegen:
+    dependencies:
+      '@joi/domain':
+        specifier: workspace:*
+        version: link:../libs-ts/joi-domain
     devDependencies:
       '@types/node':
         specifier: ^26.4.0
@@ -25,6 +29,14 @@ importers:
       vitest:
         specifier: ^4.1.11
         version: 4.1.11(@types/node@26.4.1)(happy-dom@20.14.0)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.1))
+
+  domains/grades:
+    dependencies:
+      '@joi/domain':
+        specifier: workspace:*
+        version: link:../../libs-ts/joi-domain
+
+  libs-ts/joi-domain: {}
 
   ui:
     dependencies:

@@ -18,6 +18,10 @@ use crate::git::{GitHistory, GixGitHistory};
 pub struct CommitTableDescriptionProvider;
 
 impl TableDescriptionProvider for CommitTableDescriptionProvider {
+    fn domain(&self) -> Option<&'static str> {
+        Some("codevette")
+    }
+
     fn table_description(&self) -> TableDescription {
         TableDescription {
             name: TableName("codevette_commits".into()),

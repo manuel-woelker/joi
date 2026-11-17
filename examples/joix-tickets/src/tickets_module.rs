@@ -16,6 +16,10 @@ use joi_server::data_store::{
 pub struct TicketTableDescriptionProvider;
 
 impl TableDescriptionProvider for TicketTableDescriptionProvider {
+    fn domain(&self) -> Option<&'static str> {
+        Some("tickets")
+    }
+
     fn table_description(&self) -> TableDescription {
         TableDescription {
             name: TableName("tickets".into()),

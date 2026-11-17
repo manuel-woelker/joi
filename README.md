@@ -19,13 +19,17 @@ When one package uses another, that relationship should be explicit and document
 ## Repository Layout
 
 The layout is intentionally minimal while the monorepo is being bootstrapped.
-Libraries are grouped by ecosystem, with Rust libraries living under `libs-rust/`.
+Libraries are grouped by ecosystem, with Rust libraries living under `libs-rust/`
+and TypeScript libraries under `libs-ts/`. Domain declarations live under
+`domains/` and depend on shared contracts, not infrastructure.
 
 As libraries are added, prefer a structure like:
 
 ```text
 .
 ├── libs-rust/     # Independent Rust libraries
+├── libs-ts/       # Shared TypeScript libraries and contracts
+├── domains/       # Domain declarations
 ├── docs/          # Repository-level documentation, if needed
 ├── examples/      # Cross-library examples, if useful
 └── scripts/       # Shared maintenance scripts, if useful
@@ -35,6 +39,7 @@ Package-specific documentation, examples, and tests should live with the package
 
 Current libraries:
 
+- [`libs-ts/joi-domain`](libs-ts/joi-domain/README.md) - Shared entity-definition contract for domain packages.
 - [`libs-rust/joi-base`](libs-rust/joi-base/README.md) - Foundational shared types such as `JoiString`.
 - [`libs-rust/joi-error`](libs-rust/joi-error/README.md) - Shared `error-stack` error and result types.
 - [`libs-rust/joi-plugin`](libs-rust/joi-plugin/README.md) - Typed in-process plugin and extension registration.
@@ -46,6 +51,9 @@ Cross-library examples:
 - [`examples/joix-codevette`](examples/joix-codevette/README.md) - Trunk-based code review server plugin.
 - [`examples/joix-tickets`](examples/joix-tickets/README.md) - Issue-tracker server plugin.
 - [`examples/joix-wiki`](examples/joix-wiki/README.md) - Rich-text wiki pages with automatic author attribution.
+
+See [Domain Architecture](docs/domain-architecture.md) for the boundary between
+domain declarations, the shared contract, and generic infrastructure.
 
 ## Working in This Repo
 

@@ -161,6 +161,7 @@ export const ModelTypeDescription = defineStruct({
   description: "A discoverable server-side model and its attributes.",
   fields: [
     { name: "name", type: stringType, description: "The model name." },
+    { name: "domain", type: optional(stringType), description: "Owning domain, or null for shared storage tables." },
     { name: "attributes", type: list(ModelAttributeDescription), description: "Attributes in declaration order." },
     { name: "history", type: booleanType, description: "Whether this model has retained entity history." },
     {
@@ -171,10 +172,39 @@ export const ModelTypeDescription = defineStruct({
   ],
 });
 
+export const DomainAttributeDescription = defineStruct({
+  name: "DomainAttributeDescription",
+  description: "An attribute from a compiled domain definition.",
+  fields: [
+    { name: "name", type: stringType, description: "The attribute name." },
+    { name: "description", type: stringType, description: "The attribute description." },
+    { name: "dataType", type: stringType, description: "A readable type expression, including nested references." },
+  ],
+});
+
+export const DomainModelDescription = defineStruct({
+  name: "DomainModelDescription",
+  description: "A model defined in a domain package, independent of storage tables.",
+  fields: [
+    { name: "id", type: stringType, description: "Domain-qualified model identity." },
+    { name: "domain", type: stringType, description: "Owning domain namespace." },
+    { name: "name", type: stringType, description: "The entity name within the domain." },
+    { name: "description", type: stringType, description: "The entity description." },
+    { name: "attributes", type: list(DomainAttributeDescription), description: "Attributes in declaration order." },
+  ],
+});
+
 export const ModelInfoResponse = defineStruct({
   name: "ModelInfoResponse",
   description: "The discoverable application model.",
-  fields: [{ name: "models", type: list(ModelTypeDescription), description: "Models ordered by name." }],
+  fields: [
+    { name: "models", type: list(ModelTypeDescription), description: "Storage models ordered by name." },
+    {
+      name: "domainModels",
+      type: list(DomainModelDescription),
+      description: "Compiled domain models ordered by identity.",
+    },
+  ],
 });
 
 export default defineCommand({

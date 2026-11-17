@@ -208,6 +208,11 @@ pub struct TableDescription {
 pub trait TableDescriptionProvider: Send + Sync {
     /// Returns the table definition contributed by this provider.
     fn table_description(&self) -> TableDescription;
+
+    /// Domain owning this model, or `None` for shared infrastructure tables.
+    fn domain(&self) -> Option<&'static str> {
+        None
+    }
 }
 
 fn _assert_table_description_provider_dyn_compatible(_: &dyn TableDescriptionProvider) {}

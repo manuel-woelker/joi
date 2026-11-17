@@ -1,0 +1,11 @@
+[package]
+name = "joi-grades"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Grade domain model plugin for JOI applications"
+publish = false
+
+[dependencies]
+joi-plugin = { path = "../../libs-rust/joi-plugin" }
+joi-server = { path = "../../libs-rust/joi-server" }

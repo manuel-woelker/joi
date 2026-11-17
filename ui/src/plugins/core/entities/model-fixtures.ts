@@ -5,6 +5,7 @@ import type { EntityDescription } from "./entity-description";
 export function modelFixture(entity: EntityDescription): ModelTypeDescription {
   return {
     name: entity.tableName,
+    domain: null,
     history: false,
     attributes: entity.attributes.map((attribute) => ({
       name: attribute.id,

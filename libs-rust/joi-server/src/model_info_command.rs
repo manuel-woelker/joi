@@ -4,9 +4,11 @@ use joi_plugin::PluginRegistry;
 use crate::{
     command_handler::CommandHandler,
     data_store::{ColumnDataType, TableDescriptionProvider},
+    domain_model::DomainModelProvider,
     generated::api::{
-        ModelAttributeDescription, ModelAttributeReference, ModelAttributeType, ModelInfoRequest,
-        ModelInfoResponse, ModelTypeDescription,
+        DomainAttributeDescription, DomainModelDescription, ModelAttributeDescription,
+        ModelAttributeReference, ModelAttributeType, ModelInfoRequest, ModelInfoResponse,
+        ModelTypeDescription,
     },
 };
 
@@ -44,12 +46,12 @@ impl CommandHandler for ModelInfoCommand {
         let tables = self
             .plugin_registry
             .extensions::<dyn TableDescriptionProvider>()?
-            .map(TableDescriptionProvider::table_description)
-            .filter(|table| table.discoverable)
+            .map(|provider| (provider.table_description(), provider.domain()))
+            .filter(|(table, _)| table.discoverable)
             .collect::<Vec<_>>();
         let mut models = tables
             .iter()
-            .map(|table| {
+            .map(|(table, domain)| {
                 let attributes = table
                     .columns
                     .iter()
@@ -71,7 +73,7 @@ impl CommandHandler for ModelInfoCommand {
                             | ColumnDataType::ReferenceList { entity } => {
                                 let target = tables
                                     .iter()
-                                    .find(|candidate| candidate.name == *entity)
+                                    .find(|(candidate, _)| candidate.name == *entity)
                                     .ok_or_else(|| {
                                         joi_error!(
                                             "entity type `{}` references unknown entity type `{}`",
@@ -81,7 +83,7 @@ impl CommandHandler for ModelInfoCommand {
                                     })?;
                                 Some(ModelAttributeReference {
                                     model: entity.0.to_string(),
-                                    attribute: primary_key(target)?.to_owned(),
+                                    attribute: primary_key(&target.0)?.to_owned(),
                                 })
                             }
                             _ => None,
@@ -99,6 +101,7 @@ impl CommandHandler for ModelInfoCommand {
                 Ok(ModelTypeDescription {
                     presentation: table.presentation.clone(),
                     name: table.name.0.to_string(),
+                    domain: domain.map(str::to_owned),
                     history: self
                         .plugin_registry
                         .extensions::<dyn crate::mutation_contributor::MutationContributor>()
@@ -111,7 +114,33 @@ impl CommandHandler for ModelInfoCommand {
             })
             .collect::<JoiResult<Vec<_>>>()?;
         models.sort_by(|left, right| left.name.cmp(&right.name));
-        Ok(ModelInfoResponse { models })
+        let mut domain_models = self
+            .plugin_registry
+            .extensions::<dyn DomainModelProvider>()?
+            .flat_map(|provider| {
+                let model = provider.domain_model();
+                model.entities.iter().map(|entity| DomainModelDescription {
+                    id: format!("{}.{}", model.domain, entity.name),
+                    domain: model.domain.clone(),
+                    name: entity.name.clone(),
+                    description: entity.description.clone().unwrap_or_default(),
+                    attributes: entity
+                        .attributes
+                        .iter()
+                        .map(|attribute| DomainAttributeDescription {
+                            name: attribute.name.clone(),
+                            description: attribute.description.clone().unwrap_or_default(),
+                            data_type: attribute.data_type.display(),
+                        })
+                        .collect(),
+                })
+            })
+            .collect::<Vec<_>>();
+        domain_models.sort_by(|left, right| left.id.cmp(&right.id));
+        Ok(ModelInfoResponse {
+            models,
+            domain_models,
+        })
     }
 }
 
@@ -125,6 +154,7 @@ mod tests {
             AttributeName, ColumnDataType, ColumnDescription, TableDescription,
             TableDescriptionProvider, TableName,
         },
+        domain_model::DomainModelProvider,
         generated::api::{ModelAttributeType, ModelInfoRequest},
     };
 
@@ -132,11 +162,16 @@ mod tests {
 
     struct TableProvider {
         name: &'static str,
+        domain: Option<&'static str>,
         discoverable: bool,
         reference: Option<&'static str>,
     }
 
     impl TableDescriptionProvider for TableProvider {
+        fn domain(&self) -> Option<&'static str> {
+            self.domain
+        }
+
         fn table_description(&self) -> TableDescription {
             let mut columns = vec![ColumnDescription {
                 name: AttributeName("id".into()),
@@ -170,11 +205,16 @@ mod tests {
             .register(plugin("models", "Model test data", |context| {
                 context
                     .register_extension_point::<dyn TableDescriptionProvider>("tables", "Tables")?;
+                context.register_extension_point::<dyn DomainModelProvider>(
+                    "domain-models",
+                    "Domain models",
+                )?;
                 context.register_extension::<dyn TableDescriptionProvider>(
                     "zebra",
                     "Zebra table",
                     Box::new(TableProvider {
                         name: "zebras",
+                        domain: Some("wildlife"),
                         discoverable: true,
                         reference: None,
                     }),
@@ -184,6 +224,7 @@ mod tests {
                     "Internal table",
                     Box::new(TableProvider {
                         name: "internal",
+                        domain: None,
                         discoverable: false,
                         reference: None,
                     }),
@@ -193,6 +234,7 @@ mod tests {
                     "Apple table",
                     Box::new(TableProvider {
                         name: "apples",
+                        domain: None,
                         discoverable: true,
                         reference: Some("zebras"),
                     }),
@@ -212,6 +254,9 @@ mod tests {
                 .collect::<Vec<_>>(),
             ["apples", "zebras"]
         );
+        assert!(response.domain_models.is_empty());
+        assert_eq!(response.models[0].domain, None);
+        assert_eq!(response.models[1].domain.as_deref(), Some("wildlife"));
         assert_eq!(
             response.models[0].attributes[0].data_type,
             ModelAttributeType::String

@@ -20,6 +20,8 @@ pub mod command_registry;
 pub mod command_service;
 /// Generic table descriptions, queries, and mutations.
 pub mod data_store;
+/// Embedded domain definitions contributed by application plugins.
+pub mod domain_model;
 /// Durable, opt-in entity history and its read command.
 pub mod entity_history;
 /// Namespace-scoped human-readable entity aliases and their lookup command.

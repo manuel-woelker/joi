@@ -68,6 +68,10 @@ pub fn codevette_plugin() -> Plugin {
 pub struct RepositoryBranchTableDescriptionProvider;
 
 impl TableDescriptionProvider for RepositoryBranchTableDescriptionProvider {
+    fn domain(&self) -> Option<&'static str> {
+        Some("codevette")
+    }
+
     fn table_description(&self) -> TableDescription {
         TableDescription {
             name: TableName("repository_branches".into()),
@@ -93,6 +97,10 @@ impl TableDescriptionProvider for RepositoryBranchTableDescriptionProvider {
 pub struct RepositoryTableDescriptionProvider;
 
 impl TableDescriptionProvider for RepositoryTableDescriptionProvider {
+    fn domain(&self) -> Option<&'static str> {
+        Some("codevette")
+    }
+
     fn table_description(&self) -> TableDescription {
         TableDescription {
             name: TableName("repositories".into()),
@@ -238,13 +246,23 @@ mod tests {
     };
 
     use super::{
-        CurrentRepositoryProvider, RepositoryBranchTableDescriptionProvider,
-        RepositoryTableDescriptionProvider,
+        CommitTableDescriptionProvider, CurrentRepositoryProvider,
+        RepositoryBranchTableDescriptionProvider, RepositoryTableDescriptionProvider,
+        ReviewCommentTableDescriptionProvider,
     };
 
     #[test]
     fn describes_repositories() {
         let table = RepositoryTableDescriptionProvider.table_description();
+
+        for domain in [
+            RepositoryTableDescriptionProvider.domain(),
+            RepositoryBranchTableDescriptionProvider.domain(),
+            CommitTableDescriptionProvider.domain(),
+            ReviewCommentTableDescriptionProvider.domain(),
+        ] {
+            assert_eq!(domain, Some("codevette"));
+        }
 
         assert_eq!(table.name.0, "repositories");
         let presentation = table.presentation.as_ref().unwrap();

@@ -7,9 +7,53 @@
 }
 
 .modelList {
-  padding: 6px 0;
+  min-width: 0;
   border-right: 1px solid var(--color-border);
   background: var(--color-surface-muted);
+}
+
+.modelControls {
+  display: grid;
+  padding: 6px;
+  border-bottom: 1px solid var(--color-border);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.modelControls button {
+  min-height: 26px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-ink-soft);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.modelControls button + button {
+  border-left: 0;
+}
+
+.modelControls button[aria-pressed="true"] {
+  background: var(--color-surface-hover);
+  color: var(--color-primary-dark);
+  font-weight: 600;
+}
+
+.modelGroups {
+  padding: 6px 0;
+}
+
+.groupHeading {
+  margin: 0;
+  padding: 12px 10px 4px;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.modelGroups > div:first-child .groupHeading {
+  padding-top: 5px;
 }
 
 .modelButton {
@@ -75,6 +119,13 @@
 .modelHeader h2 {
   font-family: var(--font-monospace);
   font-size: 17px;
+}
+
+.modelHeader .description {
+  margin-top: 5px;
+  font-size: 12px;
+  font-weight: 400;
+  text-transform: none;
 }
 
 .modelHeader > span {
@@ -168,14 +219,7 @@
   }
 
   .modelList {
-    display: flex;
-    overflow-x: auto;
     border-right: 0;
     border-bottom: 1px solid var(--color-border);
-  }
-
-  .modelButton {
-    width: auto;
-    min-width: 150px;
   }
 }

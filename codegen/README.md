@@ -7,6 +7,11 @@ generates matching TypeScript and Rust data types. It is private infrastructure
 for keeping frontend and backend API shapes aligned; it does not generate
 transport handlers or application behavior.
 
+It also evaluates domain model definitions from
+`domains/*/definitions/data-model.ts` and writes a versioned
+`domains/<domain>/generated/model.json`. References are stored by entity name,
+so runtime consumers can load the model without a TypeScript runtime.
+
 Author-written **declarations** use concise object literals and direct object
 references. The model builder validates and normalizes them into immutable
 **definitions** consumed by pure language generators.
@@ -60,14 +65,15 @@ the generation runner.
 Run commands from the repository root:
 
 ```sh
-./t nao codegen
-./t nao codegen-check
-./t nao codegen-clean
-./t nao codegen-test
+./n codegen
+./n codegen-check
+./n codegen-clean
+./n codegen-test
 ```
 
 Generated TypeScript is written below `ui/src/generated`. Generated Rust is
-written to `libs-rust/joi-server/src/generated`. Both generated roots contain
+written to `libs-rust/joi-server/src/generated`. Domain JSON is written below
+each domain's `generated` folder. Each generated root contains
 a manifest identifying files owned by the generator.
 
 Generated output is ignored by Git. Consumer tasks depend on `codegen`, so a

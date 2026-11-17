@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 
 import { targets } from "../codegen.config.ts";
 import { runGeneration } from "./generation/generation-runner.ts";
+import { generateDomainModels, removeGeneratedDomainModels } from "./generation/domain-model-generation.ts";
 import { removeGeneratedOutput, type OutputMode } from "./generation/output-writer.ts";
 
 const codegenRoot = fileURLToPath(new URL("../..", import.meta.url));
@@ -18,13 +19,18 @@ if (mode !== "generate" && mode !== "check" && mode !== "clean") {
       const removed = (
         await Promise.all(targets.map((target) => removeGeneratedOutput(resolve(repositoryRoot, target.outputRoot))))
       ).flat();
-      console.log(`Removed ${removed.length} generated files.`);
+      const domainRemoved = await removeGeneratedDomainModels(repositoryRoot);
+      console.log(`Removed ${removed.length + domainRemoved.length} generated files.`);
       process.exit(0);
     }
     if (mode === "generate") {
       await Promise.all(targets.map((target) => removeGeneratedOutput(resolve(repositoryRoot, target.outputRoot))));
+      await removeGeneratedDomainModels(repositoryRoot);
     }
-    const issues = await runGeneration({ codegenRoot, repositoryRoot, mode: mode as OutputMode, targets });
+    const issues = [
+      ...(await runGeneration({ codegenRoot, repositoryRoot, mode: mode as OutputMode, targets })),
+      ...(await generateDomainModels(repositoryRoot, mode as OutputMode)),
+    ];
     if (mode === "check" && issues.length > 0) {
       console.error(issues.join("\n"));
       console.error("Run the codegen task to update generated files.");

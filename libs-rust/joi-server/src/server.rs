@@ -15,6 +15,7 @@ use crate::{
     data_store::{
         DataStore, SharedDataStore, StartupDataProvider, TableDescriptionProvider, TestDataProvider,
     },
+    domain_model::DomainModelProvider,
     entity_keys::{EntityKeysTable, ResolveEntityKeyCommand},
     generated::api::COMMAND_DESCRIPTORS,
     info_command::{InfoCollector, InfoCommand, InfoProvider},
@@ -132,6 +133,10 @@ fn create_plugin_registry(config: &mut ServerConfig) -> JoiResult<PluginRegistry
             context.register_extension_point::<dyn TableDescriptionProvider>(
                 "table-descriptions",
                 "Defines data-store tables",
+            )?;
+            context.register_extension_point::<dyn DomainModelProvider>(
+                "domain-models",
+                "Defines compiled domain models",
             )?;
             context.register_extension_point::<dyn TestDataProvider>(
                 "test-data-providers",

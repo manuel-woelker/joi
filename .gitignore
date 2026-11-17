@@ -11,6 +11,7 @@ node_modules/
 /.pnpm-store/
 /ui/src/generated/
 /libs-rust/joi-server/src/generated/
+/domains/*/generated/
 
 # Local tooling and environments
 /.idea

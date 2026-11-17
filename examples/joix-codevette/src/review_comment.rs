@@ -19,6 +19,10 @@ use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 pub struct ReviewCommentTableDescriptionProvider;
 
 impl TableDescriptionProvider for ReviewCommentTableDescriptionProvider {
+    fn domain(&self) -> Option<&'static str> {
+        Some("codevette")
+    }
+
     fn table_description(&self) -> TableDescription {
         TableDescription {
             name: TableName("review_comments".into()),

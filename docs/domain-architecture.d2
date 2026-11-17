@@ -1,0 +1,26 @@
+direction: down
+
+composition: "Composition root" {
+  style.fill: "#FFFFFF"
+  style.stroke: "#667085"
+}
+
+domains: "Domain packages" {
+  style.fill: "#F4FAF6"
+  style.stroke: "#56916A"
+}
+
+infrastructure: "Generic infrastructure" {
+  style.fill: "#F5F8FC"
+  style.stroke: "#627D9B"
+}
+
+contract: "@joi/domain shared contract" {
+  style.fill: "#FFF8EC"
+  style.stroke: "#B8873B"
+}
+
+composition -> domains: loads declarations
+composition -> infrastructure: configures runtime
+domains -> contract: imports
+infrastructure -> contract: imports

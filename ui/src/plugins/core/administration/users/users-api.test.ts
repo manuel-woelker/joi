@@ -22,7 +22,10 @@ describe("loadUsers", () => {
       }),
     });
 
-    fetcher.mockResolvedValueOnce({ ok: true, json: async () => ({ models: [modelWireFixture(userEntity)] }) });
+    fetcher.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ models: [modelWireFixture(userEntity)], domain_models: [] }),
+    });
     const result = await loadUsers(new FetchService(fetcher));
     const username = result.requireColumn("username");
     const name = result.requireColumn("name");

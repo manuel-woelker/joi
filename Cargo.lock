@@ -1631,6 +1631,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "joi-grades"
+version = "0.1.0"
+dependencies = [
+ "joi-plugin",
+ "joi-server",
+]
+
+[[package]]
 name = "joi-plugin"
 version = "0.1.0"
 dependencies = [
@@ -1667,6 +1675,7 @@ dependencies = [
 name = "joix"
 version = "0.1.0"
 dependencies = [
+ "joi-grades",
  "joi-server",
  "joix-codevette",
  "joix-tickets",

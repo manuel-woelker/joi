@@ -1,5 +1,7 @@
 packages:
   - codegen
+  - domains/grades
+  - libs-ts/joi-domain
   - ui
 
 packageExtensions:
