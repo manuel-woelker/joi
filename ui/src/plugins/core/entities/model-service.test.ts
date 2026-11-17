@@ -13,7 +13,10 @@ describe("ModelService", () => {
   it("shares one request and one compilation across readers and history", async () => {
     const fetcher = vi.fn(
       async () =>
-        ({ ok: true, json: async () => ({ models: [modelWireFixture(userEntity)], domain_models: [] }) }) as Response,
+        ({
+          ok: true,
+          json: async () => ({ models: [modelWireFixture(userEntity)], domain_models: [], domain_enums: [] }),
+        }) as Response,
     );
     const fetchService = new FetchService(fetcher);
     const service = modelServiceFor(fetchService);
@@ -41,7 +44,7 @@ describe("ModelService", () => {
       .mockRejectedValueOnce(new Error("offline"))
       .mockResolvedValue({
         ok: true,
-        json: async () => ({ models: [modelWireFixture(userEntity)], domain_models: [] }),
+        json: async () => ({ models: [modelWireFixture(userEntity)], domain_models: [], domain_enums: [] }),
       });
     const service = new ModelService(new FetchService(fetcher));
     await expect(service.load()).rejects.toThrow("offline");

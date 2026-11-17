@@ -1,11 +1,13 @@
 # Grades domain
 
 Status: experimental model definitions. `Student` has a name and date of birth;
-`Subject` has a name;
-`Class` refers to sets of both, and `School Year` refers to classes.
+`Subject` has a name; `Class` refers to sets of both; `School Year` refers to
+classes. `Assessment` records a student's result in a subject and class, on a
+date, using the `Assessment Method` enum (`verbal` or `written`). The grade is
+text so the model does not assume a particular grading scale.
 
 The definitions use the shared [`@joi/domain`](../../libs-ts/joi-domain/README.md)
-contract for primitive types, collections, references, and branded entity types.
+contract for primitive types, collections, references, enums, and branded types.
 No persistence, action execution, or UI integration is implemented yet.
 
 `./n codegen` evaluates the definitions and writes `generated/model.json`, a

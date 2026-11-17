@@ -14,7 +14,10 @@ it("defers entity consumers and allows retry after a model load failure", async 
   const fetcher = vi
     .fn()
     .mockRejectedValueOnce(new Error("offline"))
-    .mockResolvedValue({ ok: true, json: async () => ({ models: [modelWireFixture(userEntity)], domain_models: [] }) });
+    .mockResolvedValue({
+      ok: true,
+      json: async () => ({ models: [modelWireFixture(userEntity)], domain_models: [], domain_enums: [] }),
+    });
   const mounted = vi.fn();
   function Consumer() {
     mounted();

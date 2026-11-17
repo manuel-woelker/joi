@@ -47,7 +47,11 @@ function setup() {
     if (String(input).endsWith("model-info"))
       return {
         ok: true,
-        json: async () => ({ models: [userEntity, projectEntity].map(modelWireFixture), domain_models: [] }),
+        json: async () => ({
+          models: [userEntity, projectEntity].map(modelWireFixture),
+          domain_models: [],
+          domain_enums: [],
+        }),
       } as Response;
     const { table_name } = JSON.parse(String(init?.body));
     const description = [userEntity, projectEntity].find((entity) => entity.tableName === table_name);

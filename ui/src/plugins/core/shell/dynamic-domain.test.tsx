@@ -109,6 +109,7 @@ describe("dynamic domain plugins", () => {
           ok: true,
           json: async () => ({
             domain_models: [],
+            domain_enums: [],
             models: ["repositories", "users"].map((name) => ({
               name,
               history: false,

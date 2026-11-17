@@ -194,6 +194,27 @@ export const DomainModelDescription = defineStruct({
   ],
 });
 
+export const DomainEnumValueDescription = defineStruct({
+  name: "DomainEnumValueDescription",
+  description: "One allowed value in a domain enumeration.",
+  fields: [
+    { name: "name", type: stringType, description: "Stable enum value." },
+    { name: "description", type: stringType, description: "Human-readable value description." },
+  ],
+});
+
+export const DomainEnumDescription = defineStruct({
+  name: "DomainEnumDescription",
+  description: "A named enumeration defined by a domain package.",
+  fields: [
+    { name: "id", type: stringType, description: "Domain-qualified enum identity." },
+    { name: "domain", type: stringType, description: "Owning domain namespace." },
+    { name: "name", type: stringType, description: "Enum name within the domain." },
+    { name: "description", type: stringType, description: "Human-readable enum description." },
+    { name: "values", type: list(DomainEnumValueDescription), description: "Allowed values in declaration order." },
+  ],
+});
+
 export const ModelInfoResponse = defineStruct({
   name: "ModelInfoResponse",
   description: "The discoverable application model.",
@@ -203,6 +224,11 @@ export const ModelInfoResponse = defineStruct({
       name: "domainModels",
       type: list(DomainModelDescription),
       description: "Compiled domain models ordered by identity.",
+    },
+    {
+      name: "domainEnums",
+      type: list(DomainEnumDescription),
+      description: "Compiled domain enums ordered by identity.",
     },
   ],
 });

@@ -23,6 +23,7 @@ it("shows embedded domain definitions without treating them as storage tables", 
               attributes: [{ name: "Date of Birth", description: "The student's date of birth.", data_type: "date" }],
             },
           ],
+          domain_enums: [],
         }),
       }) as Response,
   );
@@ -50,6 +51,7 @@ it("groups models by domain and preserves selection when switching to name order
             { id: "wiki.Page", domain: "wiki", name: "Page", description: "", attributes: [] },
             { id: "grades.Student", domain: "grades", name: "Student", description: "", attributes: [] },
           ],
+          domain_enums: [],
         }),
       }) as Response,
   );
@@ -70,4 +72,51 @@ it("groups models by domain and preserves selection when switching to name order
   fireEvent.click(within(navigation).getByRole("button", { name: "Domain" }));
   expect(within(navigation).getAllByRole("heading", { level: 3 })).toHaveLength(5);
   expect(screen.getByRole("heading", { name: "Student", level: 2 })).toBeTruthy();
+});
+
+it("shows named enum values with their descriptions in the owning domain", async () => {
+  const service = new FetchService(
+    async () =>
+      ({
+        ok: true,
+        json: async () => ({
+          models: [],
+          domain_models: [
+            {
+              id: "grades.Assessment",
+              domain: "grades",
+              name: "Assessment",
+              description: "Student evaluation.",
+              attributes: [{ name: "Method", description: "Evaluation method.", data_type: "enum<Assessment Method>" }],
+            },
+          ],
+          domain_enums: [
+            {
+              id: "grades.Assessment Method",
+              domain: "grades",
+              name: "Assessment Method",
+              description: "How the student was assessed.",
+              values: [
+                { name: "verbal", description: "Spoken assessment." },
+                { name: "written", description: "Written assessment." },
+              ],
+            },
+          ],
+        }),
+      }) as Response,
+  );
+  render(() => <ModelExplorer fetchService={service} />);
+
+  const navigation = await screen.findByRole("navigation", { name: "Model types" });
+  expect(
+    within(navigation)
+      .getAllByRole("heading", { level: 3 })
+      .map((heading) => heading.textContent),
+  ).toEqual(["grades"]);
+  fireEvent.click(within(navigation).getByRole("button", { name: /Assessment Method/ }));
+  expect(screen.getByRole("heading", { name: "Assessment Method", level: 2 })).toBeTruthy();
+  expect(screen.getByRole("columnheader", { name: "Value" })).toBeTruthy();
+  expect(screen.queryByRole("columnheader", { name: "Type" })).toBeNull();
+  expect(screen.getByText("verbal")).toBeTruthy();
+  expect(screen.getByText("Written assessment.")).toBeTruthy();
 });

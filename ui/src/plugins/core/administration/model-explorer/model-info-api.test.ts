@@ -8,12 +8,14 @@ describe("loadModelInfo", () => {
     const response = {
       models: [{ name: "tickets", domain: "tickets", attributes: [], history: false, presentation: null }],
       domain_models: [],
+      domain_enums: [],
     };
     const fetcher = vi.fn().mockResolvedValue({ ok: true, json: async () => response });
 
     await expect(loadModelInfo(new FetchService(fetcher))).resolves.toEqual({
       models: response.models,
       domainModels: [],
+      domainEnums: [],
     });
     expect(fetcher).toHaveBeenCalledWith("/api/model-info", { method: "GET" });
   });

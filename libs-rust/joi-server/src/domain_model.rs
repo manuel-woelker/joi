@@ -14,8 +14,31 @@ pub struct DomainModel {
     pub domain: String,
     /// JSON format version.
     pub version: u32,
+    /// Named enumerations used by entity attributes.
+    #[serde(default)]
+    pub enums: Vec<DomainEnum>,
     /// Entity definitions in the domain.
     pub entities: Vec<DomainEntity>,
+}
+
+/// A named set of allowed values in a domain model.
+#[derive(Debug, Deserialize)]
+pub struct DomainEnum {
+    /// Enum name within its domain.
+    pub name: String,
+    /// Human-readable enum description.
+    pub description: Option<String>,
+    /// Allowed values in declaration order.
+    pub values: Vec<DomainEnumValue>,
+}
+
+/// One allowed value in a domain enum.
+#[derive(Debug, Deserialize)]
+pub struct DomainEnumValue {
+    /// Stable value name.
+    pub name: String,
+    /// Human-readable value description.
+    pub description: Option<String>,
 }
 
 /// An entity in a domain model.
@@ -61,6 +84,11 @@ pub enum DomainType {
         /// Referenced entity name within this domain.
         entity: String,
     },
+    /// Reference to a named enumeration in the same domain.
+    Enum {
+        /// Referenced enum name.
+        enumeration: String,
+    },
 }
 
 impl DomainType {
@@ -72,14 +100,22 @@ impl DomainType {
             Self::DateRange => "date range".into(),
             Self::Set { element } => format!("set<{}>", element.display()),
             Self::Ref { entity } => format!("ref<{entity}>"),
+            Self::Enum { enumeration } => format!("enum<{enumeration}>"),
         }
     }
 
-    fn validate_references(&self, names: &HashSet<&str>) -> JoiResult<()> {
+    fn validate_references(
+        &self,
+        entities: &HashSet<&str>,
+        enums: &HashSet<&str>,
+    ) -> JoiResult<()> {
         match self {
-            Self::Set { element } => element.validate_references(names),
-            Self::Ref { entity } if !names.contains(entity.as_str()) => {
+            Self::Set { element } => element.validate_references(entities, enums),
+            Self::Ref { entity } if !entities.contains(entity.as_str()) => {
                 Err(joi_error!("unknown domain entity reference: {entity}"))
+            }
+            Self::Enum { enumeration } if !enums.contains(enumeration.as_str()) => {
+                Err(joi_error!("unknown domain enum reference: {enumeration}"))
             }
             _ => Ok(()),
         }
@@ -117,8 +153,36 @@ pub fn register_domain_model(
         ));
     }
     let mut names = HashSet::new();
+    let mut enum_names = HashSet::new();
+    for enumeration in &model.enums {
+        if enumeration.name.trim().is_empty() || !enum_names.insert(enumeration.name.as_str()) {
+            return Err(joi_error!(
+                "duplicate or empty enum name in {domain}: {}",
+                enumeration.name
+            ));
+        }
+        if enumeration.values.is_empty() {
+            return Err(joi_error!(
+                "enum {domain}.{} has no values",
+                enumeration.name
+            ));
+        }
+        let mut values = HashSet::new();
+        for value in &enumeration.values {
+            if value.name.trim().is_empty() || !values.insert(value.name.as_str()) {
+                return Err(joi_error!(
+                    "duplicate or empty value in enum {domain}.{}: {}",
+                    enumeration.name,
+                    value.name
+                ));
+            }
+        }
+    }
     for entity in &model.entities {
-        if entity.name.trim().is_empty() || !names.insert(entity.name.as_str()) {
+        if entity.name.trim().is_empty()
+            || enum_names.contains(entity.name.as_str())
+            || !names.insert(entity.name.as_str())
+        {
             return Err(joi_error!(
                 "duplicate or empty entity name in {domain}: {}",
                 entity.name
@@ -137,7 +201,9 @@ pub fn register_domain_model(
     }
     for entity in &model.entities {
         for attribute in &entity.attributes {
-            attribute.data_type.validate_references(&names)?;
+            attribute
+                .data_type
+                .validate_references(&names, &enum_names)?;
         }
     }
     context.register_extension::<dyn DomainModelProvider>(
@@ -169,7 +235,7 @@ mod tests {
                 register_domain_model(
                     context,
                     "grades",
-                    r#"{"version":1,"entities":[{"name":"Student","attributes":[]},{"name":"Class","attributes":[{"name":"students","type":{"kind":"set","element":{"kind":"ref","entity":"Student"}}}]}]}"#,
+                    r#"{"version":1,"enums":[{"name":"Method","values":[{"name":"verbal"},{"name":"written"}]}],"entities":[{"name":"Student","attributes":[]},{"name":"Class","attributes":[{"name":"students","type":{"kind":"set","element":{"kind":"ref","entity":"Student"}}},{"name":"method","type":{"kind":"enum","enumeration":"Method"}}]}]}"#,
                 )
             }))
             .unwrap();
@@ -185,6 +251,11 @@ mod tests {
             model.entities[1].attributes[0].data_type.display(),
             "set<ref<Student>>"
         );
+        assert_eq!(
+            model.entities[1].attributes[1].data_type.display(),
+            "enum<Method>"
+        );
+        assert_eq!(model.enums[0].values.len(), 2);
     }
 
     #[test]
@@ -204,6 +275,10 @@ mod tests {
         assert!(error.is_err());
         let error = builder.register(plugin("bad-ref", "bad ref", |context| {
             register_domain_model(context, "grades", r#"{"version":1,"entities":[{"name":"Class","attributes":[{"name":"students","type":{"kind":"ref","entity":"Student"}}]}]}"#)
+        }));
+        assert!(error.is_err());
+        let error = builder.register(plugin("bad-enum", "bad enum", |context| {
+            register_domain_model(context, "grades", r#"{"version":1,"entities":[{"name":"Assessment","attributes":[{"name":"method","type":{"kind":"enum","enumeration":"Method"}}]}]}"#)
         }));
         assert!(error.is_err());
     }

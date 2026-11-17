@@ -12,6 +12,7 @@ describe("EntityHistoryService", () => {
         const data = path.endsWith("model-info")
           ? {
               domain_models: [],
+              domain_enums: [],
               models: [
                 { name: "tickets", history: true, attributes: [], presentation: null },
                 { name: "users", history: false, attributes: [], presentation: null },

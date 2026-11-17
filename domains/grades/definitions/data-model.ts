@@ -1,4 +1,4 @@
-import { defineEntity, Types } from "@joi/domain";
+import { defineEntity, defineEnum, Types } from "@joi/domain";
 
 export const studentType = defineEntity({
   name: "Student",
@@ -32,5 +32,31 @@ export const schoolYearType = defineEntity({
     { name: "Name", description: "The school year's name.", type: Types.String },
     { name: "Timeframe", description: "The start and end dates of the school year.", type: Types.DateRange },
     { name: "Classes", description: "Classes offered during this school year.", type: Types.set(Types.ref(classType)) },
+  ],
+});
+
+export const assessmentMethod = defineEnum({
+  name: "Assessment Method",
+  description: "How a student's performance was assessed.",
+  values: [
+    { name: "verbal", description: "An oral or spoken assessment." },
+    { name: "written", description: "A written assessment." },
+  ],
+});
+
+export const assessmentType = defineEntity({
+  name: "Assessment",
+  description: "A recorded evaluation of one student's performance in a subject.",
+  attributes: [
+    { name: "Student", description: "Student being assessed.", type: Types.ref(studentType) },
+    { name: "Subject", description: "Subject being assessed.", type: Types.ref(subjectType) },
+    { name: "Class", description: "Class in which the assessment took place.", type: Types.ref(classType) },
+    { name: "Date", description: "Date of the assessment.", type: Types.Date },
+    {
+      name: "Method",
+      description: "Whether the assessment was verbal or written.",
+      type: Types.enumeration(assessmentMethod),
+    },
+    { name: "Grade", description: "Recorded result, using the applicable grading scale.", type: Types.String },
   ],
 });

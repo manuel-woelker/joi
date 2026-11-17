@@ -6,9 +6,9 @@ use crate::{
     data_store::{ColumnDataType, TableDescriptionProvider},
     domain_model::DomainModelProvider,
     generated::api::{
-        DomainAttributeDescription, DomainModelDescription, ModelAttributeDescription,
-        ModelAttributeReference, ModelAttributeType, ModelInfoRequest, ModelInfoResponse,
-        ModelTypeDescription,
+        DomainAttributeDescription, DomainEnumDescription, DomainEnumValueDescription,
+        DomainModelDescription, ModelAttributeDescription, ModelAttributeReference,
+        ModelAttributeType, ModelInfoRequest, ModelInfoResponse, ModelTypeDescription,
     },
 };
 
@@ -137,9 +137,32 @@ impl CommandHandler for ModelInfoCommand {
             })
             .collect::<Vec<_>>();
         domain_models.sort_by(|left, right| left.id.cmp(&right.id));
+        let mut domain_enums = self
+            .plugin_registry
+            .extensions::<dyn DomainModelProvider>()?
+            .flat_map(|provider| {
+                let model = provider.domain_model();
+                model.enums.iter().map(|enumeration| DomainEnumDescription {
+                    id: format!("{}.{}", model.domain, enumeration.name),
+                    domain: model.domain.clone(),
+                    name: enumeration.name.clone(),
+                    description: enumeration.description.clone().unwrap_or_default(),
+                    values: enumeration
+                        .values
+                        .iter()
+                        .map(|value| DomainEnumValueDescription {
+                            name: value.name.clone(),
+                            description: value.description.clone().unwrap_or_default(),
+                        })
+                        .collect(),
+                })
+            })
+            .collect::<Vec<_>>();
+        domain_enums.sort_by(|left, right| left.id.cmp(&right.id));
         Ok(ModelInfoResponse {
             models,
             domain_models,
+            domain_enums,
         })
     }
 }
@@ -255,6 +278,7 @@ mod tests {
             ["apples", "zebras"]
         );
         assert!(response.domain_models.is_empty());
+        assert!(response.domain_enums.is_empty());
         assert_eq!(response.models[0].domain, None);
         assert_eq!(response.models[1].domain.as_deref(), Some("wildlife"));
         assert_eq!(

@@ -2,7 +2,7 @@ import { glob } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { isEntityType } from "@joi/domain";
+import { isEntityType, isEnumType } from "@joi/domain";
 import { describeModel } from "@joi/domain/model-description";
 
 import { removeGeneratedOutput, synchronizeOutput, type OutputMode } from "./output-writer.ts";
@@ -14,8 +14,9 @@ export async function generateDomainModels(repositoryRoot: string, mode: OutputM
     const outputRoot = resolve(repositoryRoot, "domains", domain, "generated");
     const module: Record<string, unknown> = await import(pathToFileURL(resolve(repositoryRoot, path)).href);
     const entities = Object.values(module).filter(isEntityType);
-    if (entities.length === 0) throw new Error(`${path} does not export any entity definitions`);
-    const description = describeModel(entities);
+    const enums = Object.values(module).filter(isEnumType);
+    if (entities.length === 0 && enums.length === 0) throw new Error(`${path} does not export any model definitions`);
+    const description = describeModel(entities, enums);
     issues.push(
       ...(await synchronizeOutput(
         outputRoot,

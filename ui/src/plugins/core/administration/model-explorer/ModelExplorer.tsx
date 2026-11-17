@@ -1,6 +1,7 @@
 import BookOpenIcon from "lucide-solid/icons/book-open";
 import KeyIcon from "lucide-solid/icons/key-round";
 import LinkIcon from "lucide-solid/icons/link";
+import ListIcon from "lucide-solid/icons/list";
 import TableIcon from "lucide-solid/icons/table-2";
 import { createMemo, createResource, createSignal, For, Show } from "solid-js";
 
@@ -25,6 +26,7 @@ interface ExplorerModel {
   readonly group: string;
   readonly description?: string;
   readonly domain: boolean;
+  readonly enumeration: boolean;
   readonly attributes: readonly ExplorerAttribute[];
 }
 
@@ -39,6 +41,7 @@ export function ModelExplorer(props: { fetchService: FetchService }) {
       source: model.domain ? `${model.domain} storage model` : "Storage model",
       group: model.domain ?? "Storage",
       domain: false,
+      enumeration: false,
       attributes: model.attributes,
     }));
     const domains = (response()?.domainModels ?? []).map((model) => ({
@@ -48,9 +51,26 @@ export function ModelExplorer(props: { fetchService: FetchService }) {
       group: model.domain,
       description: model.description,
       domain: true,
+      enumeration: false,
       attributes: model.attributes.map((attribute) => ({ ...attribute, key: false, optional: false })),
     }));
-    return [...storage, ...domains].sort((left, right) => left.name.localeCompare(right.name));
+    const enums = (response()?.domainEnums ?? []).map((enumeration) => ({
+      id: `${enumeration.id}:enum`,
+      name: enumeration.name,
+      source: `${enumeration.domain} enum`,
+      group: enumeration.domain,
+      description: enumeration.description,
+      domain: true,
+      enumeration: true,
+      attributes: enumeration.values.map((value) => ({
+        name: value.name,
+        description: value.description,
+        dataType: "",
+        key: false,
+        optional: false,
+      })),
+    }));
+    return [...storage, ...domains, ...enums].sort((left, right) => left.name.localeCompare(right.name));
   });
   const selected = createMemo(() => {
     return models().find((model) => model.id === selectedName()) ?? models()[0];
@@ -101,7 +121,9 @@ export function ModelExplorer(props: { fetchService: FetchService }) {
                             classList={{ [styles.selected]: selected()?.id === model.id }}
                             onClick={() => setSelectedName(model.id)}
                           >
-                            {model.domain ? (
+                            {model.enumeration ? (
+                              <ListIcon size={16} aria-hidden="true" />
+                            ) : model.domain ? (
                               <BookOpenIcon size={16} aria-hidden="true" />
                             ) : (
                               <TableIcon size={16} aria-hidden="true" />
@@ -131,14 +153,18 @@ export function ModelExplorer(props: { fetchService: FetchService }) {
                         <p class={styles.description}>{model().description}</p>
                       </Show>
                     </div>
-                    <span>{model().attributes.length} attributes</span>
+                    <span>
+                      {model().attributes.length} {model().enumeration ? "values" : "attributes"}
+                    </span>
                   </header>
                   <div class={styles.tableScroller}>
-                    <table class={styles.attributeTable}>
+                    <table class={styles.attributeTable} classList={{ [styles.enumTable]: model().enumeration }}>
                       <thead>
                         <tr>
-                          <th scope="col">Attribute</th>
-                          <th scope="col">Type</th>
+                          <th scope="col">{model().enumeration ? "Value" : "Attribute"}</th>
+                          <Show when={!model().enumeration}>
+                            <th scope="col">Type</th>
+                          </Show>
                           <th scope="col">Description</th>
                         </tr>
                       </thead>
@@ -154,14 +180,16 @@ export function ModelExplorer(props: { fetchService: FetchService }) {
                                   <KeyIcon size={13} aria-label="Key" />
                                 </Show>
                               </td>
-                              <td>
-                                <code>
-                                  <ModelText>{attribute.dataType}</ModelText>
-                                </code>
-                                <Show when={attribute.optional}>
-                                  <span class={styles.qualifier}>optional</span>
-                                </Show>
-                              </td>
+                              <Show when={!model().enumeration}>
+                                <td>
+                                  <code>
+                                    <ModelText>{attribute.dataType}</ModelText>
+                                  </code>
+                                  <Show when={attribute.optional}>
+                                    <span class={styles.qualifier}>optional</span>
+                                  </Show>
+                                </td>
+                              </Show>
                               <td>
                                 <span>{attribute.description}</span>
                                 <Show when={attribute.references}>

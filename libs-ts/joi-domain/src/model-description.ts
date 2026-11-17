@@ -1,12 +1,18 @@
-import type { EntityType, TypeDefinition } from "./entity-definition.ts";
+import type { EntityType, EnumType, TypeDefinition } from "./entity-definition.ts";
 
 export type DescribedType =
   | { readonly kind: "string" | "date" | "date-range" }
   | { readonly kind: "set"; readonly element: DescribedType }
-  | { readonly kind: "ref"; readonly entity: string };
+  | { readonly kind: "ref"; readonly entity: string }
+  | { readonly kind: "enum"; readonly enumeration: string };
 
 export interface ModelDescription {
   readonly version: 1;
+  readonly enums: readonly {
+    readonly name: string;
+    readonly description?: string;
+    readonly values: readonly { readonly name: string; readonly description?: string }[];
+  }[];
   readonly entities: readonly {
     readonly name: string;
     readonly description?: string;
@@ -19,13 +25,31 @@ export interface ModelDescription {
 }
 
 /** Converts runtime definitions into a JSON-safe model with named references. */
-export function describeModel(entities: readonly EntityType[]): ModelDescription {
+export function describeModel(
+  entities: readonly EntityType[],
+  enumerations: readonly EnumType[] = [],
+): ModelDescription {
   const names = new Set<string>();
   const definitions = new Set(entities);
   for (const entity of entities) {
     if (!entity.name.trim() || names.has(entity.name))
       throw new Error(`Duplicate or empty entity name: ${entity.name}`);
     names.add(entity.name);
+  }
+  const enums = new Set(enumerations);
+  for (const enumeration of enumerations) {
+    if (!enumeration.name.trim() || names.has(enumeration.name)) {
+      throw new Error(`Duplicate or empty model type name: ${enumeration.name}`);
+    }
+    names.add(enumeration.name);
+    const values = new Set<string>();
+    if (enumeration.values.length === 0) throw new Error(`Enum '${enumeration.name}' has no values`);
+    for (const value of enumeration.values) {
+      if (!value.name.trim() || values.has(value.name)) {
+        throw new Error(`Duplicate or empty value in enum '${enumeration.name}': ${value.name}`);
+      }
+      values.add(value.name);
+    }
   }
 
   const describeType = (type: TypeDefinition): DescribedType => {
@@ -41,11 +65,26 @@ export function describeModel(entities: readonly EntityType[]): ModelDescription
           throw new Error(`Reference to entity '${type.entity.name}' is not exported by the model`);
         }
         return { kind: "ref", entity: type.entity.name };
+      case "enum":
+        if (!enums.has(type.enumeration)) {
+          throw new Error(`Enumeration '${type.enumeration.name}' is not exported by the model`);
+        }
+        return { kind: "enum", enumeration: type.enumeration.name };
     }
   };
 
   return {
     version: 1,
+    enums: [...enumerations]
+      .sort((left, right) => (left.name < right.name ? -1 : left.name > right.name ? 1 : 0))
+      .map((enumeration) => ({
+        name: enumeration.name,
+        ...(enumeration.description === undefined ? {} : { description: enumeration.description }),
+        values: enumeration.values.map((value) => ({
+          name: value.name,
+          ...(value.description === undefined ? {} : { description: value.description }),
+        })),
+      })),
     entities: [...entities]
       .sort((left, right) => (left.name < right.name ? -1 : left.name > right.name ? 1 : 0))
       .map((entity) => {

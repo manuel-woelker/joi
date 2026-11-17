@@ -167,6 +167,14 @@
   width: 22%;
 }
 
+.enumTable th:first-child {
+  width: 32%;
+}
+
+.enumTable th:nth-child(2) {
+  width: auto;
+}
+
 .attributeTable td:first-child svg {
   margin-left: 6px;
   vertical-align: -2px;

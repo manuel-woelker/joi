@@ -40,7 +40,29 @@ mod tests {
         let response = ModelInfoCommand::new(builder.build())
             .execute(&Default::default(), ModelInfoRequest {})
             .unwrap();
-        assert_eq!(response.domain_models.len(), 4);
+        assert_eq!(response.domain_models.len(), 5);
+        assert_eq!(response.domain_enums.len(), 1);
+        let method = &response.domain_enums[0];
+        assert_eq!(method.id, "grades.Assessment Method");
+        assert_eq!(
+            method
+                .values
+                .iter()
+                .map(|value| value.name.as_str())
+                .collect::<Vec<_>>(),
+            ["verbal", "written"]
+        );
+        let assessment = response
+            .domain_models
+            .iter()
+            .find(|model| model.id == "grades.Assessment")
+            .unwrap();
+        let kind = assessment
+            .attributes
+            .iter()
+            .find(|attribute| attribute.name == "Method")
+            .unwrap();
+        assert_eq!(kind.data_type, "enum<Assessment Method>");
         let student = response
             .domain_models
             .iter()
