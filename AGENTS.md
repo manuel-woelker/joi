@@ -106,6 +106,14 @@ Follow this checklist for every unit of work:
 
 When adding a new package, document its standard commands in the package README and wire it into shared checks when appropriate.
 
+## Commits
+
+- Always commit useful units of work after `./n check` passes. Do not leave completed work uncommitted.
+- Make separate commits for different logical changes. Keep each commit coherent and independently reviewable.
+- For minor follow-up changes to the latest commit from the current task, rerun `./n check` and amend that commit instead of creating another commit.
+- Always run `git add` and `git commit` as separate commands.
+- Never push code or ask to push code.
+
 ## Commit Messages
 
 Commit messages should use Conventional Commits format, for example:
@@ -120,17 +128,8 @@ Important:
 
 - Append all user prompts included in the commit to the commit message body under a `User Prompts:` section.
 - Include the agent model identifier used for the commit in a `Model:` section.
-- Always run `git add` and `git commit` as separate commands.
-- Never push code or ask to push code.
-
-Commit each verified, coherent unit of work after `./n check` passes. Keep
-unrelated changes in separate commits. For a minor follow-up to the latest
-commit from the current task, rerun `./n check` and amend that commit rather
-than creating a separate one.
-
-Write multiline commit messages to a temporary file and use
-`git commit -F <message-file>` (or `git commit --amend -F <message-file>`).
-Do not use heredocs or heredoc delimiters to supply commit messages.
+- Write multiline commit messages to a temporary file and use `git commit -F <message-file>` or `git commit --amend -F <message-file>`.
+- Do not use heredocs or heredoc delimiters such as `EOF` to supply commit messages.
 
 ## File Naming and Organization
 
