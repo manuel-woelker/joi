@@ -167,3 +167,12 @@ order and duplicates, although domain contributors may deduplicate them. Range,
 substring and sort operations on lists are rejected. UI lists render through the
 target model's labels and expose membership filters, not text/range operations.
 List controls are currently read-only; wiki attribution is generated on the server.
+
+## How do I inspect the running architecture?
+
+`GET /api/architecture` returns a fresh JSON graph with a top-level
+`components` array. The built-in components describe the server, plugin
+registry, and indexed data store. They report application configuration,
+registry counts, and the number of configured tables. Custom data stores can
+participate through `DataStore::architecture_component` using the
+[`joi-architecture` crate](../joi-architecture/README.md).

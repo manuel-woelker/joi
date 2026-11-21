@@ -10,6 +10,7 @@ use joi_plugin::{Plugin, PluginRegistry, PluginRegistryBuilder, plugin};
 use serde_json::Value as JsonValue;
 
 use crate::{
+    architecture_command::ArchitectureCommand,
     command_registry::{CommandProvider, CommandRegistry, CommandRegistryBuilder},
     command_service::CommandService,
     data_store::{
@@ -101,7 +102,7 @@ async fn run_async(
     initialize_data_store(&plugin_registry, &mut data_store, config.insert_test_data)?;
     let data_store: SharedDataStore = Arc::new(Mutex::new(Box::new(data_store)));
     tracing::info!("Building command registry");
-    let registry = build_command_registry(plugin_registry, data_store)?;
+    let registry = build_command_registry(&config, plugin_registry, data_store)?;
     if let Some(command_name) = parse_command_name(arguments)? {
         tracing::info!(command = %command_name, "Executing command-line command");
         print!("{}", execute_cli_command(&registry, &command_name)?);
@@ -192,10 +193,16 @@ fn create_plugin_registry(config: &mut ServerConfig) -> JoiResult<PluginRegistry
 }
 
 fn build_command_registry(
+    config: &ServerConfig,
     plugin_registry: PluginRegistry,
     data_store: SharedDataStore,
 ) -> JoiResult<CommandRegistry> {
     let mut builder = CommandRegistryBuilder::new();
+    builder.register(ArchitectureCommand::new(
+        config,
+        plugin_registry.clone(),
+        data_store.clone(),
+    ))?;
     builder.register(InfoCommand::new(plugin_registry.clone()))?;
     builder.register(ModelInfoCommand::new(plugin_registry.clone()))?;
     builder.register(PluginsCommand::new(plugin_registry.clone()))?;
@@ -352,7 +359,7 @@ mod tests {
         let mut store = IndexedDataStore::in_memory().unwrap();
         initialize_data_store(&plugins, &mut store, true).unwrap();
         let store: SharedDataStore = Arc::new(Mutex::new(Box::new(store) as Box<dyn DataStore>));
-        build_command_registry(plugins, store).unwrap()
+        build_command_registry(&config, plugins, store).unwrap()
     }
 
     #[test]
@@ -364,6 +371,41 @@ mod tests {
 
         assert_eq!(response["application_name"], "test-application");
         assert_eq!(response["version"], "1.2.3");
+    }
+
+    #[tokio::test]
+    async fn architecture_endpoint_returns_the_live_component_graph() {
+        let response = CommandService::new(test_registry())
+            .into_router()
+            .oneshot(
+                Request::get("/api/architecture")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let graph: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let components = graph["components"].as_array().unwrap();
+        assert_eq!(components.len(), 3);
+        assert_eq!(components[0]["id"], "data-store");
+        assert_eq!(components[0]["metrics"]["tables"], 3);
+        assert_eq!(components[1]["id"], "plugin-registry");
+        assert_eq!(components[1]["metrics"]["plugins"], 1);
+        assert_eq!(components[2]["id"], "server");
+        assert_eq!(
+            components[2]["config"]["application_name"],
+            "test-application"
+        );
+        assert_eq!(
+            components[2]["relationships"],
+            json!([
+                {"kind": "uses", "target_id": "data-store"},
+                {"kind": "uses", "target_id": "plugin-registry"}
+            ])
+        );
     }
 
     #[test]

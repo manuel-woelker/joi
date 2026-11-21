@@ -8,6 +8,7 @@ use crate::mutation_contributor::{
     ConfiguredMutationContributor, ContributionChunk, MutationContext, MutationContributor,
     MutationEntries, MutationKind, MutationPreparation, MutationRow,
 };
+use joi_architecture::{ArchitectureComponent, ArchitectureContext, ArchitectureError};
 use joi_error::{JoiResult, joi_bail, joi_error, report};
 use joi_plugin::PluginRegistry;
 use serde_json::{Map, Value as JsonValue};
@@ -105,7 +106,28 @@ impl IndexedDataStore {
     }
 }
 
+impl ArchitectureComponent for IndexedDataStore {
+    fn describe<'a>(
+        &'a self,
+        context: &mut ArchitectureContext<'_, 'a>,
+    ) -> Result<(), ArchitectureError> {
+        context.component(
+            "data-store",
+            "Indexed data store",
+            "Coordinates entity storage with a derived search index.",
+            |details| {
+                details.metric("tables", self.schemas.len());
+                Ok(())
+            },
+        )
+    }
+}
+
 impl DataStore for IndexedDataStore {
+    fn architecture_component(&self) -> Option<&dyn ArchitectureComponent> {
+        Some(self)
+    }
+
     fn ensure_tables(&mut self, tables: Vec<TableDescription>) -> JoiResult<()> {
         let mut schemas = HashMap::new();
         for table in &tables {

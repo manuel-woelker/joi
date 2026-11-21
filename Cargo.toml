@@ -5,6 +5,7 @@ members = [
     "examples/joix-codevette",
     "examples/joix-tickets",
     "examples/joix-wiki",
+    "libs-rust/joi-architecture",
     "libs-rust/joi-base",
     "libs-rust/joi-error",
     "libs-rust/joi-plugin",

@@ -1615,6 +1615,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "joi-architecture"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "joi-base"
 version = "0.1.0"
 dependencies = [
@@ -1652,6 +1660,7 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "getrandom 0.3.4",
+ "joi-architecture",
  "joi-base",
  "joi-error",
  "joi-plugin",

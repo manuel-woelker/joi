@@ -355,6 +355,11 @@ pub struct DataStoreMutationResult {
 
 /// Executes queries and mutations against a data store.
 pub trait DataStore: Send {
+    /// Returns a component description for stores that participate in architecture reporting.
+    fn architecture_component(&self) -> Option<&dyn joi_architecture::ArchitectureComponent> {
+        None
+    }
+
     /// Ensures that the requested tables and columns exist.
     fn ensure_tables(&mut self, tables: Vec<TableDescription>) -> JoiResult<()>;
 

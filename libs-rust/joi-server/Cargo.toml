@@ -8,6 +8,7 @@ description = "Reusable JOI application server runtime"
 [dependencies]
 axum = "0.8"
 getrandom = "0.3"
+joi-architecture = { path = "../joi-architecture" }
 joi-base = { path = "../joi-base" }
 joi-error = { path = "../joi-error" }
 joi-plugin = { path = "../joi-plugin" }
