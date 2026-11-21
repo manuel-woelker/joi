@@ -15,6 +15,21 @@ export default plugin({
   registerExtensions(context) {
     context.registerExtension({
       point: debugContributions,
+      id: "architecture",
+      description: "Links to the standalone architecture browser",
+      value: {
+        id: "architecture",
+        name: "Architecture",
+        group: "backend",
+        content: () => (
+          <a href={`${import.meta.env.BASE_URL}architecture/index.html`} target="_blank" rel="noopener">
+            Open architecture browser (new tab)
+          </a>
+        ),
+      },
+    });
+    context.registerExtension({
+      point: debugContributions,
       id: "plugins",
       description: "Displays plugins and their extension points",
       value: {

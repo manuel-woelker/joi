@@ -1,0 +1,137 @@
+:root {
+  font-family: system-ui, sans-serif;
+  color: #19263b;
+  background: #edf1f7;
+  --line: #d4ddeb;
+  --muted: #4b5c74;
+  --accent: #214ec1;
+  --mono: ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { width: min(100% - 2rem, 90rem); margin: 2.5rem auto; }
+h1, h2, h3, p { margin: 0; }
+h1 { font-size: clamp(2rem, 5vw, 3rem); letter-spacing: -.045em; }
+h2 { font-size: 1.05rem; }
+h3 { font-size: 1.15rem; overflow-wrap: anywhere; }
+button, input { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: wait; opacity: .7; }
+:focus-visible { outline: 3px solid #496ce5; outline-offset: 3px; }
+
+.page-header, .panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.page-header { margin-bottom: 1.5rem; }
+#status { color: var(--muted); margin-top: .4rem; }
+#status.error { color: #9b282d; }
+
+.refresh {
+  border: 1px solid #16243b;
+  background: #16243b;
+  color: white;
+  padding: .55rem 1rem;
+  border-radius: .5rem;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(17rem, 22rem);
+  align-items: start;
+  gap: 1rem;
+}
+
+.panel {
+  min-width: 0;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: .85rem;
+}
+
+.panel-header {
+  min-height: 4.5rem;
+  padding: .8rem 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.filter { display: flex; align-items: center; gap: .6rem; color: var(--muted); font-size: .9rem; }
+.filter input {
+  width: clamp(8rem, 16vw, 13rem);
+  padding: .35rem .5rem;
+  border: 1px solid #a7b6cc;
+  border-radius: .4rem;
+  color: #19263b;
+}
+
+.viewport {
+  overflow: auto;
+  max-height: 68vh;
+  border-radius: 0 0 .85rem .85rem;
+  background: radial-gradient(#c0cce0 1px, transparent 1px) #f6f8fc;
+  background-size: 18px 18px;
+}
+
+.graph { position: relative; width: max-content; min-width: 100%; min-height: 24rem; }
+#edges { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.nodes { display: flex; align-items: flex-start; gap: 4.5rem; padding: 2.5rem 2rem; position: relative; }
+.column { display: grid; gap: 1.8rem; align-content: start; }
+
+.node {
+  width: 12rem;
+  min-height: 4.75rem;
+  text-align: left;
+  border: 1px solid #a7b6cc;
+  border-radius: .65rem;
+  background: white;
+  color: inherit;
+  padding: .75rem;
+  box-shadow: 0 2px 5px #14254212;
+}
+
+.node:hover, .node[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: #eaf0ff;
+}
+
+.node[aria-pressed="true"] { box-shadow: inset 3px 0 var(--accent); }
+.node.dimmed { opacity: .48; }
+.node-label { display: block; font-weight: 650; overflow-wrap: anywhere; }
+.component-id { display: block; color: var(--muted); font: .85rem var(--mono); overflow-wrap: anywhere; margin-top: .25rem; }
+
+.details { padding: 1rem; }
+.details > p { color: var(--muted); line-height: 1.55; margin-top: .75rem; overflow-wrap: anywhere; }
+.details > p:first-child { margin-top: 0; }
+.details section { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.details h4 { margin: 0 0 .5rem; font-size: .95rem; }
+.details dl, .details ul { margin: 0; padding: 0; list-style: none; }
+.details dl div { display: grid; gap: .2rem; margin: .65rem 0; }
+.details dt { color: var(--muted); overflow-wrap: anywhere; font-size: .9rem; }
+.details dd { margin: 0; font: .9rem/1.45 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.details li { display: flex; gap: .5rem; align-items: baseline; padding: .2rem 0; }
+.relationship-kind { color: var(--muted); font-size: .9rem; overflow-wrap: anywhere; }
+.relationship-target {
+  padding: .15rem 0;
+  border: 0;
+  color: var(--accent);
+  background: none;
+  text-align: left;
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 55rem) {
+  main { margin-top: 1.25rem; }
+  .workspace { grid-template-columns: minmax(0, 1fr); }
+  .viewport { max-height: 45vh; }
+  .graph { min-height: 14rem; }
+}
+
+@media (max-width: 32rem) {
+  .graph-panel .panel-header { flex-wrap: wrap; }
+  .filter input { width: 10rem; }
+}

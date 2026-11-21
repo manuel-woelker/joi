@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Architecture · JOI</title>
+  <link rel="stylesheet" href="./architecture.css">
+  <script type="module" src="./architecture.mjs"></script>
+</head>
+<body>
+  <main>
+    <header class="page-header">
+      <div>
+        <h1>Architecture</h1>
+        <p id="status" role="status">Loading components…</p>
+      </div>
+      <button id="refresh" class="refresh" type="button">Refresh</button>
+    </header>
+    <div class="workspace">
+      <section class="panel graph-panel" aria-labelledby="graph-title">
+        <header class="panel-header">
+          <h2 id="graph-title">Component graph</h2>
+          <label class="filter">Find a component <input id="filter" type="search" disabled></label>
+        </header>
+        <div id="viewport" class="viewport" tabindex="0" aria-label="Scrollable component graph">
+          <div id="graph" class="graph">
+            <canvas id="edges" aria-hidden="true"></canvas>
+            <div id="nodes" class="nodes"></div>
+          </div>
+        </div>
+      </section>
+      <section class="panel inspector" aria-labelledby="inspector-title">
+        <header class="panel-header"><h2 id="inspector-title">Component details</h2></header>
+        <div id="details" class="details"></div>
+      </section>
+    </div>
+    <noscript>This viewer requires JavaScript to load the architecture API.</noscript>
+  </main>
+</body>
+</html>
